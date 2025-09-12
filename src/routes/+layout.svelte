@@ -1,6 +1,6 @@
 <script>
 	import favicon from '$lib/assets/favicon.svg';
-
+	import '../lib/axe.js'
 	let { children } = $props();
 </script>
 
