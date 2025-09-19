@@ -11,7 +11,7 @@
     response = '';
 
     try {
-      const res = await fetch('/api/openai');
+      const res = await fetch('/api/fartebot');
       const data = await res.json();
 
       if (res.ok) {
@@ -26,26 +26,7 @@
     }
   }
 
-  async function testMistral() {
-    loading = true;
-    error = '';
-    response = '';
 
-    try {
-      const res = await fetch('/api/mistral');
-      const data = await res.json();
-
-      if (res.ok) {
-        response = JSON.stringify(data, null, 2);
-      } else {
-        error = data.error || 'Request failed';
-      }
-    } catch (err) {
-      error = err instanceof Error ? err.message : 'Network error';
-    } finally {
-      loading = false;
-    }
-  }
 </script>
 
 <main>
@@ -57,15 +38,6 @@
 
     <button on:click={testOpenAI} disabled={loading}>
       {loading ? 'Testing...' : 'Test OpenAI API'}
-    </button>
-
-  </section>
-
-  <section>
-    <h2>Mistral API Test</h2>
-
-    <button on:click={testMistral} disabled={loading}>
-      {loading ? 'Testing...' : 'Test Mistral API'}
     </button>
 
     {#if error}
