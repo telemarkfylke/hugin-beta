@@ -35,20 +35,16 @@
     }
   }
 
-  // Referanse til ChatKit web-komponent
-  let chatKitControl;
-
   onMount(() => {
     /**
      * Initialiserer ChatKit-widgeten når komponenten er montert
      * Bruker polling (setTimeout) for å vente på at ChatKit-skriptet lastes
      */
     const initChatKit = () => {
-      const chatkit = document.getElementById('my-chat');
+      const chatkit = /** @type {any} */ (document.getElementById('my-chat'));
 
       // Sjekk om ChatKit er lastet og klar
       if (chatkit && chatkit.setOptions) {
-        chatKitControl = chatkit;
         console.log('ChatKit element found, initializing...');
 
         // Konfigurer ChatKit med getClientSecret-funksjon

@@ -1,6 +1,4 @@
 <script>
-    import { json } from "@sveltejs/kit";
-
   let response = '';
   let loading = false;
   let error = '';

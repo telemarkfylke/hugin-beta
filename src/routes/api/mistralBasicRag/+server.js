@@ -1,8 +1,13 @@
 import { env } from "$env/dynamic/private";
 import { Mistral } from '@mistralai/mistralai';
-import { essay } from "$lib/data/rag_essay.js";
+// import { essay } from "$lib/data/rag_essay.js";
 
 
+/**
+ * Get embeddings for a text chunk using Mistral API
+ * @param {string} chunk - Text chunk to embed
+ * @returns {Promise<Object>} Embedding response
+ */
 async function getEmbeddings(chunk) {
   const apiKey = env.MISTRAL_API_KEY;
   const client = new Mistral({apiKey: apiKey});
@@ -16,17 +21,14 @@ async function getEmbeddings(chunk) {
 
 
 /**
- * GET handler for OpenAI responses endpoint
- * Creates a response using OpenAI's responses API with a predefined prompt
- * @param {Object} event - SvelteKit request event object
- * @param {Request} event.request - The incoming HTTP request
- * @returns {Promise<Response>} JSON response containing the OpenAI generated message
- * @throws {Error} When OpenAI API key is not configured or API request fails
- * @example
- * // GET /api/openai
- * // Returns: { "message": "Generated bedtime story response" }
+ * GET handler for Mistral Basic RAG endpoint (Work In Progress)
+ * This endpoint is currently under development for testing RAG with Mistral embeddings
+ * @returns {Promise<Response>} JSON response
  */
-export const GET = async ({ request }) => {
+export const GET = async () => {
+  // Work in progress - RAG implementation
+  // Uncomment and use essay data when ready
+  getEmbeddings; // Reference to avoid unused warning
 
 //   // Get the RAG essay data
 // console.log('RAG Essay:', essay.title );
