@@ -953,9 +953,9 @@ Automatisk validering av UI-komponenter kjøres i utviklingsmodus:
 
 ## Kontakt og Support
 
-**Utviklet av**: TFK/Fuzzbin
+**Utviklet av**: TFK og VFK
 **Prosjekt**: Hugin Beta
-**Versjon**: 0.0.1
+**Versjon**: 0.0.1 bleeding alpha
 
 For spørsmål eller problemer, se `CLAUDE.md` for utviklerretningslinjer.
 
