@@ -27,7 +27,7 @@
 <div>
   {#if isOpen}
     <div class="wrapper">
-      <div style="display:inline-flex">
+      <div style="display:inline-flex" class="topbar">
         <span class="bigemoji">
           <svg
             width="16"
@@ -68,7 +68,7 @@
     </div>
   {:else}
     <button
-      class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-15 h-15 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 pointer-events-auto z-50"
+      class="closedbutton absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-15 h-15 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 pointer-events-auto z-50"
       onclick={openBot}
       aria-label="Expand chat"
       title="Expand chat"
@@ -93,8 +93,17 @@
 </div>
 
 <style>
+  .topbar {
+    background-color: rgb(240, 240, 240);
+    width: 295px;
+    border-radius: 2px;
+    padding: 7px 2px 4px 5px;
+  }
+
   .wrapper {
     vertical-align: bottom;
+    width:300px;
+    height: 700px;
   }
 
   .assistant_header {
@@ -121,5 +130,11 @@
   button.bot_controller {
     border: 0px;
     background-color: transparent;
+  }
+
+  button.closedbutton {
+    border-width: 1px;
+    border-radius: 5px;
+    padding-top: 4px;
   }
 </style>
