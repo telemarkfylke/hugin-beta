@@ -94,16 +94,18 @@
 
 <style>
   .topbar {
-    background-color: rgb(240, 240, 240);
-    width: 295px;
-    border-radius: 2px;
-    padding: 7px 2px 4px 5px;
+    
+    background-color: rgb(255, 255, 255);
+    /*width: 285px; */
+    /*
+    border-radius: 2px; 
+    padding: 7px 2px 4px 5px; */
   }
 
   .wrapper {
     vertical-align: bottom;
-    width:300px;
-    height: 700px;
+     /* width:250px; 
+     height: 700px; */
   }
 
   .assistant_header {
