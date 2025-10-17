@@ -45,7 +45,7 @@
         </span>
 
         <div class="assistant_header">
-          <span class="assistant_header_text"> KI -assistent</span>
+          <span class="assistant_header_text"> KI - assistent</span>
         </div>
         <button
           class="bot_controller close"
@@ -94,22 +94,33 @@
 
 <style>
   .topbar {
-    
-    background-color: rgb(255, 255, 255);
-    /*width: 285px; */
+    border: 1px solid rgb(196, 196, 196);
+    background-color: rgb(253 187 47);
+    border-width: 1px 1px 1px 1px;
     /*
-    border-radius: 2px; 
+    border-width: 1px 1px 0px 1px;
+    border-color: black; */
+    padding-top: 5px;
+    width: 284px; 
+    border-radius: 5px 5px 0px 0px;
+    /*
+        
     padding: 7px 2px 4px 5px; */
   }
 
   .wrapper {
     vertical-align: bottom;
-     /* width:250px; 
-     height: 700px; */
+    width:285px;
+    /*
+      width:300px; 
+      height: 700px;
+      margin: 0px;
+      padding: 0px;
+  */
   }
 
   .assistant_header {
-    width: 240px !important;
+/*width: 240px !important;*/
     vertical-align: top;
   }
 
@@ -136,7 +147,8 @@
 
   button.closedbutton {
     border-width: 1px;
-    border-radius: 5px;
+    border-radius: 10px;
     padding-top: 4px;
+    background-color: rgb(253 187 47) 
   }
 </style>
