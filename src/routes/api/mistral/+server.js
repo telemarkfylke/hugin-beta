@@ -1,26 +1,79 @@
-import { env } from "$env/dynamic/private";
-import { Mistral } from '@mistralai/mistralai';
+import { env } from '$env/dynamic/private'
+import { Mistral } from '@mistralai/mistralai'
+import { error } from '@sveltejs/kit'
+import { writeFileSync } from 'fs'
+
+const mistral = new Mistral({
+  apiKey: env.MISTRAL_API_KEY
+})
+
+const model = 'mistral-small-latest'
+
+const getMistralResponseStream = async (prompt, conversationId, messageId) => {
+  console.log('getMistralResponseStream called with:', { prompt, conversationId, messageId })
+  if (conversationId && messageId) {
+    return await mistral.beta.conversations.restartStream({
+      conversationId,
+      conversationRestartStreamRequest: {
+        inputs: prompt.toString(),
+        fromEntryId: messageId
+      }
+    })
+  }
+  if (conversationId) {
+    console.log('Appending to existing conversation:', conversationId)
+    return await mistral.beta.conversations.appendStream({
+      conversationId,
+      conversationAppendStreamRequest: {
+        inputs: prompt.toString()
+      }
+    })
+  }
+  return await mistral.beta.conversations.startStream({
+    inputs: prompt.toString(),
+    model,
+    instructions: 'Answer in Norwegian'
+  })
+}
 
 /**
- * GET handler for Mistral AI endpoint
- * Creates a response using Mistral AI API with a predefined prompt
- * @returns {Promise<Response>} JSON response containing the Mistral generated message
- * @throws {Error} When Mistral API key is not configured or API request fails
- * @example
- * // GET /api/mistral
- * // Returns: { "message": "Generated response about French cheese" }
+ *
+ * @type {import("@sveltejs/kit").RequestHandler}
  */
-export const GET = async () => {
+export const POST = async ({ request }) => {
+  try {
+    const { prompt, conversationId, messageId } = await request.json()
 
-const apiKey = env.MISTRAL_API_KEY;
-const client = new Mistral({apiKey: apiKey});
+    console.log('Received promt:', prompt)
+    console.log('Conversation ID:', conversationId)
+    console.log('Message ID:', messageId)
 
-const chatResponse = await client.chat.complete({
-  model: 'mistral-large-latest',
-  messages: [{role: 'user', content: 'What is the best French cheese?'}],
-});
+    const stream = await getMistralResponseStream(prompt, conversationId, messageId)
 
-console.log('Chat:', chatResponse.choices[0].message.content);
-return new Response(JSON.stringify({ message: chatResponse.choices[0].message.content }), { status: 200 });
+    const readableStream = new ReadableStream({
+      async start (controller) {
+        for await (const chunk of stream) {
+          switch (chunk.event) {
+            case 'conversation.response.started':
+              controller.enqueue(new TextEncoder().encode(`data: ${JSON.stringify({ conversationId: chunk.data.conversationId })}\n\n`))
+              break
+            case 'message.output.delta':
+              controller.enqueue(new TextEncoder().encode(`data: ${JSON.stringify({ messageId: chunk.data.id, content: chunk.data.content })}\n\n`))
+              break
+          }
+        }
+        controller.close()
+      }
+    })
 
-};
+    return new Response(readableStream, {
+      headers: {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        Connection: 'keep-alive'
+      }
+    })
+  } catch (err) {
+    throw error(500, `Error starting conversation: ${err.message}`)
+  }
+}

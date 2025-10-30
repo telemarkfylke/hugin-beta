@@ -1,82 +1,93 @@
 <script>
-  let response = '';
-  let loading = false;
-  let error = '';
+  import { markdownFormatter } from "$lib/formatting/markdown-formatter.js";
 
-  async function testOpenAI() {
-    loading = true;
-    error = '';
-    response = '';
-
-    try {
-      const res = await fetch('/api/openai');
-      const data = await res.json();
-
-      if (res.ok) {
-        response = JSON.stringify(data, null, 2);
-      } else {
-        error = data.error || 'Request failed';
-      }
-    } catch (err) {
-      error = err instanceof Error ? err.message : 'Network error';
-    } finally {
-      loading = false;
-    }
+  // Page state
+  let prompt = ''
+  const conversation = {
+    id: null, // Conversation ID will be set after the first message
+    messages: {} // Store messages as an object with messageId as keys
   }
 
-  async function testMistral() {
-    loading = true;
-    error = '';
-    response = '';
-
-    try {
-      const res = await fetch('/api/mistral');
-      const data = await res.json();
-
-      if (res.ok) {
-        response = JSON.stringify(data, null, 2);
-      } else {
-        error = data.error || 'Request failed';
+  /**
+   * @description EventSource doesnt support POST requests, so we need to parse the SSE text manually (until some smart person sees this...)
+   * @param {string} text
+   * @returns {Array} Parsed SSE data as an array of objects
+   */
+  const parseSse = (text) => {
+    if (typeof text !== 'string' && !text) throw new Error("No text (string) provided for parsing SSE")
+    const dataLines = text.split('\n\n')
+    const result = []
+    for (const line of dataLines) {
+      if (line.length === 0) continue // Skip empty lines
+      if (!(line.startsWith('data: '))) {
+        throw new Error("Invalid SSE format - must start with 'data: ' and end with '\\n\\n'")
       }
-    } catch (err) {
-      error = err instanceof Error ? err.message : 'Network error';
-    } finally {
-      loading = false;
+      const data = line.slice(6).trim() // Remove 'data: ' prefix
+      try {
+        result.push(JSON.parse(data))
+      } catch (error) {
+        throw new Error("Failed to parse JSON from SSE data: " + error.message)
+      }
+    }
+    return result
+  }
+
+  const askMistral = async (restartFromMessageId) => {
+    const payload = {
+      prompt,
+      conversationId: conversation.id, // Use existing conversation ID if available
+      messageId: restartFromMessageId || undefined // Use provided message ID or undefined
+    }
+    // const response = await fetch("https://azure-func-test.api.vestfoldfylke.no/api/Strim", { method: "POST", body: JSON.stringify({ ...payload }) })
+    const response = await fetch("/api/mistral", { method: "POST", body: JSON.stringify(payload) })
+
+    const reader = response.body.getReader()
+    const decoder = new TextDecoder("utf-8")
+    while (true) {
+      const { value, done } = await reader.read()
+      const chatResponseText = decoder.decode(value, { stream: true })
+      const chatResponse = parseSse(chatResponseText)
+      for (const chatResult of chatResponse) {
+        console.log("Chat result:", chatResult)
+        const { conversationId, messageId, content } = chatResult
+        if (conversationId && conversation.id !== conversationId) { // New conversation
+          conversation.id = conversationId
+          conversation.messages = {} // Reset messages for new conversation
+        }
+        if (messageId) { // New message or append to existing message
+          if (!conversation.messages[messageId]) {
+            conversation.messages[messageId] = { type: 'response', content: '' }
+          }
+          conversation.messages[messageId].content += content // Append content to the message
+        }
+      }
+      if (done) break
     }
   }
 </script>
 
 <main>
-  <h1>Welcome to SvelteKit</h1>
-  <p>Visit <a href="https://svelte.dev/docs/kit">svelte.dev/docs/kit</a> to read the documentation</p>
+  <div>
+  <h1>Mistral da</h1>
 
-  <section>
-    <h2>OpenAI API Test</h2>
-
-    <button on:click={testOpenAI} disabled={loading}>
-      {loading ? 'Testing...' : 'Test OpenAI API'}
-    </button>
-
-  </section>
-
-  <section>
-    <h2>Mistral API Test</h2>
-
-    <button on:click={testMistral} disabled={loading}>
-      {loading ? 'Testing...' : 'Test Mistral API'}
-    </button>
-
-    {#if error}
-      <div style="color: red; margin-top: 10px;">
-        <strong>Error:</strong> {error}
+  <div id="chat">
+    <div class="chat-container">
+      <div class="chat-header">
+        <h2>Mistral Chat</h2>
       </div>
-    {/if}
-
-    {#if response}
-      <div style="margin-top: 10px; padding: 10px; border: 1px solid #ccc; background-color: #f9f9f9;">
-        <strong>Response:</strong>
-        <pre>{response}</pre>
+      <div class="chat-messages">
+        {#each Object.keys(conversation.messages) as messageId}
+          <div class="chat-message">
+            {@html markdownFormatter(conversation.messages[messageId].content)}
+          </div>
+        {/each}
+        <!--{@html mdFormatter(chatResult)}-->
       </div>
-    {/if}
-  </section>
+      <div class="chat-input">
+        <input type="text" placeholder="Type your message..." bind:value={prompt} />
+        <button onclick={() => askMistral()}>Send</button>
+      </div>
+    </div>
+  </div>
+</div>
 </main>
