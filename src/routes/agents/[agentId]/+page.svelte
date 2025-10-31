@@ -1,6 +1,7 @@
 <script>
   import { markdownFormatter } from "$lib/formatting/markdown-formatter.js";
   import { page } from "$app/state";
+  import { parseSse } from "$lib/streaming.js";
 
   // State for current agent chat
   const agentId = page.params.agentId
@@ -10,31 +11,6 @@
   const conversation = {
     id: null, // Conversation ID will be set after the first message
     messages: {} // Store messages as an object with messageId as keys
-  }
-
-  /**
-   * @description EventSource doesnt support POST requests, so we need to parse the SSE text manually (until some smart person sees this...)
-   * @param {string} text
-   * @returns {Array} Parsed SSE data as an array of objects
-   */
-  const parseSse = (text) => {
-    if (typeof text !== 'string' && !text) throw new Error("No text (string) provided for parsing SSE")
-    const dataLines = text.split('\n\n')
-    const result = []
-    for (const line of dataLines) {
-      if (line.length === 0) continue // Skip empty lines
-      if (!(line.startsWith('data: '))) {
-        console.log("Invalid line:", line);
-        throw new Error("Invalid SSE format - must start with 'data: ' and end with '\\n\\n'")
-      }
-      const data = line.slice(6).trim() // Remove 'data: ' prefix
-      try {
-        result.push(JSON.parse(data))
-      } catch (error) {
-        throw new Error("Failed to parse JSON from SSE data: " + error.message)
-      }
-    }
-    return result
   }
 
   const createConversation = async () => {
@@ -64,10 +40,11 @@
       while (true) {
         const { value, done } = await reader.read()
         const chatResponseText = decoder.decode(value, { stream: true })
+        console.log("Chat response text:", chatResponseText)
         const chatResponse = parseSse(chatResponseText)
         for (const chatResult of chatResponse) {
           console.log("Chat result:", chatResult)
-          const { conversationId, messageId, content } = chatResult
+          const { conversationId, messageId, content } = chatResult.data
           if (conversationId && conversation.id !== conversationId) { // New conversation
             conversation.id = conversationId
             conversation.messages = {} // Reset messages for new conversation

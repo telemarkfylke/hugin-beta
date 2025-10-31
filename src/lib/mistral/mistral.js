@@ -1,5 +1,6 @@
 import { env } from "$env/dynamic/private";
 import { Mistral } from "@mistralai/mistralai";
+import { createSse } from "$lib/streaming.js";
 
 const mistral = new Mistral({
   apiKey: env.MISTRAL_API_KEY,
@@ -18,17 +19,17 @@ export const handleMistralStream = (stream, conversationId) => {
   const readableStream = new ReadableStream({
     async start (controller) {
       if (conversationId) {
-        controller.enqueue(textEncoder.encode(`data: ${JSON.stringify({ conversationId })}\n\n`))
+        controller.enqueue(createSse('conversation.started', { conversationId }));
       }
       for await (const chunk of stream) {
         switch (chunk.event) {
           case 'conversation.response.started':
             // @ts-ignore
-            controller.enqueue(textEncoder.encode(`data: ${JSON.stringify({ MistralConversationId: chunk.data.conversationId })}\n\n`))
+            controller.enqueue(createSse('conversation.started', { MistralConversationId: chunk.data.conversationId }));
             break
           case 'message.output.delta':
             // @ts-ignore
-            controller.enqueue(textEncoder.encode(`data: ${JSON.stringify({ messageId: chunk.data.id, content: chunk.data.content })}\n\n`))
+            controller.enqueue(createSse('message.delta', { messageId: chunk.data.id, content: chunk.data.content }));
             break
           // Ta hensyn til flere event typer her etter behov
         }

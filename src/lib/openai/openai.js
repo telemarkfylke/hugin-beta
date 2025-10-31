@@ -1,5 +1,6 @@
 import { env } from "$env/dynamic/private";
 import OpenAI from "openai";
+import { createSse } from "$lib/streaming.js";
 
 const openai = new OpenAI({
   apiKey: env.OPENAI_API_KEY,
@@ -19,15 +20,15 @@ export const handleOpenAIStream = (stream, conversationId) => {
   const readableStream = new ReadableStream({
     async start (controller) {
       if (conversationId) {
-        controller.enqueue(textEncoder.encode(`data: ${JSON.stringify({ conversationId })}\n\n`))
+        controller.enqueue(createSse('conversation.started', { conversationId }));
       }
       for await (const chunk of stream) {
         switch (chunk.type) {
           case 'response.created':
-            controller.enqueue(textEncoder.encode(`data: ${JSON.stringify({ openAIConversationId: chunk.response.conversation?.id })}\n\n`))
+            controller.enqueue(createSse('conversation.started', { openAIConversationId: chunk.response.conversation?.id }));
             break
           case 'response.output_text.delta':
-            controller.enqueue(textEncoder.encode(`data: ${JSON.stringify({ messageId: chunk.item_id, content: chunk.delta })}\n\n`))
+            controller.enqueue(createSse('message.delta', { messageId: chunk.item_id, content: chunk.delta }));
             break
           // Ta hensyn til flere event typer her etter behov
         }
