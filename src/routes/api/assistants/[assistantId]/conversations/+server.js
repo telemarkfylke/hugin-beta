@@ -1,9 +1,9 @@
 import { json } from "@sveltejs/kit"
-import { Mistral } from "@mistralai/mistralai";
-import OpenAI from "openai";
 import { env } from "$env/dynamic/private";
-import { handleMistralStream } from "$lib/mistral/mistral.js";
-import { handleOpenAIStream } from "$lib/openai/openai.js";
+import { handleMistralStream, createMistralConversation, createMistralConversationStream } from "$lib/mistral/mistral.js";
+import { handleOpenAIStream, createOpenAIConversation, createOpenAIConversationStream  } from "$lib/openai/openai.js";
+import { getAssistant } from "$lib/assistants/assistants.js";
+import { insertConversation } from "$lib/assistants/conversations.js";
 
 // OBS OBS Kan hende vi bare skal ha dette endepunktet - og dersom man ikke sender med en conversationId så oppretter vi en ny conversation, hvis ikke fortsetter vi den eksisterende
 
@@ -34,80 +34,83 @@ export const POST = async ({ request, params }) => {
   // Basert på type av assistant (leverandør) så oppretter vi en conversation der
   
   const body = await request.json()
+  const { assistantId } = params
+  if (!assistantId) {
+    return json({ error: 'assistantId is required' }, { status: 400 })
+  }
+  const assistant = await getAssistant(assistantId)
 
   console.log(body)
   const prompt = body.prompt || "Hei, hvordan har du det?"
 
-  const assistant = {
-    _id: 'jijijij',
-    name: 'Assistant One',
-    type: 'openai',
-    vendorAssistant: { 
-      id: 'ag_019a34c5b0ee71188693aeb28e1285fe',
-      version: '1.0'
-    }
-  }
-
   // MISTRAL
   if (assistant.type == 'mistral') {
     console.log('Creating Mistral conversation for assistant:', assistant._id)
-    // Opprett conversation mot Mistral her og returner
-    const mistral = new Mistral({
-      apiKey: env.MISTRAL_API_KEY,
-    });
-  
-    const stream = await mistral.beta.conversations.startStream({
-      agentId: 'ag_019a34c5b0ee71188693aeb28e1285fe', // Gunda
-      inputs: prompt,
+    if (body.stream) {
+      // Opprett conversation mot Mistral her og returner
+      const { stream, mistralConversationId } = await createMistralConversationStream(assistant.config.vendorAssistant.id, prompt);
+
+      const ourConversation = await insertConversation(assistantId, {
+        name: 'New Conversation',
+        description: 'Conversation started via API',
+        relatedConversationId: mistralConversationId
+      });
+
+      const readableStream = handleMistralStream(stream, ourConversation._id);
+
+      return new Response(readableStream, {
+        headers: {
+          'Content-Type': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+          Connection: 'keep-alive'
+        }
+      })
+    }
+    const mistralConversation = await createMistralConversation(assistant.config.vendorAssistant.id, prompt);
+    
+    const ourConversation = await insertConversation(assistantId, {
+      name: 'New Conversation',
+      description: 'Conversation started via API',
+      relatedConversationId: mistralConversation.mistralConversationId
     });
 
-    const readableStream = handleMistralStream(stream);
-
-    return new Response(readableStream, {
-      headers: {
-        'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache',
-        Connection: 'keep-alive'
-      }
-    })
+    return json({ conversation: ourConversation, initialResponse: mistralConversation.response })
   }
   // OPENAI
   if (assistant.type == 'openai') {
     // Opprett conversation mot OpenAI her og returner
     console.log('Creating OpenAI conversation for assistant:', assistant._id)
-    const client = new OpenAI({ apiKey: env.OPENAI_API_KEY });
     
-    const conversation = await client.conversations.create({
-      metadata: { topic: "demo" },
-      items: [
-        { type: "message", role: "user", content: "Hello!" }
-      ],
-    });
+    if (body.stream) {
+      // Create responsestream and return
+      const { stream, openAiConversationId } = await createOpenAIConversationStream(assistant.config.vendorAssistant.id, prompt);
 
-    // Create responsestream and return
-    const stream = await client.responses.create({
-      stream: true,
-      prompt: {
-        id: 'pmpt_68ca8d43f1108197b5c81bd32014f34e04d1daa9ea89d5a0' // Gunda 2 ellerno
-      },
-      conversation: conversation.id,
-      input: [
-        {
-          role: 'user',
-          content: prompt
+      const ourConversation = await insertConversation(assistantId, {
+        name: 'New Conversation',
+        description: 'Conversation started via API',
+        relatedConversationId: openAiConversationId
+      });
+
+      const readableStream = handleOpenAIStream(stream, ourConversation._id);
+
+      return new Response(readableStream, {
+        headers: {
+          'Content-Type': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+          Connection: 'keep-alive'
         }
-      ]
+      })
+    }
+
+    const openAiConversation = await createOpenAIConversation(assistant.config.vendorAssistant.id, prompt);
+
+    const ourConversation = await insertConversation(assistantId, {
+      name: 'New Conversation',
+      description: 'Conversation started via API',
+      relatedConversationId: openAiConversation.openAiConversationId
     });
 
-    const readableStream = handleOpenAIStream(stream);
-
-    return new Response(readableStream, {
-      headers: {
-        'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache',
-        Connection: 'keep-alive'
-      }
-    })
+    return json({ conversation: ourConversation, initialResponse: openAiConversation.response })
   }
 
   return json({ balle: 'frans' })

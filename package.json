@@ -32,6 +32,7 @@
 		"highlight.js": "^11.11.1",
 		"katex": "^0.16.25",
 		"markdown-it": "^14.1.0",
+		"mongodb": "^6.20.0",
 		"openai": "^5.20.2"
 	}
 }

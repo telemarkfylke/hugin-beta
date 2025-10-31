@@ -41,6 +41,12 @@ You can preview the production build with `npm run preview`.
 
 
 ## Tanker
+
+### Ting å tenke på
+- Conversations og relatedConversationId må vi nok enten beskrrive veldig godt, eller navngi så vi faktsik skjønner det.
+  - Jau, jeg ga de de nytt navn nå
+- Hva med å bare bruke id-er fra conversations(som kommer fra mistral/openai) som id for våre conversations?
+
 - Hovedsiden er en basic chat i første omgang mot mistral (kan man bytte modeller på hovedsiden? Tenker ja)
   - Mulighet for filopplasting, spørre om ting
   - Det skal fungerer på mobba
@@ -84,6 +90,47 @@ POST api/assistants/{id}/conversation/{id}/message
 DELETE api/assistants/{id}/conversation/{id}
 
 Kan vi få til et generisk endepunkt som ordner det stream-greiene da? Det håndteres jo ulikt av de ulike leverandørene. ME får sjå
+
+
+
+
+
+# Struktur
+
+I vår mongodb
+
+collection "assistants"
+
+en assistant {
+  _id
+  name: "Tullebotten",
+  type: 'mistral',
+  config: {
+    assistantID: assitantId fra mistral
+  },
+  accessGroups: [
+    dflkdsjflkdsf
+  ]
+}
+
+bruker hente assistent
+
+får da config
+
+bruker påkalle POST assistant/_id/conversations for å starte en ny conversation
+
+får bruker tilbake enten en stream eller et objekt med response og conversationsId
+
+bruker kan så påkalle POST assistant/_id/conversations/conversation_id for å fortsette samtalen. 
+
+
+POST Conversation (tom prompt)
+
+
+POST Conversation/id for en message
+
+
+
 
 
 
