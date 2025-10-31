@@ -27,6 +27,13 @@
     messages: {} // Store messages as an object with messageId as keys
   }
 
+  // Methods for handling conversation
+  const resetConversation = () => {
+    conversation.id = null
+    conversation.messages = {}
+    prompt = ''
+  };
+
   const createConversation = async () => {
     // Reset conversation state
     conversation.id = null;
@@ -84,16 +91,11 @@
 
 </script>
 
-<h1>Agent Details</h1>
-
 <div>
   <h1>{agentId}</h1>
 
   <div id="chat">
     <div class="chat-container">
-      <div class="chat-header">
-        <h2>En header</h2>
-      </div>
       <div class="chat-messages">
         {#each Object.keys(conversation.messages) as messageId}
           <div class="chat-message">
@@ -104,8 +106,8 @@
       </div>
       <div class="chat-input">
         <input type="text" placeholder="Type your message..." bind:value={prompt} />
-        <button onclick={() => {handleNewMessage()}}>Send</button>
-        <button onclick={() => conversation.id = null}>Reset</button>
+        <button onclick={handleNewMessage}>Send</button>
+        <button onclick={resetConversation}>Reset</button>
       </div>
     </div>
   </div>
