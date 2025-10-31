@@ -85,11 +85,10 @@ export const createMistralConversation = async (agentId, initialPrompt) => {
   // Implementer opprettelse av samtale mot Mistral her
   const conversationStarter = await mistral.beta.conversations.start({
     agentId,
-    inputs: 'Hei fra backend'
+    inputs: initialPrompt
   })
 
-  const response = await appendToMistralConversation(conversationStarter.conversationId, initialPrompt);
-  return { mistralConversationId: conversationStarter.conversationId, response };
+  return { mistralConversationId: conversationStarter.conversationId, response: conversationStarter };
 }
 
 /**
