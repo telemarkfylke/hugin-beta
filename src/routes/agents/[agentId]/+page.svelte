@@ -33,7 +33,7 @@
     conversation.messages = {};
     return await fetch(`/api/agents/${agentId}/conversations`, {
       method: "POST",
-      body: JSON.stringify({ prompt: 'halla', stream: true })
+      body: JSON.stringify({ prompt, stream: true })
     });
   };
 

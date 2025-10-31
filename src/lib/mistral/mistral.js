@@ -1,6 +1,7 @@
 import { env } from "$env/dynamic/private";
 import { Mistral } from "@mistralai/mistralai";
 import { createSse } from "$lib/streaming.js";
+import { EventStream } from "@mistralai/mistralai/lib/event-streams.js";
 
 const mistral = new Mistral({
   apiKey: env.MISTRAL_API_KEY,
@@ -82,7 +83,6 @@ export const appendToMistralConversationStream = async (conversationId, prompt) 
  */
 export const createMistralConversation = async (agentId, initialPrompt) => {
   // Implementer opprettelse av samtale mot Mistral her
-  // Implementer opprettelse av samtale mot Mistral her
   const conversationStarter = await mistral.beta.conversations.start({
     agentId,
     inputs: initialPrompt
@@ -98,12 +98,24 @@ export const createMistralConversation = async (agentId, initialPrompt) => {
  */
 export const createMistralConversationStream = async (agentId, initialPrompt) => {
   // Implementer opprettelse av samtale mot Mistral her
-  const conversationStarter = await mistral.beta.conversations.start({
+  const conversationStarter = await mistral.beta.conversations.startStream({
     agentId,
-    inputs: 'Hei fra backend' // OBS her må vi gjøre noe altså, kallet tar lenger tid, og vi legger til en melding som brukeren ikke trenger...
+    inputs: initialPrompt
   })
 
-  const stream = await appendToMistralConversationStream(conversationStarter.conversationId, initialPrompt);
-  return { mistralConversationId: conversationStarter.conversationId, stream };
+  const [conversationStarterStream, actualStream] = conversationStarter.tee(); // Haha, lets create a tee so we can read it multiple time (creates two duplicate readable streams)
+  
+  // Then we extract the conversationId from the first stream, and pass the actualStream back (if it works...)
+  const reader = conversationStarterStream.getReader()
+  while (true) {
+    const { value } = await reader.read()
+    if (value?.event === 'conversation.response.started') {
+      reader.cancel() // Vi trenger ikke lese mer her, vi har det vi trenger
+      // @ts-ignore (den er der...)
+      return { mistralConversationId: value.data.conversationId, stream: actualStream }
+    }
+    throw new Error("Did not receive conversation started event from mistral, the dirty hack failed");
+  }
 }
+
 
