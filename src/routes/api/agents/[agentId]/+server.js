@@ -6,12 +6,12 @@ import { json } from "@sveltejs/kit"
  */
 export const GET = async ({ request }) => {
   // Da spør vi DB om å hente assistenter som påkaller har tilgang på
-  const assistant = {
-    _id: 'assistant1',
-    name: 'Assistant One',
-    description: 'This is the first assistant.',
+  const agent = {
+    _id: 'agent1',
+    name: 'agent One',
+    description: 'This is the first agent.',
     type: 'mistral',
-      assistantId: 'assistant1-id'
+      agentId: 'agent1-id'
     }
-  return json({ assistants })
+  return json({ agents })
 }

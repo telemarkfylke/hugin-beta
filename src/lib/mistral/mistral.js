@@ -24,7 +24,7 @@ export const handleMistralStream = (stream, conversationId) => {
         switch (chunk.event) {
           case 'conversation.response.started':
             // @ts-ignore
-            controller.enqueue(textEncoder.encode(`data: ${JSON.stringify({ conversationId })}\n\n`))
+            controller.enqueue(textEncoder.encode(`data: ${JSON.stringify({ MistralConversationId: chunk.data.conversationId })}\n\n`))
             break
           case 'message.output.delta':
             // @ts-ignore

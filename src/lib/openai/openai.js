@@ -24,7 +24,7 @@ export const handleOpenAIStream = (stream, conversationId) => {
       for await (const chunk of stream) {
         switch (chunk.type) {
           case 'response.created':
-            controller.enqueue(textEncoder.encode(`data: ${JSON.stringify({ conversationId: chunk.response.conversation?.id })}\n\n`))
+            controller.enqueue(textEncoder.encode(`data: ${JSON.stringify({ openAIConversationId: chunk.response.conversation?.id })}\n\n`))
             break
           case 'response.output_text.delta':
             controller.enqueue(textEncoder.encode(`data: ${JSON.stringify({ messageId: chunk.item_id, content: chunk.delta })}\n\n`))

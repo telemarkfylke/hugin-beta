@@ -6,7 +6,7 @@ const mockC = [
   {
     _id: 'conversation1',
     name: 'Conversation One',
-    assistantId: 'assistant1',
+    agentId: 'agent1',
     description: 'This is the first conversation.',
     relatedConversationId: 'conversation1-id'
   }
@@ -30,15 +30,15 @@ export const getConversation = async (conversationId) => {
 
 /**
  * 
- * @param {string} assistantId
+ * @param {string} agentId
  * @param {*} conversation 
  * @returns {notImplemented}
  */
-export const insertConversation = async (assistantId, conversation) => {
+export const insertConversation = async (agentId, conversation) => {
   if (env.MOCK_DB === 'true') {
     const coversationToInsert = {
       _id: new ObjectId().toString(),
-      assistantId,
+      agentId,
       ...conversation
     }
     mockConversations.push(coversationToInsert);

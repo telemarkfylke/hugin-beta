@@ -1,0 +1,20 @@
+import { env } from "$env/dynamic/private";
+import { mockAgents } from "$lib/db/mockdb.js";
+
+/**
+ * 
+ * @param {string} agentId 
+ * @returns {notImplemented}
+ */
+export const getAgent = async (agentId) => {
+  if (env.MOCK_DB === 'true') {
+    const foundAgent = mockAgents.find(agent => agent._id === agentId);
+    if (!foundAgent) {
+      throw new Error('Agent not found');
+    }
+    return foundAgent;
+  }
+  throw new Error('Not implemented - please set MOCK_DB to true in env');
+  // Implement real DB fetch here
+}
+

@@ -42,6 +42,27 @@ You can preview the production build with `npm run preview`.
 
 ## Tanker
 
+### Frontend
+Hva er diggest?
+
+Hva om
+vi har bare masse assistenter
+
+vi tar å lager en rute per assistent
+mugin.no/assistent/{id}
+
+Hvis vi vil at det skal hoppe kan vi også ha
+mugin.no/assisten/{id}/{conversationsid} eller mugin.no/assis/{id}/conversations/{id} DA HOPPER DET NOK, og er litt stress å styre med tror jeg
+
+Hva med bare
+mugin.no/assistant/{id} - thats it
+også har man da state på den eine sida man er på med conversationId (så kan man bare swappe den som man trenger, og trenger ikke laste inn assistentsiden på nytt)
+Når man bytter assistent, så må man laste side på nytt, men da trenger man jo også å hente tilsaverende conversations uansett.
+OBS OBS, da må vi cleare chat vindu og styre og ornde, når man bytter conversationId
+
+Eller hente AAAALT på root-load, og håndtere alt selv, men NEI TAKK.
+
+
 ### Ting å tenke på
 - Conversations og relatedConversationId må vi nok enten beskrrive veldig godt, eller navngi så vi faktsik skjønner det.
   - Jau, jeg ga de de nytt navn nå
