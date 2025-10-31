@@ -39,6 +39,13 @@ export const handleOpenAIStream = (stream, conversationId) => {
   return readableStream;
 }
 
+/**
+ * 
+ * @param {string} promptId 
+ * @param {string} conversationId 
+ * @param {string} prompt 
+ * @returns {Promise<import("openai/resources/responses/responses.mjs").Response>}
+ */
 export const appendToOpenAIConversation = async (promptId, conversationId, prompt) => {
   // Create response and return
   const response = await openai.responses.create({
@@ -57,6 +64,13 @@ export const appendToOpenAIConversation = async (promptId, conversationId, promp
   return response;
 }
 
+/**
+ * 
+ * @param {string} promptId 
+ * @param {string} conversationId 
+ * @param {string} prompt 
+ * @returns {Promise<import("openai/streaming").Stream<OpenAiResponseStreamEvent>>}
+ */
 export const appendToOpenAIConversationStream = async (promptId, conversationId, prompt) => {
   // Create response and return
   const stream = await openai.responses.create({
@@ -77,14 +91,12 @@ export const appendToOpenAIConversationStream = async (promptId, conversationId,
 
 /**
  * @param {string} promptId
- * @param {string} prompt 
+ * @param {string} prompt
+ * @returns {Promise<{openAiConversationId: string, response: import("openai/resources/responses/responses.mjs").Response}>}
  */
 export const createOpenAIConversation = async (promptId, prompt) => {
   const conversation = await openai.conversations.create({
-    metadata: { topic: "demo" },
-    items: [
-      { type: "message", role: "user", content: "Hello!" }
-    ],
+    metadata: { topic: "demo" }
   });
 
   const response = await appendToOpenAIConversation(promptId, conversation.id, prompt);
@@ -93,14 +105,12 @@ export const createOpenAIConversation = async (promptId, prompt) => {
 
 /**
  * @param {string} promptId
- * @param {string} prompt 
+ * @param {string} prompt
+ * @returns {Promise<{openAiConversationId: string, stream: OpenAiStream}>}
  */
 export const createOpenAIConversationStream = async (promptId, prompt) => {
   const conversation = await openai.conversations.create({
-    metadata: { topic: "demo" },
-    items: [
-      { type: "message", role: "user", content: "Hello!" }
-    ],
+    metadata: { topic: "demo" }
   });
 
   // Create response and return

@@ -2,12 +2,26 @@
   import { markdownFormatter } from "$lib/formatting/markdown-formatter.js";
   import { page } from "$app/state";
   import { parseSse } from "$lib/streaming.js";
+  import { z } from "zod";
+  
+  // Internal types
+  /** @typedef {z.infer<typeof FrontendConversationMessage>} */
+  const FrontendConversationMessage = z.object({
+    type: z.enum(['user', 'response']),
+    content: z.string()
+  });
+
+  /** @typedef {z.infer<typeof FrontendConversation>} */
+  const FrontendConversation = z.object({
+    id: z.string().nullable(),
+    messages: z.record(FrontendConversationMessage)
+  });
 
   // State for current agent chat
   const agentId = page.params.agentId
-  let conversationId = null;
   let prompt = ''
 
+  /** @type {FrontendConversation} */
   const conversation = {
     id: null, // Conversation ID will be set after the first message
     messages: {} // Store messages as an object with messageId as keys
@@ -32,9 +46,13 @@
 
   const handleNewMessage = async () => {
     try {
-      const response = conversation.id
-        ? await appendMessageToConversation()
-        : await createConversation();
+      const response = conversation.id ? await appendMessageToConversation() : await createConversation();
+      if (!response || !response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      if (!response.body) {
+        throw new Error("Response body is null");
+      }
       const reader = response.body.getReader()
       const decoder = new TextDecoder("utf-8")
       while (true) {

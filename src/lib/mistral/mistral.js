@@ -101,7 +101,7 @@ export const createMistralConversationStream = async (agentId, initialPrompt) =>
   // Implementer opprettelse av samtale mot Mistral her
   const conversationStarter = await mistral.beta.conversations.start({
     agentId,
-    inputs: 'Hei fra backend'
+    inputs: 'Hei fra backend' // OBS her må vi gjøre noe altså, kallet tar lenger tid, og vi legger til en melding som brukeren ikke trenger...
   })
 
   const stream = await appendToMistralConversationStream(conversationStarter.conversationId, initialPrompt);
