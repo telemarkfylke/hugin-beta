@@ -34,16 +34,5 @@ export const Agent = z.object({
   config: AgentConfig,
 });
 
-/** @type {Agent} */
-const testMistralAgent = {
-  _id: "agent-123",
-  name: "Test Mistral Agent",
-  description: "An agent using Mistral configuration",
-  config: {
-    type: "openai-prompt",
-    prompt: {
-      id: "pmpt_1234567890abcdef",
-      version: "1.0"
-    }
-  }
-};
+/** @typedef {z.infer<typeof Agents>} Agents */
+export const Agents = z.array(Agent)

@@ -1,11 +1,11 @@
 // simply in-memory mock database corresponding to collections in mongodb
 
-/** @type {Array<import("$lib/types/agents.js").Agent>} */
+/** @type {import("$lib/types/agents.js").Agents} */
 export const mockAgents = [
   {
     _id: 'mistral',
-    name: 'Agent One',
-    description: 'This is the first Agent.',
+    name: 'Mistral demo agent',
+    description: 'Mistral agent based on an agent in mistral - connected to a mistral agent id',
     config: {
       type: 'mistral-agent',
       agentId: 'ag_019a34612b1874b087648e86ea134926'
@@ -13,8 +13,8 @@ export const mockAgents = [
   },
   {
     _id: 'openai',
-    name: 'Agent Two',
-    description: 'This is the second Agent.',
+    name: 'Open AI prompt agent',
+    description: 'An agent that uses an OpenAI prompt-id as its configuration (saved prompt in OpenAI)',
     config: {
       type: 'openai-prompt',
       prompt: {
