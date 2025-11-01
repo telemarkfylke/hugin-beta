@@ -1,7 +1,4 @@
 import { json } from "@sveltejs/kit"
-import { Mistral } from "@mistralai/mistralai";
-import OpenAI from "openai";
-import { env } from "$env/dynamic/private";
 import { handleMistralStream, appendToMistralConversation, appendToMistralConversationStream } from "$lib/mistral/mistral.js";
 import { handleOpenAIStream, appendToOpenAIConversation, appendToOpenAIConversationStream } from "$lib/openai/openai.js";
 import { getAgent } from "$lib/agents/agents.js";
@@ -49,13 +46,9 @@ export const POST = async ({ request, params }) => {
   const conversation = await getConversation(conversationId)
 
   // MISTRAL
-  if (agent.type == 'mistral') {
+  if (agent.config.type == 'mistral-agent') {
     // Må sjekke at conversations finnes forsatt og...
     console.log('Appending Mistral conversation for agent:', agent._id)
-    // Opprett conversation mot Mistral her og returner Flytt ut til mistral en gang
-    const mistral = new Mistral({
-      apiKey: env.MISTRAL_API_KEY,
-    });
 
     if (body.stream) {
       const stream = await appendToMistralConversationStream(conversation.relatedConversationId, prompt);
@@ -75,11 +68,11 @@ export const POST = async ({ request, params }) => {
     return json({ response })
   }
   // OPENAI
-  if (agent.type == 'openai') {
+  if (agent.config.type == 'openai-prompt') {
     // Opprett conversation mot OpenAI her og returner
     console.log('Appending OpenAI conversation for agent:', agent._id)
     if (body.stream) {
-      const stream = await appendToOpenAIConversationStream(agent.config.vendorAgent.id, conversation.relatedConversationId, prompt);
+      const stream = await appendToOpenAIConversationStream(agent.config.prompt.id, conversation.relatedConversationId, prompt);
 
       const readableStream = handleOpenAIStream(stream);
 
@@ -92,9 +85,9 @@ export const POST = async ({ request, params }) => {
       })
     }
 
-    const response = await appendToOpenAIConversation(agent.config.vendorAgent.id, conversation.relatedConversationId, prompt);
+    const response = await appendToOpenAIConversation(agent.config.prompt.id, conversation.relatedConversationId, prompt);
 
     return json(response)
   }
-  return json({ balle: 'frans' })
+  throw new Error(`Unsupported agent config type: ${agent.config}`);
 }

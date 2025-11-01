@@ -1,5 +1,12 @@
 import { env } from "$env/dynamic/private";
-import { mockAgents } from "$lib/db/mockdb.js";
+
+let mockDbData = null
+
+if (env.MOCK_DB === 'true') {
+  const { getMockDb } = await import('$lib/db/mockdb.js');
+  mockDbData = await getMockDb();
+  console.log(mockDbData)
+}
 
 /**
  * 
@@ -7,8 +14,8 @@ import { mockAgents } from "$lib/db/mockdb.js";
  * @returns {Promise<import("$lib/types/agents.js").Agent>}
  */
 export const getAgent = async (agentId) => {
-  if (env.MOCK_DB === 'true') {
-    const foundAgent = mockAgents.find(agent => agent._id === agentId);
+  if (mockDbData) {
+    const foundAgent = mockDbData.agents.find(agent => agent._id === agentId);
     if (!foundAgent) {
       throw new Error('Agent not found');
     }
@@ -23,8 +30,9 @@ export const getAgent = async (agentId) => {
  * @returns {Promise<import("$lib/types/agents.js").Agent[]>}
  */
 export const getAgents = async () => {
-  if (env.MOCK_DB === 'true') {
-    return mockAgents;
+  if (mockDbData) {
+    console.log('Returning agents from mockDbData', mockDbData.agents);
+    return mockDbData.agents;
   }
   throw new Error('Not implemented - please set MOCK_DB to true in env');
   // Implement real DB fetch here

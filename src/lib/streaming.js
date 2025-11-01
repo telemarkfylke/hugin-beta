@@ -27,6 +27,7 @@ export const createSse = (event, data) => {
  */
 export const parseSse = (chunk) => {
   if (typeof chunk !== 'string' && !chunk) throw new Error("No chunk (string) provided for parsing SSE")
+  console.log("Parsing SSE chunk:", chunk)
   if (chunk.length === 0) return [] // Return empty array for empty chunk
   if (!chunk.endsWith('\n\n')) {
     throw new Error("Invalid SSE format - chunk must end with two newlines")

@@ -107,6 +107,5 @@ export const POST = async ({ request, params }) => {
 
     return json({ conversation: ourConversation, initialResponse: openAiConversation.response })
   }
-
-  return json({ balle: 'frans' })
+  throw new Error(`Unsupported agent config type: ${agent.config}`);
 }

@@ -14,6 +14,9 @@
   <h1>MI6 Agents</h1>
   {#await getAgents() then agents}
     <div>
+      {#if agents.length === 0}
+        <p>No agents found. Go play with yourself (or create a new agent)</p>
+      {/if}
       {#each agents as agent}
         <div>
           <h2>{agent.name}</h2>
@@ -24,6 +27,6 @@
       {/each}
     </div>
   {:catch error}
-    <p style="color: red;">Error: {error.message}</p>
+    <p style="color: red;">Error: {error.stack || error.message}</p>
   {/await}
 </main>

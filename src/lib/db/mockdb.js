@@ -1,28 +1,17 @@
-// simply in-memory mock database corresponding to collections in mongodb
-
-/** @type {import("$lib/types/agents.js").Agents} */
-export const mockAgents = [
-  {
-    _id: 'mistral',
-    name: 'Mistral demo agent',
-    description: 'Mistral agent based on an agent in mistral - connected to a mistral agent id',
-    config: {
-      type: 'mistral-agent',
-      agentId: 'ag_019a34612b1874b087648e86ea134926'
-    }
-  },
-  {
-    _id: 'openai',
-    name: 'Open AI prompt agent',
-    description: 'An agent that uses an OpenAI prompt-id as its configuration (saved prompt in OpenAI)',
-    config: {
-      type: 'openai-prompt',
-      prompt: {
-        id: 'pmpt_68ca8d43f1108197b5c81bd32014f34e04d1daa9ea89d5a0'
-      }
-    }
+/**
+ * 
+ * @returns {Promise<{ agents: import("../types/agents.js").Agents, conversations: {notImplemented}}>}
+ */
+export const getMockDb = async () => {
+  // Try to get mock-db file, else return empty collections
+  try {
+    // @ts-ignore
+    const { mockAgents: agents, mockConversations: conversations } = await import('./mockdb-data.js');
+    console.log('./db/mockdb-data.js exists, loaded mockdb, returning mock collections');
+    return { agents, conversations };
+  } catch (e) {
+    console.warn('./db/mockdb-data.js does not exist or is badly formed, returning empty collections');
+    return { agents: [], conversations: []
+    };
   }
-]
-
-// TODO: add types for conversations
-export const mockConversations = []
+}

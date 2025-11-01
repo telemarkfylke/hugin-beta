@@ -1,16 +1,13 @@
 import { env } from "$env/dynamic/private";
-import { mockConversations } from "$lib/db/mockdb.js";
 import { ObjectId } from "mongodb";
 
-const mockC = [
-  {
-    _id: 'conversation1',
-    name: 'Conversation One',
-    agentId: 'agent1',
-    description: 'This is the first conversation.',
-    relatedConversationId: 'conversation1-id'
-  }
-]
+let mockDbData = null
+
+if (env.MOCK_DB === 'true') {
+  const { getMockDb } = await import('$lib/db/mockdb.js');
+  mockDbData = await getMockDb();
+  console.log(mockDbData)
+}
 
 /**
  * 
@@ -18,8 +15,8 @@ const mockC = [
  * @returns {notImplemented}
  */
 export const getConversation = async (conversationId) => {
-  if (env.MOCK_DB === 'true') {
-    const foundConversation = mockConversations.find(conversation => conversation._id === conversationId);
+  if (mockDbData) {
+    const foundConversation = mockDbData.conversations.find(conversation => conversation._id === conversationId);
     if (!foundConversation) {
       throw new Error('Conversation not found');
     }
@@ -35,13 +32,13 @@ export const getConversation = async (conversationId) => {
  * @returns {notImplemented}
  */
 export const insertConversation = async (agentId, conversation) => {
-  if (env.MOCK_DB === 'true') {
+  if (mockDbData) {
     const coversationToInsert = {
       _id: new ObjectId().toString(),
       agentId,
       ...conversation
     }
-    mockConversations.push(coversationToInsert);
+    mockDbData.conversations.push(coversationToInsert);
     return coversationToInsert;
   }
   // Implement real DB insert here
