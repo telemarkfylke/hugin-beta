@@ -7,7 +7,7 @@
   // Internal types
   /** @typedef {z.infer<typeof FrontendConversationMessage>} */
   const FrontendConversationMessage = z.object({
-    type: z.enum(['user', 'response']),
+    type: z.enum(['user', 'agent']),
     content: z.string()
   });
 
@@ -34,26 +34,56 @@
     prompt = ''
   };
 
-  const createConversation = async () => {
-    // Reset conversation state
-    conversation.id = null;
-    conversation.messages = {};
+  /**
+   * Create a new conversation
+   * @param {string} userPrompt
+   * @return {Promise<Response>}
+   */
+  const createConversation = async (userPrompt) => {
     return await fetch(`/api/agents/${agentId}/conversations`, {
       method: "POST",
-      body: JSON.stringify({ prompt, stream: true })
+      body: JSON.stringify({ prompt: userPrompt, stream: true })
     });
   };
 
-  const appendMessageToConversation = async () => {
+  /**
+   * Append message to existing conversation
+   * @param {string} userPrompt
+   * @return {Promise<Response>}
+   */
+  const appendMessageToConversation = async (userPrompt) => {
     return await fetch(`/api/agents/${agentId}/conversations/${conversation.id}`, {
       method: "POST",
-      body: JSON.stringify({ prompt, stream: true })
+      body: JSON.stringify({ prompt: userPrompt, stream: true })
     });
   };
 
-  const handleNewMessage = async () => {
+  /**
+   * Add user message to conversation
+   * @param {string} userPrompt
+   * @return {string} userPrompt
+   */
+  const addUserMessageToConversation = (userPrompt) => {
+    const messageId = `user-${Date.now()}`; // Simple unique ID based on timestamp
+    conversation.messages[messageId] = {
+      type: 'user',
+      content: userPrompt
+    };
+    prompt = ''; // Clear input prompt in local state (hmm, might be better to do this outside function to keep function pure?)
+    return userPrompt
+  };
+
+  /**
+   * Handle new message event
+   * @param {Event} event
+   */
+  const handleNewMessage = async (event) => {
+    event.preventDefault(); // We use form for "correct" html (accessibility, enter key support, etc), but prevent default submission behavior, since we just handle it with js internally.
+    // Fetch response and add agent message to conversation
+    const userPrompt = addUserMessageToConversation(prompt); // Keep it as const to avoid mutation issues in async flow
+    
     try {
-      const response = conversation.id ? await appendMessageToConversation() : await createConversation();
+      const response = conversation.id ? await appendMessageToConversation(userPrompt) : await createConversation(userPrompt);
       if (!response || !response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
@@ -72,11 +102,10 @@
           const { conversationId, messageId, content } = chatResult.data
           if (conversationId && conversation.id !== conversationId) { // New conversation
             conversation.id = conversationId
-            conversation.messages = {} // Reset messages for new conversation
           }
           if (messageId) { // New message or append to existing message
             if (!conversation.messages[messageId]) {
-              conversation.messages[messageId] = { type: 'response', content: '' }
+              conversation.messages[messageId] = { type: 'agent', content: '' }
             }
             conversation.messages[messageId].content += content // Append content to the message
           }
@@ -98,6 +127,7 @@
     <div class="chat-container">
       <div class="chat-messages">
         {#each Object.keys(conversation.messages) as messageId}
+          {console.log('Rendering message:', conversation.messages[messageId])}
           <div class="chat-message">
             {@html markdownFormatter(conversation.messages[messageId].content)}
           </div>
@@ -105,8 +135,10 @@
         <!--{@html mdFormatter(chatResult)}-->
       </div>
       <div class="chat-input">
-        <input type="text" placeholder="Type your message..." bind:value={prompt} />
-        <button onclick={handleNewMessage}>Send</button>
+        <form onsubmit={handleNewMessage}>
+          <input type="text" placeholder="Type your message..." bind:value={prompt} />
+          <button type="submit">Send</button>
+        </form>
         <button onclick={resetConversation}>Reset</button>
       </div>
     </div>

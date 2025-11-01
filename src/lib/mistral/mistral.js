@@ -95,6 +95,7 @@ export const createMistralConversation = async (agentId, initialPrompt) => {
  *
  * @param {string} agentId
  * @param {string} initialPrompt
+ * @returns {Promise<{mistralConversationId: string, stream: MistralEventStream}>}
  */
 export const createMistralConversationStream = async (agentId, initialPrompt) => {
   // Implementer opprettelse av samtale mot Mistral her
@@ -103,19 +104,24 @@ export const createMistralConversationStream = async (agentId, initialPrompt) =>
     inputs: initialPrompt
   })
 
+  // REMARK: Dirty hack to extract conversationId from stream - hopefully Mistral wont change this behaviour in a long long time...
+
   const [conversationStarterStream, actualStream] = conversationStarter.tee(); // Haha, lets create a tee so we can read it multiple time (creates two duplicate readable streams)
   
   // Then we extract the conversationId from the first stream, and pass the actualStream back (if it works...)
   const reader = conversationStarterStream.getReader()
   while (true) {
-    const { value } = await reader.read()
+    const { value, done } = await reader.read()
     if (value?.event === 'conversation.response.started') {
       reader.cancel() // Vi trenger ikke lese mer her, vi har det vi trenger
       // @ts-ignore (den er der...)
       return { mistralConversationId: value.data.conversationId, stream: actualStream }
     }
-    throw new Error("Did not receive conversation started event from mistral, the dirty hack failed");
+    if (done) {
+      break; // Oh no, vi fant ikke conversation response started event, har ikke noe å gå for... throw error under her
+    }
   }
+  throw new Error("Did not receive conversation started event from mistral, the dirty hack failed");
 }
 
 

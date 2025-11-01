@@ -1,11 +1,10 @@
 import { json } from "@sveltejs/kit"
-import { env } from "$env/dynamic/private";
 import { handleMistralStream, createMistralConversation, createMistralConversationStream } from "$lib/mistral/mistral.js";
 import { handleOpenAIStream, createOpenAIConversation, createOpenAIConversationStream  } from "$lib/openai/openai.js";
 import { getAgent } from "$lib/agents/agents.js";
 import { insertConversation } from "$lib/agents/conversations.js";
 
-// OBS OBS Kan hende vi bare skal ha dette endepunktet - og dersom man ikke sender med en conversationId så oppretter vi en ny conversation, hvis ikke fortsetter vi den eksisterende
+// OBS OBS Kan hende vi bare skal ha dette endepunktet - og dersom man ikke sender med en conversationId så oppretter vi en ny conversation, hvis ikke fortsetter vi den eksisterende (ja, kan fortsatt kanskje hende det)
 
 /**
  *
@@ -39,12 +38,12 @@ export const POST = async ({ request, params }) => {
   console.log(body)
   const prompt = body.prompt || "Hei, hvordan har du det?"
 
-  // MISTRAL
-  if (agent.type == 'mistral') {
+  // MISTRAL AGENT
+  if (agent.config.type == 'mistral-agent') {
     console.log('Creating Mistral conversation for agent:', agent._id)
     if (body.stream) {
       // Opprett conversation mot Mistral her og returner
-      const { stream, mistralConversationId } = await createMistralConversationStream(agent.config.vendorAgent.id, prompt);
+      const { stream, mistralConversationId } = await createMistralConversationStream(agent.config.agentId, prompt);
 
       const ourConversation = await insertConversation(agentId, {
         name: 'New Conversation',
@@ -62,7 +61,7 @@ export const POST = async ({ request, params }) => {
         }
       })
     }
-    const mistralConversation = await createMistralConversation(agent.config.vendorAgent.id, prompt);
+    const mistralConversation = await createMistralConversation(agent.config.agentId, prompt);
     
     const ourConversation = await insertConversation(agentId, {
       name: 'New Conversation',
@@ -73,13 +72,13 @@ export const POST = async ({ request, params }) => {
     return json({ conversation: ourConversation, initialResponse: mistralConversation.response })
   }
   // OPENAI
-  if (agent.type == 'openai') {
+  if (agent.config.type == 'openai-prompt') {
     // Opprett conversation mot OpenAI her og returner
     console.log('Creating OpenAI conversation for agent:', agent._id)
     
     if (body.stream) {
       // Create responsestream and return
-      const { stream, openAiConversationId } = await createOpenAIConversationStream(agent.config.vendorAgent.id, prompt);
+      const { stream, openAiConversationId } = await createOpenAIConversationStream(agent.config.prompt.id, prompt);
 
       const ourConversation = await insertConversation(agentId, {
         name: 'New Conversation',
@@ -98,7 +97,7 @@ export const POST = async ({ request, params }) => {
       })
     }
 
-    const openAiConversation = await createOpenAIConversation(agent.config.vendorAgent.id, prompt);
+    const openAiConversation = await createOpenAIConversation(agent.config.prompt.id, prompt);
 
     const ourConversation = await insertConversation(agentId, {
       name: 'New Conversation',
