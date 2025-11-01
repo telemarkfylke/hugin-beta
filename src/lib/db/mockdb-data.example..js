@@ -13,7 +13,7 @@ export const mockAgents = [
   },
   {
     _id: 'openai',
-    name: 'Open AI prompt agent',
+    name: 'Open AI prompt demo agent',
     description: 'An agent that uses an OpenAI prompt-id as its configuration (saved prompt in OpenAI)',
     config: {
       type: 'openai-prompt',
