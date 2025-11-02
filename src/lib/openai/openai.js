@@ -16,7 +16,6 @@ const openai = new OpenAI({
  * @returns {ReadableStream}
  */
 export const handleOpenAIStream = (stream, conversationId) => {
-  const textEncoder = new TextEncoder();
   const readableStream = new ReadableStream({
     async start (controller) {
       if (conversationId) {

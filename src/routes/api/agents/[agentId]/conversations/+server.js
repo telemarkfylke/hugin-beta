@@ -3,6 +3,7 @@ import { handleMistralStream, createMistralConversation, createMistralConversati
 import { handleOpenAIStream, createOpenAIConversation, createOpenAIConversationStream  } from "$lib/openai/openai.js";
 import { getAgent } from "$lib/agents/agents.js";
 import { insertConversation } from "$lib/agents/conversations.js";
+import { handleMockAiStream } from "$lib/mock-ai/mock-ai.js";
 
 // OBS OBS Kan hende vi bare skal ha dette endepunktet - og dersom man ikke sender med en conversationId så oppretter vi en ny conversation, hvis ikke fortsetter vi den eksisterende (ja, kan fortsatt kanskje hende det)
 
@@ -37,6 +38,27 @@ export const POST = async ({ request, params }) => {
 
   console.log(body)
   const prompt = body.prompt || "Hei, hvordan har du det?"
+
+  // MOCK AI AGENT
+  if (agent.config.type == 'mock-agent') {
+    if (body.stream) {
+      const ourConversation = await insertConversation('mock-agent', {
+        name: 'New mock conversation',
+        description: 'Mock conversation started via API',
+        relatedConversationId: 'mock-conversation-id'
+      });
+      const readableStream = handleMockAiStream(ourConversation._id);
+      
+      return new Response(readableStream, {
+        headers: {
+          'Content-Type': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+          Connection: 'keep-alive'
+        }
+      })
+    }
+    throw new Error('Mock AI agent only supports streaming responses for now...');
+  }
 
   // MISTRAL AGENT
   if (agent.config.type == 'mistral-agent') {

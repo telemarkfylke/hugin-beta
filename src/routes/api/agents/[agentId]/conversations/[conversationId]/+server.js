@@ -3,6 +3,7 @@ import { handleMistralStream, appendToMistralConversation, appendToMistralConver
 import { handleOpenAIStream, appendToOpenAIConversation, appendToOpenAIConversationStream } from "$lib/openai/openai.js";
 import { getAgent } from "$lib/agents/agents.js";
 import { getConversation } from "$lib/agents/conversations.js";
+import { handleMockAiStream } from "$lib/mock-ai/mock-ai.js";
 
 /**
  *
@@ -45,6 +46,21 @@ export const POST = async ({ request, params }) => {
   const agent = await getAgent(agentId)
   const conversation = await getConversation(conversationId)
 
+  // MOCK AI 
+  if (agent.config.type == 'mock-agent') {
+    console.log('Mock AI response for agent:', agent._id)
+    if (body.stream) {
+      const stream = handleMockAiStream(conversation._id);
+      return new Response(stream, {
+        headers: {
+          'Content-Type': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+          Connection: 'keep-alive'
+        }
+      })
+    }
+    throw new Error('Mock AI agent only supports streaming responses for now...');
+  }
   // MISTRAL
   if (agent.config.type == 'mistral-agent') {
     // Må sjekke at conversations finnes forsatt og...

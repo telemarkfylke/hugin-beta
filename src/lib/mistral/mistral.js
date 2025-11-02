@@ -1,7 +1,6 @@
 import { env } from "$env/dynamic/private";
 import { Mistral } from "@mistralai/mistralai";
 import { createSse } from "$lib/streaming.js";
-import { EventStream } from "@mistralai/mistralai/lib/event-streams.js";
 
 const mistral = new Mistral({
   apiKey: env.MISTRAL_API_KEY,
@@ -16,7 +15,6 @@ const mistral = new Mistral({
  * @returns {ReadableStream}
  */
 export const handleMistralStream = (stream, conversationId) => {
-  const textEncoder = new TextEncoder();
   const readableStream = new ReadableStream({
     async start (controller) {
       if (conversationId) {
@@ -31,7 +29,7 @@ export const handleMistralStream = (stream, conversationId) => {
           case 'message.output.delta':
             // @ts-ignore
             controller.enqueue(createSse('message.delta', { messageId: chunk.data.id, content: chunk.data.content }));
-            break
+            break          
           // Ta hensyn til flere event typer her etter behov
         }
       }
