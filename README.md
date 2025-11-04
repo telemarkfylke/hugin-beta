@@ -147,11 +147,37 @@ bruker kan så påkalle POST assistant/_id/conversations/conversation_id for å 
 
 POST Conversation (tom prompt)
 
+# Bruker laster opp en fil
+Hent hvilken agent den laster opp til
+- Hvis mistral
+  - Sjekk om det er en conversation der med et library allerede.
+    - Hvis ja, last opp filen til det biblioteket
+    - Hvis nei, lag et nytt bibilotek, knytt det til conversation, og last opp filen
+  - Videre spørringer kan slenges på et tool_execuition entry "document_library" - kan vi klare å styre det basert på om det trengs? Eller skal den alltid søke i filene hvis bruker har lastet opp filer?
+  - Når sletter vi biblioteker?
 
-POST Conversation/id for en message
+
+# Ny conversation
+- Samma om mistral eller openai
+- Man må gi med eg agent_id
+- Dersom agent config har støtte for filer (altså ikke peker direkte mot en predefinert agent hos leverandør, kanskje vi alltid skal gjøre det?)
+- Opprettes først nytt library/vector store som ligger klart
+- Opprettes en ny agent basert på config, som får med seg evt kunnskapsgrunnla eksperter har sagt, i tillegg til en egen vector/store / bibiliotek som ble opprettet over her.
+- Oppretter ny conversation, basert mot den nyopprette agenten
+- Brukeropplastede filer havner i den ene nye vector store som ble knyttet til ny agent/conversation
+
+- Kan vi oppdatere agenten i etterkant til å ha med seg en nytt library?
 
 
+# Skal vi kunne laste opp flere filer på en gang?
+
+Må sendes over til server, med godeste conversationId og libraryId
+Må sjekke at de har tilgang på conversation, og at libraryId tilhører samme conversation
+Må så laste opp en og en fil (hvertfall til Mistral), og sende responser tilbake? Kan bare ha en spinner kanskje, som sjekker status?
+Eller bare laste opp en fil av gangen? Det vil sikkert ikke folk. Prøver med mange på en gang.
 
 
-
+Mulighet for å legge filer RETT inn i konteksten, og å laste opp filer for kunnskapsgrunnlag til samtalen
+OPEN AI - der kan man laste opp pdf rett i samtalen, ikke noe annet ser det ut som
+Mistral - der kan man ikke laste opp noenting direkte i samtalen
 
