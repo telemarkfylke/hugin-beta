@@ -62,13 +62,11 @@ export const POST = async ({ request, params }) => {
     throw new Error('Mock AI agent only supports streaming responses for now...');
   }
   // MISTRAL
-  if (agent.config.type == 'mistral-agent') {
+  if (agent.config.type == 'mistral-conversation') {
     // Må sjekke at conversations finnes forsatt og...
     console.log('Appending Mistral conversation for agent:', agent._id)
-
     if (body.stream) {
-      const stream = await appendToMistralConversationStream(conversation.relatedConversationId, prompt);
-
+      const stream = await appendToMistralConversation(conversation.relatedConversationId, prompt, true);
       const readableStream = handleMistralStream(stream);
 
       return new Response(readableStream, {
@@ -79,7 +77,7 @@ export const POST = async ({ request, params }) => {
         }
       })
     }
-    const response = await appendToMistralConversation(conversation.relatedConversationId, prompt);
+    const response = await appendToMistralConversation(conversation.relatedConversationId, prompt, false);
 
     return json({ response })
   }

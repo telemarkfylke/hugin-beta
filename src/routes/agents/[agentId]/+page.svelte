@@ -14,6 +14,7 @@
   /** @typedef {z.infer<typeof FrontendConversation>} */
   const FrontendConversation = z.object({
     id: z.string().nullable(),
+    vectorStoreId: z.string().nullable(),
     messages: z.record(FrontendConversationMessage)
   });
 
@@ -24,12 +25,14 @@
   /** @type {FrontendConversation} */
   const conversation = {
     id: null, // Conversation ID will be set after the first message
+    vectorStoreId: null,
     messages: {} // Store messages as an object with messageId as keys
   }
 
   // Methods for handling conversation
   const resetConversation = () => {
     conversation.id = null
+    conversation.vectorStoreId = null
     conversation.messages = {}
     prompt = ''
   };
@@ -99,15 +102,26 @@
         const chatResponse = parseSse(chatResponseText)
         for (const chatResult of chatResponse) {
           console.log("Chat result:", chatResult)
-          const { conversationId, messageId, content } = chatResult.data
-          if (conversationId && conversation.id !== conversationId) { // New conversation
-            conversation.id = conversationId
-          }
-          if (messageId) { // New message or append to existing message
-            if (!conversation.messages[messageId]) {
-              conversation.messages[messageId] = { type: 'agent', content: '' }
-            }
-            conversation.messages[messageId].content += content // Append content to the message
+          switch (chatResult.event) {
+            case 'conversation.started':
+              const { conversationId } = chatResult.data
+              conversation.id = conversationId
+              console.log("Conversation started with ID:", conversationId)
+              break;
+            case 'conversation.vectorstore.created':
+              const { vectorStoreId } = chatResult.data
+              console.log("Vector store created with ID:", vectorStoreId)
+              break;
+            case 'message.delta':
+              const { messageId, content } = chatResult.data
+              if (!conversation.messages[messageId]) {
+                conversation.messages[messageId] = { type: 'agent', content: '' }
+              }
+              conversation.messages[messageId].content += content // Append content to the message
+              break;
+            default:
+              console.warn("Unhandled chat result event:", chatResult.event)
+              break;
           }
         }
         if (done) break
@@ -115,6 +129,11 @@
     } catch (error) {
       console.error("Error handling new message:", error)
     }
+  };
+
+  const uploadFile = () => {
+    // Post api/agents/{agentId}/conversations/{conversationId}/{vectorStoreId}/files
+    alert("Upload file functionality not implemented yet.");
   };
   
 
@@ -139,6 +158,7 @@
           <input type="text" placeholder="Type your message..." bind:value={prompt} />
           <button type="submit">Send</button>
         </form>
+        <input type="file" multiple accept="image/*" />
         <button onclick={resetConversation}>Reset</button>
       </div>
     </div>

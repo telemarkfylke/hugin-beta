@@ -1,5 +1,5 @@
 import { json } from "@sveltejs/kit"
-import { handleMistralStream, createMistralConversation, createMistralConversationStream } from "$lib/mistral/mistral.js";
+import { handleMistralStream, createMistralConversation } from "$lib/mistral/mistral.js";
 import { handleOpenAIStream, createOpenAIConversation, createOpenAIConversationStream  } from "$lib/openai/openai.js";
 import { getAgent } from "$lib/agents/agents.js";
 import { insertConversation } from "$lib/agents/conversations.js";
@@ -61,19 +61,20 @@ export const POST = async ({ request, params }) => {
   }
 
   // MISTRAL AGENT
-  if (agent.config.type == 'mistral-agent') {
-    console.log('Creating Mistral conversation for agent:', agent._id)
-    if (body.stream) {
-      // Opprett conversation mot Mistral her og returner
-      const { stream, mistralConversationId } = await createMistralConversationStream(agent.config.agentId, prompt);
+  if (agent.config.type == 'mistral-conversation') {
+    console.log('Creating Mistral conversation', agent._id)
+    // Opprett conversation mot Mistral her og returner
+    const { mistralConversationId, userLibraryId, stream, response } = await createMistralConversation(agent.config, prompt, body.stream);
 
-      const ourConversation = await insertConversation(agentId, {
-        name: 'New Conversation',
-        description: 'Conversation started via API',
-        relatedConversationId: mistralConversationId
-      });
+    const ourConversation = await insertConversation(agentId, {
+      name: 'New Conversation',
+      description: 'Conversation started via API',
+      relatedConversationId: mistralConversationId,
+      userLibraryId
+    });
 
-      const readableStream = handleMistralStream(stream, ourConversation._id);
+    if (stream) {
+      const readableStream = handleMistralStream(stream, ourConversation._id, userLibraryId);
 
       return new Response(readableStream, {
         headers: {
@@ -83,15 +84,7 @@ export const POST = async ({ request, params }) => {
         }
       })
     }
-    const mistralConversation = await createMistralConversation(agent.config.agentId, prompt);
-    
-    const ourConversation = await insertConversation(agentId, {
-      name: 'New Conversation',
-      description: 'Conversation started via API',
-      relatedConversationId: mistralConversation.mistralConversationId
-    });
-
-    return json({ conversation: ourConversation, initialResponse: mistralConversation.response })
+    return json({ conversation: ourConversation, initialResponse: response })
   }
   // OPENAI
   if (agent.config.type == 'openai-prompt') {
