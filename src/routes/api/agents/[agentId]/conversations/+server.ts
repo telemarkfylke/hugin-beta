@@ -1,9 +1,11 @@
 import { json, type RequestHandler } from "@sveltejs/kit"
 import { handleMistralStream, createMistralConversation } from "$lib/mistral/mistral.js";
-import { handleOpenAIStream, createOpenAIConversation, createOpenAIConversationStream  } from "$lib/openai/openai.js";
+import { handleOpenAIStream, createOpenAIConversation } from "$lib/openai/openai.js";
 import { getAgent } from "$lib/agents/agents.js";
 import { insertConversation } from "$lib/agents/conversations.js";
 import { handleMockAiStream } from "$lib/mock-ai/mock-ai.js";
+import type { ResponseStreamEvent } from "openai/resources/responses/responses.mjs";
+import type { Stream } from "openai/streaming";
 
 // OBS OBS Kan hende vi bare skal ha dette endepunktet - og dersom man ikke sender med en conversationId så oppretter vi en ny conversation, hvis ikke fortsetter vi den eksisterende (ja, kan fortsatt kanskje hende det)
 
@@ -38,7 +40,8 @@ export const POST: RequestHandler = async ({ request, params }) => {
       const ourConversation = await insertConversation('mock-agent', {
         name: 'New mock conversation',
         description: 'Mock conversation started via API',
-        relatedConversationId: 'mock-conversation-id'
+        relatedConversationId: 'mock-conversation-id',
+        vectorStoreId: null
       });
       const readableStream = handleMockAiStream(ourConversation._id);
       
@@ -63,7 +66,7 @@ export const POST: RequestHandler = async ({ request, params }) => {
       name: 'New Conversation',
       description: 'Conversation started via API',
       relatedConversationId: mistralConversationId,
-      userLibraryId
+      vectorStoreId: userLibraryId
     });
 
     if (stream) {
@@ -80,21 +83,22 @@ export const POST: RequestHandler = async ({ request, params }) => {
     return json({ conversation: ourConversation, initialResponse: response })
   }
   // OPENAI
-  if (agent.config.type == 'openai-prompt') {
+  if (agent.config.type == 'openai-response') {
     // Opprett conversation mot OpenAI her og returner
     console.log('Creating OpenAI conversation for agent:', agent._id)
     
+    // Create responsestream and return
+    const { response, openAiConversationId } = await createOpenAIConversation(agent.config, prompt, body.stream) as {response: Stream<ResponseStreamEvent>, openAiConversationId: string}; // Todo, gjør dette bedre med typer
+
+    const ourConversation = await insertConversation(agentId, {
+      name: 'New Conversation',
+      description: 'Conversation started via API',
+      relatedConversationId: openAiConversationId,
+      vectorStoreId: null
+    });
+
     if (body.stream) {
-      // Create responsestream and return
-      const { stream, openAiConversationId } = await createOpenAIConversationStream(agent.config.prompt.id, prompt);
-
-      const ourConversation = await insertConversation(agentId, {
-        name: 'New Conversation',
-        description: 'Conversation started via API',
-        relatedConversationId: openAiConversationId
-      });
-
-      const readableStream = handleOpenAIStream(stream, ourConversation._id);
+      const readableStream = handleOpenAIStream(response, ourConversation._id);
 
       return new Response(readableStream, {
         headers: {
@@ -105,15 +109,7 @@ export const POST: RequestHandler = async ({ request, params }) => {
       })
     }
 
-    const openAiConversation = await createOpenAIConversation(agent.config.prompt.id, prompt);
-
-    const ourConversation = await insertConversation(agentId, {
-      name: 'New Conversation',
-      description: 'Conversation started via API',
-      relatedConversationId: openAiConversation.openAiConversationId
-    });
-
-    return json({ conversation: ourConversation, initialResponse: openAiConversation.response })
+    return json({ conversation: ourConversation, initialResponse: response })
   }
   throw new Error(`Unsupported agent config type: ${agent.config}`);
 }
