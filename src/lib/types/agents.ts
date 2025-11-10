@@ -17,9 +17,6 @@ const MistralWebSearchTool = z.object({
   type: z.literal('web_search')
 });
 
-const MistralAgentConfig = z.object({
-  agentId: z.string()
-});
 
 /** @typedef {z.infer<typeof MistralConversationConfig>} MistralConversationConfig */
 export const MistralConversationConfig = z.object({

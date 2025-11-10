@@ -9,18 +9,9 @@ const mockAiResponse = `Hello, this is a mock AI response streaming to you!
 
 const mockResponseTokens = mockAiResponse.split(' ').map(token => token + ' ');
 
-/**
- * 
- * @param {number} ms 
- * @returns {Promise<void>}
- */
-const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms));
 
-/**
- * @param {string} [conversationId]
- * @returns {ReadableStream}
- */
-export const handleMockAiStream = (conversationId) => {
+export const handleMockAiStream = (conversationId?: string): ReadableStream => {
   const messageId = `mock-message-${new Date().getTime()}`;
   const readableStream = new ReadableStream({
     async start (controller) {

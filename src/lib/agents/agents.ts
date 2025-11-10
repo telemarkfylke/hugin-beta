@@ -1,4 +1,5 @@
 import { env } from "$env/dynamic/private";
+import type { Agent } from "$lib/types/agents.ts";
 
 let mockDbData = null
 
@@ -20,11 +21,7 @@ export const getAgent = async (agentId: string) => {
   // Implement real DB fetch here
 }
 
-/**
- * 
- * @returns {Promise<import("$lib/types/agents.js").Agent[]>}
- */
-export const getAgents = async () => {
+export const getAgents = async (): Promise<Agent[]> => {
   if (mockDbData) {
     console.log('Returning agents from mockDbData', mockDbData.agents);
     return mockDbData.agents;

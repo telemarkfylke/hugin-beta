@@ -1,4 +1,5 @@
 import { env } from "$env/dynamic/private";
+import type { Conversation } from "$lib/types/agents.ts";
 import { ObjectId } from "mongodb";
 
 let mockDbData = null
@@ -9,12 +10,7 @@ if (env.MOCK_DB === 'true') {
   console.log(mockDbData)
 }
 
-/**
- * 
- * @param {string} conversationId 
- * @returns {notImplemented}
- */
-export const getConversation = async (conversationId) => {
+export const getConversation = async (conversationId: string): Promise<Conversation> => {
   if (mockDbData) {
     const foundConversation = mockDbData.conversations.find(conversation => conversation._id === conversationId);
     if (!foundConversation) {
@@ -22,24 +18,28 @@ export const getConversation = async (conversationId) => {
     }
     return foundConversation;
   }
+  throw new Error('Not implemented - please set MOCK_DB to true in env');
   // Implement real DB fetch here
 }
 
-/**
- * 
- * @param {string} agentId
- * @param {*} conversation 
- * @returns {notImplemented}
- */
-export const insertConversation = async (agentId, conversation) => {
+
+type ConversationData = {
+  name: string
+  description: string
+  relatedConversationId: string,
+  userLibraryId?: string | null
+}
+
+export const insertConversation = async (agentId: string, conversationData: ConversationData): Promise<Conversation> => {
   if (mockDbData) {
     const coversationToInsert = {
       _id: new ObjectId().toString(),
       agentId,
-      ...conversation
+      ...conversationData
     }
     mockDbData.conversations.push(coversationToInsert);
     return coversationToInsert;
   }
+  throw new Error('Not implemented - please set MOCK_DB to true in env');
   // Implement real DB insert here
 }

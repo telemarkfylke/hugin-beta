@@ -1,13 +1,8 @@
-import { env } from '$env/dynamic/private';
 import { MongoClient } from 'mongodb';
 
-/** @type {?MongoClient} */
-let client = null
+let client: MongoClient | null = null;
 
-/**
- * @returns {Promise<MongoClient>}
- */
-export const getMongoClient = async () => {
+export const getMongoClient = async (): Promise<MongoClient> => {
   // Placeholder function to simulate getting a MongoDB client
   if (!client) {
     client = new MongoClient('mongodb://localhost:27017');

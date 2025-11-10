@@ -1,21 +1,14 @@
 import { env } from "$env/dynamic/private";
 import OpenAI from "openai";
 import { createSse } from "$lib/streaming.js";
+import type { Stream } from "openai/streaming";
+import type { Response, ResponseStreamEvent } from "openai/resources/responses/responses";
 
 const openai = new OpenAI({
   apiKey: env.OPENAI_API_KEY,
 });
 
-/** @typedef {import("openai/resources/responses/responses.mjs").ResponseStreamEvent} OpenAiResponseStreamEvent */
-/** @typedef {import('openai/streaming').Stream<OpenAiResponseStreamEvent>} OpenAiStream */
-
-/**
- *
- * @param {OpenAiStream} stream
- * @param {string} [conversationId]
- * @returns {ReadableStream}
- */
-export const handleOpenAIStream = (stream, conversationId) => {
+export const handleOpenAIStream = (stream: Stream<ResponseStreamEvent>, conversationId?: string): ReadableStream => {
   const readableStream = new ReadableStream({
     async start (controller) {
       if (conversationId) {
@@ -38,14 +31,7 @@ export const handleOpenAIStream = (stream, conversationId) => {
   return readableStream;
 }
 
-/**
- * 
- * @param {string} promptId 
- * @param {string} conversationId 
- * @param {string} prompt 
- * @returns {Promise<import("openai/resources/responses/responses.mjs").Response>}
- */
-export const appendToOpenAIConversation = async (promptId, conversationId, prompt) => {
+export const appendToOpenAIConversation = async (promptId: string, conversationId: string, prompt: string): Promise<Response> => {
   // Create response and return
   const response = await openai.responses.create({
     stream: false,
@@ -63,16 +49,9 @@ export const appendToOpenAIConversation = async (promptId, conversationId, promp
   return response;
 }
 
-/**
- * 
- * @param {string} promptId 
- * @param {string} conversationId 
- * @param {string} prompt 
- * @returns {Promise<import("openai/streaming").Stream<OpenAiResponseStreamEvent>>}
- */
-export const appendToOpenAIConversationStream = async (promptId, conversationId, prompt) => {
+export const appendToOpenAIConversationStream = async (promptId: string, conversationId: string, prompt: string): Promise<Stream<ResponseStreamEvent>> => {
   // Create response and return
-  const stream = await openai.responses.create({
+  return await openai.responses.create({
     stream: true,
     prompt: {
       id: promptId
@@ -85,15 +64,9 @@ export const appendToOpenAIConversationStream = async (promptId, conversationId,
       }
     ]
   })
-  return stream;
 }
 
-/**
- * @param {string} promptId
- * @param {string} prompt
- * @returns {Promise<{openAiConversationId: string, response: import("openai/resources/responses/responses.mjs").Response}>}
- */
-export const createOpenAIConversation = async (promptId, prompt) => {
+export const createOpenAIConversation = async (promptId: string, prompt: string): Promise<{openAiConversationId: string, response: Response}> => {
   const conversation = await openai.conversations.create({
     metadata: { topic: "demo" }
   });
@@ -102,12 +75,7 @@ export const createOpenAIConversation = async (promptId, prompt) => {
   return { openAiConversationId: conversation.id, response }
 }
 
-/**
- * @param {string} promptId
- * @param {string} prompt
- * @returns {Promise<{openAiConversationId: string, stream: OpenAiStream}>}
- */
-export const createOpenAIConversationStream = async (promptId, prompt) => {
+export const createOpenAIConversationStream = async (promptId: string, prompt: string): Promise<{openAiConversationId: string, stream: Stream<ResponseStreamEvent>}> => {
   const conversation = await openai.conversations.create({
     metadata: { topic: "demo" }
   });

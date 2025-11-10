@@ -1,13 +1,14 @@
 // simply in-memory mock database corresponding to collections in mongodb
 
-/** @type {import("$lib/types/agents.js").Agents} */
-export const mockAgents = [
+import type { Agent, Conversation } from "$lib/types/agents.ts"
+
+export const mockAgents: Agent[] = [
   {
     _id: 'mistral',
     name: 'Mistral demo agent',
     description: 'Mistral agent based on an agent in mistral - connected to a mistral agent id',
     config: {
-      type: 'mistral-agent',
+      type: 'mistral-conversation',
       agentId: 'ag_019a34612b1874b087648e86ea134926' // example mistral agent id
     }
   },
@@ -24,5 +25,4 @@ export const mockAgents = [
   }
 ]
 
-// TODO: add types for conversations
-export const mockConversations = []
+export const mockConversations: Conversation[] = []

@@ -27,6 +27,7 @@ CLAUDE.md
 
 # Mock db
 src/lib/db/mockdb-data.js
+src/lib/db/mockdb-data.ts
 
 # Tullball
 balle/

@@ -1,15 +1,14 @@
-import { json } from "@sveltejs/kit"
+import { json, type RequestHandler } from "@sveltejs/kit"
 import { handleMistralStream, appendToMistralConversation } from "$lib/mistral/mistral.js";
 import { handleOpenAIStream, appendToOpenAIConversation, appendToOpenAIConversationStream } from "$lib/openai/openai.js";
 import { getAgent } from "$lib/agents/agents.js";
 import { getConversation } from "$lib/agents/conversations.js";
 import { handleMockAiStream } from "$lib/mock-ai/mock-ai.js";
+import type { EventStream } from "@mistralai/mistralai/lib/event-streams";
+import type { ConversationEvents } from "@mistralai/mistralai/models/components/conversationevents";
 
-/**
- *
- * @type {import("@sveltejs/kit").RequestHandler}
- */
-export const GET = async ({ request, params }) => {
+
+export const GET: RequestHandler = async ({ params }): Promise<Response> => {
   console.log(params)
   // Da spør vi om å få historikken til denne samtalen i denne assistenten fra leverandør basert på agenten
   const conversation = {
@@ -27,11 +26,7 @@ export const GET = async ({ request, params }) => {
   return json(conversation)
 }
 
-/**
- *
- * @type {import("@sveltejs/kit").RequestHandler}
- */
-export const POST = async ({ request, params }) => {
+export const POST: RequestHandler = async ({ request, params }): Promise<Response> => {
   // Da legger vi til en ny melding i samtalen i denne agenten via leverandør basert på agenten, og får tilbake responseStream med oppdatert samtalehistorikk
   const body = await request.json()
   const { conversationId, agentId } = params
@@ -66,7 +61,7 @@ export const POST = async ({ request, params }) => {
     // Må sjekke at conversations finnes forsatt og...
     console.log('Appending Mistral conversation for agent:', agent._id)
     if (body.stream) {
-      const stream = await appendToMistralConversation(conversation.relatedConversationId, prompt, true);
+      const stream = await appendToMistralConversation(conversation.relatedConversationId, prompt, true) as EventStream<ConversationEvents>;
       const readableStream = handleMistralStream(stream);
 
       return new Response(readableStream, {

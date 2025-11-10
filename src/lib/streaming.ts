@@ -25,18 +25,20 @@ export const parseSse = (chunk: string): MuginSse[] => {
     throw new Error("Invalid SSE format - chunk must end with two newlines")
   }
   const eventLines = chunk.split('\n\n');
-  /** @type {MuginSse[]} */
-  const result = []
+  const result: MuginSse[] = []
   for (const line of eventLines) {
     if (line.length === 0) continue // Skip empty lines
     const keyValueLines = line.split('\n')
     if (keyValueLines.length !== 2) {
       throw new Error("Invalid SSE format - must contain exactly two lines per event (event and data)")
     }
-    const event = MuginEventTypes.parse(keyValueLines[0].slice(7).trim())
-    if (!keyValueLines[1].startsWith('data: ')) {
+    if (!keyValueLines[0] || !keyValueLines[0].startsWith('event: ')) {
+      throw new Error(`Invalid line (does not start with event:) ${keyValueLines[0]}`);
+    }
+    if (!keyValueLines[1] || !keyValueLines[1].startsWith('data: ')) {
       throw new Error(`Invalid line (does not start with data:) ${keyValueLines[1]}`);
     }
+    const event = MuginEventTypes.parse(keyValueLines[0].slice(7).trim())
     const data = JSON.parse(keyValueLines[1].slice(6).trim()) // Remove 'data: ' prefix, and parse JSON
     result.push({ event, data });
   }

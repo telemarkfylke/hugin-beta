@@ -4,6 +4,7 @@ import { createSse } from "$lib/streaming.js";
 import { MistralConversationConfig } from "$lib/types/agents.js";
 import type { ConversationEvents } from "@mistralai/mistralai/models/components/conversationevents";
 import type { EventStream } from "@mistralai/mistralai/lib/event-streams";
+import type { ConversationResponse } from "@mistralai/mistralai/models/components/conversationresponse";
 
 const mistral = new Mistral({
   apiKey: env.MISTRAL_API_KEY,
@@ -37,14 +38,7 @@ export const handleMistralStream = (stream: EventStream<ConversationEvents>, con
   return readableStream;
 }
 
-/**
- * 
- * @param {string} conversationId 
- * @param {string} prompt
- * @param {boolean} streamResponse
- * @returns {Promise<import("@mistralai/mistralai/models/components/conversationresponse.js").ConversationResponse | import("@mistralai/mistralai/lib/event-streams.js").EventStream<import("@mistralai/mistralai/models/components/conversationevents.js").ConversationEvents>>}
- */
-export const appendToMistralConversation = async (conversationId, prompt, streamResponse) => {
+export const appendToMistralConversation = async (conversationId: string, prompt: string, streamResponse: boolean): Promise<ConversationResponse | EventStream<ConversationEvents>> => {
   // Implementer tillegg av melding til samtale mot Mistral her
   if (streamResponse) {
     const stream = await mistral.beta.conversations.appendStream({
@@ -64,28 +58,20 @@ export const appendToMistralConversation = async (conversationId, prompt, stream
   return response;
 }
 
-/**
- * @typedef {Object} MistralConversationCreationResult
- * @property {string} mistralConversationId
- * @property {?string} [userLibraryId]
- * @property {MistralEventStream} [stream]
- * @property {import("@mistralai/mistralai/models/components/conversationresponse.js").ConversationResponse} [response]
- */
+type MistralConversationCreationResult = {
+  mistralConversationId: string
+  userLibraryId: string | null
+  stream?: EventStream<ConversationEvents>
+  response?: ConversationResponse
+}
 
-/**
- *
- * @param {MistralConversationConfig} mistralConversationConfig
- * @param {string} initialPrompt
- * @param {boolean} streamResponse
- * @returns {Promise<MistralConversationCreationResult>}
- */
-export const createMistralConversation = async (mistralConversationConfig, initialPrompt, streamResponse) => {
+export const createMistralConversation = async (mistralConversationConfig: MistralConversationConfig, initialPrompt: string, streamResponse: boolean): Promise<MistralConversationCreationResult> => {
   // Sjekk at det ikke BÅDE er agentId og model satt i config, det er ikke lov
   if (mistralConversationConfig.agentId && mistralConversationConfig.model) {
     throw new Error("Cannot have both agentId and model set in MistralConversationConfig when creating a conversation");
   }
 
-  const createConfig = async () => {
+  const createConfig = async (): Promise<{ config: any; userLibraryId: string | null }> => {
     if (mistralConversationConfig.agentId) {
       return { config: { agentId: mistralConversationConfig.agentId, inputs: initialPrompt }, userLibraryId: null };
     }

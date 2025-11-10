@@ -15,6 +15,7 @@
 		"@sveltejs/adapter-auto": "^6.0.0",
 		"@sveltejs/kit": "^2.22.0",
 		"@sveltejs/vite-plugin-svelte": "^6.0.0",
+		"@types/markdown-it": "^14.1.2",
 		"axe-core": "^4.10.3",
 		"svelte": "^5.0.0",
 		"svelte-check": "^4.0.0",
@@ -23,6 +24,7 @@
 	},
 	"dependencies": {
 		"@mistralai/mistralai": "^1.10.0",
+		"@vscode/markdown-it-katex": "^1.1.2",
 		"highlight.js": "^11.11.1",
 		"katex": "^0.16.25",
 		"markdown-it": "^14.1.0",

@@ -1,17 +1,19 @@
-import { json } from "@sveltejs/kit"
+import type { Agent } from "$lib/types/agents"
+import { json, type RequestHandler } from "@sveltejs/kit"
 
 /**
  *
  * @type {import("@sveltejs/kit").RequestHandler}
  */
-export const GET = async ({ request }) => {
+export const GET: RequestHandler = async () => {
   // Da spør vi DB om å hente assistenter som påkaller har tilgang på
-  const agent = {
+  const agent: Agent = {
     _id: 'agent1',
     name: 'agent One',
     description: 'This is the first agent.',
-    type: 'mistral',
-      agentId: 'agent1-id'
+    config: {
+      type: 'mock-agent'
     }
-  return json({ agents })
+  }
+  return json({ agent })
 }
