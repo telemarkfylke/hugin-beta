@@ -1,6 +1,6 @@
 // simply in-memory mock database corresponding to collections in mongodb
 
-import type { Agent } from "$lib/types/agents.ts"
+import type { Agent, Conversation } from "$lib/types/agents.ts"
 
 export const agents: Agent[] = [
   {
@@ -9,7 +9,7 @@ export const agents: Agent[] = [
     description: 'Mistral agent based on an agent in mistral - connected to a mistral agent id',
     config: {
       type: 'mistral-conversation',
-      agentId: 'en id her'
+      agentId: 'en id til en agent i mistral',
     }
   },
   {
@@ -18,7 +18,8 @@ export const agents: Agent[] = [
     description: 'Mistral agent som går rett på en model og conversation',
     config: {
       type: 'mistral-conversation',
-      model: 'mistral-medium-latest'
+      model: 'mistral-medium-latest',
+      instructions: 'You are a helpful assistant that answers in Norwegian. Always search document libraries before answering user questions.',
     }
   },
   {
@@ -31,23 +32,31 @@ export const agents: Agent[] = [
       tools: [
         {
           type: 'document_library',
-          libraryIds: ['en id til et dokumentbibliotek her']
+          libraryIds: ['a library id fra mistral her']
         }
       ]
     }
   },
   {
-    _id: 'openai',
+    _id: 'openai_prompt',
     name: 'Open AI prompt demo agent',
     description: 'An agent that uses an OpenAI prompt-id as its configuration (saved prompt in OpenAI)',
     config: {
-      type: 'openai-prompt',
+      type: 'openai-response',
       prompt: {
-        id: 'en id her'
+        id: 'a prompt id from OpenAI here'
       }
+    }
+  },
+  {
+    _id: 'openai_response_4o',
+    name: 'Open AI demo agent',
+    description: 'An agent that uses an OpenAI response configuration with gpt-4o model',
+    config: {
+      type: 'openai-response',
+      model: 'gpt-4o'
     }
   }
 ]
 
-// TODO: add types for conversations
-export const conversations = []
+export const conversations: Conversation[] = []

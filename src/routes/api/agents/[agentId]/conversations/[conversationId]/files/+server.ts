@@ -1,8 +1,8 @@
 import { json } from "@sveltejs/kit"
-import { getAgent } from "$lib/agents/agents.js";
-import { getConversation, updateConversation } from "$lib/agents/conversations.js";
-import { uploadDocumentsToMistralLibrary } from "$lib/mistral/mistral.js";
-import { uploadDocumentsToOpenAILibrary } from "$lib/openai/openai";
+import { getAgent } from "$lib/server/agents/agents.js";
+import { getConversation, updateConversation } from "$lib/server/agents/conversations.js";
+import { uploadDocumentsToMistralLibrary } from "$lib/server/mistral/document-library.js";
+import { uploadDocumentsToOpenAIVectorStore } from "$lib/server/openai/vector-store.js";
 
 /**
  *
@@ -46,9 +46,9 @@ export const POST = async ({ request, params }) => {
       throw new Error('Conversation does not have a vectorStoreId to upload files to');
     }
     // Last opp en eller flere filer mistral
-    const readableStream = await uploadDocumentsToMistralLibrary(conversation.vectorStoreId, body.getAll('files[]') as File[], streaming);
+    const response = await uploadDocumentsToMistralLibrary(conversation.vectorStoreId, body.getAll('files[]') as File[], streaming);
 
-    return new Response(readableStream, {
+    return new Response(response, {
       headers: {
         'Content-Type': 'text/event-stream',
         'Cache-Control': 'no-cache',
@@ -59,7 +59,7 @@ export const POST = async ({ request, params }) => {
   // OPENAI
   if (agent.config.type == 'openai-response') {
     // Last opp en eller flere filer openai
-    const { vectorStoreId, readableStream } = await uploadDocumentsToOpenAILibrary(conversation.relatedConversationId, conversation.vectorStoreId, body.getAll('files[]') as File[], streaming);
+    const { vectorStoreId, readableStream } = await uploadDocumentsToOpenAIVectorStore(conversation.relatedConversationId, conversation.vectorStoreId, body.getAll('files[]') as File[], streaming);
     // Check if vectorStoreId has changed and update conversation if needed
     if (vectorStoreId !== conversation.vectorStoreId) {
       // Oppdater conversation i DB med ny vectorStoreId

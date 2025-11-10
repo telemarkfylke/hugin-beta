@@ -1,9 +1,9 @@
 import { json, type RequestHandler } from "@sveltejs/kit"
-import { handleMistralStream, createMistralConversation } from "$lib/mistral/mistral.js";
-import { handleOpenAIStream, createOpenAIConversation } from "$lib/openai/openai.js";
-import { getAgent } from "$lib/agents/agents.js";
-import { insertConversation } from "$lib/agents/conversations.js";
-import { handleMockAiStream } from "$lib/mock-ai/mock-ai.js";
+import { handleMistralStream, createMistralConversation } from "$lib/server/mistral/mistral.js";
+import { handleOpenAIStream, createOpenAIConversation } from "$lib/server/openai/openai.js";
+import { getAgent } from "$lib/server/agents/agents.js";
+import { getConversations, insertConversation } from "$lib/server/agents/conversations.js";
+import { handleMockAiStream } from "$lib/server/mock-ai/mock-ai.js";
 import type { ResponseStreamEvent } from "openai/resources/responses/responses.mjs";
 import type { Stream } from "openai/streaming";
 
@@ -11,15 +11,12 @@ import type { Stream } from "openai/streaming";
 
 export const GET: RequestHandler = async ({ params }) : Promise<Response> => {
   // Da spør vi DB om å hente conversations som påkaller har tilgang på i denne assistenten
+  if (!params.agentId) {
+    throw new Error('agentId is required');
+  }
   console.log(`Fetching conversations for agent ${params.agentId}`)
-  const conversations = [
-    {
-      _id: 'conversation1',
-      name: 'Conversation One',
-      description: 'This is the first conversation.',
-      relatedConversationId: 'conversation1-id'
-    }
-  ]
+  const conversations = await getConversations(params.agentId);
+
   return json({ conversations })
 }
 

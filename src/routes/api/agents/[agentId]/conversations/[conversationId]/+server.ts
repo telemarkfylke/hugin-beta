@@ -1,9 +1,9 @@
 import { json, type RequestHandler } from "@sveltejs/kit"
-import { handleMistralStream, appendToMistralConversation } from "$lib/mistral/mistral.js";
-import { handleOpenAIStream, appendToOpenAIConversation } from "$lib/openai/openai.js";
-import { getAgent } from "$lib/agents/agents.js";
-import { getConversation } from "$lib/agents/conversations.js";
-import { handleMockAiStream } from "$lib/mock-ai/mock-ai.js";
+import { handleMistralStream, appendToMistralConversation } from "$lib/server/mistral/mistral.js";
+import { handleOpenAIStream, appendToOpenAIConversation } from "$lib/server/openai/openai.js";
+import { getAgent } from "$lib/server/agents/agents.js";
+import { getConversation } from "$lib/server/agents/conversations.js";
+import { handleMockAiStream } from "$lib/server/mock-ai/mock-ai.js";
 import type { EventStream } from "@mistralai/mistralai/lib/event-streams";
 import type { ConversationEvents } from "@mistralai/mistralai/models/components/conversationevents";
 import type { Stream } from "openai/streaming";

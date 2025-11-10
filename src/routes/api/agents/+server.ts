@@ -1,4 +1,4 @@
-import { getAgents } from "$lib/agents/agents.js"
+import { getAgents } from "$lib/server/agents/agents.js"
 import { json, type RequestHandler } from "@sveltejs/kit"
 
 /**

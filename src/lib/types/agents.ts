@@ -30,6 +30,7 @@ export type Agent = {
 
 export type Conversation = {
   _id: string;
+  agentId: string;
   name: string;
   description?: string;
   relatedConversationId: string; // id fra leverandør (Mistral/OpenAI)

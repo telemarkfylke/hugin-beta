@@ -5,9 +5,18 @@ import { ObjectId } from "mongodb";
 let mockDbData = null
 
 if (env.MOCK_DB === 'true') {
-  const { getMockDb } = await import('$lib/db/mockdb.js');
+  const { getMockDb } = await import('$lib/server/db/mockdb.js');
   mockDbData = await getMockDb();
   console.log(mockDbData)
+}
+
+export const getConversations = async (agentId: string): Promise<Conversation[]> => {
+  if (mockDbData) {
+    const foundConversations = mockDbData.conversations.filter(conversation => conversation.agentId === agentId);
+    return foundConversations;
+  }
+  throw new Error('Not implemented - please set MOCK_DB to true in env');
+  // Implement real DB fetch here
 }
 
 export const getConversation = async (conversationId: string): Promise<Conversation> => {

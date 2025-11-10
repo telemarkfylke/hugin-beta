@@ -4,7 +4,7 @@ import type { Agent } from "$lib/types/agents.ts";
 let mockDbData = null
 
 if (env.MOCK_DB === 'true') {
-  const { getMockDb } = await import('$lib/db/mockdb.js');
+  const { getMockDb } = await import('$lib/server/db/mockdb.js');
   mockDbData = await getMockDb();
   // console.log(mockDbData)
 }
