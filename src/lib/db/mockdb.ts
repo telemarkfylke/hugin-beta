@@ -11,7 +11,7 @@ export const getMockDb = async (): Promise<{ agents: Agent[], conversations: Con
     }
   }
   try {
-    const { agents, conversations } = await import('./mockdb-data'); // Whops fungerer det uten .js?
+    const { agents, conversations } = await import('./mockdb-data.js');
     console.log('./db/mockdb-data.js exists, loaded mockdb, returning mock collections');
     return { agents: [mockAgent, ...agents], conversations }
   } catch (e) {
