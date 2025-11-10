@@ -99,8 +99,7 @@ export const POST: RequestHandler = async ({ request, params }): Promise<Respons
       }
     }
 
-    const response = await appendToOpenAIConversation(agent.config, prompt, body.stream);
-    console.log('OpenAI append response:', response);
+    const response = await appendToOpenAIConversation(agent.config, conversation.relatedConversationId, prompt, body.stream);
     if (body.stream) {
       const readableStream = handleOpenAIStream(response as Stream<ResponseStreamEvent>);
 

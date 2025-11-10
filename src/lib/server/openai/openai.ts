@@ -33,11 +33,12 @@ export const handleOpenAIStream = (stream: Stream<ResponseStreamEvent>, conversa
 }
 
 
-export const appendToOpenAIConversation = async (openAiResponseConfig: OpenAIAResponseConfig, prompt: string, streamResponse: boolean): Promise<Response | Stream<ResponseStreamEvent>> => {  
+export const appendToOpenAIConversation = async (openAiResponseConfig: OpenAIAResponseConfig, openAIConversationId: string, prompt: string, streamResponse: boolean): Promise<Response | Stream<ResponseStreamEvent>> => {  
   // Create response and return
   delete openAiResponseConfig.type; // Fjern type fra config objektet før vi sender til OpenAI TODO, løs dette
   return await openai.responses.create({
     ...openAiResponseConfig,
+    conversation: openAIConversationId,
     input: prompt,
     stream: streamResponse
   })
@@ -49,6 +50,6 @@ export const createOpenAIConversation = async (openAiResponseConfig: OpenAIAResp
   });
   // Må vi kanskje lage en vector store også, og knytte den til samtalen her?
 
-  const response = await appendToOpenAIConversation(openAiResponseConfig, prompt, streamResponse);
+  const response = await appendToOpenAIConversation(openAiResponseConfig, conversation.id, prompt, streamResponse);
   return { openAiConversationId: conversation.id, response }
 }
