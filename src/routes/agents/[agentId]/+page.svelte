@@ -184,13 +184,13 @@
             {@html markdownFormatter(conversation.messages[messageId]?.content || '')}
           </div>
         {/each}
-        <!--{@html mdFormatter(chatResult)}-->
       </div>
       <div class="chat-input">
         <form onsubmit={handleNewMessage}>
           <input type="text" placeholder="Type your message..." bind:value={prompt} />
           <button type="submit">Send</button>
         </form>
+        <!--WHOOPS, husk å bruke supported files basert på leverandør her!!  https://platform.openai.com/docs/guides/tools-file-search-->
         <input
           type="file"
           multiple
