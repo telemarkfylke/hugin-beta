@@ -1,82 +1,32 @@
 <script>
-  let response = '';
-  let loading = false;
-  let error = '';
+  import { Agents } from "../lib/types/agents";
 
-  async function testOpenAI() {
-    loading = true;
-    error = '';
-    response = '';
-
-    try {
-      const res = await fetch('/api/openai');
-      const data = await res.json();
-
-      if (res.ok) {
-        response = JSON.stringify(data, null, 2);
-      } else {
-        error = data.error || 'Request failed';
-      }
-    } catch (err) {
-      error = err instanceof Error ? err.message : 'Network error';
-    } finally {
-      loading = false;
+  const getAgents = async () => {
+    const res = await fetch('/api/agents');
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.message || 'Failed to fetch agents');
     }
-  }
-
-  async function testMistral() {
-    loading = true;
-    error = '';
-    response = '';
-
-    try {
-      const res = await fetch('/api/mistral');
-      const data = await res.json();
-
-      if (res.ok) {
-        response = JSON.stringify(data, null, 2);
-      } else {
-        error = data.error || 'Request failed';
-      }
-    } catch (err) {
-      error = err instanceof Error ? err.message : 'Network error';
-    } finally {
-      loading = false;
-    }
-  }
+    return Agents.parse(data.agents);
+  };
 </script>
-
 <main>
-  <h1>Welcome to SvelteKit</h1>
-  <p>Visit <a href="https://svelte.dev/docs/kit">svelte.dev/docs/kit</a> to read the documentation</p>
-
-  <section>
-    <h2>OpenAI API Test</h2>
-
-    <button on:click={testOpenAI} disabled={loading}>
-      {loading ? 'Testing...' : 'Test OpenAI API'}
-    </button>
-
-  </section>
-
-  <section>
-    <h2>Mistral API Test</h2>
-
-    <button on:click={testMistral} disabled={loading}>
-      {loading ? 'Testing...' : 'Test Mistral API'}
-    </button>
-
-    {#if error}
-      <div style="color: red; margin-top: 10px;">
-        <strong>Error:</strong> {error}
-      </div>
-    {/if}
-
-    {#if response}
-      <div style="margin-top: 10px; padding: 10px; border: 1px solid #ccc; background-color: #f9f9f9;">
-        <strong>Response:</strong>
-        <pre>{response}</pre>
-      </div>
-    {/if}
-  </section>
+  <h1>MI6 Agents</h1>
+  {#await getAgents() then agents}
+    <div>
+      {#if agents.length === 0}
+        <p>No agents found. Go play with yourself (or create a new agent)</p>
+      {/if}
+      {#each agents as agent}
+        <div>
+          <h2>{agent.name}</h2>
+          <a href="/agents/{agent._id}">Go to agent: {`/agents/${agent._id}`}</a>
+          <p>{agent.description}</p>
+          <pre>{JSON.stringify(agent.config, null, 2)}</pre>
+        </div>
+      {/each}
+    </div>
+  {:catch error}
+    <p style="color: red;">Error: {error.stack || error.message}</p>
+  {/await}
 </main>

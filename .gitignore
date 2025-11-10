@@ -24,3 +24,9 @@ vite.config.ts.timestamp-*
 
 # Claude Code project documentation
 CLAUDE.md
+
+# Mock db
+src/lib/db/mockdb-data.ts
+
+# Tullball
+balle/
