@@ -2,21 +2,14 @@ import { env } from "$env/dynamic/private";
 import { Mistral } from "@mistralai/mistralai";
 import { createSse } from "$lib/streaming.js";
 import { MistralConversationConfig } from "$lib/types/agents.js";
+import type { ConversationEvents } from "@mistralai/mistralai/models/components/conversationevents";
+import type { EventStream } from "@mistralai/mistralai/lib/event-streams";
 
 const mistral = new Mistral({
   apiKey: env.MISTRAL_API_KEY,
 });
 
-/** @typedef {import("@mistralai/mistralai/models/components/conversationevents.js").ConversationEvents} MistralConversationEvents */
-/** @typedef {import("@mistralai/mistralai/lib/event-streams.js").EventStream<MistralConversationEvents>} MistralEventStream */
-
-/**
- * @param {MistralEventStream} stream
- * @param {string} [conversationId]
- * @param {?string} [userLibraryId]
- * @returns {ReadableStream}
- */
-export const handleMistralStream = (stream, conversationId, userLibraryId) => {
+export const handleMistralStream = (stream: EventStream<ConversationEvents>, conversationId?: string, userLibraryId?: string | null): ReadableStream => {
   const readableStream = new ReadableStream({
     async start (controller) {
       if (conversationId) {

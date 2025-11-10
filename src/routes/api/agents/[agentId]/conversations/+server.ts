@@ -1,4 +1,4 @@
-import { json } from "@sveltejs/kit"
+import { json, type RequestHandler } from "@sveltejs/kit"
 import { handleMistralStream, createMistralConversation } from "$lib/mistral/mistral.js";
 import { handleOpenAIStream, createOpenAIConversation, createOpenAIConversationStream  } from "$lib/openai/openai.js";
 import { getAgent } from "$lib/agents/agents.js";
@@ -7,12 +7,9 @@ import { handleMockAiStream } from "$lib/mock-ai/mock-ai.js";
 
 // OBS OBS Kan hende vi bare skal ha dette endepunktet - og dersom man ikke sender med en conversationId så oppretter vi en ny conversation, hvis ikke fortsetter vi den eksisterende (ja, kan fortsatt kanskje hende det)
 
-/**
- *
- * @type {import("@sveltejs/kit").RequestHandler}
- */
-export const GET = async ({ request }) => {
+export const GET: RequestHandler = async ({ params }) : Promise<Response> => {
   // Da spør vi DB om å hente conversations som påkaller har tilgang på i denne assistenten
+  console.log(`Fetching conversations for agent ${params.agentId}`)
   const conversations = [
     {
       _id: 'conversation1',
@@ -24,11 +21,7 @@ export const GET = async ({ request }) => {
   return json({ conversations })
 }
 
-/**
- *
- * @type {import("@sveltejs/kit").RequestHandler}
- */
-export const POST = async ({ request, params }) => {
+export const POST: RequestHandler = async ({ request, params }) => {
   const body = await request.json()
   const { agentId } = params
   if (!agentId) {

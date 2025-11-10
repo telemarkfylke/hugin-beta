@@ -8,18 +8,15 @@ const MockAgentConfig = z.object({
 
 // MISTRAL
 
-/** @typedef {z.infer<typeof MistralDocumentLibraryTool>} MistralDocumentLibraryTool */
 const MistralDocumentLibraryTool = z.object({
   type: z.literal('document_library'),
   libraryIds: z.array(z.string())
 });
 
-/** @typedef {z.infer<typeof MistralWebSearchTool>} MistralWebSearchTool */
 const MistralWebSearchTool = z.object({
   type: z.literal('web_search')
 });
 
-/** @typedef {z.infer<typeof MistralAgentConfig>} MistralAgentConfig */
 const MistralAgentConfig = z.object({
   agentId: z.string()
 });
@@ -32,9 +29,10 @@ export const MistralConversationConfig = z.object({
   tools: z.array(z.union([MistralDocumentLibraryTool, MistralWebSearchTool])).optional()
 });
 
+export type MistralConversationConfig = z.infer<typeof MistralConversationConfig>;
+
 // OPENAI
 
-/** @typedef {z.infer<typeof OpenAIAgentPrompt>} OpenAIAgentPrompt */
 export const OpenAIAgentPrompt = z.object({
   prompt: z.object({
     id: z.string(),
@@ -42,7 +40,8 @@ export const OpenAIAgentPrompt = z.object({
   })
 });
 
-/** @typedef {z.infer<typeof AgentConfig>} */
+export type OpenAIAgentPrompt = z.infer<typeof OpenAIAgentPrompt>;
+
 export const AgentConfig = z.discriminatedUnion("type", [
   z.object({ type: z.literal("mock-agent"), ...MockAgentConfig.shape }),
   z.object({ type: z.literal("mistral-conversation"), ...MistralConversationConfig.shape }),
@@ -50,7 +49,8 @@ export const AgentConfig = z.discriminatedUnion("type", [
   // Legg til flere agent konfigurasjonstyper her etter behov
 ]);
 
-/** @typedef {z.infer<typeof Agent>} */
+export type AgentConfig = z.infer<typeof AgentConfig>;
+
 export const Agent = z.object({
   _id: z.string(),
   name: z.string(),
@@ -58,10 +58,10 @@ export const Agent = z.object({
   config: AgentConfig,
 });
 
-/** @typedef {z.infer<typeof Agents>} Agents */
+export type Agent = z.infer<typeof Agent>;
+
 export const Agents = z.array(Agent)
 
-/** @typedef {z.infer<typeof Conversation>} */
 export const Conversation = z.object({
   _id: z.string(),
   name: z.string(),
@@ -69,5 +69,6 @@ export const Conversation = z.object({
   relatedConversationId: z.string(), // id fra leverandør (Mistral/OpenAI)
 });
 
-/** @typedef {z.infer<typeof Conversations>} Conversations */
+export type Conversation = z.infer<typeof Conversation>;
+
 export const Conversations = z.array(Conversation)

@@ -8,13 +8,7 @@ The server sends this stream over a persistent HTTP connection with a Content-Ty
 */
 const textEncoder = new TextEncoder();
 
-/**
- * 
- * @param {MuginEventTypes} event 
- * @param {*} data 
- * @returns {Uint8Array<ArrayBuffer>}
- */
-export const createSse = (event, data) => {
+export const createSse = (event: MuginEventTypes, data: any): Uint8Array<ArrayBuffer> => {
   event = MuginEventTypes.parse(event); // Validate event type
   return textEncoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
 }
@@ -22,10 +16,8 @@ export const createSse = (event, data) => {
 // Frontend parse dritten
 /**
  * @description EventSource doesnt support POST requests, so we need to parse the SSE text manually (until some smart person sees this...)
- * @param {string} chunk
- * @returns {MuginSse[]} Array of parsed SSE events
  */
-export const parseSse = (chunk) => {
+export const parseSse = (chunk: string): MuginSse[] => {
   if (typeof chunk !== 'string' && !chunk) throw new Error("No chunk (string) provided for parsing SSE")
   console.log("Parsing SSE chunk:", chunk)
   if (chunk.length === 0) return [] // Return empty array for empty chunk

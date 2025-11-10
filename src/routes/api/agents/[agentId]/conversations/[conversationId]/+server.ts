@@ -1,5 +1,5 @@
 import { json } from "@sveltejs/kit"
-import { handleMistralStream, appendToMistralConversation, appendToMistralConversationStream } from "$lib/mistral/mistral.js";
+import { handleMistralStream, appendToMistralConversation } from "$lib/mistral/mistral.js";
 import { handleOpenAIStream, appendToOpenAIConversation, appendToOpenAIConversationStream } from "$lib/openai/openai.js";
 import { getAgent } from "$lib/agents/agents.js";
 import { getConversation } from "$lib/agents/conversations.js";

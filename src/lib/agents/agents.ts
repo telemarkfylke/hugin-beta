@@ -8,12 +8,7 @@ if (env.MOCK_DB === 'true') {
   console.log(mockDbData)
 }
 
-/**
- * 
- * @param {string} agentId 
- * @returns {Promise<import("$lib/types/agents.js").Agent>}
- */
-export const getAgent = async (agentId) => {
+export const getAgent = async (agentId: string) => {
   if (mockDbData) {
     const foundAgent = mockDbData.agents.find(agent => agent._id === agentId);
     if (!foundAgent) {
