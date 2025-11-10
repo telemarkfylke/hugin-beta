@@ -26,7 +26,7 @@ vite.config.ts.timestamp-*
 CLAUDE.md
 
 # Mock db
-# src/lib/db/mockdb-data.ts
+src/lib/db/mockdb-data.ts
 
 # Tullball
 balle/
