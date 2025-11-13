@@ -1,11 +1,13 @@
 import { json, type RequestHandler } from "@sveltejs/kit"
-import { handleMistralStream, appendToMistralConversation } from "$lib/mistral/mistral.js";
-import { handleOpenAIStream, appendToOpenAIConversation, appendToOpenAIConversationStream } from "$lib/openai/openai.js";
-import { getAgent } from "$lib/agents/agents.js";
-import { getConversation } from "$lib/agents/conversations.js";
-import { handleMockAiStream } from "$lib/mock-ai/mock-ai.js";
+import { handleMistralStream, appendToMistralConversation } from "$lib/server/mistral/mistral.js";
+import { handleOpenAIStream, appendToOpenAIConversation } from "$lib/server/openai/openai.js";
+import { getAgent } from "$lib/server/agents/agents.js";
+import { getConversation } from "$lib/server/agents/conversations.js";
+import { handleMockAiStream } from "$lib/server/mock-ai/mock-ai.js";
 import type { EventStream } from "@mistralai/mistralai/lib/event-streams";
 import type { ConversationEvents } from "@mistralai/mistralai/models/components/conversationevents";
+import type { Stream } from "openai/streaming";
+import type { ResponseStreamEvent } from "openai/resources/responses/responses.mjs";
 
 
 export const GET: RequestHandler = async ({ params }): Promise<Response> => {
@@ -77,13 +79,29 @@ export const POST: RequestHandler = async ({ request, params }): Promise<Respons
     return json({ response })
   }
   // OPENAI
-  if (agent.config.type == 'openai-prompt') {
+  if (agent.config.type == 'openai-response') {
     // Opprett conversation mot OpenAI her og returner
     console.log('Appending OpenAI conversation for agent:', agent._id)
-    if (body.stream) {
-      const stream = await appendToOpenAIConversationStream(agent.config.prompt.id, conversation.relatedConversationId, prompt);
 
-      const readableStream = handleOpenAIStream(stream);
+    // Sjekk om vi har vectorStoreId i conversation og legg til i tools i så fall
+    if (conversation.vectorStoreId) {
+      if (!agent.config.tools) {
+        agent.config.tools = [];
+      }
+      const fileSearchTool = agent.config.tools.find(tool => tool.type === 'file_search')
+      if (!fileSearchTool) {
+        agent.config.tools.push({
+          type: 'file_search',
+          vector_store_ids: [conversation.vectorStoreId]
+        });
+      } else {
+        fileSearchTool.vector_store_ids.push(conversation.vectorStoreId);
+      }
+    }
+
+    const response = await appendToOpenAIConversation(agent.config, conversation.relatedConversationId, prompt, body.stream);
+    if (body.stream) {
+      const readableStream = handleOpenAIStream(response as Stream<ResponseStreamEvent>);
 
       return new Response(readableStream, {
         headers: {
@@ -93,8 +111,6 @@ export const POST: RequestHandler = async ({ request, params }): Promise<Respons
         }
       })
     }
-
-    const response = await appendToOpenAIConversation(agent.config.prompt.id, conversation.relatedConversationId, prompt);
 
     return json(response)
   }

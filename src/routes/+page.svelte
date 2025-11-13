@@ -1,13 +1,13 @@
-<script>
-  import { Agents } from "../lib/types/agents";
+<script lang="ts">
+  import type { Agent } from "../lib/types/agents";
 
-  const getAgents = async () => {
+  const getAgents = async (): Promise<Agent[]> => {
     const res = await fetch('/api/agents');
     const data = await res.json();
     if (!res.ok) {
       throw new Error(data.message || 'Failed to fetch agents');
     }
-    return Agents.parse(data.agents);
+    return data.agents;
   };
 </script>
 <main>

@@ -1,6 +1,6 @@
 import z from "zod";
 
-export const MuginEventTypes = z.enum(['conversation.started', 'message.delta', 'conversation.ended', 'error', 'conversation.vectorstore.created']);
+export const MuginEventTypes = z.enum(['conversation.started', 'conversation.message.delta', 'conversation.ended', 'error', 'conversation.vectorstore.created', 'conversation.document.uploaded', 'conversation.document.processed']);
 
 export type MuginEventTypes = z.infer<typeof MuginEventTypes>;
 

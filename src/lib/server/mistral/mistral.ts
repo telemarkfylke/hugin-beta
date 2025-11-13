@@ -1,12 +1,12 @@
 import { env } from "$env/dynamic/private";
 import { Mistral } from "@mistralai/mistralai";
 import { createSse } from "$lib/streaming.js";
-import { MistralConversationConfig } from "$lib/types/agents.js";
+import type { MistralConversationConfig } from "$lib/types/agents.js";
 import type { ConversationEvents } from "@mistralai/mistralai/models/components/conversationevents";
 import type { EventStream } from "@mistralai/mistralai/lib/event-streams";
 import type { ConversationResponse } from "@mistralai/mistralai/models/components/conversationresponse";
 
-const mistral = new Mistral({
+export const mistral = new Mistral({
   apiKey: env.MISTRAL_API_KEY,
 });
 
@@ -20,14 +20,17 @@ export const handleMistralStream = (stream: EventStream<ConversationEvents>, con
         controller.enqueue(createSse('conversation.vectorstore.created', { vectorStoreId: userLibraryId }));
       }
       for await (const chunk of stream) {
+        if (!['conversation.response.started', 'message.output.delta'].includes(chunk.event)) {
+          console.log('Mistral stream chunk event:', chunk.event, chunk.data);
+        }
         switch (chunk.event) {
           case 'conversation.response.started':
             // @ts-ignore
-            controller.enqueue(createSse('conversation.started', { MistralConversationId: chunk.data.conversationId }));
+            // controller.enqueue(createSse('conversation.started', { MistralConversationId: chunk.data.conversationId }));
             break
           case 'message.output.delta':
             // @ts-ignore
-            controller.enqueue(createSse('message.delta', { messageId: chunk.data.id, content: chunk.data.content }));
+            controller.enqueue(createSse('conversation.message.delta', { messageId: chunk.data.id, content: chunk.data.content }));
             break          
           // Ta hensyn til flere event typer her etter behov
         }
@@ -83,9 +86,15 @@ export const createMistralConversation = async (mistralConversationConfig: Mistr
     if (!mistralConversationConfig.tools) {
       mistralConversationConfig.tools = [];
     }
-    const libraryTools = mistralConversationConfig.tools.find(tool => tool.type === 'document_library');
-    const libraryIds = libraryTools?.libraryIds || [];
-    libraryIds.push(library.id);
+    const documentLibraryTool = mistralConversationConfig.tools.find(tool => tool.type === 'document_library');
+    if (!documentLibraryTool) {
+      mistralConversationConfig.tools.push({
+        type: 'document_library',
+        libraryIds: [library.id]
+      });
+    } else {
+      documentLibraryTool.libraryIds.push(library.id);
+    }
     return {
       config: {
         inputs: initialPrompt,
@@ -123,5 +132,3 @@ export const createMistralConversation = async (mistralConversationConfig: Mistr
 
   return { mistralConversationId: conversationStarter.conversationId, userLibraryId: mistralConfig.userLibraryId, response: conversationStarter };
 }
-
-
