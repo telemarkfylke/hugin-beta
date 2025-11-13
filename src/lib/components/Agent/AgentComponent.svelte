@@ -39,7 +39,7 @@
       {/each}
     {/if}
   </div>
-  <AgentChatInput bind:prompt={agentStateHandler.agentState.userPrompt} postUserPrompt={agentStateHandler.postUserPrompt} />
+  <AgentChatInput postUserPrompt={agentStateHandler.postUserPrompt} />
   <AgentConversationsComponent {agentStateHandler} />
 </div>
 

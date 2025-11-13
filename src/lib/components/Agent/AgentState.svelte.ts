@@ -19,7 +19,6 @@ export const createAgentState = () => {
         vectorStores: [],
       }
     },
-    userPrompt: '', // bind this to the input field
     conversations: {
       isLoading: false,
       error: null,
@@ -84,24 +83,18 @@ export const createAgentState = () => {
     }
     agentState.currentConversation.value.messages[messageId].content += messageContent
   }
-  const postUserPrompt = async () => {
+  const postUserPrompt = async (userPrompt: string) => {
     if (!agentState.agentId) {
       throw new Error("Agent ID is not set, you cannot post a prompt without an agentId");
     }
     // Reset error state
     agentState.currentConversation.error = null;
-    // send the userPrompt to the agent and get a response, then handle the response stream
-    if (agentState.userPrompt.trim() === '') {
-      return;
-    }
-    const promptToUse = agentState.userPrompt;
     // First, add the user message to the conversation immediately
-    addUserMessageToConversation(promptToUse)
-    // Then clear the input field
-    agentState.userPrompt = '';
+    addUserMessageToConversation(userPrompt)
+    // Then, prompt the agent and stream the response
     try {
       await promptAgent(
-        promptToUse,
+        userPrompt,
         agentState.agentId,
         agentState.currentConversation.value.id,
         setCurrentConversationId,

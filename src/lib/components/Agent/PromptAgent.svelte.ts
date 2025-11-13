@@ -19,6 +19,9 @@ export const promptAgent = async (userPrompt: string, agentId: string, conversat
   if (!agentId) {
     throw new Error("Agent ID is not set");
   }
+  if (!userPrompt || userPrompt.trim() === '') {
+    throw new Error("User prompt is empty"); // or just return?
+  }
   const response = conversationId ? await appendMessageToConversation(agentId, conversationId, userPrompt) : await createConversation(agentId, userPrompt);
   if (!response || !response.ok) {
     throw new Error(`Failed when prompting agent: ${response.status}`);

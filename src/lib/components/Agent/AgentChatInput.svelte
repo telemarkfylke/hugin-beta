@@ -1,9 +1,16 @@
 <script lang="ts">
-  // Get bindable prompt (dont use $bindable often) and state modifying functions from props
-  let { prompt = $bindable(), filesForUpload = $bindable(), postUserPrompt } = $props();
+  // Get state modifying functions from props
+  let { postUserPrompt } = $props();
 
-  // Internal state
+  // Internal state for this component
+  let userPrompt = $state('');
   let files = $state(new DataTransfer().files)
+
+  // Simple helper for posting prompt, and clearing input
+  const submitPrompt = () => {
+    postUserPrompt(userPrompt);
+    userPrompt = '';
+  };
 
   // Some element references
   let inputForm: HTMLFormElement;
@@ -21,15 +28,15 @@
   const submitOnEnter = (event: KeyboardEvent) => {
     if (event.key === 'Enter' && !event.shiftKey) {
       event.preventDefault();
-      postUserPrompt();
+      submitPrompt();
     }
   };
 </script>
 
 <div>
-  <form bind:this={inputForm} onsubmit={(event: Event) => { event.preventDefault(); postUserPrompt() }}>
+  <form bind:this={inputForm} onsubmit={(event: Event) => { event.preventDefault(); submitPrompt() }}>
     <div class="grow-wrap" bind:this={wrapDiv}>
-      <textarea rows="1" bind:this={textArea} name="prompt-input" id="prompt-input" oninput={sneakyTextArea} onkeydown={submitOnEnter} bind:value={prompt}></textarea>
+      <textarea rows="1" bind:this={textArea} name="prompt-input" id="prompt-input" oninput={sneakyTextArea} onkeydown={submitOnEnter} bind:value={userPrompt}></textarea>
     </div>
     <div id="actions">
       <div id="actions-left">

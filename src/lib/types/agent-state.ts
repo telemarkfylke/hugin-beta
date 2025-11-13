@@ -36,7 +36,6 @@ type AgentConversation = {
 export type AgentState = {
   agentId: string | null;
   currentConversation: CurrentAgentConversation;
-  userPrompt: string;
   conversations: {
     isLoading: boolean;
     error: string | null;
@@ -49,7 +48,7 @@ export type AgentStateHandler = {
   clearConversation: () => void;
   changeAgent: (newAgentId: string) => Promise<void>;
   loadConversation: (conversationId: string) => Promise<void>;
-  postUserPrompt: () => Promise<void>;
+  postUserPrompt: (userPrompt: string) => Promise<void>;
   addKnowledgeFileToConversation: (file: AgentVectorStoreFile) => void;
   deleteKnowledgeFileFromConversation: (fileId: string) => void;
   deleteConversation: (conversationId: string) => void;
