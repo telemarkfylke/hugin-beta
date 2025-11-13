@@ -2,6 +2,7 @@
 import type { AgentState } from "$lib/types/agent-state";
 import { promptAgent } from "./PromptAgent.svelte.js";
 import { getAgentConversationsYes } from "./Test.svelte.js";
+import { uploadFilesToConversation } from "./UploadFiles.svelte.js";
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -87,6 +88,9 @@ export const createAgentState = () => {
     if (!agentState.agentId) {
       throw new Error("Agent ID is not set, you cannot post a prompt without an agentId");
     }
+    if (!userPrompt || userPrompt.trim() === '') {
+      throw new Error("User prompt is empty, cannot post an empty prompt"); // or just return?
+    }
     // Reset error state
     agentState.currentConversation.error = null;
     // First, add the user message to the conversation immediately
@@ -105,8 +109,21 @@ export const createAgentState = () => {
       agentState.currentConversation.error = (error as Error).message;
     }
   }
-  const addKnowledgeFileToConversation = (file: unknown) => {
-    // Ensure vector store exists, upload file to it, check status etc. (check api before implementing)
+  const addKnowledgeFilesToConversation = (files: FileList) => {
+    if (!agentState.agentId || !agentState.currentConversation.value.id) {
+      throw new Error("agentId and conversationId are required to upload files to a conversation");
+    }
+    try {
+      uploadFilesToConversation(
+        files,
+        agentState.agentId!,
+        agentState.currentConversation.value.id!,
+        addAgentMessageToConversation
+      )
+    } catch (error) {
+      console.error("Error uploading files:", error);
+      agentState.currentConversation.error = (error as Error).message;
+    }
   }
   const deleteKnowledgeFileFromConversation = (fileId: string) => {
     // Ensure vector store exists, delete file from it, check status etc. (check api before implementing)
@@ -130,7 +147,7 @@ export const createAgentState = () => {
     changeAgent,
     loadConversation,
     postUserPrompt,
-    addKnowledgeFileToConversation,
+    addKnowledgeFilesToConversation,
     deleteKnowledgeFileFromConversation,
     deleteConversation,
     createAgentFromConversation

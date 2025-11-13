@@ -2,27 +2,81 @@
 
 import type { Agent, Conversation } from "$lib/types/agents.ts"
 
-export const mockAgents: Agent[] = [
+export const agents: Agent[] = [
   {
     _id: 'mistral',
     name: 'Mistral demo agent',
     description: 'Mistral agent based on an agent in mistral - connected to a mistral agent id',
     config: {
       type: 'mistral-conversation',
-      agentId: 'ag_019a34612b1874b087648e86ea134926' // example mistral agent id
+      agentId: 'en id til en agent i mistral',
     }
   },
   {
-    _id: 'openai',
+    _id: 'mistral-conversation',
+    name: 'Mistral rett på conversation',
+    description: 'Mistral agent som går rett på en model og conversation',
+    config: {
+      type: 'mistral-conversation',
+      model: 'mistral-medium-latest',
+      instructions: 'You are a helpful assistant that answers in Norwegian. Always search document libraries before answering user questions.',
+    }
+  },
+  {
+    _id: 'mistral-conversation-with-library',
+    name: 'Mistral Styrende Dokumenter Agent',
+    description: 'Mistral agent som svarer basert på dokumenter i et dokumentbibliotek i Mistral',
+    config: {
+      type: 'mistral-conversation',
+      model: 'mistral-medium-latest',
+      tools: [
+        {
+          type: 'document_library',
+          libraryIds: ['a library id fra mistral her']
+        }
+      ]
+    }
+  },
+  {
+    _id: 'openai_prompt',
     name: 'Open AI prompt demo agent',
     description: 'An agent that uses an OpenAI prompt-id as its configuration (saved prompt in OpenAI)',
     config: {
-      type: 'openai-prompt',
+      type: 'openai-response',
       prompt: {
-        id: 'pmpt_68ca8d43f1108197b5c81bd32014f34e04d1daa9ea89d5a0' // example OpenAI prompt id
+        id: 'a prompt id from OpenAI here'
       }
+    }
+  },
+  {
+    _id: 'openai_response_4o',
+    name: 'Open AI demo agent',
+    description: 'An agent that uses an OpenAI response configuration with gpt-4o model',
+    config: {
+      type: 'openai-response',
+      model: 'gpt-4o'
+    }
+  },
+  {
+    _id: 'openai_response_4o_2',
+    name: 'Open AI demo agent',
+    description: 'An agent that uses an OpenAI response configuration with gpt-4o model',
+    config: {
+      type: 'openai-response',
+      model: 'gpt-4o',
+      instructions: 'Svar sarkastisk og kort på alt'
+    }
+  },
+  {
+    _id: 'openai_response_4o_TROLL',
+    name: 'Open AI demo agent',
+    description: 'An agent that uses an OpenAI response configuration with gpt-4o model',
+    config: {
+      type: 'openai-response',
+      model: 'gpt-4o',
+      instructions: 'Svar som et nettroll i et kommentarfelt på en luguber nettside'
     }
   }
 ]
 
-export const mockConversations: Conversation[] = []
+export const conversations: Conversation[] = []

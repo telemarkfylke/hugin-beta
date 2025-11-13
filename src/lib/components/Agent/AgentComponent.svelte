@@ -39,7 +39,7 @@
       {/each}
     {/if}
   </div>
-  <AgentChatInput postUserPrompt={agentStateHandler.postUserPrompt} />
+  <AgentChatInput postUserPrompt={agentStateHandler.postUserPrompt} addKnowledgeFilesToConversation={agentStateHandler.addKnowledgeFilesToConversation} />
   <AgentConversationsComponent {agentStateHandler} />
 </div>
 

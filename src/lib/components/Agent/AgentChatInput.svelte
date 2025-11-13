@@ -1,6 +1,6 @@
 <script lang="ts">
   // Get state modifying functions from props
-  let { postUserPrompt } = $props();
+  let { postUserPrompt, addKnowledgeFilesToConversation } = $props();
 
   // Internal state for this component
   let userPrompt = $state('');
@@ -10,6 +10,13 @@
   const submitPrompt = () => {
     postUserPrompt(userPrompt);
     userPrompt = '';
+  };
+
+  const submitFiles = () => {
+    if (files.length > 0) {
+      addKnowledgeFilesToConversation(files);
+      files = new DataTransfer().files; // Clear files after submission
+    }
   };
 
   // Some element references
@@ -40,9 +47,10 @@
     </div>
     <div id="actions">
       <div id="actions-left">
-        <input bind:files type="file" id="file-upload" multiple />
+        <!-- WHOOOPS bruk dynamisk accept basert på agenten, og enable disable fileupload basert på agenten (https://platform.openai.com/docs/assistants/tools/file-search#supported-files), MISTRAL: PNG, JPEG, JPG, WEBP, GIF, PDF, DOCX, PPTX, EPUB, CSV, TXT, MD, XLSX --> 
+        <input bind:files type="file" id="file-upload" multiple accept=".png,.jpeg,.jpg,.webp,.gif,.pdf,.docx,.pptx,.epub,.csv,.txt,.md,.xlsx,image/png,image/jpeg,image/jpg,image/webp,image/gif,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/epub+zip,text/csv,text/plain,text/markdown,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" />
         {#if files.length > 0}
-          <button type="button" onclick={() => { console.log('laster opp filer') }}>Last opp ({files.length})</button>
+          <button type="button" onclick={submitFiles}>Last opp ({files.length})</button>
           <button type="reset" onclick={() => { files = new DataTransfer().files; }}>Clear Files ({files.length})</button>
         {/if}
       </div>
