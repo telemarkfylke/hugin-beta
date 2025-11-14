@@ -1,5 +1,6 @@
 <script>
 	import favicon from '$lib/assets/favicon.svg';
+	import '../style.css' // Add global css (and make it hot reload)
 	import '../lib/axe.js'
 </script>
 

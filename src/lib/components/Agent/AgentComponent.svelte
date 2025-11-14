@@ -1,30 +1,53 @@
 <script lang="ts">
-  import { onMount } from "svelte";
   import { createAgentState } from "./AgentState.svelte.ts";
   import AgentConversationsComponent from "./AgentConversationsComponent.svelte";
   import { markdownFormatter } from "$lib/formatting/markdown-formatter.ts";
-    import AgentChatInput from "./AgentChatInput.svelte";
+  import AgentChatInput from "./AgentChatInput.svelte";
 
+  // Input props
   let { agentId } = $props()
 
+  // State
   const agentStateHandler = createAgentState()
   $effect(() => {
     // Initialize or change agent when agentId prop changes
     // It is not reccommended to change state in effect, but this is ONLY dependent on prop change, so it might be acceptable.
     agentStateHandler.changeAgent(agentId) // This resets, as we need to load new agent data, should probs set loading state here as well
   })
-  
-  onMount(() => {
-    // Any side-effects or initialization can go here, but dont think we need any
-    console.log("Agent component mounted with agentId:", agentId);
-  });
+
+  let menuOpen = $state(false);
+
+  const toggleMenu = () => {
+    menuOpen = !menuOpen;
+  };
 
 </script>
 
 <div class="agent-container">
-  <h2>{agentStateHandler.agentState.agentId}</h2>
-  <div>
-    <p>Current Conversation ID: {agentStateHandler.agentState.currentConversation.value.id}</p>
+  <div class="agent-menu-bar">
+    <div class="agent-menu-bar-left">
+      <button onclick={toggleMenu}>{agentId} {menuOpen ? '⬆️' : '⬇️'}</button>
+      {#if agentStateHandler.agentState.currentConversation.value.id}
+        <span> Conversation: {agentStateHandler.agentState.currentConversation.value.name} (ID: {agentStateHandler.agentState.currentConversation.value.id})</span>
+      {/if}
+    </div>
+    <div class="agent-menu-bar-right">
+      <button onclick={agentStateHandler.clearConversation}>Start ny samtale</button>
+    </div>
+  </div>
+  <div class="agent-menu" class:open={menuOpen}>
+    <h3>Litt agentinfo</h3>
+    <p>Yada yada yada</p>
+    <h3>Agentinnstillinger</h3>
+    <p>Yada yada yada skriv instruksjoner eller no drit hvis det er tilgjengelig på agenten</p>
+    <h3>Filer i denne samtalen</h3>
+    <p>Yada yada filer osv</p>
+    <h3>Lagre som ny agent?</h3>
+    <p>Skal det være lov?</p>
+    <h3>Samtale-logg (agent-spesifikt)</h3>
+    <AgentConversationsComponent {agentStateHandler} />
+  </div>
+  <div class="agent-chat">
     {#if agentStateHandler.agentState.currentConversation.isLoading}
       <p>Loading conversation...</p>
     {:else if agentStateHandler.agentState.currentConversation.error}
@@ -33,25 +56,59 @@
       <p>No messages in current conversation.</p>
     {:else}
       {#each Object.entries(agentStateHandler.agentState.currentConversation.value.messages) as [id, message]}
-        <div id="message-{id}">
-          {@html markdownFormatter(message.content || '')}
-        </div>
+      <!-- Check if user or agent and handle, maybe handle some agent tools / processing as well eventually --> 
+        {#if message.role === 'user'}
+          <div id="message-{id}" class="user-message">
+            {message.content || ''}
+          </div>
+        {:else}
+          <div id="message-{id}" class="agent-message">
+            {@html markdownFormatter(message.content || '')}
+          </div>
+        {/if}
       {/each}
     {/if}
   </div>
   <AgentChatInput postUserPrompt={agentStateHandler.postUserPrompt} addKnowledgeFilesToConversation={agentStateHandler.addKnowledgeFilesToConversation} />
-  <AgentConversationsComponent {agentStateHandler} />
 </div>
 
 <style>
-.agent-container {
-  border: 1px solid #ccc;
-  padding: 1rem;
-  border-radius: 8px;
-}
-#user-prompt {
-  /* field-sizing: content; */
-  min-height: 4rem; /* Optional: Set a minimum height for better visual presentation */
-  max-height: 5rem;
-}
+  .agent-container {
+    box-sizing: border-box; /* Include padding and border in total size, to avoid overflow */
+    display: flex;
+    flex-direction: column;
+    max-width: 1024px;
+    margin: 0 auto;
+    border: 1px solid #ccc;
+    height: 100%;
+  }
+  .agent-menu-bar {
+    display: flex;
+    justify-content: space-between;
+  }
+  .agent-menu {
+    margin-bottom: 0.5rem;
+    padding: 1rem;
+    border-top: 1px solid #ccc;
+    border-bottom: 1px solid #ccc;
+    display: none;
+  }
+  .agent-menu.open {
+    display: block;
+    margin-bottom: 1rem;
+  }
+  .agent-chat {
+    flex: 1;
+    padding: 0.3rem;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  .user-message {
+    align-self: flex-end;
+    background-color: #daf1da;
+    padding: 0.5rem;
+    border-radius: 8px;
+  }
 </style>
