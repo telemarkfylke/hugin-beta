@@ -8,7 +8,7 @@ import type { EventStream } from "@mistralai/mistralai/lib/event-streams";
 import type { ConversationEvents } from "@mistralai/mistralai/models/components/conversationevents";
 import type { Stream } from "openai/streaming";
 import type { ResponseStreamEvent } from "openai/resources/responses/responses.mjs";
-import { ConversationRequest } from "$lib/types/schemas/requests";
+import { ConversationRequest } from "$lib/types/requests";
 import { responseStream } from "$lib/streaming";
 
 

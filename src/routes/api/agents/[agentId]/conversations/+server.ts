@@ -6,7 +6,7 @@ import { getConversations, insertConversation } from "$lib/server/agents/convers
 import { handleMockAiStream } from "$lib/server/mock-ai/mock-ai.js";
 import type { ResponseStreamEvent } from "openai/resources/responses/responses.mjs";
 import type { Stream } from "openai/streaming";
-import { ConversationRequest } from "$lib/types/schemas/requests";
+import { ConversationRequest } from "$lib/types/requests";
 import { responseStream } from "$lib/streaming";
 
 // OBS OBS Kan hende vi bare skal ha dette endepunktet - og dersom man ikke sender med en conversationId så oppretter vi en ny conversation, hvis ikke fortsetter vi den eksisterende (ja, kan fortsatt kanskje hende det)

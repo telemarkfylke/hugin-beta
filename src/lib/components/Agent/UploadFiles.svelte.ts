@@ -36,14 +36,18 @@ export const uploadFilesToConversation = async (files: FileList, agentId: string
     const uploadResponse = parseSse(chatResponseText)
     for (const uploadResult of uploadResponse) {
       switch (uploadResult.event) {
-        case 'conversation.document.uploaded':
-          console.log(`Document uploaded: ${uploadResult.data.fileName} (ID: ${uploadResult.data.documentId})`)
-          addAgentMessageToConversation(`${uploadResult.data.documentId}-msg`, `Document "${uploadResult.data.fileName}" uploaded successfully. Processing...`) // Temporary message, må finne på noe penere
+        case 'conversation.vectorstore.document.uploaded': {
+          const { documentId, fileName  } = uploadResult.data;
+          console.log(`Document uploaded: ${fileName} (ID: ${documentId})`)
+          addAgentMessageToConversation(`${documentId}-msg`, `Document "${fileName}" uploaded successfully. Processing...`) // Temporary message, må finne på noe penere
           break;
-        case 'conversation.document.processed':
-          console.log(`Document processed: ID ${uploadResult.data.documentId}`)
-          addAgentMessageToConversation(`${uploadResult.data.documentId}-msg`, `Document "${uploadResult.data.fileName}" processed successfully.`) // Temporary message, må finne på noe penere
+        }
+        case 'conversation.vectorstore.documents.processed': {
+          const { documents } = uploadResult.data;
+          console.log('Documents processed:', documents.map(doc => doc.documentId).join(', '));
+          addAgentMessageToConversation(`${documents.map(doc => doc.documentId).join(', ')}-msg`, `Documents processed successfully.`) // Temporary message, må finne på noe penere
           break;
+        }
         default:
           console.warn("Unhandled upload result event:", uploadResult.event)
           break;

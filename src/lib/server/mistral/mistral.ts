@@ -14,10 +14,10 @@ export const handleMistralStream = (stream: EventStream<ConversationEvents>, con
   const readableStream = new ReadableStream({
     async start (controller) {
       if (conversationId) {
-        controller.enqueue(createSse('conversation.started', { conversationId }));
+        controller.enqueue(createSse({ event: 'conversation.started', data: { conversationId } }));
       }
       if (userLibraryId) {
-        controller.enqueue(createSse('conversation.vectorstore.created', { vectorStoreId: userLibraryId }));
+        controller.enqueue(createSse({ event: 'conversation.vectorstore.created', data: { vectorStoreId: userLibraryId } }));
       }
       for await (const chunk of stream) {
         if (!['conversation.response.started', 'message.output.delta'].includes(chunk.event)) {
