@@ -3,6 +3,7 @@ import { getAgent } from "$lib/server/agents/agents.js";
 import { getConversation, updateConversation } from "$lib/server/agents/conversations.js";
 import { uploadDocumentsToMistralLibrary } from "$lib/server/mistral/document-library.js";
 import { uploadDocumentsToOpenAIVectorStore } from "$lib/server/openai/vector-store.js";
+import { uploadDocumentsToMockAI } from "$lib/server/mock-ai/mock-ai-files.js";
 
 /**
  *
@@ -38,7 +39,15 @@ export const POST = async ({ request, params }) => {
   // MOCK AI 
   if (agent.config.type == 'mock-agent') {
     // Last opp en eller flere filer mock mock
-    
+    const response = await uploadDocumentsToMockAI(conversation.vectorStoreId || 'mock-library-id', body.getAll('files[]') as File[], streaming)
+
+    return new Response(response, {
+      headers: {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        Connection: 'keep-alive'
+      }
+    })
   }
   // MISTRAL
   if (agent.config.type == 'mistral-conversation') {
