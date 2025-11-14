@@ -64,8 +64,8 @@ export const appendToMistralConversation = async (conversationId: string, prompt
 type MistralConversationCreationResult = {
   mistralConversationId: string
   userLibraryId: string | null
-  stream?: EventStream<ConversationEvents>
-  response?: ConversationResponse
+  mistralStream?: EventStream<ConversationEvents>
+  mistralResponse?: ConversationResponse
 }
 
 export const createMistralConversation = async (mistralConversationConfig: MistralConversationConfig, initialPrompt: string, streamResponse: boolean): Promise<MistralConversationCreationResult> => {
@@ -120,7 +120,7 @@ export const createMistralConversation = async (mistralConversationConfig: Mistr
       if (value?.event === 'conversation.response.started') {
         reader.cancel() // Vi trenger ikke lese mer her, vi har det vi trenger
         // @ts-ignore (den er der...)
-        return { mistralConversationId: value.data.conversationId, userLibraryId: mistralConfig.userLibraryId, stream: actualStream }
+        return { mistralConversationId: value.data.conversationId, userLibraryId: mistralConfig.userLibraryId, mistralStream: actualStream }
       }
       if (done) {
         break; // Oh no, vi fant ikke conversation response started event, har ikke noe å gå for... throw error under her
@@ -130,5 +130,5 @@ export const createMistralConversation = async (mistralConversationConfig: Mistr
   }
   const conversationStarter = await mistral.beta.conversations.start(mistralConfig.config);
 
-  return { mistralConversationId: conversationStarter.conversationId, userLibraryId: mistralConfig.userLibraryId, response: conversationStarter };
+  return { mistralConversationId: conversationStarter.conversationId, userLibraryId: mistralConfig.userLibraryId, mistralResponse: conversationStarter };
 }

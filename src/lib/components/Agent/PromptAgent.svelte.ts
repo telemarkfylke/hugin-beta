@@ -1,17 +1,26 @@
 // Keeps track of the entire state of an agent component (async stuff are allowed here)
 import { parseSse } from "$lib/streaming.js";
+import type { ConversationRequest } from "$lib/types/schemas/requests";
 
 const createConversation = async (agentId: string, userPrompt: string): Promise<Response> => {
+  const body: ConversationRequest = {
+    prompt: userPrompt,
+    stream: true
+  };
   return await fetch(`/api/agents/${agentId}/conversations`, {
     method: "POST",
-    body: JSON.stringify({ prompt: userPrompt, stream: true })
+    body: JSON.stringify(body)
   });
 };
 
 const appendMessageToConversation = async (agentId: string, conversationId: string, userPrompt: string): Promise<Response> => {
+  const body: ConversationRequest = {
+    prompt: userPrompt,
+    stream: true
+  };
   return await fetch(`/api/agents/${agentId}/conversations/${conversationId}`, {
     method: "POST",
-    body: JSON.stringify({ prompt: userPrompt, stream: true })
+    body: JSON.stringify(body)
   });
 };
 

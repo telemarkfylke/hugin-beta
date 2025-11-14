@@ -1,5 +1,15 @@
 import { MuginEventTypes, MuginSse } from "./types/streaming.js";
 
+export const responseStream = (stream: ReadableStream<any>): Response => {
+  return new Response(stream, {
+    headers: {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      Connection: 'keep-alive'
+    }
+  });
+}
+
 /*
 SSE format:
 Server-Sent Event (SSE) messages are formatted as a simple stream of UTF-8 text data, with events separated by two newline characters (\n\n).

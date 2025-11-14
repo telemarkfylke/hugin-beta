@@ -20,7 +20,6 @@
   };
 
   // Some element references
-  let inputForm: HTMLFormElement;
   let textArea: HTMLTextAreaElement;
   let wrapDiv: HTMLDivElement;
   /**
@@ -41,7 +40,7 @@
 </script>
 
 <div>
-  <form bind:this={inputForm} onsubmit={(event: Event) => { event.preventDefault(); submitPrompt() }}>
+  <form onsubmit={(event: Event) => { event.preventDefault(); submitPrompt() }}>
     <div class="grow-wrap" bind:this={wrapDiv}>
       <textarea rows="1" bind:this={textArea} name="prompt-input" id="prompt-input" oninput={sneakyTextArea} onkeydown={submitOnEnter} bind:value={userPrompt}></textarea>
     </div>
