@@ -9,6 +9,8 @@ OPENAI_API_KEY="fjkdlsfjkdsjf"
 MOCK_DB="true" # no real db yet, so required for stuff to happen
 ```
 
+Haha
+
 Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
 
 ```sh
