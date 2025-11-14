@@ -8,6 +8,8 @@ import type { EventStream } from "@mistralai/mistralai/lib/event-streams";
 import type { ConversationEvents } from "@mistralai/mistralai/models/components/conversationevents";
 import type { Stream } from "openai/streaming";
 import type { ResponseStreamEvent } from "openai/resources/responses/responses.mjs";
+import { ConversationRequest } from "$lib/types/requests";
+import { responseStream } from "$lib/streaming";
 
 
 export const GET: RequestHandler = async ({ params }): Promise<Response> => {
@@ -30,31 +32,24 @@ export const GET: RequestHandler = async ({ params }): Promise<Response> => {
 
 export const POST: RequestHandler = async ({ request, params }): Promise<Response> => {
   // Da legger vi til en ny melding i samtalen i denne agenten via leverandør basert på agenten, og får tilbake responseStream med oppdatert samtalehistorikk
-  const body = await request.json()
   const { conversationId, agentId } = params
-  
-  console.log(body)
-  const prompt = body.prompt || "Hei, hvordan har du det?"
-
   if (!agentId || !conversationId) {
     return json({ error: 'agentId and conversationId are required' }, { status: 400 })
   }
 
+  const body = await request.json()
+  // Validate request body
+  const { prompt, stream } = ConversationRequest.parse(body)
+  
   const agent = await getAgent(agentId)
   const conversation = await getConversation(conversationId)
 
   // MOCK AI 
   if (agent.config.type == 'mock-agent') {
     console.log('Mock AI response for agent:', agent._id)
-    if (body.stream) {
-      const stream = handleMockAiStream(conversation._id);
-      return new Response(stream, {
-        headers: {
-          'Content-Type': 'text/event-stream',
-          'Cache-Control': 'no-cache',
-          Connection: 'keep-alive'
-        }
-      })
+    if (stream) {
+      const readableStream = handleMockAiStream(conversation._id);
+      return responseStream(readableStream)
     }
     throw new Error('Mock AI agent only supports streaming responses for now...');
   }
@@ -62,17 +57,11 @@ export const POST: RequestHandler = async ({ request, params }): Promise<Respons
   if (agent.config.type == 'mistral-conversation') {
     // Må sjekke at conversations finnes forsatt og...
     console.log('Appending Mistral conversation for agent:', agent._id)
-    if (body.stream) {
-      const stream = await appendToMistralConversation(conversation.relatedConversationId, prompt, true) as EventStream<ConversationEvents>;
-      const readableStream = handleMistralStream(stream);
+    if (stream) {
+      const mistralStream = await appendToMistralConversation(conversation.relatedConversationId, prompt, true) as EventStream<ConversationEvents>;
+      const readableStream = handleMistralStream(mistralStream);
 
-      return new Response(readableStream, {
-        headers: {
-          'Content-Type': 'text/event-stream',
-          'Cache-Control': 'no-cache',
-          Connection: 'keep-alive'
-        }
-      })
+      return responseStream(readableStream)
     }
     const response = await appendToMistralConversation(conversation.relatedConversationId, prompt, false);
 
@@ -99,20 +88,23 @@ export const POST: RequestHandler = async ({ request, params }): Promise<Respons
       }
     }
 
-    const response = await appendToOpenAIConversation(agent.config, conversation.relatedConversationId, prompt, body.stream);
-    if (body.stream) {
-      const readableStream = handleOpenAIStream(response as Stream<ResponseStreamEvent>);
+    try {
+      const openAIResponse = await appendToOpenAIConversation(agent.config, conversation.relatedConversationId, prompt, stream);
+      console.log('Received OpenAI response:', openAIResponse);
+      if (stream) {
+        console.log('Handling OpenAI streaming response');
+        const readableStream = handleOpenAIStream(openAIResponse as Stream<ResponseStreamEvent>);
 
-      return new Response(readableStream, {
-        headers: {
-          'Content-Type': 'text/event-stream',
-          'Cache-Control': 'no-cache',
-          Connection: 'keep-alive'
-        }
-      })
+        console.log('Returning streaming response', readableStream);
+        return responseStream(readableStream)
+      }
+
+      return json(openAIResponse)
+    } catch (error) {
+      console.error('Error appending to OpenAI conversation:', error);
+      return json({ error: 'Failed to get response from OpenAI' }, { status: 500 });
     }
 
-    return json(response)
   }
   throw new Error(`Unsupported agent config type: ${agent.config}`);
 }

@@ -7,6 +7,6 @@
 
 </script>
 
-<div style="height: 100%; box-sizing: border-box; padding: 2rem;">
+<div style="height: 100%; box-sizing: border-box; padding: 2rem 0rem;">
   <AgentComponent {agentId} />
 </div>

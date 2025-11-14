@@ -6,7 +6,7 @@ import { json, type RequestHandler } from "@sveltejs/kit"
  * @type {import("@sveltejs/kit").RequestHandler}
  */
 export const GET: RequestHandler = async () => {
-  // Da spør vi DB om å hente assistenter som påkaller har tilgang på
+  // Da spør vi DB om å hente assistenter som påkaller har tilgang på TODO - ferdig type og validering
   const agent: Agent = {
     _id: 'agent1',
     name: 'agent One',

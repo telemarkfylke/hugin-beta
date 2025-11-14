@@ -13,7 +13,7 @@ export const handleOpenAIStream = (stream: Stream<ResponseStreamEvent>, conversa
   const readableStream = new ReadableStream({
     async start (controller) {
       if (conversationId) {
-        controller.enqueue(createSse('conversation.started', { conversationId }));
+        controller.enqueue(createSse({ event: 'conversation.started', data: { conversationId } }));
       }
       for await (const chunk of stream) {
         switch (chunk.type) {
@@ -21,7 +21,7 @@ export const handleOpenAIStream = (stream: Stream<ResponseStreamEvent>, conversa
             // controller.enqueue(createSse('conversation.started', { openAIConversationId: chunk.response.conversation?.id }));
             break
           case 'response.output_text.delta':
-            controller.enqueue(createSse('conversation.message.delta', { messageId: chunk.item_id, content: chunk.delta }));
+            controller.enqueue(createSse({ event: 'conversation.message.delta', data: { messageId: chunk.item_id, content: chunk.delta } }));
             break
           // Ta hensyn til flere event typer her etter behov
         }
@@ -35,6 +35,7 @@ export const handleOpenAIStream = (stream: Stream<ResponseStreamEvent>, conversa
 
 export const appendToOpenAIConversation = async (openAiResponseConfig: OpenAIAResponseConfig, openAIConversationId: string, prompt: string, streamResponse: boolean): Promise<Response | Stream<ResponseStreamEvent>> => {  
   // Create response and return
+  // @ts-expect-error
   delete openAiResponseConfig.type; // Fjern type fra config objektet før vi sender til OpenAI TODO, løs dette
   return await openai.responses.create({
     ...openAiResponseConfig,

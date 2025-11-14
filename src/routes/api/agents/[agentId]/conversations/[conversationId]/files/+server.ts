@@ -4,12 +4,13 @@ import { getConversation, updateConversation } from "$lib/server/agents/conversa
 import { uploadDocumentsToMistralLibrary } from "$lib/server/mistral/document-library.js";
 import { uploadDocumentsToOpenAIVectorStore } from "$lib/server/openai/vector-store.js";
 import { uploadDocumentsToMockAI } from "$lib/server/mock-ai/mock-ai-files.js";
+import { responseStream } from "$lib/streaming.js";
 
 /**
  *
  * @type {import("@sveltejs/kit").RequestHandler}
  */
-export const GET = async ({ request, params }) => {
+export const GET = async ({ params }) => {
   console.log(params)
   const files = {
       _id: 'blablabla',
@@ -24,30 +25,45 @@ export const GET = async ({ request, params }) => {
 export const POST = async ({ request, params }) => {
   // Da legger vi til en ny melding i samtalen i denne agenten via leverandør basert på agenten, og får tilbake responseStream med oppdatert samtalehistorikk
   const { conversationId, agentId } = params
-  const body = await request.formData()
-
   if (!agentId || !conversationId) {
     return json({ error: 'agentId and conversationId are required' }, { status: 400 })
   }
+  const body = await request.formData()
+  const files: File[] = body.getAll('files[]') as File[]
+  const streamParam = body.get('stream')
+  if (!streamParam || (streamParam !== 'true' && streamParam !== 'false')) {
+    return json({ error: 'stream parameter is required and must be either "true" or "false"' }, { status: 400 })
+  }
+  const stream: boolean = streamParam === 'true'
 
-  const streaming = body.get('stream') === 'true'
-
+  // Validate files
+  if (!files || files.length === 0) {
+    return json({ error: 'No files provided for upload' }, { status: 400 })
+  }
   const agent = await getAgent(agentId)
   const conversation = await getConversation(conversationId)
 
+  // Validate file types
+  const allFilesValid = files.every(file => {
+    if (!(file instanceof File)) {
+      return false;
+    }
+    /* Må komme fra agent ellerno
+    const validTypes = [];
+    return validTypes.includes(file.type);
+    */
+    return true; // For now, aksepter alle typer
+  })
+  if (!allFilesValid) {
+    return json({ error: 'One or more files have invalid type' }, { status: 400 }) // Add valid types message senere
+  }
 
   // MOCK AI 
   if (agent.config.type == 'mock-agent') {
     // Last opp en eller flere filer mock mock
-    const response = await uploadDocumentsToMockAI(conversation.vectorStoreId || 'mock-library-id', body.getAll('files[]') as File[], streaming)
+    const response = await uploadDocumentsToMockAI(conversation.vectorStoreId || 'mock-library-id', files, stream)
 
-    return new Response(response, {
-      headers: {
-        'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache',
-        Connection: 'keep-alive'
-      }
-    })
+    return responseStream(response)
   }
   // MISTRAL
   if (agent.config.type == 'mistral-conversation') {
@@ -55,20 +71,13 @@ export const POST = async ({ request, params }) => {
       throw new Error('Conversation does not have a vectorStoreId to upload files to');
     }
     // Last opp en eller flere filer mistral
-    const response = await uploadDocumentsToMistralLibrary(conversation.vectorStoreId, body.getAll('files[]') as File[], streaming);
-
-    return new Response(response, {
-      headers: {
-        'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache',
-        Connection: 'keep-alive'
-      }
-    })
+    const response = await uploadDocumentsToMistralLibrary(conversation.vectorStoreId, files, stream);
+    return responseStream(response)
   }
   // OPENAI
   if (agent.config.type == 'openai-response') {
     // Last opp en eller flere filer openai
-    const { vectorStoreId, readableStream } = await uploadDocumentsToOpenAIVectorStore(conversation.relatedConversationId, conversation.vectorStoreId, body.getAll('files[]') as File[], streaming);
+    const { vectorStoreId, readableStream } = await uploadDocumentsToOpenAIVectorStore(conversation.relatedConversationId, conversation.vectorStoreId, files, stream);
     // Check if vectorStoreId has changed and update conversation if needed
     if (vectorStoreId !== conversation.vectorStoreId) {
       // Oppdater conversation i DB med ny vectorStoreId

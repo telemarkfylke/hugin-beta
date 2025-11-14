@@ -6,6 +6,8 @@ import { getConversations, insertConversation } from "$lib/server/agents/convers
 import { handleMockAiStream } from "$lib/server/mock-ai/mock-ai.js";
 import type { ResponseStreamEvent } from "openai/resources/responses/responses.mjs";
 import type { Stream } from "openai/streaming";
+import { ConversationRequest } from "$lib/types/requests";
+import { responseStream } from "$lib/streaming";
 
 // OBS OBS Kan hende vi bare skal ha dette endepunktet - og dersom man ikke sender med en conversationId så oppretter vi en ny conversation, hvis ikke fortsetter vi den eksisterende (ja, kan fortsatt kanskje hende det)
 
@@ -21,19 +23,20 @@ export const GET: RequestHandler = async ({ params }) : Promise<Response> => {
 }
 
 export const POST: RequestHandler = async ({ request, params }) => {
-  const body = await request.json()
   const { agentId } = params
   if (!agentId) {
     return json({ error: 'agentId is required' }, { status: 400 })
   }
-  const agent = await getAgent(agentId)
 
-  console.log(body)
-  const prompt = body.prompt || "Hei, hvordan har du det?"
+  const body = await request.json()
+  // Validate request body
+  const { prompt, stream } = ConversationRequest.parse(body)
+
+  const agent = await getAgent(agentId)
 
   // MOCK AI AGENT
   if (agent.config.type == 'mock-agent') {
-    if (body.stream) {
+    if (stream) {
       const ourConversation = await insertConversation('mock-agent', {
         name: 'New mock conversation',
         description: 'Mock conversation started via API',
@@ -42,13 +45,7 @@ export const POST: RequestHandler = async ({ request, params }) => {
       });
       const readableStream = handleMockAiStream(ourConversation._id);
       
-      return new Response(readableStream, {
-        headers: {
-          'Content-Type': 'text/event-stream',
-          'Cache-Control': 'no-cache',
-          Connection: 'keep-alive'
-        }
-      })
+      return responseStream(readableStream)
     }
     throw new Error('Mock AI agent only supports streaming responses for now...');
   }
@@ -57,7 +54,7 @@ export const POST: RequestHandler = async ({ request, params }) => {
   if (agent.config.type == 'mistral-conversation') {
     console.log('Creating Mistral conversation', agent._id)
     // Opprett conversation mot Mistral her og returner
-    const { mistralConversationId, userLibraryId, stream, response } = await createMistralConversation(agent.config, prompt, body.stream);
+    const { mistralConversationId, userLibraryId, mistralStream, mistralResponse } = await createMistralConversation(agent.config, prompt, stream);
 
     const ourConversation = await insertConversation(agentId, {
       name: 'New Conversation',
@@ -67,17 +64,14 @@ export const POST: RequestHandler = async ({ request, params }) => {
     });
 
     if (stream) {
-      const readableStream = handleMistralStream(stream, ourConversation._id, userLibraryId);
+      if (!mistralStream) {
+        throw new Error('Mistral stream is not available for streaming response, check implementation');
+      }
+      const readableStream = handleMistralStream(mistralStream, ourConversation._id, userLibraryId);
 
-      return new Response(readableStream, {
-        headers: {
-          'Content-Type': 'text/event-stream',
-          'Cache-Control': 'no-cache',
-          Connection: 'keep-alive'
-        }
-      })
+      return responseStream(readableStream)
     }
-    return json({ conversation: ourConversation, initialResponse: response })
+    return json({ conversation: ourConversation, initialResponse: mistralResponse })
   }
   // OPENAI
   if (agent.config.type == 'openai-response') {
@@ -85,7 +79,7 @@ export const POST: RequestHandler = async ({ request, params }) => {
     console.log('Creating OpenAI conversation for agent:', agent._id)
     
     // Create responsestream and return
-    const { response, openAiConversationId } = await createOpenAIConversation(agent.config, prompt, body.stream) as {response: Stream<ResponseStreamEvent>, openAiConversationId: string}; // Todo, gjør dette bedre med typer
+    const { response, openAiConversationId } = await createOpenAIConversation(agent.config, prompt, stream) as {response: Stream<ResponseStreamEvent>, openAiConversationId: string}; // Todo, gjør dette bedre med typer
 
     const ourConversation = await insertConversation(agentId, {
       name: 'New Conversation',
@@ -94,16 +88,10 @@ export const POST: RequestHandler = async ({ request, params }) => {
       vectorStoreId: null
     });
 
-    if (body.stream) {
+    if (stream) {
       const readableStream = handleOpenAIStream(response, ourConversation._id);
 
-      return new Response(readableStream, {
-        headers: {
-          'Content-Type': 'text/event-stream',
-          'Cache-Control': 'no-cache',
-          Connection: 'keep-alive'
-        }
-      })
+      return responseStream(readableStream)
     }
 
     return json({ conversation: ourConversation, initialResponse: response })

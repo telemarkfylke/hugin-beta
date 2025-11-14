@@ -1,4 +1,14 @@
-import { MuginEventTypes, MuginSse } from "./types/streaming.js";
+import { MuginSse } from "./types/streaming.js";
+
+export const responseStream = (stream: ReadableStream<any>): Response => {
+  return new Response(stream, {
+    headers: {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      Connection: 'keep-alive'
+    }
+  });
+}
 
 /*
 SSE format:
@@ -8,9 +18,9 @@ The server sends this stream over a persistent HTTP connection with a Content-Ty
 */
 const textEncoder = new TextEncoder();
 
-export const createSse = (event: MuginEventTypes, data: any): Uint8Array<ArrayBuffer> => {
-  event = MuginEventTypes.parse(event); // Validate event type
-  return textEncoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+export const createSse = (muginEvent: MuginSse): Uint8Array<ArrayBuffer> => {
+  muginEvent = MuginSse.parse(muginEvent); // Validate event type
+  return textEncoder.encode(`event: ${muginEvent.event}\ndata: ${JSON.stringify(muginEvent.data)}\n\n`);
 }
 
 // Frontend parse dritten
@@ -38,9 +48,9 @@ export const parseSse = (chunk: string): MuginSse[] => {
     if (!keyValueLines[1] || !keyValueLines[1].startsWith('data: ')) {
       throw new Error(`Invalid line (does not start with data:) ${keyValueLines[1]}`);
     }
-    const event = MuginEventTypes.parse(keyValueLines[0].slice(7).trim())
+    const event = keyValueLines[0].slice(7).trim()
     const data = JSON.parse(keyValueLines[1].slice(6).trim()) // Remove 'data: ' prefix, and parse JSON
-    result.push({ event, data });
+    result.push(MuginSse.parse({ event, data }));
   }
   return result
 }

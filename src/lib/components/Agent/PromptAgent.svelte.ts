@@ -1,17 +1,26 @@
 // Keeps track of the entire state of an agent component (async stuff are allowed here)
 import { parseSse } from "$lib/streaming.js";
+import type { ConversationRequest } from "$lib/types/requests";
 
 const createConversation = async (agentId: string, userPrompt: string): Promise<Response> => {
+  const body: ConversationRequest = {
+    prompt: userPrompt,
+    stream: true
+  };
   return await fetch(`/api/agents/${agentId}/conversations`, {
     method: "POST",
-    body: JSON.stringify({ prompt: userPrompt, stream: true })
+    body: JSON.stringify(body)
   });
 };
 
 const appendMessageToConversation = async (agentId: string, conversationId: string, userPrompt: string): Promise<Response> => {
+  const body: ConversationRequest = {
+    prompt: userPrompt,
+    stream: true
+  };
   return await fetch(`/api/agents/${agentId}/conversations/${conversationId}`, {
     method: "POST",
-    body: JSON.stringify({ prompt: userPrompt, stream: true })
+    body: JSON.stringify(body)
   });
 };
 
@@ -29,6 +38,9 @@ export const promptAgent = async (userPrompt: string, agentId: string, conversat
   if (!response.body) {
     throw new Error("Failed to get a response body from agent prompt");
   }
+  if (!response.body.getReader) {
+    throw new Error("Response body does not support streaming");
+  }
   const reader = response.body.getReader()
   const decoder = new TextDecoder("utf-8")
   while (true) {
@@ -42,13 +54,6 @@ export const promptAgent = async (userPrompt: string, agentId: string, conversat
           setCurrentConversationId(conversationId)
           console.log("Conversation started with ID:", conversationId)
           break;
-        /*
-        case 'conversation.vectorstore.created':
-          const { vectorStoreId } = chatResult.data
-          conversation.vectorStoreId = vectorStoreId
-          console.log("Vector store created with ID:", vectorStoreId)
-          break;
-        */
         case 'conversation.message.delta':
           const { messageId, content } = chatResult.data
           addAgentMessageToConversation(messageId, content)

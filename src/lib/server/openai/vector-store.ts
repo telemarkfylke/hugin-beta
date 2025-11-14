@@ -40,9 +40,9 @@ export const uploadDocumentsToOpenAIVectorStore = async (conversationId: string,
               }
             })
             fileIds.push(result.id);
-            controller.enqueue(createSse('conversation.document.uploaded', { documentId: result.id, fileName: result.filename }));
+            controller.enqueue(createSse({ event: 'conversation.vectorstore.document.uploaded', data: { documentId: result.id, fileName: result.filename } }));
           } catch (error) {
-            controller.enqueue(createSse('error', { message: `Error uploading document ${file.name} to OpenAI library: ${error}` }));
+            controller.enqueue(createSse({ event: 'error', data: { message: `Error uploading document ${file.name} to OpenAI library: ${error}` } }));
             controller.close();
             break;
           }
@@ -61,14 +61,14 @@ export const uploadDocumentsToOpenAIVectorStore = async (conversationId: string,
               break;
             }
             if (batchResult.status !== 'in_progress') {
-              controller.enqueue(createSse('error', { message: `Error processing documents in batch id ${batchResult.id}: status ${batchResult.status}` }));
+              controller.enqueue(createSse({ event: 'error', data: { message: `Error processing documents in batch id ${batchResult.id}: status ${batchResult.status}` } }));
             }
             // Wait for a few seconds before polling again
             await new Promise(resolve => setTimeout(resolve, 3000));
           }
-          controller.enqueue(createSse('conversation.document.processed', { documentIds: fileIds }));
+          controller.enqueue(createSse({ event: 'conversation.vectorstore.documents.processed', data: { documents: fileIds.map(id => ({ documentId: id })), vectorStoreId } }));
         } catch (error) {
-          controller.enqueue(createSse('error', { message: `Error uploading documents to Open AI Vector store: ${error}` }));
+          controller.enqueue(createSse({ event: 'error', data: { message: `Error uploading documents to Open AI Vector store: ${error}` } }));
           controller.close();
         }
         controller.close();
