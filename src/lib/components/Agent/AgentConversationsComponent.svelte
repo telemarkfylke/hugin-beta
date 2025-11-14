@@ -8,7 +8,6 @@
 </script>
 
 <div>
-  <p>Previous conversations with {agentStateHandler.agentState.agentId}:</p>
   {#if agentStateHandler.agentState.conversations.isLoading}
     <p>Loading conversations...</p>
   {:else if agentStateHandler.agentState.conversations.error}

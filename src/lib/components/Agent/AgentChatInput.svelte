@@ -75,7 +75,6 @@
   .grow-wrap {
     /* easy way to plop the elements on top of each other and have them both sized based on the tallest one's height */
     display: grid;
-    border: 2px solid salmon; /* Just to visualize the grow-wrap area for debugging */
   }
   .grow-wrap::after {
     /* Note the weird space! Needed to preventy jumpy behavior */
