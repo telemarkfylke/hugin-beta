@@ -17,7 +17,7 @@ export const uploadDocumentsToMockAI = async (libraryId: string, files: File[], 
         for (const file of files) {
           try {
             await sleep(500); // Slight delay before starting upload
-            controller.enqueue(createSse('conversation.document.uploaded', { documentId: 'tullball-id', fileName: file.name }));
+            controller.enqueue(createSse({ event: 'conversation.vectorstore.document.uploaded', data: { documentId: 'tullball-id', fileName: file.name }}));
             let documentProcessed = false;
             // Polling for document processing status
             let status = { processingStatus: 'Running' }; // Mocked status
@@ -28,16 +28,16 @@ export const uploadDocumentsToMockAI = async (libraryId: string, files: File[], 
                 break;
               }
               if (status.processingStatus !== 'Running') {
-                controller.enqueue(createSse('error', { message: `Error processing document ${file.name}: status ${status.processingStatus}` }));
+                controller.enqueue(createSse({ event: 'error', data: { message: `Error processing document ${file.name}: status ${status.processingStatus}` }}));
               }
               // Wait for a few seconds before polling again
               await sleep(3000);
               // Then mock completed status
               status.processingStatus = 'Completed';
             }
-            controller.enqueue(createSse('conversation.document.processed', { documentId: 'tullball-id', fileName: file.name }));
+            controller.enqueue(createSse({ event: 'conversation.vectorstore.documents.processed', data: { vectorStoreId: libraryId, documents: [ { documentId: 'tullball-id' } ] }}));
           } catch (error) {
-            controller.enqueue(createSse('error', { message: `Error uploading document ${file.name} to Mock-AI: ${error}` }));
+            controller.enqueue(createSse({ event: 'error', data: { message: `Error uploading document ${file.name} to Mock-AI: ${error}` }}));
             controller.close();
             break;
           }
