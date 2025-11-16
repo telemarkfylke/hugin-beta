@@ -23,7 +23,7 @@ export const uploadDocumentsToMistralLibrary = async (libraryId: string, files: 
                 file,
               }
             })
-            controller.enqueue(createSse('conversation.document.uploaded', { documentId: result.id, fileName: file.name }));
+            controller.enqueue(createSse({ event: 'conversation.vectorstore.document.uploaded', data: { documentId: result.id, fileName: file.name } }));
             let documentProcessed = false;
             // Polling for document processing status
             while (!documentProcessed) {
@@ -38,14 +38,14 @@ export const uploadDocumentsToMistralLibrary = async (libraryId: string, files: 
                 break;
               }
               if (status.processingStatus !== 'Running') {
-                controller.enqueue(createSse('error', { message: `Error processing document ${file.name}: status ${status.processingStatus}` }));
+                controller.enqueue(createSse({ event: 'error', data: { message: `Error processing document ${file.name}: status ${status.processingStatus}` } }));
               }
               // Wait for a few seconds before polling again
               await new Promise(resolve => setTimeout(resolve, 3000));
             }
-            controller.enqueue(createSse('conversation.document.processed', { documentId: result.id, fileName: file.name }));
+            controller.enqueue(createSse({ event: 'conversation.vectorstore.document.processed', data: { documentId: result.id, fileName: file.name } }));
           } catch (error) {
-            controller.enqueue(createSse('error', { message: `Error uploading document ${file.name} to Mistral library: ${error}` }));
+            controller.enqueue(createSse({ event: 'error', data: { message: `Error uploading document ${file.name} to Mistral library: ${error}` } }));
             controller.close();
             break;
           }
