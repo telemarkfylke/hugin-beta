@@ -79,7 +79,7 @@ export const POST: RequestHandler = async ({ request, params }) => {
     console.log('Creating OpenAI conversation for agent:', agent._id)
     
     // Create responsestream and return
-    const { response, openAiConversationId } = await createOpenAIConversation(agent.config, prompt, stream) as {response: Stream<ResponseStreamEvent>, openAiConversationId: string}; // Todo, gjør dette bedre med typer
+    const { response, openAiConversationId } = await createOpenAIConversation(agent.config, prompt, null, stream) as {response: Stream<ResponseStreamEvent>, openAiConversationId: string}; // Todo, gjør dette bedre med typer
 
     const ourConversation = await insertConversation(agentId, {
       name: 'New Conversation',

@@ -72,24 +72,8 @@ export const POST: RequestHandler = async ({ request, params }): Promise<Respons
     // Opprett conversation mot OpenAI her og returner
     console.log('Appending OpenAI conversation for agent:', agent._id)
 
-    // Sjekk om vi har vectorStoreId i conversation og legg til i tools i så fall
-    if (conversation.vectorStoreId) {
-      if (!agent.config.tools) {
-        agent.config.tools = [];
-      }
-      const fileSearchTool = agent.config.tools.find(tool => tool.type === 'file_search')
-      if (!fileSearchTool) {
-        agent.config.tools.push({
-          type: 'file_search',
-          vector_store_ids: [conversation.vectorStoreId]
-        });
-      } else {
-        fileSearchTool.vector_store_ids.push(conversation.vectorStoreId);
-      }
-    }
-
     try {
-      const openAIResponse = await appendToOpenAIConversation(agent.config, conversation.relatedConversationId, prompt, stream);
+      const openAIResponse = await appendToOpenAIConversation(agent.config, conversation.relatedConversationId, prompt, conversation.vectorStoreId, stream);
       console.log('Received OpenAI response:', openAIResponse);
       if (stream) {
         console.log('Handling OpenAI streaming response');
