@@ -54,7 +54,7 @@
         {/if}
       </div>
       <div id="actions-right">
-        <button type="submit">Send</button>
+        <button type="submit" disabled={!userPrompt || userPrompt.trim() === ''}>Send</button>
       </div>
     </div>
   </form>
