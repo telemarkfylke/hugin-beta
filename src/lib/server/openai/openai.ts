@@ -30,6 +30,9 @@ export const handleOpenAIStream = (stream: Stream<ResponseStreamEvent>, conversa
           case 'response.failed':
             controller.enqueue(createSse({ event: 'error', data: { message: chunk.response.error?.message || "Unknown error" } }));
             break
+          default:
+            console.warn('Unhandled OpenAI stream event type:', chunk.type);
+            break;
           // Ta hensyn til flere event typer her etter behov
         }
       }

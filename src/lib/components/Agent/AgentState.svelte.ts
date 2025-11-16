@@ -147,8 +147,8 @@ export const createAgentState = (): AgentStateHandler => {
     try {
       uploadFilesToConversation(
         files,
-        agentState.agentId!,
-        agentState.currentConversation.value.id!,
+        agentState.agentId,
+        agentState.currentConversation.value.id,
         addAgentMessageToConversation
       )
     } catch (error) {

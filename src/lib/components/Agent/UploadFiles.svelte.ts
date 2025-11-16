@@ -1,6 +1,13 @@
 // Keeps track of the entire state of an agent component (async stuff are allowed here)
 import { parseSse } from "$lib/streaming.js";
 
+
+const getConversationFiles = async (agentId: string, conversationId: string): Promise<{ documents: any[] }> => {
+  if (!agentId || !conversationId) {
+    throw new Error("agentId and conversationId are required to fetch conversation files");
+  }
+  // const documen await fetch(`/api/agents/${agentId}/conversations/${conversationId}/files`);
+}
 const postFilesToConversation = async (files: FileList, agentId: string, conversationId: string): Promise<Response> => {
   const formData = new FormData();
   formData.append('stream', 'true'); // assuming we want always want streaming in frontend
@@ -36,16 +43,16 @@ export const uploadFilesToConversation = async (files: FileList, agentId: string
     const uploadResponse = parseSse(chatResponseText)
     for (const uploadResult of uploadResponse) {
       switch (uploadResult.event) {
-        case 'conversation.vectorstore.document.uploaded': {
-          const { documentId, fileName  } = uploadResult.data;
-          console.log(`Document uploaded: ${fileName} (ID: ${documentId})`)
-          addAgentMessageToConversation(`${documentId}-msg`, `Document "${fileName}" uploaded successfully. Processing...`) // Temporary message, må finne på noe penere
+        case 'conversation.vectorstore.file.uploaded': {
+          const { fileId, fileName  } = uploadResult.data;
+          console.log(`File uploaded: ${fileName} (ID: ${fileId})`)
+          addAgentMessageToConversation(`${fileId}-msg`, `File "${fileName}" uploaded successfully. Processing...`) // Temporary message, må finne på noe penere
           break;
         }
-        case 'conversation.vectorstore.documents.processed': {
-          const { documents } = uploadResult.data;
-          console.log('Documents processed:', documents.map(doc => doc.documentId).join(', '));
-          addAgentMessageToConversation(`${documents.map(doc => doc.documentId).join(', ')}-msg`, `Documents processed successfully.`) // Temporary message, må finne på noe penere
+        case 'conversation.vectorstore.files.processed': {
+          const { files } = uploadResult.data;
+          console.log('Files processed:', files.map(file => file.fileId).join(', '));
+          addAgentMessageToConversation(`${files.map(file => file.fileId).join(', ')}-msg`, `Files processed successfully.`) // Temporary message, må finne på noe penere
           break;
         }
         default:

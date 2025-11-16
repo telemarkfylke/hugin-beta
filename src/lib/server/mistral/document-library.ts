@@ -4,12 +4,12 @@ import { mistral } from "./mistral";
 
 // Document libraries in Mistral are vector stores, but called libraries
 
-export const uploadDocumentsToMistralLibrary = async (libraryId: string, files: File[], streamResponse: boolean): Promise<ReadableStream> => {
+export const uploadFilesToMistralLibrary = async (libraryId: string, files: File[], streamResponse: boolean): Promise<ReadableStream> => {
   if (!libraryId) {
-    throw new Error('libraryId is required to upload documents to Mistral');
+    throw new Error('libraryId is required to upload files to Mistral');
   }
   if (!files || files.length === 0) {
-    throw new Error('At least one file is required to upload documents to Mistral');
+    throw new Error('At least one file is required to upload files to Mistral');
   }
   // Maybe validate files types as well here
   if (streamResponse) {
@@ -23,10 +23,10 @@ export const uploadDocumentsToMistralLibrary = async (libraryId: string, files: 
                 file,
               }
             })
-            controller.enqueue(createSse({ event: 'conversation.vectorstore.document.uploaded', data: { documentId: result.id, fileName: file.name }}));
-            let documentProcessed = false;
+            controller.enqueue(createSse({ event: 'conversation.vectorstore.file.uploaded', data: { fileId: result.id, fileName: file.name }}));
+            let fileProcessed = false;
             // Polling for document processing status
-            while (!documentProcessed) {
+            while (!fileProcessed) {
               const status = await mistral.beta.libraries.documents.status({
                 libraryId,
                 documentId: result.id
@@ -34,7 +34,7 @@ export const uploadDocumentsToMistralLibrary = async (libraryId: string, files: 
               console.log('Document status:', status.processingStatus);
               if (status.processingStatus === 'Completed') {
                 await new Promise(resolve => setTimeout(resolve, 3000)); // Wait a bit to ensure document is fully processed
-                documentProcessed = true;
+                fileProcessed = true;
                 break;
               }
               if (status.processingStatus !== 'Running') {
@@ -43,7 +43,7 @@ export const uploadDocumentsToMistralLibrary = async (libraryId: string, files: 
               // Wait for a few seconds before polling again
               await new Promise(resolve => setTimeout(resolve, 3000));
             }
-            controller.enqueue(createSse({ event: 'conversation.vectorstore.documents.processed', data: { vectorStoreId: libraryId, documents: [ { documentId: result.id } ] }}));
+            controller.enqueue(createSse({ event: 'conversation.vectorstore.files.processed', data: { vectorStoreId: libraryId, files: [ { fileId: result.id } ] }}));
           } catch (error) {
             controller.enqueue(createSse({ event: 'error', data: { message: `Error uploading document ${file.name} to Mistral library: ${error}` }}));
             controller.close();
