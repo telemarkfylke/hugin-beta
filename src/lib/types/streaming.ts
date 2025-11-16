@@ -15,6 +15,13 @@ const ConversationMessageDelta = z.object({
   })
 });
 
+const ConversationMessageEnded = z.object({
+  event: z.literal("conversation.message.ended"),
+  data: z.object({
+    totalTokens: z.number()
+  })
+});
+
 const ConversationEnded = z.object({
   event: z.literal("conversation.ended"),
   data: z.object({
@@ -55,6 +62,7 @@ const ConversationDocumentsProcessed = z.object({
 export const MuginSse = z.discriminatedUnion("event", [
   ConversationStarted,
   ConversationMessageDelta,
+  ConversationMessageEnded,
   ConversationEnded,
   ErrorEvent,
   ConversationVectorStoreCreated,

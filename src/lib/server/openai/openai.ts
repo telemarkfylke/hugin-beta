@@ -23,6 +23,13 @@ export const handleOpenAIStream = (stream: Stream<ResponseStreamEvent>, conversa
           case 'response.output_text.delta':
             controller.enqueue(createSse({ event: 'conversation.message.delta', data: { messageId: chunk.item_id, content: chunk.delta } }));
             break
+          case 'response.completed':
+            
+            controller.enqueue(createSse({ event: 'conversation.message.ended', data: { totalTokens: chunk.response.usage?.total_tokens || 0 } }));
+            break
+          case 'response.failed':
+            controller.enqueue(createSse({ event: 'error', data: { message: chunk.response.error?.message || "Unknown error" } }));
+            break
           // Ta hensyn til flere event typer her etter behov
         }
       }

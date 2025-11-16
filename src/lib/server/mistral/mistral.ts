@@ -23,15 +23,21 @@ export const handleMistralStream = (stream: EventStream<ConversationEvents>, con
         if (!['conversation.response.started', 'message.output.delta'].includes(chunk.event)) {
           console.log('Mistral stream chunk event:', chunk.event, chunk.data);
         }
-        switch (chunk.event) {
+        // Types are not connected to the event in mistral... so we use type instead
+        switch (chunk.data.type) {
           case 'conversation.response.started':
-            // @ts-ignore
             // controller.enqueue(createSse('conversation.started', { MistralConversationId: chunk.data.conversationId }));
             break
           case 'message.output.delta':
-            // @ts-ignore
-            controller.enqueue(createSse('conversation.message.delta', { messageId: chunk.data.id, content: chunk.data.content }));
-            break          
+            controller.enqueue(createSse({ event: 'conversation.message.delta', data: { messageId: chunk.data.id, content: typeof chunk.data.content === 'string' ? chunk.data.content : 'FIKK EN CHUNK SOM IKKE ER STRING, sjekk mistral-typen OutputContentChunks' } }));
+            break
+          case 'conversation.response.done':
+            console.log("Mistral conversation done event data:", chunk.data);
+            controller.enqueue(createSse({ event: 'conversation.message.ended', data: { totalTokens: chunk.data.usage.totalTokens || 0 } }));
+            break
+          case 'conversation.response.error':
+            controller.enqueue(createSse({ event: 'error', data: { message: chunk.data.message } }));
+            break
           // Ta hensyn til flere event typer her etter behov
         }
       }
@@ -117,10 +123,9 @@ export const createMistralConversation = async (mistralConversationConfig: Mistr
     const reader = conversationStarterStream.getReader()
     while (true) {
       const { value, done } = await reader.read()
-      if (value?.event === 'conversation.response.started') {
+      if (value?.data.type === 'conversation.response.started') {
         reader.cancel() // Vi trenger ikke lese mer her, vi har det vi trenger
-        // @ts-ignore (den er der...)
-        return { mistralConversationId: value.data.conversationId, userLibraryId: mistralConfig.userLibraryId, mistralStream: actualStream }
+        return { mistralConversationId: value.data.conversationId, userLibraryId: mistralConfig.userLibraryId, mistralStream: (actualStream) as EventStream<ConversationEvents> };
       }
       if (done) {
         break; // Oh no, vi fant ikke conversation response started event, har ikke noe å gå for... throw error under her
