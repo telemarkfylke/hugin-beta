@@ -14,16 +14,6 @@ export const agents: Agent[] = [
     }
   },
   {
-    _id: 'mistral-conversation-what',
-    name: 'Mistral rett på conversation',
-    description: 'Mistral agent som går rett på en model og conversation',
-    config: {
-      type: 'mistral-conversation',
-      model: 'mistral-medium-latest',
-      instructions: 'Svar som om du ikke forstår norsk',
-    }
-  },
-  {
     _id: 'openai_response_4o',
     name: 'Open AI demo agent',
     description: 'An agent that uses an OpenAI response configuration with gpt-4o model',
@@ -34,7 +24,7 @@ export const agents: Agent[] = [
   },
   {
     _id: 'openai_response_4o_2',
-    name: 'Open AI demo agent',
+    name: 'Sarkastisk',
     description: 'An agent that uses an OpenAI response configuration with gpt-4o model',
     config: {
       type: 'openai-response',
@@ -44,7 +34,7 @@ export const agents: Agent[] = [
   },
   {
     _id: 'openai_response_4o_TROLL',
-    name: 'Open AI demo agent',
+    name: 'Nettroll',
     description: 'An agent that uses an OpenAI response configuration with gpt-4o model',
     config: {
       type: 'openai-response',

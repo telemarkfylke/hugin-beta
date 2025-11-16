@@ -68,7 +68,7 @@ export const POST: RequestHandler = async ({ request, params }) => {
         throw new Error('Mistral stream is not available for streaming response, check implementation');
       }
       const readableStream = handleMistralStream(mistralStream, ourConversation._id, userLibraryId);
-
+      
       return responseStream(readableStream)
     }
     return json({ conversation: ourConversation, initialResponse: mistralResponse })

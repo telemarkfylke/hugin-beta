@@ -58,6 +58,9 @@ export const promptAgent = async (userPrompt: string, agentId: string, conversat
           const { messageId, content } = chatResult.data
           addAgentMessageToConversation(messageId, content)
           break;
+        case 'conversation.message.ended':
+          console.log("Conversation message ended. Total tokens used:", chatResult.data.totalTokens)
+          break;
         default:
           console.warn("Unhandled chat result event:", chatResult.event)
           break;
