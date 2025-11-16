@@ -30,7 +30,7 @@ export const handleMistralStream = (stream: EventStream<ConversationEvents>, con
             break
           case 'message.output.delta':
             // @ts-ignore
-            controller.enqueue(createSse('conversation.message.delta', { messageId: chunk.data.id, content: chunk.data.content }));
+            controller.enqueue(createSse({ event: 'conversation.message.delta', data: { messageId: chunk.data.id, content: chunk.data.content } }));
             break          
           // Ta hensyn til flere event typer her etter behov
         }
