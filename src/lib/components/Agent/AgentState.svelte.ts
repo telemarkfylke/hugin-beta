@@ -1,5 +1,6 @@
 // Keeps track of the entire state of an agent component (async stuff are allowed here)
-import type { AgentState } from "$lib/types/agent-state";
+import type { AgentState, AgentStateHandler } from "$lib/types/agent-state";
+import type { Agent } from "$lib/types/agents.js";
 import { promptAgent } from "./PromptAgent.svelte.js";
 import { getAgentConversationsYes } from "./Test.svelte.js";
 import { uploadFilesToConversation } from "./UploadFiles.svelte.js";
@@ -7,9 +8,14 @@ import { uploadFilesToConversation } from "./UploadFiles.svelte.js";
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 // DO NOT set agentState (dont pass it, pass methods) directly from outside this file, always use the provided methods to modify it (to keep it consistent and simpler to understand how changes to state happen)
-export const createAgentState = () => {
+export const createAgentState = (): AgentStateHandler => {
   const agentState: AgentState = $state({
     agentId: null,
+    agentInfo: {
+      isLoading: false,
+      error: null,
+      value: null
+    },
     currentConversation: {
       isLoading: false,
       error: null,
@@ -38,6 +44,29 @@ export const createAgentState = () => {
       }
     }
   }
+  const getAgentInfo = async () => {
+    if (!agentState.agentId) {
+      throw new Error("agentId is required to fetch agent info");
+    }
+    agentState.agentInfo.isLoading = true;
+    agentState.agentInfo.error = null;
+    try {
+      const response = await fetch(`/api/agents/${agentState.agentId}`);
+      if (!response.ok) {
+        console.error(`Failed to fetch agent info: ${response.status}`);
+        agentState.agentInfo.error = `Failed to fetch agent info: ${response.status}`;
+        agentState.agentInfo.value = null;
+      } else {
+        const data: { agent: Agent } = await response.json();
+        agentState.agentInfo.value = data.agent;
+      }
+    } catch (error) {
+      console.error("Error fetching agent info:", error);
+      agentState.agentInfo.error = (error as Error).message;
+      agentState.agentInfo.value = null;
+    }
+    agentState.agentInfo.isLoading = false;
+  }
   const getAgentConversations = () => {
     getAgentConversationsYes(agentState)
   }
@@ -65,9 +94,11 @@ export const createAgentState = () => {
   const changeAgent = async (newAgentId: string) => {
     // reset other needed state, and load the new agent's data
     clearConversation()
-    getAgentConversations()
     // Load the new agent's data (maybe set some loading state here?)
     agentState.agentId = newAgentId
+    getAgentInfo()
+    getAgentConversations()
+    
   }
   const addUserMessageToConversation = (messageContent: string) => {
     agentState.currentConversation.value.messages[Date.now().toString()] = {
@@ -145,6 +176,7 @@ export const createAgentState = () => {
     },
     clearConversation,
     changeAgent,
+    getAgentInfo,
     loadConversation,
     postUserPrompt,
     addKnowledgeFilesToConversation,

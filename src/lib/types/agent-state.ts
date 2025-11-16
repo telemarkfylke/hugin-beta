@@ -1,3 +1,5 @@
+import type { Agent } from "./agents";
+
 type AgentConversationMessage = {
   role: 'user' | 'agent';
   content: string;
@@ -27,6 +29,12 @@ type CurrentAgentConversation = {
   }
 }
 
+export type AgentInfo = {
+  isLoading: boolean;
+  error: string | null;
+  value: Agent | null;
+}
+
 type AgentConversation = {
   id: string;
   name: string;
@@ -35,6 +43,7 @@ type AgentConversation = {
 // Might be funny to add agent data and user configuration as well later?
 export type AgentState = {
   agentId: string | null;
+  agentInfo: AgentInfo;
   currentConversation: CurrentAgentConversation;
   conversations: {
     isLoading: boolean;
@@ -47,6 +56,7 @@ export type AgentStateHandler = {
   readonly agentState: AgentState;
   clearConversation: () => void;
   changeAgent: (newAgentId: string) => Promise<void>;
+  getAgentInfo: () => Promise<void>;
   loadConversation: (conversationId: string) => Promise<void>;
   postUserPrompt: (userPrompt: string) => Promise<void>;
   addKnowledgeFilesToConversation: (files: FileList) => void;
