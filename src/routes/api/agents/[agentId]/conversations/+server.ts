@@ -8,6 +8,7 @@ import type { ResponseStreamEvent } from "openai/resources/responses/responses.m
 import type { Stream } from "openai/streaming";
 import { ConversationRequest } from "$lib/types/requests";
 import { responseStream } from "$lib/streaming";
+import { createOllamaAIConversation, handleOllamaStream } from "$lib/server/ollama/ollama";
 
 // OBS OBS Kan hende vi bare skal ha dette endepunktet - og dersom man ikke sender med en conversationId så oppretter vi en ny conversation, hvis ikke fortsetter vi den eksisterende (ja, kan fortsatt kanskje hende det)
 
@@ -96,5 +97,36 @@ export const POST: RequestHandler = async ({ request, params }) => {
 
     return json({ conversation: ourConversation, initialResponse: response })
   }
+
+  // OLLAMA
+  if (agent.config.type == 'ollama-response') {
+    // Opprett conversation mot OpenAI her og returner
+    console.log('Creating OpenAI conversation for agent:', agent._id)
+
+    // Create responsestream and return
+    const { response, openAiConversationId } = await createOllamaAIConversation(agent.config, prompt, body.stream) as { response: Stream<ResponseStreamEvent>, openAiConversationId: string }; // Todo, gjør dette bedre med typer
+
+    const ourConversation = await insertConversation(agentId, {
+      name: 'New Conversation',
+      description: 'Conversation started via API',
+      relatedConversationId: openAiConversationId,
+      vectorStoreId: null
+    });
+
+    if (body.stream) {
+      const readableStream = handleOllamaStream(response, ourConversation._id);
+
+      return new Response(readableStream, {
+        headers: {
+          'Content-Type': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+          Connection: 'keep-alive'
+        }
+      })
+    }
+
+    return json({ conversation: ourConversation, initialResponse: response })
+  }
+
   throw new Error(`Unsupported agent config type: ${agent.config}`);
 }

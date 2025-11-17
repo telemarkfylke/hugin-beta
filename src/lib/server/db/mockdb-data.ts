@@ -51,6 +51,16 @@ export const agents: Agent[] = [
       model: 'gpt-4o',
       instructions: 'Svar som et nettroll i et kommentarfelt på en luguber nettside'
     }
+  },
+  {
+    _id: 'ollama_basic',
+    name: 'Ollama basic orakel',
+    description: 'A basic ollama bot',
+    config: {
+      type: 'ollama-response',
+      model: '',
+      instructions: 'Svar veldig generelt på spessifike spørsmål'
+    }
   }
 ]
 

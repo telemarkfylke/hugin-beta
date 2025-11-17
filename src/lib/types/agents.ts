@@ -15,9 +15,13 @@ export type MistralConversationConfig = Omit<ConversationRequest, 'inputs'> & {
 export type OpenAIAResponseConfig = Omit<ResponseCreateParamsBase, 'input'> & {
   type: 'openai-response' // discriminator
 }
+// OPENAI
+export type OllamaAIResponseConfig = Omit<ResponseCreateParamsBase, 'input'> & {
+  type: 'ollama-response' // discriminator
+}
 
 // AGENT UNION TYPE
-export type AgentConfig = MockAgentConfig | MistralConversationConfig | OpenAIAResponseConfig
+export type AgentConfig = MockAgentConfig | MistralConversationConfig | OpenAIAResponseConfig | OllamaAIResponseConfig
 
 
 // AGENT AND CONVERSATION TYPES
