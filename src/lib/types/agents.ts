@@ -1,63 +1,106 @@
 // AGENT CONFIG TYPES
 // MOCK
 
-export type MockAgentConfig = {
-  type: 'mock-agent' // discriminator
-  instructions: string | null
-  fileSearchEnabled: boolean
-  webSearchEnabled: boolean
-}
+import z from "zod";
 
-// Tester Mistral CONVERT TO ZOD for validering senere til db
-export type MistralConversationConfig = {
-  type: 'mistral-conversation' // discriminator
-  model: 'mistral-small-latest' | 'mistral-medium-latest' | 'mistral-large-latest' // add more models as needed
-  instructions: string | null
-  fileSearchEnabled: boolean
-  webSearchEnabled: boolean
-  documentLibraryIds?: string[] | null
-}
+export const MockAgentConfig = z.object({
+  type: z.literal('mock-agent'),
+  instructions: z.string().nullable(),
+  fileSearchEnabled: z.boolean(),
+  webSearchEnabled: z.boolean()
+});
 
-export type MistralAgentConfig = {
-  type: 'mistral-agent' // discriminator
-  agentId: string
-}
+export type MockAgentConfig = z.infer<typeof MockAgentConfig>;
+
+
+// MISTRAL
+export const MistralConversationConfig = z.object({
+  type: z.literal('mistral-conversation'), // discriminator
+  model: z.enum(['mistral-small-latest', 'mistral-medium-latest', 'mistral-large-latest']), // add models we want to support here
+  instructions: z.string().nullable(),
+  fileSearchEnabled: z.boolean(),
+  webSearchEnabled: z.boolean(),
+  documentLibraryIds: z.array(z.string()).nullable().optional()
+});
+
+export type MistralConversationConfig = z.infer<typeof MistralConversationConfig>;
+
+export const MistralAgentConfig = z.object({
+  type: z.literal('mistral-agent'), // discriminator
+  agentId: z.string()
+});
+
+export type MistralAgentConfig = z.infer<typeof MistralAgentConfig>;
 
 // OPENAI
-export type OpenAIAResponseConfig = {
-  type: 'openai-response' // discriminator
-  model: 'gpt-4o' // add types we want to support here
-  instructions: string | null
-  fileSearchEnabled: boolean
-  webSearchEnabled: boolean
-  vectorStoreIds?: string[] | null
-}
+export const OpenAIAResponseConfig = z.object({
+  type: z.literal('openai-response'), // discriminator
+  model: z.enum(['gpt-4o']),  // add models we want to support here
+  instructions: z.string().nullable(),
+  fileSearchEnabled: z.boolean(),
+  webSearchEnabled: z.boolean(),
+  vectorStoreIds: z.array(z.string()).nullable().optional()
+});
 
-export type OpenAIPromptConfig = {
-  type: 'openai-prompt' // discriminator
-  prompt: {
-    id: string,
-    version?: string
-  }
-}
+export type OpenAIAResponseConfig = z.infer<typeof OpenAIAResponseConfig>;
+
+export const OpenAIPromptConfig = z.object({
+  type: z.literal('openai-prompt'), // discriminator
+  prompt: z.object({
+    id: z.string(),
+    version: z.string().optional()
+  })
+});
+
+export type OpenAIPromptConfig = z.infer<typeof OpenAIPromptConfig>;
 
 // AGENT UNION TYPE
-export type AgentConfig = MockAgentConfig | MistralConversationConfig | MistralAgentConfig | OpenAIAResponseConfig | OpenAIPromptConfig
+export const AgentConfig = z.discriminatedUnion('type', [
+  MockAgentConfig,
+  MistralConversationConfig,
+  MistralAgentConfig,
+  OpenAIAResponseConfig,
+  OpenAIPromptConfig
+]);
+
+export type AgentConfig = z.infer<typeof AgentConfig>;
+
 
 // AGENT AND CONVERSATION TYPES
-export type Agent = {
-  _id: string;
-  name: string;
-  description?: string;
-  config: AgentConfig;
-}
+export const Agent = z.object({
+  _id: z.string(),
+  name: z.string(),
+  description: z.string().nullable().optional(),
+  config: AgentConfig
+});
 
-export type Conversation = {
-  _id: string;
-  agentId: string;
-  name: string;
-  description?: string;
-  relatedConversationId: string; // id fra leverandør (Mistral/OpenAI)
-  vectorStoreId: string | null; // id for vector store knyttet til denne samtalen (for filer bruker laster opp i en conversation)
-}
+export type Agent = z.infer<typeof Agent>;
+
+export const Conversation = z.object({
+  _id: z.string(),
+  agentId: z.string(),
+  name: z.string(),
+  description: z.string().nullable().optional(),
+  relatedConversationId: z.string(), // id fra leverandør (Mistral/OpenAI)
+  vectorStoreId: z.string().nullable() // id for vector store knyttet til denne samtalen (for filer bruker laster opp i en conversation)
+});
+
+export type Conversation = z.infer<typeof Conversation>;
+
+// MESSAGE TYPES
+export const Message = z.object({
+  id: z.string(),
+  type: z.enum(['message']),
+  status: z.string(),
+  role: z.enum(['user', 'agent']), // Legg inn flere ved behov (f. eks developer)
+  content: z.object({
+    type: z.enum(['inputText', 'outputText']),
+    text: z.string()
+  })
+});
+
+export type Message = z.infer<typeof Message>;
+
+
+
 

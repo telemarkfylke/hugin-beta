@@ -1,6 +1,6 @@
 <script lang="ts">
   import { createAgentState } from "./AgentState.svelte.ts";
-  import AgentConversationsComponent from "./AgentConversationsComponent.svelte";
+  import AgentConversations from "./AgentConversations.svelte";
   import { markdownFormatter } from "$lib/formatting/markdown-formatter.ts";
   import AgentChatInput from "./AgentChatInput.svelte";
   import AgentInfo from "./AgentInfo.svelte";
@@ -45,7 +45,7 @@
     <h3>Lagre som ny agent?</h3>
     <p>Skal det være lov?</p>
     <h3>Samtale-logg (agent-spesifikt)</h3>
-    <AgentConversationsComponent {agentStateHandler} />
+    <AgentConversations {agentStateHandler} />
   </div>
   <div class="agent-chat">
     {#if agentStateHandler.agentState.currentConversation.isLoading}
@@ -59,11 +59,11 @@
       <!-- Check if user or agent and handle, maybe handle some agent tools / processing as well eventually --> 
         {#if message.role === 'user'}
           <div id="message-{id}" class="user-message">
-            {message.content || ''}
+            {message.content.text || ''}
           </div>
         {:else}
           <div id="message-{id}" class="agent-message">
-            {@html markdownFormatter(message.content || '')}
+            {@html markdownFormatter(message.content.text || '')}
           </div>
         {/if}
       {/each}

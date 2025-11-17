@@ -24,7 +24,7 @@ const appendMessageToConversation = async (agentId: string, conversationId: stri
   });
 };
 
-export const promptAgent = async (userPrompt: string, agentId: string, conversationId: string | null, setCurrentConversationId: (id: string) => void, addAgentMessageToConversation: (messageId: string, content: string) => void): Promise<void> => {
+export const promptAgent = async (userPrompt: string, agentId: string, conversationId: string | null, setCurrentConversationId: (id: string) => void, addAgentMessageToConversation: (messageId: string, content: string) => void, loadAgentConversations: () => void): Promise<void> => {
   if (!agentId) {
     throw new Error("Agent ID is not set");
   }
@@ -52,6 +52,7 @@ export const promptAgent = async (userPrompt: string, agentId: string, conversat
         case 'conversation.started':
           const { conversationId } = chatResult.data
           setCurrentConversationId(conversationId)
+          loadAgentConversations()
           console.log("Conversation started with ID:", conversationId)
           break;
         case 'conversation.message.delta':
