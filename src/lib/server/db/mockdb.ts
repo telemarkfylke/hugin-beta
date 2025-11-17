@@ -4,8 +4,8 @@ export const getMockDb = async (): Promise<{ agents: Agent[], conversations: Con
   // We add the mock agent here so it is always present in the mock db
   const mockAgent: Agent = {
     _id: 'mock-agent',
-    name: 'Mock AI agent, which responds with streaming mock data (no real AI or cost)',
-    description: 'Mock agent that simulates AI responses',
+    name: 'Mock AI Agent',
+    description: 'Mock AI agent, which responds with streaming mock data (no real AI or cost)',
     config: {
       type: 'mock-agent'
     }

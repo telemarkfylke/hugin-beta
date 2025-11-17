@@ -1,24 +1,48 @@
-import type { ConversationRequest } from "@mistralai/mistralai/models/components";
-import type { ResponseCreateParamsBase } from "openai/resources/responses/responses.mjs";
-
+// AGENT CONFIG TYPES
 // MOCK
 
 export type MockAgentConfig = {
   type: 'mock-agent' // discriminator
+  instructions: string | null
+  fileSearchEnabled: boolean
+  webSearchEnabled: boolean
 }
 
-// MISTRAL
-export type MistralConversationConfig = Omit<ConversationRequest, 'inputs'> & {
+// Tester Mistral CONVERT TO ZOD for validering senere til db
+export type MistralConversationConfig = {
   type: 'mistral-conversation' // discriminator
+  model: 'mistral-small-latest' | 'mistral-medium-latest' | 'mistral-large-latest' // add more models as needed
+  instructions: string | null
+  fileSearchEnabled: boolean
+  webSearchEnabled: boolean
+  documentLibraryIds?: string[] | null
 }
+
+export type MistralAgentConfig = {
+  type: 'mistral-agent' // discriminator
+  agentId: string
+}
+
 // OPENAI
-export type OpenAIAResponseConfig = Omit<ResponseCreateParamsBase, 'input'> & {
+export type OpenAIAResponseConfig = {
   type: 'openai-response' // discriminator
+  model: 'gpt-4o' // add types we want to support here
+  instructions: string | null
+  fileSearchEnabled: boolean
+  webSearchEnabled: boolean
+  vectorStoreIds?: string[] | null
+}
+
+export type OpenAIPromptConfig = {
+  type: 'openai-prompt' // discriminator
+  prompt: {
+    id: string,
+    version?: string
+  }
 }
 
 // AGENT UNION TYPE
-export type AgentConfig = MockAgentConfig | MistralConversationConfig | OpenAIAResponseConfig
-
+export type AgentConfig = MockAgentConfig | MistralConversationConfig | MistralAgentConfig | OpenAIAResponseConfig | OpenAIPromptConfig
 
 // AGENT AND CONVERSATION TYPES
 export type Agent = {

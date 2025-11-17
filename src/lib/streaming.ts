@@ -19,8 +19,13 @@ The server sends this stream over a persistent HTTP connection with a Content-Ty
 const textEncoder = new TextEncoder();
 
 export const createSse = (muginEvent: MuginSse): Uint8Array<ArrayBuffer> => {
-  muginEvent = MuginSse.parse(muginEvent); // Validate event type
-  return textEncoder.encode(`event: ${muginEvent.event}\ndata: ${JSON.stringify(muginEvent.data)}\n\n`);
+  try {
+    muginEvent = MuginSse.parse(muginEvent); // Validate event type
+    return textEncoder.encode(`event: ${muginEvent.event}\ndata: ${JSON.stringify(muginEvent.data)}\n\n`); 
+  } catch (error) {
+    console.error("Error creating SSE:", error, "for event:", muginEvent);
+    throw error;
+  }
 }
 
 // Frontend parse dritten
@@ -29,7 +34,6 @@ export const createSse = (muginEvent: MuginSse): Uint8Array<ArrayBuffer> => {
  */
 export const parseSse = (chunk: string): MuginSse[] => {
   if (typeof chunk !== 'string' && !chunk) throw new Error("No chunk (string) provided for parsing SSE")
-  // console.log("Parsing SSE chunk:", chunk)
   if (chunk.length === 0) return [] // Return empty array for empty chunk
   if (!chunk.endsWith('\n\n')) {
     throw new Error("Invalid SSE format - chunk must end with two newlines")

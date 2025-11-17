@@ -3,6 +3,7 @@
   import AgentConversationsComponent from "./AgentConversationsComponent.svelte";
   import { markdownFormatter } from "$lib/formatting/markdown-formatter.ts";
   import AgentChatInput from "./AgentChatInput.svelte";
+  import AgentInfo from "./AgentInfo.svelte";
 
   // Input props
   let { agentId } = $props()
@@ -36,8 +37,7 @@
     </div>
   </div>
   <div class="agent-menu" class:open={menuOpen}>
-    <h3>Litt agentinfo</h3>
-    <p>Yada yada yada</p>
+    <AgentInfo agentInfo={agentStateHandler.agentState.agentInfo} />
     <h3>Agentinnstillinger</h3>
     <p>Yada yada yada skriv instruksjoner eller no drit hvis det er tilgjengelig på agenten</p>
     <h3>Filer i denne samtalen</h3>

@@ -42,7 +42,7 @@
 <div>
   <form onsubmit={(event: Event) => { event.preventDefault(); submitPrompt() }}>
     <div class="grow-wrap" bind:this={wrapDiv}>
-      <textarea rows="1" bind:this={textArea} name="prompt-input" id="prompt-input" oninput={sneakyTextArea} onkeydown={submitOnEnter} bind:value={userPrompt}></textarea>
+      <textarea rows="1" bind:this={textArea} placeholder="Skriv et eller annet (shift + enter for ny linje)" name="prompt-input" id="prompt-input" oninput={sneakyTextArea} onkeydown={submitOnEnter} bind:value={userPrompt}></textarea>
     </div>
     <div id="actions">
       <div id="actions-left">
