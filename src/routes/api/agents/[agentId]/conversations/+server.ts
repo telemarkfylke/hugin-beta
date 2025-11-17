@@ -127,6 +127,5 @@ export const POST: RequestHandler = async ({ request, params }) => {
 
     return json({ conversation: ourConversation, initialResponse: response })
   }
-
   throw new Error(`Unsupported agent config type: ${agent.config}`);
 }
