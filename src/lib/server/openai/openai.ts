@@ -3,7 +3,7 @@ import OpenAI from "openai";
 import { createSse } from "$lib/streaming.js";
 import type { Stream } from "openai/streaming";
 import type { Response, ResponseCreateParamsBase, ResponseStreamEvent, Tool } from "openai/resources/responses/responses";
-import type { AgentConfig } from "$lib/types/agents";
+import type { AgentConfig, Message } from "$lib/types/agents";
 
 export const openai = new OpenAI({
   apiKey: env.OPENAI_API_KEY,
@@ -105,4 +105,25 @@ export const createOpenAIConversation = async (agentConfig: AgentConfig, prompt:
 
   const response = await appendToOpenAIConversation(agentConfig, conversation.id, prompt, userVectorStoreId, streamResponse);
   return { openAiConversationId: conversation.id, response }
+}
+
+export const getOpenAIConversationItems = async (openAIConversationId: string): Promise<Message[]> => {
+  const conversationItems = await openai.conversations.items.list(openAIConversationId, { limit: 50, order: 'desc' })
+  // Vi tar først bare de som er message, og mapper de om til Message type vårt system bruker
+  const messages = conversationItems.data.filter(item => item.type === 'message').map(item => {
+    // Obs, kommer nok noe citations og greier etterhvert
+    
+    const newMessage: Message = {
+      id: item.id || 'what',
+      role: item.role === 'assistant' ? 'agent' : 'user', // TODO - her kan dukke opp flere roller akkurat nå altså...
+      type: item.type,
+      status: item.status,
+      content: {
+        type: item.role === 'user' ? 'inputText' : 'outputText',
+        text: item.role === 'user' ? item.content.find(con => con.type === 'input_text')?.text || 'ukjent input drit' : item.content.find(con => con.type === 'output_text')?.text || 'ukjent output drit'
+      }
+    }
+    return newMessage;
+  })
+  return messages.reverse(); // Vi vil ha ascending order på de nyeste
 }
