@@ -6,7 +6,7 @@ import type { Response, ResponseCreateParamsBase, ResponseStreamEvent, Tool } fr
 import type { AgentConfig, Message } from "$lib/types/agents";
 
 export const openai = new OpenAI({
-  apiKey: env.OPENAI_API_KEY,
+  apiKey: env["OPENAI_API_KEY"] || 'bare-en-tulle-key',
 });
 
 export const handleOpenAIStream = (stream: Stream<ResponseStreamEvent>, conversationId?: string): ReadableStream => {

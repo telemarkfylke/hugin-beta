@@ -8,7 +8,7 @@ import type { ConversationResponse } from "@mistralai/mistralai/models/component
 import type { ConversationRequest, MessageInputEntry, MessageOutputEntry } from "@mistralai/mistralai/models/components";
 
 export const mistral = new Mistral({
-  apiKey: env.MISTRAL_API_KEY,
+  apiKey: env["MISTRAL_API_KEY"] || 'bare-en-tulle-key',
 });
 
 export const handleMistralStream = (stream: EventStream<ConversationEvents>, conversationId?: string, userLibraryId?: string | null): ReadableStream => {
