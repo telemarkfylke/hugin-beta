@@ -3,7 +3,7 @@ import type { AgentState, AgentStateHandler } from "$lib/types/agent-state";
 import type { Agent } from "$lib/types/agents.js";
 import { promptAgent } from "./PromptAgent.svelte.js";
 import { getAgentConversationsYes } from "./Test.svelte.js";
-import { uploadFilesToConversation } from "./UploadFiles.svelte.js";
+import { uploadFilesToConversation, getConversationFiles } from "./UploadFiles.svelte.js";
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -23,7 +23,7 @@ export const createAgentState = (): AgentStateHandler => {
         id: null,
         name: null,
         messages: {},
-        vectorStores: [],
+        files: [],
       }
     },
     conversations: {
@@ -40,7 +40,7 @@ export const createAgentState = (): AgentStateHandler => {
         id: null,
         name: null,
         messages: {},
-        vectorStores: [], // Or the ones connected to the agent by default?
+        files: [], // Or the ones connected to the agent by default?
       }
     }
   }
@@ -70,6 +70,18 @@ export const createAgentState = (): AgentStateHandler => {
   const getAgentConversations = () => {
     getAgentConversationsYes(agentState)
   }
+  const setConversationFiles = (files: any[]) => {
+    agentState.currentConversation.value.files = files;
+  }
+  const refreshConversationFiles = async () => {
+    if (!agentState.agentId || !agentState.currentConversation.value.id) {
+      throw new Error("agentId and conversationId are required to fetch conversation files");
+    }
+    getConversationFiles(agentState.agentId, agentState.currentConversation.value.id, setConversationFiles)
+  }
+  const addConversationFiles = (files: any[]) => {
+    agentState.currentConversation.value.files.push(...files);
+  }
   const loadConversation = async (conversationId: string | null) => {
     // fetch conversation data from api and set agentState.currentConversation
     agentState.currentConversation.isLoading = true;
@@ -84,7 +96,7 @@ export const createAgentState = (): AgentStateHandler => {
         'msg3': { role: 'user', content: 'How are you?' },
         'msg4': { role: 'agent', content: 'I am fine, thank you!' }
       },
-      vectorStores: []
+      files: []
     };
     agentState.currentConversation.isLoading = false;
   }
@@ -98,7 +110,6 @@ export const createAgentState = (): AgentStateHandler => {
     agentState.agentId = newAgentId
     getAgentInfo()
     getAgentConversations()
-    
   }
   const addUserMessageToConversation = (messageContent: string) => {
     agentState.currentConversation.value.messages[Date.now().toString()] = {
@@ -180,6 +191,7 @@ export const createAgentState = (): AgentStateHandler => {
     loadConversation,
     postUserPrompt,
     addKnowledgeFilesToConversation,
+    refreshConversationFiles,
     deleteKnowledgeFileFromConversation,
     deleteConversation,
     createAgentFromConversation

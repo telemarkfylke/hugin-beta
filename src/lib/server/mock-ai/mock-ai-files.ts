@@ -10,9 +10,9 @@ type MockAiFile = {
 
 const mockAiFileStore: MockAiFile[] = [];
 
-export const getMockAiFiles = async (): Promise<{ documents: MockAiFile[] }> => {
+export const getMockAiFiles = async (): Promise<{ files: MockAiFile[] }> => {
   // For simplicity, we return all documents in the mock library
-  return { documents: mockAiFileStore };
+  return { files: mockAiFileStore };
 }
 
 export const uploadFilesToMockAI = async (libraryId: string, files: File[], streamResponse: boolean): Promise<ReadableStream> => {

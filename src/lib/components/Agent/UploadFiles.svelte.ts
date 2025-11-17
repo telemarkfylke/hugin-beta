@@ -1,13 +1,18 @@
 // Keeps track of the entire state of an agent component (async stuff are allowed here)
 import { parseSse } from "$lib/streaming.js";
 
-
-const getConversationFiles = async (agentId: string, conversationId: string): Promise<{ documents: any[] }> => {
+export const getConversationFiles = async (agentId: string, conversationId: string, setConversationFiles: (files: any[]) => void): Promise<void> => {
   if (!agentId || !conversationId) {
     throw new Error("agentId and conversationId are required to fetch conversation files");
   }
-  // const documen await fetch(`/api/agents/${agentId}/conversations/${conversationId}/files`);
+  const filesResponse = await fetch(`/api/agents/${agentId}/conversations/${conversationId}/files`);
+  if (!filesResponse.ok) {
+    throw new Error(`HTTP error! status: ${filesResponse.status}`);
+  }
+  const filesData = await filesResponse.json();
+  setConversationFiles(filesData.files);
 }
+
 const postFilesToConversation = async (files: FileList, agentId: string, conversationId: string): Promise<Response> => {
   const formData = new FormData();
   formData.append('stream', 'true'); // assuming we want always want streaming in frontend

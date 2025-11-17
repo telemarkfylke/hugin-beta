@@ -8,14 +8,9 @@ type AgentConversationMessage = {
 type AgentVectorStoreFile = {
   id: string;
   name: string;
+  type: string;
   summary: string | null;
   size: number;
-}
-
-type AgentVectorStore = {
-  id: string;
-  name: string;
-  files: AgentVectorStoreFile[];
 }
 
 type CurrentAgentConversation = {
@@ -25,7 +20,7 @@ type CurrentAgentConversation = {
     id: string | null;
     name: string | null;
     messages: Record<string, AgentConversationMessage>;
-    vectorStores: AgentVectorStore[];
+    files: AgentVectorStoreFile[];
   }
 }
 
@@ -60,6 +55,7 @@ export type AgentStateHandler = {
   loadConversation: (conversationId: string) => Promise<void>;
   postUserPrompt: (userPrompt: string) => Promise<void>;
   addKnowledgeFilesToConversation: (files: FileList) => void;
+  refreshConversationFiles: () => Promise<void>;
   deleteKnowledgeFileFromConversation: (fileId: string) => void;
   deleteConversation: (conversationId: string) => void;
   createAgentFromConversation: () => Promise<void>;
