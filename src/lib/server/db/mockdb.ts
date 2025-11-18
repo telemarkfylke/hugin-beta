@@ -7,7 +7,10 @@ export const getMockDb = async (): Promise<{ agents: Agent[], conversations: Con
     name: 'Mock AI Agent',
     description: 'Mock AI agent, which responds with streaming mock data (no real AI or cost)',
     config: {
-      type: 'mock-agent'
+      type: 'mock-agent',
+      instructions: 'You are a mock AI agent that provides streaming mock responses for testing purposes.',
+      fileSearchEnabled: true,
+      webSearchEnabled: false
     }
   }
   try {
