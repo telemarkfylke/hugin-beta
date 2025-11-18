@@ -1,14 +1,14 @@
 import { env } from "$env/dynamic/private";
 import { Mistral } from "@mistralai/mistralai";
 import { createSse } from "$lib/streaming.js";
-import type { AgentConfig } from "$lib/types/agents.js";
+import type { AgentConfig, Message } from "$lib/types/agents.js";
 import type { ConversationEvents } from "@mistralai/mistralai/models/components/conversationevents";
 import type { EventStream } from "@mistralai/mistralai/lib/event-streams";
 import type { ConversationResponse } from "@mistralai/mistralai/models/components/conversationresponse";
-import type { ConversationRequest } from "@mistralai/mistralai/models/components";
+import type { ConversationRequest, MessageInputEntry, MessageOutputEntry } from "@mistralai/mistralai/models/components";
 
 export const mistral = new Mistral({
-  apiKey: env.MISTRAL_API_KEY,
+  apiKey: env["MISTRAL_API_KEY"] || 'bare-en-tulle-key',
 });
 
 export const handleMistralStream = (stream: EventStream<ConversationEvents>, conversationId?: string, userLibraryId?: string | null): ReadableStream => {
@@ -173,3 +173,25 @@ export const createMistralConversation = async (agentConfig: AgentConfig, initia
 
   return { mistralConversationId: conversationStarter.conversationId, userLibraryId: mistralConversationConfig.data.userLibraryId, mistralResponse: conversationStarter };
 }
+
+export const getMistralConversationItems = async (mistralConversationId: string): Promise<Message[]> => {
+  const conversationItems = await mistral.beta.conversations.getHistory({ conversationId: mistralConversationId }); // Får ascending order (tror jeg)
+  // Vi tar først bare de som er message, og mapper de om til Message type vårt system bruker
+  const messages = conversationItems.entries.filter(item => item.type === 'message.input' || item.type === 'message.output').map(item => {
+    // Obs, kommer nok noe andre typer etterhvert
+    item = item as MessageInputEntry | MessageOutputEntry;
+    const newMessage: Message = {
+      id: item.id || 'what-ingen-mistral-id',
+      type: 'message',
+      status: 'completed',
+      role: item.type === 'message.input' && item.role === 'user' ? 'user' : 'agent',
+      content: {
+        type: item.type === 'message.input' ? 'inputText' : 'outputText',
+        text: typeof item.content === 'string' ? item.content : 'FIKK EN CONTENT SOM IKKE ER STRING, sjekk mistral-typen OutputContent'
+      }
+    }
+    return newMessage;
+  })
+  return messages;
+}
+

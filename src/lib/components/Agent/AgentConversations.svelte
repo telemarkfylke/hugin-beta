@@ -18,7 +18,7 @@
     {#each agentStateHandler.agentState.conversations.value as conversation}
       <div>
         <!--Kjør en change conversation, så blir det stilig-->
-        <button onclick={() => agentStateHandler.loadConversation(conversation.id)}>Conversation: {conversation.id} - {conversation.name}</button>
+        <button onclick={() => agentStateHandler.loadAgentConversation(conversation._id)}>Conversation: {conversation._id} - {conversation.name}</button>
       </div>
     {/each}
   {/if}

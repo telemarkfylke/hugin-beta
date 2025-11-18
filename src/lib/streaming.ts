@@ -5,7 +5,8 @@ export const responseStream = (stream: ReadableStream<any>): Response => {
     headers: {
       'Content-Type': 'text/event-stream',
       'Cache-Control': 'no-cache',
-      Connection: 'keep-alive'
+      Connection: 'keep-alive',
+      'X-Accel-Buffering': 'no'
     }
   });
 }

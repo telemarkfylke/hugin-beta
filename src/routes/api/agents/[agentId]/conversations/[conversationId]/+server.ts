@@ -1,6 +1,6 @@
 import { json, type RequestHandler } from "@sveltejs/kit"
-import { handleMistralStream, appendToMistralConversation } from "$lib/server/mistral/mistral.js";
-import { handleOpenAIStream, appendToOpenAIConversation } from "$lib/server/openai/openai.js";
+import { handleMistralStream, appendToMistralConversation, getMistralConversationItems } from "$lib/server/mistral/mistral.js";
+import { handleOpenAIStream, appendToOpenAIConversation, getOpenAIConversationItems } from "$lib/server/openai/openai.js";
 import { getAgent } from "$lib/server/agents/agents.js";
 import { getConversation } from "$lib/server/agents/conversations.js";
 import { handleMockAiStream } from "$lib/server/mock-ai/mock-ai.js";
@@ -8,26 +8,65 @@ import type { EventStream } from "@mistralai/mistralai/lib/event-streams";
 import type { ConversationEvents } from "@mistralai/mistralai/models/components/conversationevents";
 import type { Stream } from "openai/streaming";
 import type { ResponseStreamEvent } from "openai/resources/responses/responses.mjs";
-import { ConversationRequest } from "$lib/types/requests";
+import { ConversationRequest, GetConversationResult } from "$lib/types/requests";
 import { responseStream } from "$lib/streaming";
 
 
 export const GET: RequestHandler = async ({ params }): Promise<Response> => {
-  console.log(params)
-  // Da spør vi om å få historikken til denne samtalen i denne assistenten fra leverandør basert på agenten
-  const conversation = {
-      _id: 'conversation1',
-      name: 'Conversation One',
-      description: 'This is the first conversation.',
-      relatedConversationId: 'conversation1-id',
+  const { conversationId, agentId } = params
+  if (!agentId || !conversationId) {
+    return json({ error: 'agentId and conversationId are required' }, { status: 400 })
+  }
+
+  // Først må vi hente conversation fra DB, deretter må vi hente historikken fra leverandør basert på agenten og relatedConversationId - og gi tilbake hele røkla på en felles måte
+  const agent = await getAgent(agentId)
+  const conversation = await getConversation(conversationId)
+
+  // MOCK AI
+  if (agent.config.type == 'mock-agent') {
+    const getConversationResult: GetConversationResult = {
+      conversation,
       items: [
         {
-          type: 'message',
-          content: 'Hello, how can I assist you today?'
+          "type": "message",
+          "id": "msg_abc",
+          "status": "completed",
+          "role": "user",
+          "content": {"type": "inputText", "text": "Hello!"}
+        },
+        {
+          "type": "message",
+          "id": "msg_def",
+          "status": "completed",
+          "role": "agent",
+          "content": {"type": "outputText", "text": "Hi there! How can I assist you today?"}
         }
       ]
+    }
+    return json(getConversationResult)
   }
-  return json(conversation)
+  
+  // MISTRAL
+  if (agent.config.type == 'mistral-conversation' || agent.config.type == 'mistral-agent') {
+    const items = await getMistralConversationItems(conversation.relatedConversationId);
+    const getConversationResult: GetConversationResult = {
+      conversation,
+      items
+    }
+    return json(getConversationResult)
+  }
+
+  // OPENAI
+  if (agent.config.type == 'openai-response' || agent.config.type == 'openai-prompt') {
+    const items = await getOpenAIConversationItems(conversation.relatedConversationId);
+    const getConversationResult: GetConversationResult = {
+      conversation,
+      items
+    }
+    return json(getConversationResult)
+  }
+
+  throw new Error(`Unsupported agent config type: ${agent.config}`);
 }
 
 export const POST: RequestHandler = async ({ request, params }): Promise<Response> => {
