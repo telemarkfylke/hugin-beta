@@ -18,7 +18,9 @@ const ConversationMessageDelta = z.object({
 const ConversationMessageEnded = z.object({
   event: z.literal("conversation.message.ended"),
   data: z.object({
-    totalTokens: z.number()
+    messageId: z.string().optional(),
+    content: z.string().optional(),
+    totalTokens: z.number().optional()
   })
 });
 
