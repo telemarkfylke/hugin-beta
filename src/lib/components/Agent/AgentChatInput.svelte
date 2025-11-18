@@ -41,20 +41,18 @@
 
 <div>
   <form onsubmit={(event: Event) => { event.preventDefault(); submitPrompt() }}>
-    <div class="grow-wrap" bind:this={wrapDiv}>
+    <div class="grow-wrap input-with-send" bind:this={wrapDiv}>
       <textarea rows="1" bind:this={textArea} placeholder="Skriv et eller annet (shift + enter for ny linje)" name="prompt-input" id="prompt-input" oninput={sneakyTextArea} onkeydown={submitOnEnter} bind:value={userPrompt}></textarea>
+      <button class="snd-btn-in-input" type="submit" title="Send">⇧</button>
     </div>
     <div id="actions">
       <div id="actions-left">
         <!-- WHOOOPS bruk dynamisk accept basert på agenten, og enable disable fileupload basert på agenten (https://platform.openai.com/docs/assistants/tools/file-search#supported-files), MISTRAL: PNG, JPEG, JPG, WEBP, GIF, PDF, DOCX, PPTX, EPUB, CSV, TXT, MD, XLSX --> 
-        <input bind:files type="file" id="file-upload" multiple accept=".png,.jpeg,.jpg,.webp,.gif,.pdf,.docx,.pptx,.epub,.csv,.txt,.md,.xlsx,image/png,image/jpeg,image/jpg,image/webp,image/gif,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/epub+zip,text/csv,text/plain,text/markdown,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" />
+        <input  bind:files type="file" id="file-upload" multiple accept=".png,.jpeg,.jpg,.webp,.gif,.pdf,.docx,.pptx,.epub,.csv,.txt,.md,.xlsx,image/png,image/jpeg,image/jpg,image/webp,image/gif,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/epub+zip,text/csv,text/plain,text/markdown,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" />
         {#if files.length > 0}
-          <button type="button" onclick={submitFiles}>Last opp ({files.length})</button>
+          <button type="button"  onclick={submitFiles}>Last opp ({files.length})</button>
           <button type="reset" onclick={() => { files = new DataTransfer().files; }}>Clear Files ({files.length})</button>
         {/if}
-      </div>
-      <div id="actions-right">
-        <button type="submit">Send</button>
       </div>
     </div>
   </form>
@@ -68,9 +66,55 @@
   }
 
   /* START AUTO GROW TEXTAREA STYLES */
-  .grow-wrap::after, #prompt-input {
+  .grow-wrap::after,#prompt-input {
     max-height: 8rem;
+    border-radius: 15px;
+    height: 40px;
+    width: 70%;
+    margin-left: auto;
+    margin-right: auto;
+    display: block;
+    box-shadow:
+    0 2px 4px rgba(44, 44, 44, 0.25),
+    0 4px 10px rgba(44, 44, 44, 0.35);
+    margin-bottom: 30px;
   }
+
+
+  .input-with-send {
+    position: relative;
+    display: grid;
+    align-items: center;
+  }
+
+  .snd-btn-in-input {
+    position: absolute;
+    right: 15%;
+    top: 35%;
+    transform: translateY(-54%);
+    height: 40px;
+    width: 40px;
+    padding: 0 12px;
+    background: #CCDCDF;
+    color: #333;
+    border: 1px solid #555;
+    border-radius: 5px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    z-index: 2;
+    transition: background 0.15s ease, border-color 0.15s ease;
+  }
+
+  .snd-btn-in-input:hover {
+    background: #E7F2F3;
+    border-color: #666;
+  }
+
+  .input-with-send textarea {
+    padding-right: 4rem; /* Gi plass til Send-knappen */
+  }
+
   .grow-wrap {
     /* easy way to plop the elements on top of each other and have them both sized based on the tallest one's height */
     display: grid;

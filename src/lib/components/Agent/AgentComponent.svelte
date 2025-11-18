@@ -27,13 +27,13 @@
 <div class="agent-container">
   <div class="agent-menu-bar">
     <div class="agent-menu-bar-left">
-      <button onclick={toggleMenu}>{agentId} {menuOpen ? '⬆️' : '⬇️'}</button>
+      <button class="conv-btn" onclick={toggleMenu}>{agentId} {menuOpen ? '⬆️' : '⬇️'}</button>
       {#if agentStateHandler.agentState.currentConversation.value.id}
         <span> Conversation: {agentStateHandler.agentState.currentConversation.value.name} (ID: {agentStateHandler.agentState.currentConversation.value.id})</span>
       {/if}
     </div>
     <div class="agent-menu-bar-right">
-      <button onclick={agentStateHandler.clearConversation}>Start ny samtale</button>
+      <button class="restart-btn" onclick={agentStateHandler.clearConversation}>Start ny samtale</button>
     </div>
   </div>
   <div class="agent-menu" class:open={menuOpen}>
@@ -77,25 +77,68 @@
     box-sizing: border-box; /* Include padding and border in total size, to avoid overflow */
     display: flex;
     flex-direction: column;
-    max-width: 1024px;
+    height: 800px;
+    width: 1200px;
     margin: 0 auto;
-    border: 1px solid #ccc;
     height: 100%;
+    color: #333;
+    margin-top: 40px;
+    font-size: 18px;
+    
+    
+    
   }
+  
   .agent-menu-bar {
     display: flex;
     justify-content: space-between;
+    
   }
   .agent-menu {
     margin-bottom: 0.5rem;
     padding: 1rem;
-    border-top: 1px solid #ccc;
-    border-bottom: 1px solid #ccc;
     display: none;
+    border-radius: 2px;
+  }
+  .conv-btn {
+    border: 1px solid #555;
+    border-radius: 3px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    background: #E7F2F3;
+    cursor: pointer;
+    color: #333;
+    transition: background 0.15s ease, border-color 0.15s ease;
+    box-shadow: 0 2px 4px rgba(44, 44, 44, 0.25);
+  }
+  .conv-btn:hover {
+    background: #CCDCDF;
+    border-color: #666;
+  }
+  .restart-btn {
+    border: 1px solid #555;
+    border-radius: 3px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    background: #E7F2F3;
+    cursor: pointer;
+    color: #333;
+    transition: background 0.15s ease, border-color 0.15s ease;
+    box-shadow: 0 2px 4px rgba(44, 44, 44, 0.25);
+  }
+  .restart-btn:hover {
+    background: #CCDCDF;
+    border-color: #666;
   }
   .agent-menu.open {
-    display: block;
-    margin-bottom: 1rem;
+      display: block;
+  margin-bottom: 1rem;
+  border-radius: 5px;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  background: rgba(255,255,255,0.3);
+  border: 1px solid rgba(255,255,255,0.4);
+  box-shadow: 0 2px 4px rgba(44, 44, 44, 0.25);
   }
   .agent-chat {
     flex: 1;
@@ -104,11 +147,13 @@
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
+    
   }
   .user-message {
     align-self: flex-end;
-    background-color: #daf1da;
+    background-color: #D2E2E2;
     padding: 0.5rem;
-    border-radius: 8px;
+    border-radius: 5px;
+    margin-top: 20px;
   }
 </style>
