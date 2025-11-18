@@ -12,6 +12,18 @@ export const mistral = new Mistral({
 });
 
 export const handleMistralStream = (stream: EventStream<ConversationEvents>, conversationId?: string, userLibraryId?: string | null): ReadableStream => {
+  type MistralEventType =
+    | "conversation.response.started"
+    | "message.output.delta"
+    | "message.output.completed"
+    | "conversation.response.done"
+    | "conversation.response.error"
+    | "tool.execution.started"
+    | "tool.execution.delta"
+    | "tool.execution.done"
+    | "agent.handoff.started"
+    | "agent.handoff.done"
+    | "function.call.delta";
   const readableStream = new ReadableStream({
     async start (controller) {
       if (conversationId) {
@@ -25,21 +37,40 @@ export const handleMistralStream = (stream: EventStream<ConversationEvents>, con
           console.log('Mistral stream chunk event:', chunk.event, chunk.data);
         }
         // Types are not connected to the event in mistral... so we use type instead
-        switch (chunk.data.type) {
+        switch (chunk.data.type as MistralEventType) {
           case 'conversation.response.started':
             // controller.enqueue(createSse('conversation.started', { MistralConversationId: chunk.data.conversationId }));
-            break
+            break;
           case 'message.output.delta':
-            controller.enqueue(createSse({ event: 'conversation.message.delta', data: { messageId: chunk.data.id, content: typeof chunk.data.content === 'string' ? chunk.data.content : 'FIKK EN CHUNK SOM IKKE ER STRING, sjekk mistral-typen OutputContentChunks' } }));
-            break
+            if ('id' in chunk.data && 'content' in chunk.data) {
+              controller.enqueue(createSse({ event: 'conversation.message.delta', data: { messageId: chunk.data.id, content: typeof chunk.data.content === 'string' ? chunk.data.content : '' } }));
+            }
+            break;
+          case 'message.output.completed': {
+            const completedData = chunk.data as { id?: string; content?: string };
+            if (completedData.id && typeof completedData.content === 'string') {
+              controller.enqueue(createSse({
+                event: 'conversation.message.ended',
+                data: {
+                  messageId: completedData.id,
+                  content: completedData.content
+                }
+              }));
+            }
+            break;
+          }
           case 'conversation.response.done':
             console.log("Mistral conversation done event data:", chunk.data);
-            controller.enqueue(createSse({ event: 'conversation.message.ended', data: { totalTokens: chunk.data.usage.totalTokens || 0 } }));
-            break
+            if ('usage' in chunk.data && chunk.data.usage && 'totalTokens' in chunk.data.usage) {
+              controller.enqueue(createSse({ event: 'conversation.message.ended', data: { totalTokens: chunk.data.usage.totalTokens || 0 } }));
+            }
+            break;
           case 'conversation.response.error':
-            controller.enqueue(createSse({ event: 'error', data: { message: chunk.data.message } }));
-            break
-          // Ta hensyn til flere event typer her etter behov
+            if ('message' in chunk.data) {
+              controller.enqueue(createSse({ event: 'error', data: { message: chunk.data.message } }));
+            }
+            break;
+          // ...andre event typer...
         }
       }
       controller.close()

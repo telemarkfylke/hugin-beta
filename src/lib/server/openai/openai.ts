@@ -18,18 +18,24 @@ export const handleOpenAIStream = (stream: Stream<ResponseStreamEvent>, conversa
       for await (const chunk of stream) {
         switch (chunk.type) {
           case 'response.created':
-            // controller.enqueue(createSse('conversation.started', { openAIConversationId: chunk.response.conversation?.id }));
-            break
+            // ...existing code...
+            break;
           case 'response.output_text.delta':
             controller.enqueue(createSse({ event: 'conversation.message.delta', data: { messageId: chunk.item_id, content: chunk.delta } }));
-            break
+            break;
           case 'response.completed':
-            
-            controller.enqueue(createSse({ event: 'conversation.message.ended', data: { totalTokens: chunk.response.usage?.total_tokens || 0 } }));
-            break
+            controller.enqueue(createSse({
+              event: 'conversation.message.ended',
+              data: {
+                messageId: chunk.response.id,
+                content: typeof chunk.response.output_text === 'string' ? chunk.response.output_text : '',
+                totalTokens: chunk.response.usage?.total_tokens || 0
+              }
+            }));
+            break;
           case 'response.failed':
             controller.enqueue(createSse({ event: 'error', data: { message: chunk.response.error?.message || "Unknown error" } }));
-            break
+            break;
           default:
             console.warn('Unhandled OpenAI stream event type:', chunk.type);
             break;
