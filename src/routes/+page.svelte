@@ -47,7 +47,7 @@
   position: absolute;
   left: 0;
   top: 0;
-  width: 250px;
+  width: 220px;
   height: 100%;
   border-radius: 5px;
   flex-shrink: 0;

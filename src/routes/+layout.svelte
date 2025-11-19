@@ -36,11 +36,38 @@
 		font-family: Arial, Helvetica, sans-serif;
 	}
 	:global(html) {
+    /* Bakgrunnsfarge som minner om papir */
+    background-color: #fbfbfb;
+
+    /* Horisontale linjer for notatark-effekt */
+    background-image: 
+        linear-gradient(to right, #e77 2px, transparent 2px), /* Rød marg på venstre side */
+        repeating-linear-gradient(
+            to bottom, 
+            #e4e7ec 0px, #e4e7ec 1px, 
+            transparent 1px, transparent 32px
+        ); 
+
+    background-size: 
+        40px 100%, /* Marglinje bredde */
+        100% 32px; /* Avstand mellom linjer */
+
+    background-position: 
+        left top,
+        left top;
+
+    background-repeat: 
+        no-repeat,
+        repeat;
+}
+
+
+	:global(html) {
 		background-image: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEwAAAA/CAYAAABKIS5EAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAHMSURBVHhe7dvLjqMwEIXh0y2S939S5EAwN1M1i4SeHi9adYw0i5nzLbFQnN8oixL5GIbBIWGf9QX5mYKRwsGmacI8z/XlEHfHOI4opdRLIcdxYBxHuLf9eszzjGma6ssh5963bQOYYFe1flm8771y/1XfP/tDP/qcv/aE/SsUjKRgJAUjKRhJwUgKRlIwkoKRFIykYCQFIykYKRTM3fF4PDCOY70U4u7o+x77vtdLIaUU9H3fPOJ5Pp9IKTXdf+59WRaAGe+cw7+u6+qlkG3b0HUdPj9DZ/QHM0MpBff7vV4KKaXA3XG73eqlkO97DweTF/64/3MKRlIwkoKRFIykYCQFIykYScFICkZSMJKCkcLBzAxmVl8OM7Om8QreI5arn331/nPvoWDnO1Kt71iZGVJKze+HlVKQUmr+0jlnDMPQdGDujpQS1nUFmHmYvISeMPlNwUgKRlIwkoKRFIykYCQFIykYScFICkZSMJKCkcLBlmX5GnGw3B05ZxzHUS+FmBlyzk3jGQBY1/XSXxdzzl+jqXCwbdua3+/Ce9Ot8ywzaz4svOdp+75fCn4etuZhpPATJi8KRlIwkoKRFIykYCQFIykYScFICkb6BTA8Gc4GWfA4AAAAAElFTkSuQmCC');
 		background-color: #fafafa;
 		background-image: 
-        radial-gradient(circle,  #B2CBCF 1px, transparent 1px),
-        radial-gradient(circle,  #B2CBCF 1px, transparent 1px);
+        radial-gradient(circle,  #B2CBCF 0.3px, transparent 1px),
+        radial-gradient(circle,  #B2CBCF 0.3px, transparent 1px);
         background-size: 32px 32px;
         background-position: 0 0, 16px 16px;
 }

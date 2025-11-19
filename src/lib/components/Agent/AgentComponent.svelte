@@ -77,16 +77,12 @@
     box-sizing: border-box; /* Include padding and border in total size, to avoid overflow */
     display: flex;
     flex-direction: column;
-    height: 800px;
-    width: 1200px;
+    height: 700px;
+    width: 1000px;
     margin: 0 auto;
-    height: 100%;
     color: #333;
     margin-top: 40px;
     font-size: 18px;
-    
-    
-    
   }
   
   .agent-menu-bar {
@@ -101,13 +97,14 @@
     border-radius: 2px;
   }
   .conv-btn {
-    border: 1px solid #555;
-    border-radius: 3px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
     font-size: 0.9rem;
     font-weight: 500;
     background: #E7F2F3;
     cursor: pointer;
     color: #333;
+
     transition: background 0.15s ease, border-color 0.15s ease;
     box-shadow: 0 2px 4px rgba(44, 44, 44, 0.25);
   }
@@ -116,8 +113,8 @@
     border-color: #666;
   }
   .restart-btn {
-    border: 1px solid #555;
-    border-radius: 3px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
     font-size: 0.9rem;
     font-weight: 500;
     background: #E7F2F3;

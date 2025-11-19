@@ -48,10 +48,10 @@
     <div id="actions">
       <div id="actions-left">
         <!-- WHOOOPS bruk dynamisk accept basert på agenten, og enable disable fileupload basert på agenten (https://platform.openai.com/docs/assistants/tools/file-search#supported-files), MISTRAL: PNG, JPEG, JPG, WEBP, GIF, PDF, DOCX, PPTX, EPUB, CSV, TXT, MD, XLSX --> 
-        <input  bind:files type="file" id="file-upload" multiple accept=".png,.jpeg,.jpg,.webp,.gif,.pdf,.docx,.pptx,.epub,.csv,.txt,.md,.xlsx,image/png,image/jpeg,image/jpg,image/webp,image/gif,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/epub+zip,text/csv,text/plain,text/markdown,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" />
+        <input   bind:files type="file" id="file-upload" multiple accept=".png,.jpeg,.jpg,.webp,.gif,.pdf,.docx,.pptx,.epub,.csv,.txt,.md,.xlsx,image/png,image/jpeg,image/jpg,image/webp,image/gif,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/epub+zip,text/csv,text/plain,text/markdown,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" />
         {#if files.length > 0}
-          <button type="button"  onclick={submitFiles}>Last opp ({files.length})</button>
-          <button type="reset" onclick={() => { files = new DataTransfer().files; }}>Clear Files ({files.length})</button>
+          <button type="button" class="fils-btn"  onclick={submitFiles}>Last opp ({files.length})</button>
+          <button type="reset" class="fils-btn" onclick={() => { files = new DataTransfer().files; }}>Clear Files ({files.length})</button>
         {/if}
       </div>
     </div>
@@ -80,6 +80,36 @@
     margin-bottom: 30px;
   }
 
+  .fils-btn {
+    margin-top: 10px;
+    margin-right: 10px;
+    padding: 8px 12px;
+    background: #CCDCDF;
+    color: #333;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(44, 44, 44, 0.25);
+    transition: background 0.15s ease, border-color 0.15s ease;
+  }
+  input[type="file"]::file-selector-button {
+    padding: 8px 12px;
+    background: #CCDCDF;
+    color: #333;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    margin-right: 10px;
+    box-shadow: 0 2px 4px rgba(44, 44, 44, 0.25);
+}
+
+input[type="file"]::file-selector-button:hover {
+    background: #E7F2F3;
+}
 
   .input-with-send {
     position: relative;
