@@ -33,7 +33,7 @@
       {/if}
     </div>
     <div class="agent-menu-bar-right">
-      <button class="restart-btn" onclick={agentStateHandler.clearConversation}>Start ny samtale</button>
+      <button class="restart-btn" title="Start ny chat" onclick={agentStateHandler.clearConversation}><img src="/images/chat-notification_17178348.png" alt="Restart conversation"></button>
     </div>
   </div>
   <div class="agent-menu" class:open={menuOpen}>
@@ -113,29 +113,36 @@
     border-color: #666;
   }
   .restart-btn {
+    position: absolute;
+    top: 20px;
+    left: 70px;
+    z-index: 20;
+    font-size: 12px;
+    justify-content: center;
+    display: flex;
     border: 1px solid #ccc;
-    border-radius: 5px;
-    font-size: 0.9rem;
-    font-weight: 500;
-    background: #E7F2F3;
+    border-radius: 10px;
+    padding: 6px 12px;
     cursor: pointer;
-    color: #333;
-    transition: background 0.15s ease, border-color 0.15s ease;
+    width: 40px;
+    height: 40px;
+    background-color: #B2CBCF;
     box-shadow: 0 2px 4px rgba(44, 44, 44, 0.25);
+    transition: background 0.2s, color 0.2s;
   }
   .restart-btn:hover {
     background: #CCDCDF;
     border-color: #666;
   }
   .agent-menu.open {
-      display: block;
-  margin-bottom: 1rem;
-  border-radius: 5px;
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  background: rgba(255,255,255,0.3);
-  border: 1px solid rgba(255,255,255,0.4);
-  box-shadow: 0 2px 4px rgba(44, 44, 44, 0.25);
+    display: block;
+    margin-bottom: 1rem;
+    border-radius: 5px;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    background: rgba(255,255,255,0.3);
+    border: 1px solid rgba(255,255,255,0.4);
+    box-shadow: 0 2px 4px rgba(44, 44, 44, 0.25);
   }
   .agent-chat {
     flex: 1;
