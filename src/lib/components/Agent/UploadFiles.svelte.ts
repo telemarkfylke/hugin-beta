@@ -1,7 +1,7 @@
 // Keeps track of the entire state of an agent component (async stuff are allowed here)
 import { parseSse } from "$lib/streaming.js";
 
-export const getConversationFiles = async (agentId: string, conversationId: string, setConversationFiles: (files: any[]) => void): Promise<void> => {
+export const getConversationFiles = async (agentId: string, conversationId: string, setConversationFiles: (files: File[]) => void): Promise<void> => {
   if (!agentId || !conversationId) {
     throw new Error("agentId and conversationId are required to fetch conversation files");
   }

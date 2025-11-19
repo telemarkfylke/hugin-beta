@@ -11,7 +11,7 @@ const wrapInPreCode = (content: string): string => {
 
 // Setup markdown-it with highlighting
 const md = markdownit({
-  highlight: function (str, lang): string {
+  highlight: (str, lang): string => {
     if (lang && hljs.getLanguage(lang)) {
       try {
         return wrapInPreCode(hljs.highlight(str, { language: lang, ignoreIllegals: true }).value)

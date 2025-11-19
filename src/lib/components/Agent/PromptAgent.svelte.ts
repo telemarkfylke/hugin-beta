@@ -49,22 +49,26 @@ export const promptAgent = async (userPrompt: string, agentId: string, conversat
     const chatResponse = parseSse(chatResponseText)
     for (const chatResult of chatResponse) {
       switch (chatResult.event) {
-        case 'conversation.started':
+        case 'conversation.started': {
           const { conversationId } = chatResult.data
           setCurrentConversationId(conversationId)
           loadAgentConversations()
           console.log("Conversation started with ID:", conversationId)
           break;
-        case 'conversation.message.delta':
+        }
+        case 'conversation.message.delta': {
           const { messageId, content } = chatResult.data
           addAgentMessageToConversation(messageId, content)
           break;
-        case 'conversation.message.ended':
+        }
+        case 'conversation.message.ended': {
           console.log("Conversation message ended. Total tokens used:", chatResult.data.totalTokens)
           break;
-        default:
+        }
+        default: {
           console.warn("Unhandled chat result event:", chatResult.event)
           break;
+        }
       }
     }
     if (done) break

@@ -57,29 +57,6 @@ export const uploadFilesToMistralLibrary = async (libraryId: string, files: File
   }
 
   throw new Error('Regular upload not implemented yet');
-
-  for (const file of files) {
-    try {
-      const result = await mistral.beta.libraries.documents.upload({
-        libraryId,
-        requestBody: {
-          file,
-        }
-      })
-      const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
-      console.log('Uploaded document to Mistral library:', result);
-      await sleep(5000);
-      // Check status
-      const status = await mistral.beta.libraries.documents.status({
-        libraryId,
-        documentId: result.id
-      })
-      console.log('Document status:', status);
-    } catch (error) {
-
-      console.error('Error uploading document to Mistral library:', error);
-    }
-  }
 }
 
 export const getDocumentsInMistralLibrary = async (libraryId: string): Promise<DocumentOut[]> => {

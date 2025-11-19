@@ -8,7 +8,7 @@ import type { EventStream } from "@mistralai/mistralai/lib/event-streams";
 import type { ConversationEvents } from "@mistralai/mistralai/models/components/conversationevents";
 import type { Stream } from "openai/streaming";
 import type { ResponseStreamEvent } from "openai/resources/responses/responses.mjs";
-import { ConversationRequest, GetConversationResult } from "$lib/types/requests";
+import { ConversationRequest, type GetConversationResult } from "$lib/types/requests";
 import { responseStream } from "$lib/streaming";
 
 
@@ -23,7 +23,7 @@ export const GET: RequestHandler = async ({ params }): Promise<Response> => {
   const conversation = await getConversation(conversationId)
 
   // MOCK AI
-  if (agent.config.type == 'mock-agent') {
+  if (agent.config.type === 'mock-agent') {
     const getConversationResult: GetConversationResult = {
       conversation,
       items: [
@@ -47,7 +47,7 @@ export const GET: RequestHandler = async ({ params }): Promise<Response> => {
   }
   
   // MISTRAL
-  if (agent.config.type == 'mistral-conversation' || agent.config.type == 'mistral-agent') {
+  if (agent.config.type === 'mistral-conversation' || agent.config.type === 'mistral-agent') {
     const items = await getMistralConversationItems(conversation.relatedConversationId);
     const getConversationResult: GetConversationResult = {
       conversation,
@@ -57,7 +57,7 @@ export const GET: RequestHandler = async ({ params }): Promise<Response> => {
   }
 
   // OPENAI
-  if (agent.config.type == 'openai-response' || agent.config.type == 'openai-prompt') {
+  if (agent.config.type === 'openai-response' || agent.config.type === 'openai-prompt') {
     const items = await getOpenAIConversationItems(conversation.relatedConversationId);
     const getConversationResult: GetConversationResult = {
       conversation,
@@ -84,7 +84,7 @@ export const POST: RequestHandler = async ({ request, params }): Promise<Respons
   const conversation = await getConversation(conversationId)
 
   // MOCK AI 
-  if (agent.config.type == 'mock-agent') {
+  if (agent.config.type === 'mock-agent') {
     console.log('Mock AI response for agent:', agent._id)
     if (stream) {
       const readableStream = handleMockAiStream(conversation._id);
@@ -93,7 +93,7 @@ export const POST: RequestHandler = async ({ request, params }): Promise<Respons
     throw new Error('Mock AI agent only supports streaming responses for now...');
   }
   // MISTRAL
-  if (agent.config.type == 'mistral-conversation') {
+  if (agent.config.type === 'mistral-conversation') {
     // Må sjekke at conversations finnes forsatt og...
     console.log('Appending Mistral conversation for agent:', agent._id)
     if (stream) {
@@ -107,7 +107,7 @@ export const POST: RequestHandler = async ({ request, params }): Promise<Respons
     return json({ response })
   }
   // OPENAI
-  if (agent.config.type == 'openai-response') {
+  if (agent.config.type === 'openai-response') {
     // Opprett conversation mot OpenAI her og returner
     console.log('Appending OpenAI conversation for agent:', agent._id)
 

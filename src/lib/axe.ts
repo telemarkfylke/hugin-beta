@@ -1,7 +1,4 @@
-
-
-import { browser } from '$app/environment';
-import { dev } from '$app/environment';
+import { browser, dev } from '$app/environment';
 
 if (browser && dev) {
   import('axe-core').then(axe => {

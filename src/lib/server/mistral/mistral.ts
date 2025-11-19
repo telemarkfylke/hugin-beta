@@ -5,14 +5,14 @@ import type { AgentConfig, Message } from "$lib/types/agents.js";
 import type { ConversationEvents } from "@mistralai/mistralai/models/components/conversationevents";
 import type { EventStream } from "@mistralai/mistralai/lib/event-streams";
 import type { ConversationResponse } from "@mistralai/mistralai/models/components/conversationresponse";
-import type { ConversationRequest, MessageInputEntry, MessageOutputEntry } from "@mistralai/mistralai/models/components";
+import type { ConversationRequest, DocumentLibraryTool, MessageInputEntry, MessageOutputEntry } from "@mistralai/mistralai/models/components";
 
 export const mistral = new Mistral({
-  apiKey: env["MISTRAL_API_KEY"] || 'bare-en-tulle-key',
+  apiKey: env.MISTRAL_API_KEY || 'bare-en-tulle-key',
 });
 
-export const handleMistralStream = (stream: EventStream<ConversationEvents>, conversationId?: string, userLibraryId?: string | null): ReadableStream => {
-  const readableStream = new ReadableStream({
+export const handleMistralStream = (stream: EventStream<ConversationEvents>, conversationId?: string, userLibraryId?: string | null): ReadableStream<Uint8Array> => {
+  const readableStream: ReadableStream<Uint8Array> = new ReadableStream({
     async start (controller) {
       if (conversationId) {
         controller.enqueue(createSse({ event: 'conversation.started', data: { conversationId } }));
@@ -96,16 +96,13 @@ const createMistralConversationConfig = async (agentConfig: AgentConfig, initial
   const mistralConversationConfig: ConversationRequest = {
     model: agentConfig.model,
     inputs: initialPrompt,
-    instructions: agentConfig.instructions || '',
-    tools: [
-      {
-        type: 'document_library',
-        libraryIds: [] as string[]
-      }
-    ]
+    instructions: agentConfig.instructions || ''
   };
-  // Just for reference
-  const documentLibraryTool = mistralConversationConfig.tools!.find(tool => tool.type === 'document_library');
+  // Tool if needed
+  const documentLibraryTool: (DocumentLibraryTool & { type: "document_library" }) = {
+    type: 'document_library',
+    libraryIds: [] as string[]
+  }
   
   // If file search is enabled, create a library for the user and add document_library tool
   let userLibraryId: string | null = null;
@@ -115,19 +112,19 @@ const createMistralConversationConfig = async (agentConfig: AgentConfig, initial
       description: 'Library created for conversation with document tools'
     })
     userLibraryId = userLibrary.id;
-    documentLibraryTool!.libraryIds.push(userLibrary.id);
+    documentLibraryTool.libraryIds.push(userLibrary.id);
   }
   // If preconfigured document libraries, add them as well
   if (agentConfig.documentLibraryIds && agentConfig.documentLibraryIds.length > 0) {
-    documentLibraryTool!.libraryIds.push(...agentConfig.documentLibraryIds);
+    documentLibraryTool.libraryIds.push(...agentConfig.documentLibraryIds);
+  }
+  // Add documentLibraryTool only if we have library ids
+  if (documentLibraryTool.libraryIds.length > 0) {
+    mistralConversationConfig.tools = [documentLibraryTool];
   }
   // If web search is enabled, add web_search tool
   if (agentConfig.webSearchEnabled) {
     throw new Error("Web search tool is not yet implemented for Mistral agents");
-  }
-  if (documentLibraryTool!.libraryIds.length === 0) {
-    // Remove document library tool if no libraries are added
-    mistralConversationConfig.tools = mistralConversationConfig.tools!.filter(tool => tool.type !== 'document_library');
   }
   return {
     requestConfig: mistralConversationConfig,
@@ -169,9 +166,6 @@ export const createMistralConversation = async (agentConfig: AgentConfig, initia
   }
 
   throw new Error("Non-streaming Mistral conversation creation is not yet implemented");
-  const conversationStarter = await mistral.beta.conversations.start(mistralConversationConfig.requestConfig);
-
-  return { mistralConversationId: conversationStarter.conversationId, userLibraryId: mistralConversationConfig.data.userLibraryId, mistralResponse: conversationStarter };
 }
 
 export const getMistralConversationItems = async (mistralConversationId: string): Promise<Message[]> => {

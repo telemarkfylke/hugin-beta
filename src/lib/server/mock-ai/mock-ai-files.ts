@@ -32,7 +32,7 @@ export const uploadFilesToMockAI = async (libraryId: string, files: File[], stre
             controller.enqueue(createSse({ event: 'conversation.vectorstore.file.uploaded', data: { fileId: 'tullball-id', fileName: file.name }}));
             let fileProcessed = false;
             // Polling for document processing status
-            let status = { processingStatus: 'Running' }; // Mocked status
+            const status = { processingStatus: 'Running' }; // Mocked status
             while (!fileProcessed) {
               console.log('Document status:', status.processingStatus);
               if (status.processingStatus === 'Completed') {

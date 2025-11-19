@@ -6,7 +6,7 @@ import type { Response, ResponseCreateParamsBase, ResponseStreamEvent, Tool } fr
 import type { AgentConfig, Message } from "$lib/types/agents";
 
 export const openai = new OpenAI({
-  apiKey: env["OPENAI_API_KEY"] || 'bare-en-tulle-key',
+  apiKey: env.OPENAI_API_KEY || 'bare-en-tulle-key',
 });
 
 export const handleOpenAIStream = (stream: Stream<ResponseStreamEvent>, conversationId?: string): ReadableStream => {
@@ -24,7 +24,6 @@ export const handleOpenAIStream = (stream: Stream<ResponseStreamEvent>, conversa
             controller.enqueue(createSse({ event: 'conversation.message.delta', data: { messageId: chunk.item_id, content: chunk.delta } }));
             break
           case 'response.completed':
-            
             controller.enqueue(createSse({ event: 'conversation.message.ended', data: { totalTokens: chunk.response.usage?.total_tokens || 0 } }));
             break
           case 'response.failed':

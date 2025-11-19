@@ -35,7 +35,7 @@ export const POST: RequestHandler = async ({ request, params }) => {
   const agent = await getAgent(agentId)
 
   // MOCK AI AGENT
-  if (agent.config.type == 'mock-agent') {
+  if (agent.config.type === 'mock-agent') {
     if (stream) {
       const ourConversation = await insertConversation('mock-agent', {
         name: 'New mock conversation',
@@ -51,7 +51,7 @@ export const POST: RequestHandler = async ({ request, params }) => {
   }
 
   // MISTRAL AGENT
-  if (agent.config.type == 'mistral-conversation') {
+  if (agent.config.type === 'mistral-conversation') {
     console.log('Creating Mistral conversation', agent._id)
     // Opprett conversation mot Mistral her og returner
     const { mistralConversationId, userLibraryId, mistralStream, mistralResponse } = await createMistralConversation(agent.config, prompt, stream);
@@ -74,7 +74,7 @@ export const POST: RequestHandler = async ({ request, params }) => {
     return json({ conversation: ourConversation, initialResponse: mistralResponse })
   }
   // OPENAI
-  if (agent.config.type == 'openai-response') {
+  if (agent.config.type === 'openai-response') {
     // Opprett conversation mot OpenAI her og returner
     console.log('Creating OpenAI conversation for agent:', agent._id)
     

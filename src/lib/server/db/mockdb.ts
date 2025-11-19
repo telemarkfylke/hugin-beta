@@ -17,8 +17,8 @@ export const getMockDb = async (): Promise<{ agents: Agent[], conversations: Con
     const { agents, conversations } = await import('./mockdb-data.js');
     console.log('./db/mockdb-data.js exists, loaded mockdb, returning mock collections');
     return { agents: [mockAgent, ...agents], conversations }
-  } catch (e) {
-    console.warn('./db/mockdb-data.js does not exist or is badly formed, returning empty collections');
+  } catch (error) {
+    console.warn('./db/mockdb-data.js does not exist or is badly formed, returning empty collections', error);
     return { agents: [mockAgent], conversations: [] }
   }
 }

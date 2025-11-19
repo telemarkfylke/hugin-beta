@@ -1,6 +1,6 @@
 import { MuginSse } from "./types/streaming.js";
 
-export const responseStream = (stream: ReadableStream<any>): Response => {
+export const responseStream = (stream: ReadableStream<Uint8Array>): Response => {
   return new Response(stream, {
     headers: {
       'Content-Type': 'text/event-stream',
