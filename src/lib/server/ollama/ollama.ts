@@ -1,66 +1,88 @@
 import { env } from "$env/dynamic/private";
-import type { OllamaAIResponseConfig } from "$lib/types/agents";
-import type { Stream } from "openai/streaming";
-import type { Response, ResponseStreamEvent } from "openai/resources/responses/responses";
+import { Ollama, type ChatResponse } from 'ollama'
+import { MessageOriginator, type Conversation, type ConversationMessage, type OllamaAIResponseConfig } from "$lib/types/agents";
+import { createSse } from "$lib/streaming.js";
 
 
-type OllamaResponse = Response | Stream<ResponseStreamEvent> | null
+type OllamaResponse = ChatResponse | any
 
-type CreateResponse = {
-    openAiConversationId: string,
-    response: OllamaResponse
+const ollama = new Ollama({ host: 'http://127.0.0.1:11434' })
+
+export type OllamaCreateResponse = {
+  ollamaConversationId: string,
+  response: OllamaResponse | any,
+  messages: ConversationMessage[]
 }
 
 
-export const handleOllamaStream = (stream: Stream<ResponseStreamEvent>, conversationId?: string): ReadableStream | null => {
+export const handleOllamaStream = (conversation: Conversation, stream: any, conversationId?: string): ReadableStream | null => {
+  const readableStream = new ReadableStream({
+    async start(controller) {
+      let message = ''
+      const messageId = crypto.randomUUID()
 
-    /*
-    const readableStream = new ReadableStream({
-      async start (controller) {
-        if (conversationId) {
-          controller.enqueue(createSse('conversation.started', { conversationId }));
-        }
-        for await (const chunk of stream) {
-          switch (chunk.type) {
-            case 'response.created':
-              // controller.enqueue(createSse('conversation.started', { openAIConversationId: chunk.response.conversation?.id }));
-              break
-            case 'response.output_text.delta':
-              controller.enqueue(createSse('conversation.message.delta', { messageId: chunk.item_id, content: chunk.delta }));
-              break
-            // Ta hensyn til flere event typer her etter behov
-          }
-        }
-        controller.close()
+      if (conversationId) {
+        controller.enqueue(createSse({ event: 'conversation.started', data: { conversationId } }));
       }
-    })
-      */
-    return null;
-}
+      
+      for await (const part of stream) {
+        controller.enqueue(createSse({ event: 'conversation.message.delta', data: { messageId: messageId, content: part.message.content } }));
+        message += part.message.content
+      }
 
-
-export const createOllamaAIConversation = async (ollamaAiResponseConfig: OllamaAIResponseConfig, prompt: string, streamResponse: boolean): Promise<CreateResponse> => {
-
-    /*    // Lokale api kall
-    
-        const conversation = await openai.conversations.create({
-            metadata: { topic: "demo" }
-        });
-        // Må vi kanskje lage en vector store også, og knytte den til samtalen her?
-    
-        const response = await appendToOpenAIConversation(openAiResponseConfig, conversation.id, prompt, streamResponse);
-        */
-    const reply: CreateResponse = {
-        openAiConversationId: 'mock',
-        response: null
+      addMessage(message, conversation.messages, MessageOriginator.Bot)
+      controller.close()
     }
-    return reply
+  })
+  return readableStream;
 }
 
+type OllamaMessage = {
+  role:string,
+  content: string
+}
 
+const addMessage = (prompt: string, messages: ConversationMessage[], originator: MessageOriginator) => {
+  if(!messages){
+    messages = []
+  }
+  messages.push({ originator: originator, message: prompt })
+}
 
-export const appendToOllamaConversation = async (openAiResponseConfig: OllamaAIResponseConfig, openAIConversationId: string, prompt: string, streamResponse: boolean): Promise<OllamaResponse> => {
-    // Create response and return
-    // Kommunisere med lokala servere
-    return null
+const makeOllamaInstance = async(ollamaResponseConfig: OllamaAIResponseConfig, messages: OllamaMessage[], streamResponse: boolean): Promise<OllamaResponse | any> => {
+  /*
+   Dette er snedig, istedenfor multiple response verdier har de haller laget hardkodede versjoner av 
+   chat for stream er enten true eller false, men det er ikke en boolean
+  */  
+  const response = streamResponse ?  await ollama.chat({
+    model: 'gemma3',
+    messages: messages,
+    stream: true
+  }) : await ollama.chat({
+    model: 'gemma3',
+    messages: messages,
+    stream: false
+  })
+
+  return response
+}
+
+export const createOllamaConversation = async (ollamaResponseConfig: OllamaAIResponseConfig, prompt: string, streamResponse: boolean): Promise<OllamaCreateResponse> => {
+  const messages: ConversationMessage[] = []
+  addMessage(prompt, messages, MessageOriginator.User)
+  const ollamaMessages:OllamaMessage[] = messages.map((value:ConversationMessage ) => { return { role: value.originator, content: value.message} })
+  const response =  await makeOllamaInstance(ollamaResponseConfig, ollamaMessages, streamResponse)
+  const reply: OllamaCreateResponse = {
+    ollamaConversationId: crypto.randomUUID(),
+    response: response,
+    messages: messages 
+  }
+  return reply
+}
+
+export const appendToOllamaConversation = async (ollamaResponseConfig: OllamaAIResponseConfig, conversation: Conversation, prompt: string, streamResponse: boolean): Promise<OllamaResponse> => {  
+  addMessage(prompt, conversation.messages, MessageOriginator.User)
+  const ollamaMessages:OllamaMessage[] = conversation.messages.map((value:ConversationMessage ) => { return { role: value.originator, content: value.message} })  
+  const response =  await makeOllamaInstance(ollamaResponseConfig, ollamaMessages, streamResponse)
+  return response  
 }

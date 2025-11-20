@@ -32,6 +32,8 @@ export type Agent = {
   config: AgentConfig;
 }
 
+export enum MessageOriginator { Bot='assistant', User='user'}
+
 export type Conversation = {
   _id: string;
   agentId: string;
@@ -39,5 +41,13 @@ export type Conversation = {
   description?: string;
   relatedConversationId: string; // id fra leverandør (Mistral/OpenAI)
   vectorStoreId: string | null; // id for vector store knyttet til denne samtalen (for filer bruker laster opp i en conversation)
+  messages: ConversationMessage[]
 }
+
+export type ConversationMessage = {
+  originator: MessageOriginator
+  message: string
+}
+
+
 

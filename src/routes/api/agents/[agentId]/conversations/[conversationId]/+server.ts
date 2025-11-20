@@ -1,6 +1,7 @@
 import { json, type RequestHandler } from "@sveltejs/kit"
 import { handleMistralStream, appendToMistralConversation } from "$lib/server/mistral/mistral.js";
 import { handleOpenAIStream, appendToOpenAIConversation } from "$lib/server/openai/openai.js";
+import { handleOllamaStream, appendToOllamaConversation } from "$lib/server/ollama/ollama";
 import { getAgent } from "$lib/server/agents/agents.js";
 import { getConversation } from "$lib/server/agents/conversations.js";
 import { handleMockAiStream } from "$lib/server/mock-ai/mock-ai.js";
@@ -105,6 +106,24 @@ export const POST: RequestHandler = async ({ request, params }): Promise<Respons
       return json({ error: 'Failed to get response from OpenAI' }, { status: 500 });
     }
 
+  }
+
+  // OLLAMA
+  if (agent.config.type == 'ollama-response'){
+    const openAIResponse = await appendToOllamaConversation(agent.config, conversation, prompt, stream);
+    if (stream) {
+      const readableStream = handleOllamaStream(conversation, openAIResponse, conversation._id);
+
+      return new Response(readableStream, {
+        headers: {
+          'Content-Type': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+          Connection: 'keep-alive'
+        }
+      })
+    }
+
+    return json({ conversation: conversation, initialResponse: openAIResponse.message })
   }
   throw new Error(`Unsupported agent config type: ${agent.config}`);
 }

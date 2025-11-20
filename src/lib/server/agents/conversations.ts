@@ -31,12 +31,11 @@ export const getConversation = async (conversationId: string): Promise<Conversat
   // Implement real DB fetch here
 }
 
-
 type ConversationData = {
   name: string
   description: string
   relatedConversationId: string,
-  vectorStoreId: string | null
+  vectorStoreId: string | null,
 }
 
 export const insertConversation = async (agentId: string, conversationData: ConversationData): Promise<Conversation> => {
@@ -44,7 +43,8 @@ export const insertConversation = async (agentId: string, conversationData: Conv
     const coversationToInsert = {
       _id: new ObjectId().toString(),
       agentId,
-      ...conversationData
+      messages:[],
+      ...conversationData      
     }
     mockDbData.conversations.push(coversationToInsert);
     return coversationToInsert;
