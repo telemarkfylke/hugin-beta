@@ -2,7 +2,7 @@ import { json, type RequestHandler } from "@sveltejs/kit"
 import { createAgent, getDBAgent } from "$lib/server/agents/agents.js"
 import { getConversation } from "$lib/server/agents/conversations.js"
 import { responseStream } from "$lib/streaming"
-import { ConversationRequest } from "$lib/types/requests"
+import { ConversationRequest, type GetConversationResult } from "$lib/types/requests"
 
 export const GET: RequestHandler = async ({ params }): Promise<Response> => {
 	const { conversationId, agentId } = params
@@ -17,59 +17,14 @@ export const GET: RequestHandler = async ({ params }): Promise<Response> => {
 	// Sikkert kjøre noe authorization
 
 	const agent = createAgent(dbAgent)
-	const conversationMessages = await agent.getConversationMessages(conversation)
-	return json(conversationMessages)
+	const { messages } = await agent.getConversationMessages(conversation)
+	const response: GetConversationResult = {
+		conversation,
+		items: messages
+	}
+
+	return json(response)
 }
-
-/*
-	// MOCK AI
-	if (agent.config.type === "mock-agent") {
-		const getConversationResult: GetConversationResult = {
-			conversation,
-			items: [
-				{
-					type: "message",
-					id: "msg_abc",
-					status: "completed",
-					role: "user",
-					content: { type: "inputText", text: "Hello!" }
-				},
-				{
-					type: "message",
-					id: "msg_def",
-					status: "completed",
-					role: "agent",
-					content: { type: "outputText", text: "Hi there! How can I assist you today?" }
-				}
-			]
-		}
-		return json(getConversationResult)
-	}
-
-	// MISTRAL
-	if (agent.config.type === "mistral-conversation" || agent.config.type === "mistral-agent") {
-		const items = await getMistralConversationItems(conversation.relatedConversationId)
-		const getConversationResult: GetConversationResult = {
-			conversation,
-			items
-		}
-		return json(getConversationResult)
-	}
-
-	// OPENAI
-	if (agent.config.type === "openai-response" || agent.config.type === "openai-prompt") {
-		const items = await getOpenAIConversationItems(conversation.relatedConversationId)
-		const getConversationResult: GetConversationResult = {
-			conversation,
-			items
-		}
-		return json(getConversationResult)
-	}
-
-	throw new Error(`Unsupported agent config type: ${agent.config}`)
-}
-
-*/
 
 export const POST: RequestHandler = async ({ request, params }): Promise<Response> => {
 	// Da legger vi til en ny melding i samtalen i denne agenten via leverandør basert på agenten, og får tilbake responseStream med oppdatert samtalehistorikk
