@@ -8,7 +8,7 @@ export const agents: Agent[] = [
     name: 'Mistral demo agent',
     description: 'Mistral agent based on an agent in mistral - connected to a mistral agent id',
     config: {
-      type: 'mistral-conversation',
+      type: 'mistral-agent',
       agentId: 'en id til en agent i mistral',
     }
   },
@@ -20,21 +20,9 @@ export const agents: Agent[] = [
       type: 'mistral-conversation',
       model: 'mistral-medium-latest',
       instructions: 'You are a helpful assistant that answers in Norwegian. Always search document libraries before answering user questions.',
-    }
-  },
-  {
-    _id: 'mistral-conversation-with-library',
-    name: 'Mistral Styrende Dokumenter Agent',
-    description: 'Mistral agent som svarer basert på dokumenter i et dokumentbibliotek i Mistral',
-    config: {
-      type: 'mistral-conversation',
-      model: 'mistral-medium-latest',
-      tools: [
-        {
-          type: 'document_library',
-          libraryIds: ['a library id fra mistral her']
-        }
-      ]
+      fileSearchEnabled: true,
+      webSearchEnabled: false,
+      documentLibraryIds: ['preconfigured-library-id-from-mistral']
     }
   },
   {
@@ -42,9 +30,10 @@ export const agents: Agent[] = [
     name: 'Open AI prompt demo agent',
     description: 'An agent that uses an OpenAI prompt-id as its configuration (saved prompt in OpenAI)',
     config: {
-      type: 'openai-response',
+      type: 'openai-prompt',
       prompt: {
-        id: 'a prompt id from OpenAI here'
+        id: 'a prompt id from OpenAI here',
+        version: 'optional version string'
       }
     }
   },
@@ -54,27 +43,10 @@ export const agents: Agent[] = [
     description: 'An agent that uses an OpenAI response configuration with gpt-4o model',
     config: {
       type: 'openai-response',
-      model: 'gpt-4o'
-    }
-  },
-  {
-    _id: 'openai_response_4o_2',
-    name: 'Open AI demo agent',
-    description: 'An agent that uses an OpenAI response configuration with gpt-4o model',
-    config: {
-      type: 'openai-response',
       model: 'gpt-4o',
-      instructions: 'Svar sarkastisk og kort på alt'
-    }
-  },
-  {
-    _id: 'openai_response_4o_TROLL',
-    name: 'Open AI demo agent',
-    description: 'An agent that uses an OpenAI response configuration with gpt-4o model',
-    config: {
-      type: 'openai-response',
-      model: 'gpt-4o',
-      instructions: 'Svar som et nettroll i et kommentarfelt på en luguber nettside'
+      instructions: 'You are a helpful assistant that answers in Norwegian.',
+      fileSearchEnabled: true,
+      webSearchEnabled: false
     }
   }
 ]

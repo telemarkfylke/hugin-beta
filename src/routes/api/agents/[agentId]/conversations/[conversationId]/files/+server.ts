@@ -1,9 +1,9 @@
 import { json } from "@sveltejs/kit"
 import { getAgent } from "$lib/server/agents/agents.js";
 import { getConversation, updateConversation } from "$lib/server/agents/conversations.js";
-import { uploadDocumentsToMistralLibrary } from "$lib/server/mistral/document-library.js";
-import { uploadDocumentsToOpenAIVectorStore } from "$lib/server/openai/vector-store.js";
-import { uploadDocumentsToMockAI } from "$lib/server/mock-ai/mock-ai-files.js";
+import { uploadFilesToMistralLibrary } from "$lib/server/mistral/document-library.js";
+import { uploadFilesToOpenAIVectorStore } from "$lib/server/openai/vector-store.js";
+import { uploadFilesToMockAI, getMockAiFiles } from "$lib/server/mock-ai/mock-ai-files.js";
 import { responseStream } from "$lib/streaming.js";
 
 /**
@@ -11,11 +11,20 @@ import { responseStream } from "$lib/streaming.js";
  * @type {import("@sveltejs/kit").RequestHandler}
  */
 export const GET = async ({ params }) => {
-  console.log(params)
-  const files = {
-      _id: 'blablabla',
+  const { conversationId, agentId } = params
+  if (!agentId || !conversationId) {
+    return json({ error: 'agentId and conversationId are required' }, { status: 400 })
   }
-  return json(files)
+
+  const agent = await getAgent(agentId)
+  const conversation = await getConversation(conversationId)
+
+  // Mock AI
+  if (agent.config.type == 'mock-agent') {
+    const mockFiles = await getMockAiFiles()
+    return json(mockFiles)
+  }
+  throw new Error(`Unsupported agent config type: ${agent.config}`);
 }
 
 /**
@@ -61,7 +70,7 @@ export const POST = async ({ request, params }) => {
   // MOCK AI 
   if (agent.config.type == 'mock-agent') {
     // Last opp en eller flere filer mock mock
-    const response = await uploadDocumentsToMockAI(conversation.vectorStoreId || 'mock-library-id', files, stream)
+    const response = await uploadFilesToMockAI(conversation.vectorStoreId || 'mock-library-id', files, stream)
 
     return responseStream(response)
   }
@@ -71,13 +80,13 @@ export const POST = async ({ request, params }) => {
       throw new Error('Conversation does not have a vectorStoreId to upload files to');
     }
     // Last opp en eller flere filer mistral
-    const response = await uploadDocumentsToMistralLibrary(conversation.vectorStoreId, files, stream);
+    const response = await uploadFilesToMistralLibrary(conversation.vectorStoreId, files, stream);
     return responseStream(response)
   }
   // OPENAI
   if (agent.config.type == 'openai-response') {
     // Last opp en eller flere filer openai
-    const { vectorStoreId, readableStream } = await uploadDocumentsToOpenAIVectorStore(conversation.relatedConversationId, conversation.vectorStoreId, files, stream);
+    const { vectorStoreId, readableStream } = await uploadFilesToOpenAIVectorStore(conversation.relatedConversationId, conversation.vectorStoreId, files, stream);
     // Check if vectorStoreId has changed and update conversation if needed
     if (vectorStoreId !== conversation.vectorStoreId) {
       // Oppdater conversation i DB med ny vectorStoreId

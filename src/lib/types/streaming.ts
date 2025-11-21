@@ -15,6 +15,13 @@ const ConversationMessageDelta = z.object({
   })
 });
 
+const ConversationMessageEnded = z.object({
+  event: z.literal("conversation.message.ended"),
+  data: z.object({
+    totalTokens: z.number()
+  })
+});
+
 const ConversationEnded = z.object({
   event: z.literal("conversation.ended"),
   data: z.object({
@@ -36,18 +43,18 @@ const ConversationVectorStoreCreated = z.object({
   })
 });
 
-const ConversationDocumentsUploaded = z.object({
-  event: z.literal("conversation.vectorstore.document.uploaded"),
+const ConversationFileUploaded = z.object({
+  event: z.literal("conversation.vectorstore.file.uploaded"),
   data: z.object({
-    documentId: z.string(),
+    fileId: z.string(),
     fileName: z.string()
   })
 });
 
-const ConversationDocumentsProcessed = z.object({
-  event: z.literal("conversation.vectorstore.documents.processed"),
+const ConversationFilesProcessed = z.object({
+  event: z.literal("conversation.vectorstore.files.processed"),
   data: z.object({
-    documents: z.array(z.object({ documentId: z.string() })),
+    files: z.array(z.object({ fileId: z.string() })),
     vectorStoreId: z.string()
   })
 });
@@ -55,11 +62,12 @@ const ConversationDocumentsProcessed = z.object({
 export const MuginSse = z.discriminatedUnion("event", [
   ConversationStarted,
   ConversationMessageDelta,
+  ConversationMessageEnded,
   ConversationEnded,
   ErrorEvent,
   ConversationVectorStoreCreated,
-  ConversationDocumentsUploaded,
-  ConversationDocumentsProcessed
+  ConversationFileUploaded,
+  ConversationFilesProcessed
 ]);
 
 export type MuginSse = z.infer<typeof MuginSse>;

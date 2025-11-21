@@ -4,18 +4,18 @@ import { openai } from "./openai";
 /**
  * Upload documents to OpenAI Vector Store. 
  */
-export const uploadDocumentsToOpenAIVectorStore = async (conversationId: string, vectorStoreId: string | null, files: File[], streamResponse: boolean): Promise<{ vectorStoreId: string, readableStream: ReadableStream }> => {
+export const uploadFilesToOpenAIVectorStore = async (conversationId: string, vectorStoreId: string | null, files: File[], streamResponse: boolean): Promise<{ vectorStoreId: string, readableStream: ReadableStream }> => {
   if (!conversationId) {
-    throw new Error('conversationId is required to upload documents to OpenAI library');
+    throw new Error('conversationId is required to upload files to OpenAI library');
   }
   if (!files || files.length === 0) {
-    throw new Error('At least one file is required to upload documents to Mistral');
+    throw new Error('At least one file is required to upload files to OpenAI library');
   }
   if (!vectorStoreId) {
     // Da kan vi lage en vector store her først
     const vectorStore = await openai.vectorStores.create({
       name: `vectorstore-for-conversation-${conversationId}`,
-      description: 'Vector store created for conversation document uploads',
+      description: 'Vector store created for conversation file uploads',
       expires_after: {
         anchor: 'last_active_at',
         days: 1
@@ -40,9 +40,9 @@ export const uploadDocumentsToOpenAIVectorStore = async (conversationId: string,
               }
             })
             fileIds.push(result.id);
-            controller.enqueue(createSse({ event: 'conversation.vectorstore.document.uploaded', data: { documentId: result.id, fileName: result.filename } }));
+            controller.enqueue(createSse({ event: 'conversation.vectorstore.file.uploaded', data: { fileId: result.id, fileName: result.filename } }));
           } catch (error) {
-            controller.enqueue(createSse({ event: 'error', data: { message: `Error uploading document ${file.name} to OpenAI library: ${error}` } }));
+            controller.enqueue(createSse({ event: 'error', data: { message: `Error uploading file ${file.name} to OpenAI library: ${error}` } }));
             controller.close();
             break;
           }
@@ -61,12 +61,12 @@ export const uploadDocumentsToOpenAIVectorStore = async (conversationId: string,
               break;
             }
             if (batchResult.status !== 'in_progress') {
-              controller.enqueue(createSse({ event: 'error', data: { message: `Error processing documents in batch id ${batchResult.id}: status ${batchResult.status}` } }));
+              controller.enqueue(createSse({ event: 'error', data: { message: `Error processing files in batch id ${batchResult.id}: status ${batchResult.status}` } }));
             }
             // Wait for a few seconds before polling again
             await new Promise(resolve => setTimeout(resolve, 3000));
           }
-          controller.enqueue(createSse({ event: 'conversation.vectorstore.documents.processed', data: { documents: fileIds.map(id => ({ documentId: id })), vectorStoreId } }));
+          controller.enqueue(createSse({ event: 'conversation.vectorstore.files.processed', data: { files: fileIds.map(id => ({ fileId: id })), vectorStoreId } }));
         } catch (error) {
           controller.enqueue(createSse({ event: 'error', data: { message: `Error uploading documents to Open AI Vector store: ${error}` } }));
           controller.close();

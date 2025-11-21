@@ -1,4 +1,5 @@
 <script lang="ts">
+    import AgentComponent from "$lib/components/Agent/AgentComponent.svelte";
   import type { Agent } from "../lib/types/agents";
 
   const getAgents = async (): Promise<Agent[]> => {
@@ -10,23 +11,42 @@
     return data.agents;
   };
 </script>
-<main>
-  <h1>MI6 Agents</h1>
+<div class="page-content">
   {#await getAgents() then agents}
-    <div>
+    <div class="left-menu">
+      <h2>Agents</h2>
       {#if agents.length === 0}
         <p>No agents found. Go play with yourself (or create a new agent)</p>
       {/if}
       {#each agents as agent}
         <div>
-          <h2>{agent.name}</h2>
-          <a href="/agents/{agent._id}">Go to agent: {`/agents/${agent._id}`}</a>
-          <p>{agent.description}</p>
-          <pre>{JSON.stringify(agent.config, null, 2)}</pre>
+          <a href="/agents/{agent._id}">{agent.name}</a>
         </div>
       {/each}
+    </div>
+    <div class="right-content">
+      <AgentComponent agentId={"mistral-conversation"} />
     </div>
   {:catch error}
     <p style="color: red;">Error: {error.stack || error.message}</p>
   {/await}
-</main>
+</div>
+
+<style>
+  .page-content {
+    display: flex;
+    gap: 2rem;
+    height: 100%;
+  }
+  .left-menu {
+    max-width: 250px;
+    height: 100%;
+    box-sizing: border-box;
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+  .right-content {
+    flex: 1;
+    padding-left: 20px;
+  }
+</style>

@@ -16,13 +16,14 @@ export const handleMockAiStream = (conversationId?: string): ReadableStream => {
   const readableStream = new ReadableStream({
     async start (controller) {
       if (conversationId) {
-        controller.enqueue(createSse('conversation.started', { conversationId }));
+        controller.enqueue(createSse({ event: 'conversation.started', data: { conversationId } }));
       }
       for (const message of mockResponseTokens) {
-        controller.enqueue(createSse('conversation.message.delta', { messageId, content: message }));
+        controller.enqueue(createSse({ event: 'conversation.message.delta', data: { messageId, content: message } }));
         // Simuler litt delay mellom meldingene
         await sleep(50);
       }
+      controller.enqueue(createSse({ event: 'conversation.message.ended', data: { totalTokens: mockResponseTokens.length } }));
       controller.close()
     }
   })

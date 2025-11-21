@@ -1,19 +1,11 @@
-type AgentConversationMessage = {
-  role: 'user' | 'agent';
-  content: string;
-}
+import type { Agent, Conversation, Message } from "./agents";
 
 type AgentVectorStoreFile = {
   id: string;
   name: string;
+  type: string;
   summary: string | null;
   size: number;
-}
-
-type AgentVectorStore = {
-  id: string;
-  name: string;
-  files: AgentVectorStoreFile[];
 }
 
 type CurrentAgentConversation = {
@@ -22,24 +14,26 @@ type CurrentAgentConversation = {
   value: {
     id: string | null;
     name: string | null;
-    messages: Record<string, AgentConversationMessage>;
-    vectorStores: AgentVectorStore[];
+    messages: Record<string, Message>;
+    files: AgentVectorStoreFile[];
   }
 }
 
-type AgentConversation = {
-  id: string;
-  name: string;
-};
+export type AgentInfo = {
+  isLoading: boolean;
+  error: string | null;
+  value: Agent | null;
+}
 
 // Might be funny to add agent data and user configuration as well later?
 export type AgentState = {
   agentId: string | null;
+  agentInfo: AgentInfo;
   currentConversation: CurrentAgentConversation;
   conversations: {
     isLoading: boolean;
     error: string | null;
-    value: AgentConversation[];
+    value: Conversation[];
   }
 }
 
@@ -47,9 +41,11 @@ export type AgentStateHandler = {
   readonly agentState: AgentState;
   clearConversation: () => void;
   changeAgent: (newAgentId: string) => Promise<void>;
-  loadConversation: (conversationId: string) => Promise<void>;
+  getAgentInfo: () => Promise<void>;
+  loadAgentConversation: (conversationId: string) => Promise<void>;
   postUserPrompt: (userPrompt: string) => Promise<void>;
   addKnowledgeFilesToConversation: (files: FileList) => void;
+  refreshConversationFiles: () => Promise<void>;
   deleteKnowledgeFileFromConversation: (fileId: string) => void;
   deleteConversation: (conversationId: string) => void;
   createAgentFromConversation: () => Promise<void>;
