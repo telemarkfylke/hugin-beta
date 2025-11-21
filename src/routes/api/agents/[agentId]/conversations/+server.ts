@@ -1,13 +1,6 @@
 import { json, type RequestHandler } from "@sveltejs/kit"
-import type { AbortableAsyncIterator, ChatResponse } from "ollama"
-import type { ResponseStreamEvent } from "openai/resources/responses/responses.mjs"
-import type { Stream } from "openai/streaming"
-import { getAgent } from "$lib/server/agents/agents.js"
-import { getConversations, insertConversation } from "$lib/server/agents/conversations.js"
-import { createMistralConversation, handleMistralStream } from "$lib/server/mistral/mistral.js"
-import { handleMockAiStream } from "$lib/server/mock-ai/mock-ai.js"
-import { createOllamaConversation, handleOllamaStream } from "$lib/server/ollama/ollama"
-import { createOpenAIConversation, handleOpenAIStream } from "$lib/server/openai/openai.js"
+import { createAgent, getDBAgent } from "$lib/server/agents/agents.js"
+import { deleteConversation, getConversations, insertConversation, updateConversation } from "$lib/server/agents/conversations.js"
 import { responseStream } from "$lib/streaming"
 import { ConversationRequest } from "$lib/types/requests"
 
@@ -34,8 +27,41 @@ export const POST: RequestHandler = async ({ request, params }) => {
 	// Validate request body
 	const { prompt, stream } = ConversationRequest.parse(body)
 
-	const agent = await getAgent(agentId)
+	const dbAgent = await getDBAgent(agentId)
 
+	const agent = createAgent(dbAgent)
+
+	// Oppretter en conversation i egen db
+	const dbConversation = await insertConversation(agentId, {
+		name: "New Conversation",
+		description: "Conversation started via API",
+		relatedConversationId: "",
+		vectorStoreId: null
+	})
+
+	try {
+		const { relatedConversationId, response, vectorStoreId } = await agent.createConversation(prompt, dbConversation._id, stream)
+
+		// Oppdaterer vår conversation med riktig relatedConversationId og vectorStoreId
+		updateConversation(dbConversation._id, {
+			relatedConversationId,
+			vectorStoreId
+		})
+
+		if (stream) {
+			return responseStream(response)
+		}
+
+		throw new Error("Non-streaming create conversation not implemented yet")
+	} catch (error) {
+		console.error("Error creating conversation:", error)
+		// delete the conversation we just created in db
+		await deleteConversation(dbConversation._id)
+		throw error
+	}
+}
+
+/*
 	// MOCK AI AGENT
 	if (agent.config.type === "mock-agent") {
 		if (stream) {
@@ -55,15 +81,17 @@ export const POST: RequestHandler = async ({ request, params }) => {
 	// MISTRAL AGENT
 	if (agent.config.type === "mistral-conversation") {
 		console.log("Creating Mistral conversation", agent._id)
-		// Opprett conversation mot Mistral her og returner
-		const { mistralConversationId, userLibraryId, mistralStream, mistralResponse } = await createMistralConversation(agent.config, prompt, stream)
-
 		const ourConversation = await insertConversation(agentId, {
 			name: "New Conversation",
 			description: "Conversation started via API",
 			relatedConversationId: mistralConversationId,
 			vectorStoreId: userLibraryId
 		})
+
+		// Opprett conversation mot Mistral her og returner
+		const { mistralConversationId, userLibraryId, mistralStream, mistralResponse } = await createMistralConversation(agent.config, prompt, stream)
+
+		updateConversation
 
 		if (stream) {
 			if (!mistralStream) {
@@ -123,3 +151,4 @@ export const POST: RequestHandler = async ({ request, params }) => {
 	}
 	throw new Error(`Unsupported agent config type: ${agent.config}`)
 }
+	*/

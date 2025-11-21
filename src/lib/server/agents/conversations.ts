@@ -69,3 +69,12 @@ export const updateConversation = async (conversationId: string, updateData: Par
 	throw new Error("Not implemented - please set MOCK_DB to true in env")
 	// Implement real DB update here
 }
+
+export const deleteConversation = async (conversationId: string): Promise<void> => {
+	if (mockDbData) {
+		mockDbData.conversations = mockDbData.conversations.filter((conversation) => conversation._id !== conversationId)
+		return
+	}
+	throw new Error("Not implemented - please set MOCK_DB to true in env")
+	// Implement real DB delete here
+}

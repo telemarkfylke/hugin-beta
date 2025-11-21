@@ -1,9 +1,7 @@
 import { json, type RequestHandler } from "@sveltejs/kit"
-import { getAgent } from "$lib/server/agents/agents.js"
-import { getConversation, updateConversation } from "$lib/server/agents/conversations.js"
-import { uploadFilesToMistralLibrary } from "$lib/server/mistral/document-library.js"
-import { getMockAiFiles, uploadFilesToMockAI } from "$lib/server/mock-ai/mock-ai-files.js"
-import { uploadFilesToOpenAIVectorStore } from "$lib/server/openai/vector-store.js"
+import { createAgent, getDBAgent } from "$lib/server/agents/agents.js"
+import { getConversation } from "$lib/server/agents/conversations"
+import { getMockAiFiles } from "$lib/server/mock-ai/mock-ai-files.js"
 import { responseStream } from "$lib/streaming.js"
 
 export const GET: RequestHandler = async ({ params }) => {
@@ -12,15 +10,15 @@ export const GET: RequestHandler = async ({ params }) => {
 		return json({ error: "agentId and conversationId are required" }, { status: 400 })
 	}
 
-	const agent = await getAgent(agentId)
+	const dbAgent = await getDBAgent(agentId)
 	// const conversation = await getConversation(conversationId)
 
 	// Mock AI
-	if (agent.config.type === "mock-agent") {
+	if (dbAgent.config.type === "mock-agent") {
 		const mockFiles = await getMockAiFiles()
 		return json(mockFiles)
 	}
-	throw new Error(`Unsupported agent config type: ${agent.config}`)
+	throw new Error(`Unsupported agent config type: ${dbAgent.config.type}`)
 }
 
 export const POST: RequestHandler = async ({ request, params }) => {
@@ -41,8 +39,14 @@ export const POST: RequestHandler = async ({ request, params }) => {
 	if (!files || files.length === 0) {
 		return json({ error: "No files provided for upload" }, { status: 400 })
 	}
-	const agent = await getAgent(agentId)
+	const dbAgent = await getDBAgent(agentId)
+
+	if (!dbAgent.config.fileSearchEnabled) {
+		return json({ error: "File upload is not enabled for this agent" }, { status: 403 })
+	}
+
 	const conversation = await getConversation(conversationId)
+	//	TODO: validate that conversation belongs to agentId and that user has access to it
 
 	// Validate file types
 	const allFilesValid = files.every((file) => {
@@ -59,6 +63,17 @@ export const POST: RequestHandler = async ({ request, params }) => {
 		return json({ error: "One or more files have invalid type" }, { status: 400 }) // Add valid types message senere
 	}
 
+	const agent = createAgent(dbAgent)
+
+	const { response } = await agent.addConversationFiles(conversation, files, stream)
+
+	if (stream) {
+		return responseStream(response)
+	}
+	throw new Error("Non-streaming file upload not implemented yet")
+}
+
+/*
 	// MOCK AI
 	if (agent.config.type === "mock-agent") {
 		// Last opp en eller flere filer mock mock
@@ -89,3 +104,4 @@ export const POST: RequestHandler = async ({ request, params }) => {
 	}
 	throw new Error(`Unsupported agent config type: ${agent.config}`)
 }
+*/

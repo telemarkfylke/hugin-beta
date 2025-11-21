@@ -1,4 +1,4 @@
-import type { Agent, Conversation, Message } from "./agents"
+import type { Conversation, DBAgent, Message } from "./agents"
 
 export type AgentVectorStoreFile = {
 	id: string
@@ -22,7 +22,7 @@ type CurrentAgentConversation = {
 export type AgentInfo = {
 	isLoading: boolean
 	error: string | null
-	value: Agent | null
+	value: DBAgent | null
 }
 
 // Might be funny to add agent data and user configuration as well later?

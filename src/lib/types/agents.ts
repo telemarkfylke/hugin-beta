@@ -3,57 +3,63 @@
 
 import z from "zod"
 
-export const MockAgentConfig = z.object({
+export const BaseConfig = z.object({
+	fileSearchEnabled: z.boolean().default(false).optional(),
+	webSearchEnabled: z.boolean().default(false).optional()
+})
+
+export const MockAgentConfig = BaseConfig.extend({
 	type: z.literal("mock-agent"),
 	instructions: z.string().nullable(),
-	fileSearchEnabled: z.boolean(),
-	webSearchEnabled: z.boolean()
+	vectorStoreIds: z.array(z.string()).nullable().optional()
 })
 
 export type MockAgentConfig = z.infer<typeof MockAgentConfig>
 
 // MISTRAL
-export const MistralConversationConfig = z.object({
+export const MistralConversationConfig = BaseConfig.extend({
 	type: z.literal("mistral-conversation"), // discriminator
 	model: z.enum(["mistral-small-latest", "mistral-medium-latest", "mistral-large-latest"]), // add models we want to support here
 	instructions: z.string().nullable(),
-	fileSearchEnabled: z.boolean(),
-	webSearchEnabled: z.boolean(),
 	documentLibraryIds: z.array(z.string()).nullable().optional()
 })
 
 export type MistralConversationConfig = z.infer<typeof MistralConversationConfig>
 
-export const MistralAgentConfig = z.object({
+export const MistralAgentConfig = BaseConfig.extend({
 	type: z.literal("mistral-agent"), // discriminator
 	agentId: z.string()
 })
 
 export type MistralAgentConfig = z.infer<typeof MistralAgentConfig>
 
-export const OllamaAIResponseConfig = z.object({
+export const OllamaAIResponseConfig = BaseConfig.extend({
 	type: z.literal("ollama-response"), // discriminator
 	model: z.enum(["gemma3"]), // add models we want to support here
 	instructions: z.string().nullable(),
-	fileSearchEnabled: z.boolean(),
-	webSearchEnabled: z.boolean(),
 	vectorStoreIds: z.array(z.string()).nullable().optional()
 })
 
 export type OllamaAIResponseConfig = z.infer<typeof OllamaAIResponseConfig>
 
-export const OpenAIAResponseConfig = z.object({
+/**
+ * OpenAI Response Config
+ * Used for agents that respond directly using OpenAI models
+ */
+export const OpenAIAResponseConfig = BaseConfig.extend({
 	type: z.literal("openai-response"), // discriminator
 	model: z.enum(["gpt-4o"]), // add models we want to support here
 	instructions: z.string().nullable(),
-	fileSearchEnabled: z.boolean(),
-	webSearchEnabled: z.boolean(),
 	vectorStoreIds: z.array(z.string()).nullable().optional()
 })
 
 export type OpenAIAResponseConfig = z.infer<typeof OpenAIAResponseConfig>
 
-export const OpenAIPromptConfig = z.object({
+/**
+ * OpenAI Prompt Config
+ * Used for agents that use predefined prompts/templates
+ */
+export const OpenAIPromptConfig = BaseConfig.extend({
 	type: z.literal("openai-prompt"), // discriminator
 	prompt: z.object({
 		id: z.string(),
@@ -68,15 +74,41 @@ export const AgentConfig = z.discriminatedUnion("type", [MockAgentConfig, Mistra
 
 export type AgentConfig = z.infer<typeof AgentConfig>
 
-// AGENT AND CONVERSATION TYPES
-export const Agent = z.object({
+// DB AGENT AND CONVERSATION TYPES
+export const DBAgent = z.object({
 	_id: z.string(),
 	name: z.string(),
 	description: z.string().nullable().optional(),
 	config: AgentConfig
 })
 
-export type Agent = z.infer<typeof Agent>
+export type DBAgent = z.infer<typeof DBAgent>
+
+export type CreateConversationResult = {
+	relatedConversationId: string
+	vectorStoreId: string | null
+	response: ReadableStream<Uint8Array>
+}
+
+export type AppendToConversationResult = {
+	response: ReadableStream<Uint8Array>
+}
+
+export type AddConversationFilesResult = {
+	response: ReadableStream<Uint8Array>
+}
+
+export type GetConversationMessagesResult = {
+	messages: Message[] // Legg inn riktig type senere
+}
+
+// AGENT INTERFACE
+export interface IAgent {
+	createConversation: (initialPrompt: string, dbConversationId: string, streamResponse: boolean) => Promise<CreateConversationResult>
+	appendMessageToConversation: (conversation: Conversation, prompt: string, streamResponse: boolean) => Promise<AppendToConversationResult>
+	addConversationFiles: (conversation: Conversation, files: File[], streamResponse: boolean) => Promise<AddConversationFilesResult>
+	getConversationMessages: (conversation: Conversation) => Promise<GetConversationMessagesResult>
+}
 
 // MESSAGE TYPES
 export const Message = z.object({

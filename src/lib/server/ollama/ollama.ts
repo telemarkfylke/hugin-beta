@@ -77,8 +77,8 @@ const makeOllamaInstance = async (ollamaResponseConfig: OllamaAIResponseConfig, 
 }
 
 const convertToOllamaMessages = (messages: Message[]): OllamaMessage[] => {
-  return messages.map((value: Message) => {
-		return { role: value.role === 'agent' ? 'assistant' : value.role, content: value.content.text }
+	return messages.map((value: Message) => {
+		return { role: value.role === "agent" ? "assistant" : value.role, content: value.content.text }
 	})
 }
 
@@ -96,6 +96,6 @@ export const createOllamaConversation = async (ollamaResponseConfig: OllamaAIRes
 
 export const appendToOllamaConversation = async (ollamaResponseConfig: OllamaAIResponseConfig, conversation: Conversation, prompt: string, streamResponse: boolean): Promise<OllamaResponse> => {
 	addMessage(prompt, conversation.messages, "user", "inputText")
-	const response = await makeOllamaInstance(ollamaResponseConfig,  convertToOllamaMessages(conversation.messages), streamResponse)
+	const response = await makeOllamaInstance(ollamaResponseConfig, convertToOllamaMessages(conversation.messages), streamResponse)
 	return response
 }

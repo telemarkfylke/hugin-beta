@@ -2,20 +2,30 @@ import { Mistral } from "@mistralai/mistralai"
 import type { EventStream } from "@mistralai/mistralai/lib/event-streams"
 import type { ConversationRequest, DocumentLibraryTool, MessageInputEntry, MessageOutputEntry } from "@mistralai/mistralai/models/components"
 import type { ConversationEvents } from "@mistralai/mistralai/models/components/conversationevents"
-import type { ConversationResponse } from "@mistralai/mistralai/models/components/conversationresponse"
 import { env } from "$env/dynamic/private"
 import { createSse } from "$lib/streaming.js"
-import type { AgentConfig, Message } from "$lib/types/agents.js"
+import type {
+	AddConversationFilesResult,
+	AgentConfig,
+	AppendToConversationResult,
+	Conversation,
+	CreateConversationResult,
+	DBAgent,
+	GetConversationMessagesResult,
+	IAgent,
+	Message
+} from "$lib/types/agents.js"
+import { uploadFilesToMistralLibrary } from "./document-library"
 
 export const mistral = new Mistral({
 	apiKey: env.MISTRAL_API_KEY || "bare-en-tulle-key"
 })
 
-export const handleMistralStream = (stream: EventStream<ConversationEvents>, conversationId?: string, userLibraryId?: string | null): ReadableStream<Uint8Array> => {
+const handleMistralStream = (stream: EventStream<ConversationEvents>, dbConversationId?: string, userLibraryId?: string | null): ReadableStream<Uint8Array> => {
 	const readableStream: ReadableStream<Uint8Array> = new ReadableStream({
 		async start(controller) {
-			if (conversationId) {
-				controller.enqueue(createSse({ event: "conversation.started", data: { conversationId } }))
+			if (dbConversationId) {
+				controller.enqueue(createSse({ event: "conversation.started", data: { conversationId: dbConversationId } }))
 			}
 			if (userLibraryId) {
 				controller.enqueue(createSse({ event: "conversation.vectorstore.created", data: { vectorStoreId: userLibraryId } }))
@@ -53,33 +63,13 @@ export const handleMistralStream = (stream: EventStream<ConversationEvents>, con
 	return readableStream
 }
 
-export const appendToMistralConversation = async (conversationId: string, prompt: string, streamResponse: boolean): Promise<ConversationResponse | EventStream<ConversationEvents>> => {
-	// Implementer tillegg av melding til samtale mot Mistral her
-	if (streamResponse) {
-		const stream = await mistral.beta.conversations.appendStream({
-			conversationId,
-			conversationAppendStreamRequest: {
-				inputs: prompt
-			}
-		})
-		return stream
-	}
-	const response = await mistral.beta.conversations.append({
-		conversationId: conversationId,
-		conversationAppendRequest: {
-			inputs: prompt
-		}
-	})
-	return response
-}
-
+// TODO - gjør noe med det under om du trenger
 type MistralConversationConfigResult = {
 	requestConfig: ConversationRequest
 	data: {
 		userLibraryId: string | null
 	}
 }
-
 const createMistralConversationConfig = async (agentConfig: AgentConfig, initialPrompt: string): Promise<MistralConversationConfigResult> => {
 	if (agentConfig.type !== "mistral-conversation" && agentConfig.type !== "mistral-agent") {
 		throw new Error(`Invalid agent config type for Mistral conversation: ${agentConfig.type}`)
@@ -139,59 +129,80 @@ const createMistralConversationConfig = async (agentConfig: AgentConfig, initial
 	}
 }
 
-type MistralConversationCreationResult = {
-	mistralConversationId: string
-	userLibraryId: string | null
-	mistralStream?: EventStream<ConversationEvents>
-	mistralResponse?: ConversationResponse
-}
+export class MistralAgent implements IAgent {
+	constructor(private dbAgent: DBAgent) {}
 
-export const createMistralConversation = async (agentConfig: AgentConfig, initialPrompt: string, streamResponse: boolean): Promise<MistralConversationCreationResult> => {
-	const mistralConversationConfig = await createMistralConversationConfig(agentConfig, initialPrompt)
+	public async createConversation(initialPrompt: string, dbConversationId: string, streamResponse: boolean): Promise<CreateConversationResult> {
+		const mistralConversationConfig = await createMistralConversationConfig(this.dbAgent.config, initialPrompt)
 
-	if (streamResponse) {
-		const conversationStarter = await mistral.beta.conversations.startStream(mistralConversationConfig.requestConfig)
-		// REMARK: Dirty hack to extract conversationId from stream - hopefully Mistral wont change this behaviour in a long long time...
+		if (streamResponse) {
+			const conversationStarter = await mistral.beta.conversations.startStream(mistralConversationConfig.requestConfig)
+			// REMARK: Dirty hack to extract conversationId from stream - hopefully Mistral wont change this behaviour in a long long time...
 
-		const [conversationStarterStream, actualStream] = conversationStarter.tee() // Haha, lets create a tee so we can read it multiple time (creates two duplicate readable streams)
+			const [conversationStarterStream, actualStream] = conversationStarter.tee() // Haha, lets create a tee so we can read it multiple time (creates two duplicate readable streams)
 
-		// Then we extract the conversationId from the first stream, and pass the actualStream back (if it works...)
-		const reader = conversationStarterStream.getReader()
-		while (true) {
-			const { value, done } = await reader.read()
-			if (value?.data.type === "conversation.response.started") {
-				reader.cancel() // Vi trenger ikke lese mer her, vi har det vi trenger
-				return { mistralConversationId: value.data.conversationId, userLibraryId: mistralConversationConfig.data.userLibraryId, mistralStream: actualStream as EventStream<ConversationEvents> }
-			}
-			if (done) {
-				break // Oh no, vi fant ikke conversation response started event, har ikke noe å gå for... throw error under her
-			}
-		}
-		throw new Error("Did not receive conversation started event from mistral, the dirty hack failed")
-	}
+			// Then we extract the conversationId from the first stream, and pass the actualStream back (if it works...)
+			const reader = conversationStarterStream.getReader()
+			while (true) {
+				const { value, done } = await reader.read()
+				if (value?.data.type === "conversation.response.started") {
+					reader.cancel() // Vi trenger ikke lese mer her, vi har det vi trenger
+					const readableStream = handleMistralStream(actualStream as EventStream<ConversationEvents>, dbConversationId, mistralConversationConfig.data.userLibraryId)
 
-	throw new Error("Non-streaming Mistral conversation creation is not yet implemented")
-}
-
-export const getMistralConversationItems = async (mistralConversationId: string): Promise<Message[]> => {
-	const conversationItems = await mistral.beta.conversations.getHistory({ conversationId: mistralConversationId }) // Får ascending order (tror jeg)
-	// Vi tar først bare de som er message, og mapper de om til Message type vårt system bruker
-	const messages = conversationItems.entries
-		.filter((item) => item.type === "message.input" || item.type === "message.output")
-		.map((item) => {
-			// Obs, kommer nok noe andre typer etterhvert
-			item = item as MessageInputEntry | MessageOutputEntry
-			const newMessage: Message = {
-				id: item.id || "what-ingen-mistral-id",
-				type: "message",
-				status: "completed",
-				role: item.type === "message.input" && item.role === "user" ? "user" : "agent",
-				content: {
-					type: item.type === "message.input" ? "inputText" : "outputText",
-					text: typeof item.content === "string" ? item.content : "FIKK EN CONTENT SOM IKKE ER STRING, sjekk mistral-typen OutputContent"
+					return { relatedConversationId: value.data.conversationId, vectorStoreId: mistralConversationConfig.data.userLibraryId, response: readableStream }
+				}
+				if (done) {
+					break // Oh no, vi fant ikke conversation response started event, har ikke noe å gå for... throw error under her
 				}
 			}
-			return newMessage
-		})
-	return messages
+			throw new Error("Did not receive conversation started event from mistral, the dirty hack failed")
+		}
+
+		throw new Error("Non-streaming Mistral conversation creation is not yet implemented")
+	}
+	public async appendMessageToConversation(conversation: Conversation, prompt: string, streamResponse: boolean): Promise<AppendToConversationResult> {
+		if (streamResponse) {
+			const stream = await mistral.beta.conversations.appendStream({
+				conversationId: conversation.relatedConversationId,
+				conversationAppendStreamRequest: {
+					inputs: prompt
+				}
+			})
+			const readableStream = handleMistralStream(stream)
+			return { response: readableStream }
+		}
+		throw new Error("Non-streaming Mistral conversation append is not yet implemented")
+	}
+	public async addConversationFiles(conversation: Conversation, files: File[], streamResponse: boolean): Promise<AddConversationFilesResult> {
+		if (!conversation.vectorStoreId) {
+			throw new Error("Conversation does not have a vector store associated, cannot add files")
+		}
+		if (streamResponse) {
+			const readableStream = await uploadFilesToMistralLibrary(conversation.vectorStoreId, files, true)
+			return { response: readableStream }
+		}
+		throw new Error("Non-streaming Mistral conversation add files is not yet implemented")
+	}
+	public async getConversationMessages(conversation: Conversation): Promise<GetConversationMessagesResult> {
+		const conversationItems = await mistral.beta.conversations.getHistory({ conversationId: conversation.relatedConversationId }) // Får ascending order (tror jeg)
+		// Vi tar først bare de som er message, og mapper de om til Message type vårt system bruker
+		const messages = conversationItems.entries
+			.filter((item) => item.type === "message.input" || item.type === "message.output")
+			.map((item) => {
+				// Obs, kommer nok noe andre typer etterhvert
+				item = item as MessageInputEntry | MessageOutputEntry
+				const newMessage: Message = {
+					id: item.id || "what-ingen-mistral-id",
+					type: "message",
+					status: "completed",
+					role: item.type === "message.input" && item.role === "user" ? "user" : "agent",
+					content: {
+						type: item.type === "message.input" ? "inputText" : "outputText",
+						text: typeof item.content === "string" ? item.content : "FIKK EN CONTENT SOM IKKE ER STRING, sjekk mistral-typen OutputContent"
+					}
+				}
+				return newMessage
+			})
+		return { messages }
+	}
 }
