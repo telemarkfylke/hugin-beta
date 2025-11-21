@@ -1,8 +1,8 @@
 // simply in-memory mock database corresponding to collections in mongodb
 
-import type { Agent, Conversation } from "$lib/types/agents.ts"
+import type { Conversation, DBAgent } from "$lib/types/agents.ts"
 
-export const agents: Agent[] = [
+export const agents: DBAgent[] = [
 	{
 		_id: "mistral-conversation",
 		name: "Mistral",

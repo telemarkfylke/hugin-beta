@@ -1,17 +1,8 @@
-import type { EventStream } from "@mistralai/mistralai/lib/event-streams"
-import type { ConversationEvents } from "@mistralai/mistralai/models/components/conversationevents"
 import { json, type RequestHandler } from "@sveltejs/kit"
-import type { AbortableAsyncIterator, ChatResponse } from "ollama"
-import type { ResponseStreamEvent } from "openai/resources/responses/responses.mjs"
-import type { Stream } from "openai/streaming"
-import { getAgent } from "$lib/server/agents/agents.js"
+import { createAgent, getDBAgent } from "$lib/server/agents/agents.js"
 import { getConversation } from "$lib/server/agents/conversations.js"
-import { appendToMistralConversation, getMistralConversationItems, handleMistralStream } from "$lib/server/mistral/mistral.js"
-import { handleMockAiStream } from "$lib/server/mock-ai/mock-ai.js"
-import { appendToOllamaConversation, handleOllamaStream } from "$lib/server/ollama/ollama"
-import { appendToOpenAIConversation, getOpenAIConversationItems, handleOpenAIStream } from "$lib/server/openai/openai.js"
 import { responseStream } from "$lib/streaming"
-import { ConversationRequest, type GetConversationResult } from "$lib/types/requests"
+import { ConversationRequest } from "$lib/types/requests"
 
 export const GET: RequestHandler = async ({ params }): Promise<Response> => {
 	const { conversationId, agentId } = params
@@ -20,9 +11,17 @@ export const GET: RequestHandler = async ({ params }): Promise<Response> => {
 	}
 
 	// Først må vi hente conversation fra DB, deretter må vi hente historikken fra leverandør basert på agenten og relatedConversationId - og gi tilbake hele røkla på en felles måte
-	const agent = await getAgent(agentId)
+	const dbAgent = await getDBAgent(agentId)
 	const conversation = await getConversation(conversationId)
 
+	// Sikkert kjøre noe authorization
+
+	const agent = createAgent(dbAgent)
+	const conversationMessages = await agent.getConversationMessages(conversation)
+	return json(conversationMessages)
+}
+
+/*
 	// MOCK AI
 	if (agent.config.type === "mock-agent") {
 		const getConversationResult: GetConversationResult = {
@@ -70,6 +69,8 @@ export const GET: RequestHandler = async ({ params }): Promise<Response> => {
 	throw new Error(`Unsupported agent config type: ${agent.config}`)
 }
 
+*/
+
 export const POST: RequestHandler = async ({ request, params }): Promise<Response> => {
 	// Da legger vi til en ny melding i samtalen i denne agenten via leverandør basert på agenten, og får tilbake responseStream med oppdatert samtalehistorikk
 	const { conversationId, agentId } = params
@@ -81,8 +82,21 @@ export const POST: RequestHandler = async ({ request, params }): Promise<Respons
 	// Validate request body
 	const { prompt, stream } = ConversationRequest.parse(body)
 
-	const agent = await getAgent(agentId)
-	const conversation = await getConversation(conversationId)
+	const dbAgent = await getDBAgent(agentId)
+	const conversation = await getConversation(conversationId) // HUSK authorization her
+
+	const agent = createAgent(dbAgent)
+
+	const { response } = await agent.appendMessageToConversation(conversation, prompt, stream)
+
+	if (stream) {
+		return responseStream(response)
+	}
+
+	throw new Error("Non-streaming append message not implemented yet")
+}
+
+/*
 
 	// MOCK AI
 	if (agent.config.type === "mock-agent") {
@@ -141,3 +155,4 @@ export const POST: RequestHandler = async ({ request, params }): Promise<Respons
 	}
 	throw new Error(`Unsupported agent config type: ${agent.config}`)
 }
+	*/

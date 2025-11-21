@@ -67,7 +67,7 @@ export const uploadFilesToConversation = async (
 					break
 				}
 				default:
-					console.warn("Unhandled upload result event:", uploadResult.event)
+					console.warn("Unhandled upload result event:", uploadResult)
 					break
 			}
 		}

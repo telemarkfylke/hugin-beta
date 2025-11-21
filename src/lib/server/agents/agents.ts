@@ -1,5 +1,6 @@
 import { env } from "$env/dynamic/private"
-import type { Agent } from "$lib/types/agents.ts"
+import type { DBAgent, IAgent } from "$lib/types/agents.ts"
+import { MistralAgent } from "../mistral/mistral"
 
 let mockDbData = null
 
@@ -9,7 +10,7 @@ if (env.MOCK_DB === "true") {
 	// console.log(mockDbData)
 }
 
-export const getAgent = async (agentId: string): Promise<Agent> => {
+export const getDBAgent = async (agentId: string): Promise<DBAgent> => {
 	if (mockDbData) {
 		const foundAgent = mockDbData.agents.find((agent) => agent._id === agentId)
 		if (!foundAgent) {
@@ -21,11 +22,21 @@ export const getAgent = async (agentId: string): Promise<Agent> => {
 	// Implement real DB fetch here
 }
 
-export const getAgents = async (): Promise<Agent[]> => {
+export const getDBAgents = async (): Promise<DBAgent[]> => {
 	if (mockDbData) {
 		console.log("Returning agents from mockDbData", mockDbData.agents)
 		return mockDbData.agents.map((agent) => JSON.parse(JSON.stringify(agent)))
 	}
 	throw new Error("Not implemented - please set MOCK_DB to true in env")
 	// Implement real DB fetch here
+}
+
+export const createAgent = (dbAgent: DBAgent): IAgent => {
+	if (dbAgent.config.type === "mock-agent") {
+		throw new Error("Not implemented - create mock agent")
+	}
+	if (dbAgent.config.type === "mistral-conversation" || dbAgent.config.type === "mistral-agent") {
+		return new MistralAgent(dbAgent)
+	}
+	throw new Error(`Unsupported agent type: ${dbAgent.config.type}`)
 }
