@@ -106,7 +106,7 @@ export const Message = z.object({
   id: z.string(),
   type: z.enum(['message']),
   status: z.string(),
-  role: z.enum(['user', 'agent']), // Legg inn flere ved behov (f. eks developer)
+  role: z.enum(['user', 'agent', 'assistant']), // Legg inn flere ved behov (f. eks developer)
   content: z.object({
     type: z.enum(['inputText', 'outputText']),
     text: z.string()
@@ -127,11 +127,12 @@ export const Conversation = z.object({
 
 export type Conversation = z.infer<typeof Conversation>;
 
-
+/*
 export type ConversationMessage = {
   originator: string
   message: string
 }
+*/
 
 
 

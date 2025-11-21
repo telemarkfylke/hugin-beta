@@ -1,6 +1,6 @@
 import { env } from "$env/dynamic/private";
 import { Ollama, type ChatResponse } from 'ollama'
-import { MessageOriginator, type Conversation, type ConversationMessage, type OllamaAIResponseConfig } from "$lib/types/agents";
+import { type Conversation, type Message, type OllamaAIResponseConfig } from "$lib/types/agents";
 import { createSse } from "$lib/streaming.js";
 
 
@@ -11,7 +11,7 @@ const ollama = new Ollama({ host: 'http://127.0.0.1:11434' })
 export type OllamaCreateResponse = {
   ollamaConversationId: string,
   response: OllamaResponse | any,
-  messages: ConversationMessage[]
+  messages: Message[]
 }
 
 
@@ -30,7 +30,7 @@ export const handleOllamaStream = (conversation: Conversation, stream: any, conv
         message += part.message.content
       }
 
-      addMessage(message, conversation.messages, MessageOriginator.Bot)
+      addMessage(message, conversation.messages, 'assistant', 'outputText')
       controller.close()
     }
   })
@@ -42,11 +42,21 @@ type OllamaMessage = {
   content: string
 }
 
-const addMessage = (prompt: string, messages: ConversationMessage[], originator: MessageOriginator) => {
+const addMessage = (prompt: string, messages: Message[], originator: 'user' | 'assistant', contentType: 'inputText' | 'outputText', ) => {
   if(!messages){
     messages = []
   }
-  messages.push({ originator: originator, message: prompt })
+  const msg: Message = {
+    id: crypto.randomUUID(),
+    type: 'message',
+    status: 'completed',
+    role: originator,
+    content: {
+      text: prompt,
+      type: contentType
+    }
+  }
+  messages.push(msg)
 }
 
 const makeOllamaInstance = async(ollamaResponseConfig: OllamaAIResponseConfig, messages: OllamaMessage[], streamResponse: boolean): Promise<OllamaResponse | any> => {
@@ -68,9 +78,9 @@ const makeOllamaInstance = async(ollamaResponseConfig: OllamaAIResponseConfig, m
 }
 
 export const createOllamaConversation = async (ollamaResponseConfig: OllamaAIResponseConfig, prompt: string, streamResponse: boolean): Promise<OllamaCreateResponse> => {
-  const messages: ConversationMessage[] = []
-  addMessage(prompt, messages, MessageOriginator.User)
-  const ollamaMessages:OllamaMessage[] = messages.map((value:ConversationMessage ) => { return { role: value.originator, content: value.message} })
+  const messages: Message[] = []
+  addMessage(prompt, messages, 'user', 'inputText')
+  const ollamaMessages:OllamaMessage[] = messages.map((value:Message ) => { return { role: value.role, content: value.content.text } })
   const response =  await makeOllamaInstance(ollamaResponseConfig, ollamaMessages, streamResponse)
   const reply: OllamaCreateResponse = {
     ollamaConversationId: crypto.randomUUID(),
@@ -81,8 +91,8 @@ export const createOllamaConversation = async (ollamaResponseConfig: OllamaAIRes
 }
 
 export const appendToOllamaConversation = async (ollamaResponseConfig: OllamaAIResponseConfig, conversation: Conversation, prompt: string, streamResponse: boolean): Promise<OllamaResponse> => {  
-  addMessage(prompt, conversation.messages, MessageOriginator.User)
-  const ollamaMessages:OllamaMessage[] = conversation.messages.map((value:ConversationMessage ) => { return { role: value.originator, content: value.message} })  
+  addMessage(prompt, conversation.messages, 'user', 'inputText')
+  const ollamaMessages:OllamaMessage[] = conversation.messages.map((value:Message ) => { return { role: value.role, content: value.content.text } })  
   const response =  await makeOllamaInstance(ollamaResponseConfig, ollamaMessages, streamResponse)
   return response  
 }

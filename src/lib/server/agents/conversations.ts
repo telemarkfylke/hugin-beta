@@ -1,5 +1,5 @@
 import { env } from "$env/dynamic/private";
-import type { Conversation, ConversationMessage } from "$lib/types/agents.ts";
+import type { Conversation, Message } from "$lib/types/agents.ts";
 import { ObjectId } from "mongodb";
 
 let mockDbData = null
@@ -36,7 +36,7 @@ type ConversationData = {
   description: string
   relatedConversationId: string,
   vectorStoreId: string | null,
-  messages?:ConversationMessage[]
+  messages?:Message[]
 }
 
 export const insertConversation = async (agentId: string, conversationData: ConversationData): Promise<Conversation> => {
