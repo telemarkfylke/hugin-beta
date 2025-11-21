@@ -1,5 +1,4 @@
 import { json, type RequestHandler } from "@sveltejs/kit"
-//<<<<<<< HEAD
 import { handleMistralStream, appendToMistralConversation, getMistralConversationItems } from "$lib/server/mistral/mistral.js";
 import { handleOpenAIStream, appendToOpenAIConversation, getOpenAIConversationItems } from "$lib/server/openai/openai.js";
 import { handleOllamaStream, appendToOllamaConversation } from "$lib/server/ollama/ollama";
@@ -12,18 +11,6 @@ import type { Stream } from "openai/streaming";
 import type { ResponseStreamEvent } from "openai/resources/responses/responses.mjs";
 import { ConversationRequest, GetConversationResult } from "$lib/types/requests";
 import { responseStream } from "$lib/streaming";
-
-/*//=======
-import type { ResponseStreamEvent } from "openai/resources/responses/responses.mjs"
-import type { Stream } from "openai/streaming"
-import { getAgent } from "$lib/server/agents/agents.js"
-import { getConversation } from "$lib/server/agents/conversations.js"
-import { appendToMistralConversation, getMistralConversationItems, handleMistralStream } from "$lib/server/mistral/mistral.js"
-import { handleMockAiStream } from "$lib/server/mock-ai/mock-ai.js"
-import { appendToOpenAIConversation, getOpenAIConversationItems, handleOpenAIStream } from "$lib/server/openai/openai.js"
-import { responseStream } from "$lib/streaming"
-import { ConversationRequest, type GetConversationResult } from "$lib/types/requests"
-//>>>>>>> main*/
 
 export const GET: RequestHandler = async ({ params }): Promise<Response> => {
 	const { conversationId, agentId } = params
