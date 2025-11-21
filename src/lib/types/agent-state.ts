@@ -1,6 +1,6 @@
 import type { Agent, Conversation, Message } from "./agents"
 
-type AgentVectorStoreFile = {
+export type AgentVectorStoreFile = {
 	id: string
 	name: string
 	type: string

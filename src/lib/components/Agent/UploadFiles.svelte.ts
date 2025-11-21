@@ -1,7 +1,8 @@
 // Keeps track of the entire state of an agent component (async stuff are allowed here)
 import { parseSse } from "$lib/streaming.js"
+import type { AgentVectorStoreFile } from "$lib/types/agent-state"
 
-export const getConversationFiles = async (agentId: string, conversationId: string, setConversationFiles: (files: File[]) => void): Promise<void> => {
+export const getConversationFiles = async (agentId: string, conversationId: string, setConversationFiles: (files: AgentVectorStoreFile[]) => void): Promise<void> => {
 	if (!agentId || !conversationId) {
 		throw new Error("agentId and conversationId are required to fetch conversation files")
 	}

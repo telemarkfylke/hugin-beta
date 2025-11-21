@@ -1,5 +1,5 @@
 // Keeps track of the entire state of an agent component (async stuff are allowed here)
-import type { AgentState, AgentStateHandler } from "$lib/types/agent-state"
+import type { AgentState, AgentStateHandler, AgentVectorStoreFile } from "$lib/types/agent-state"
 import type { Agent, Message } from "$lib/types/agents.js"
 import { getAgentConversation, getAgentConversations } from "./AgentConversations.svelte.js"
 import { promptAgent } from "./PromptAgent.svelte.js"
@@ -106,7 +106,7 @@ export const createAgentState = (): AgentStateHandler => {
 		agentState.currentConversation.isLoading = false
 	}
 
-	const setConversationFiles = (files: any[]) => {
+	const setConversationFiles = (files: AgentVectorStoreFile[]) => {
 		agentState.currentConversation.value.files = files
 	}
 	const refreshConversationFiles = async () => {
@@ -115,9 +115,11 @@ export const createAgentState = (): AgentStateHandler => {
 		}
 		getConversationFiles(agentState.agentId, agentState.currentConversation.value.id, setConversationFiles)
 	}
-	const addConversationFiles = (files: any[]) => {
+	/*
+	const addConversationFiles = (files: AgentVectorStoreFile[]) => {
 		agentState.currentConversation.value.files.push(...files)
 	}
+	*/
 
 	const setCurrentConversationId = (conversationId: string) => {
 		agentState.currentConversation.value.id = conversationId
@@ -187,10 +189,10 @@ export const createAgentState = (): AgentStateHandler => {
 			agentState.currentConversation.error = (error as Error).message
 		}
 	}
-	const deleteKnowledgeFileFromConversation = (fileId: string) => {
+	const deleteKnowledgeFileFromConversation = (_fileId: string) => {
 		// Ensure vector store exists, delete file from it, check status etc. (check api before implementing)
 	}
-	const deleteConversation = (conversationId: string) => {
+	const deleteConversation = (_conversationId: string) => {
 		/*
     agentState.conversations.value = agentState.conversations.value.filter(c => c.id !== conversationId);
     if (agentState.currentConversation.value.id === conversationId) {
