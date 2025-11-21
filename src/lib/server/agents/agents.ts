@@ -1,6 +1,7 @@
 import { env } from "$env/dynamic/private"
 import type { DBAgent, IAgent } from "$lib/types/agents.ts"
 import { MistralAgent } from "../mistral/mistral"
+import { OllamaAgent } from "../ollama/ollama"
 
 let mockDbData = null
 
@@ -37,6 +38,9 @@ export const createAgent = (dbAgent: DBAgent): IAgent => {
 	}
 	if (dbAgent.config.type === "mistral-conversation" || dbAgent.config.type === "mistral-agent") {
 		return new MistralAgent(dbAgent)
+	}
+	if (dbAgent.config.type === "ollama-response") {
+		return new OllamaAgent(dbAgent)
 	}
 	throw new Error(`Unsupported agent type: ${dbAgent.config.type}`)
 }

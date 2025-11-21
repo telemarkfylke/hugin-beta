@@ -1,9 +1,18 @@
 import { type AbortableAsyncIterator, type ChatResponse, Ollama } from "ollama"
 import { createSse } from "$lib/streaming.js"
-import type { Conversation, Message, OllamaAIResponseConfig } from "$lib/types/agents"
+import type {
+	AddConversationFilesResult,
+	AppendToConversationResult,
+	Conversation,
+	CreateConversationResult,
+	DBAgent,
+	GetConversationMessagesResult,
+	IAgent,
+	Message,
+	OllamaAIResponseConfig
+} from "$lib/types/agents"
 
 type OllamaResponse = ChatResponse | AbortableAsyncIterator<ChatResponse>
-
 const ollama = new Ollama({ host: "http://127.0.0.1:11434" })
 
 export type OllamaCreateResponse = {
@@ -12,14 +21,14 @@ export type OllamaCreateResponse = {
 	messages: Message[]
 }
 
-export const handleOllamaStream = (conversation: Conversation, stream: AbortableAsyncIterator<ChatResponse>, conversationId?: string): ReadableStream => {
+export const handleOllamaStream = (conversation: Conversation, stream: AbortableAsyncIterator<ChatResponse>): ReadableStream => {
 	const readableStream = new ReadableStream({
 		async start(controller) {
 			let message = ""
 			const messageId = crypto.randomUUID()
 
-			if (conversationId) {
-				controller.enqueue(createSse({ event: "conversation.started", data: { conversationId } }))
+			if (conversation._id) {
+				controller.enqueue(createSse({ event: "conversation.started", data: { conversationId: conversation._id } }))
 			}
 
 			for await (const part of stream) {
@@ -82,20 +91,39 @@ const convertToOllamaMessages = (messages: Message[]): OllamaMessage[] => {
 	})
 }
 
-export const createOllamaConversation = async (ollamaResponseConfig: OllamaAIResponseConfig, prompt: string, streamResponse: boolean): Promise<OllamaCreateResponse> => {
-	const messages: Message[] = []
-	addMessage(prompt, messages, "user", "inputText")
-	const response = await makeOllamaInstance(ollamaResponseConfig, convertToOllamaMessages(messages), streamResponse)
-	const reply: OllamaCreateResponse = {
-		ollamaConversationId: crypto.randomUUID(),
-		response: response,
-		messages: messages
-	}
-	return reply
-}
+export class OllamaAgent implements IAgent {
+	constructor(private dbAgent: DBAgent) {}
 
-export const appendToOllamaConversation = async (ollamaResponseConfig: OllamaAIResponseConfig, conversation: Conversation, prompt: string, streamResponse: boolean): Promise<OllamaResponse> => {
-	addMessage(prompt, conversation.messages, "user", "inputText")
-	const response = await makeOllamaInstance(ollamaResponseConfig, convertToOllamaMessages(conversation.messages), streamResponse)
-	return response
+	public async createConversation(conversation: Conversation, initialPrompt: string, streamResponse: boolean): Promise<CreateConversationResult> {
+		addMessage(initialPrompt, conversation.messages, "user", "inputText")
+		const ollamaResponse = await makeOllamaInstance(this.dbAgent.config as OllamaAIResponseConfig, convertToOllamaMessages(conversation.messages), streamResponse)
+		if (streamResponse) {
+			return {
+				relatedConversationId: crypto.randomUUID(),
+				vectorStoreId: null,
+				response: handleOllamaStream(conversation, ollamaResponse as AbortableAsyncIterator<ChatResponse>)
+			}
+		}
+		throw new Error("Non-streaming Ollama conversation creation is not yet implemented")
+	}
+
+	public async appendMessageToConversation(conversation: Conversation, prompt: string, streamResponse: boolean): Promise<AppendToConversationResult> {
+		addMessage(prompt, conversation.messages, "user", "inputText")
+		const ollamaResponse = await makeOllamaInstance(this.dbAgent.config as OllamaAIResponseConfig, convertToOllamaMessages(conversation.messages), streamResponse)
+		if (streamResponse) {
+			return {
+				response: handleOllamaStream(conversation, ollamaResponse as AbortableAsyncIterator<ChatResponse>)
+			}
+		}
+		throw new Error("Non-streaming Ollama conversation creation is not yet implemented")
+	}
+	public async addConversationFiles(_conversation: Conversation, _files: File[], _streamResponse: boolean): Promise<AddConversationFilesResult> {
+		throw new Error("Conversation does not have a vector store associated, cannot add files")
+	}
+
+	public async getConversationMessages(conversation: Conversation): Promise<GetConversationMessagesResult> {
+		return {
+			messages: conversation.messages
+		}
+	}
 }

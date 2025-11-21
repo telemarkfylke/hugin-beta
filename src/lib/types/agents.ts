@@ -104,7 +104,7 @@ export type GetConversationMessagesResult = {
 
 // AGENT INTERFACE
 export interface IAgent {
-	createConversation: (initialPrompt: string, dbConversationId: string, streamResponse: boolean) => Promise<CreateConversationResult>
+	createConversation: (conversation: Conversation, initialPrompt: string, streamResponse: boolean) => Promise<CreateConversationResult>
 	appendMessageToConversation: (conversation: Conversation, prompt: string, streamResponse: boolean) => Promise<AppendToConversationResult>
 	addConversationFiles: (conversation: Conversation, files: File[], streamResponse: boolean) => Promise<AddConversationFilesResult>
 	getConversationMessages: (conversation: Conversation) => Promise<GetConversationMessagesResult>
