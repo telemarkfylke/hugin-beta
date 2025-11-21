@@ -1,15 +1,15 @@
 <script lang="ts">
-    import AgentComponent from "$lib/components/Agent/AgentComponent.svelte";
-  import type { Agent } from "../lib/types/agents";
+	import AgentComponent from "$lib/components/Agent/AgentComponent.svelte"
+	import type { Agent } from "../lib/types/agents"
 
-  const getAgents = async (): Promise<Agent[]> => {
-    const res = await fetch('/api/agents');
-    const data = await res.json();
-    if (!res.ok) {
-      throw new Error(data.message || 'Failed to fetch agents');
-    }
-    return data.agents;
-  };
+	const getAgents = async (): Promise<Agent[]> => {
+		const res = await fetch("/api/agents")
+		const data = await res.json()
+		if (!res.ok) {
+			throw new Error(data.message || "Failed to fetch agents")
+		}
+		return data.agents
+	}
 </script>
 <div class="page-content">
   {#await getAgents() then agents}

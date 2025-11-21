@@ -1,7 +1,6 @@
-
 export const essay = {
-    title: "What I Worked On",
-    content: `
+	title: "What I Worked On",
+	content: `
 What I Worked On
 
 February 2021
@@ -346,4 +345,5 @@ But if so there's no reason to suppose that this is the limit of the language th
 
 
 Thanks to Trevor Blackwell, John Collison, Patrick Collison, Daniel Gackle, Ralph Hazell, Jessica Livingston, Robert Morris, and Harj Taggar for reading drafts of this.
-`};
+`
+}

@@ -29,7 +29,7 @@
 		"noUnusedLocals": true,
 		"noUnusedParameters": true,
 		"noFallthroughCasesInSwitch": true,
-		"noPropertyAccessFromIndexSignature": true,
+		"noPropertyAccessFromIndexSignature": false, // Because Biome told me to
 
 		// Recommended Options
 		"allowSyntheticDefaultImports": true,
