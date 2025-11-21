@@ -1,4 +1,3 @@
-import { env } from "$env/dynamic/private";
 import { Ollama, type ChatResponse } from 'ollama'
 import { type Conversation, type Message, type OllamaAIResponseConfig } from "$lib/types/agents";
 import { createSse } from "$lib/streaming.js";

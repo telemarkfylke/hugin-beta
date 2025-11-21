@@ -72,7 +72,7 @@ export const agents: Agent[] = [
       model: 'gemma3',
       instructions: 'Svar veldig generelt på spessifike spørsmål',
       fileSearchEnabled: false,
-			webSearchEnabled: false
+      webSearchEnabled: false
     }
   }
 
