@@ -1,6 +1,7 @@
 import { env } from "$env/dynamic/private"
 import type { DBAgent, IAgent } from "$lib/types/agents.ts"
 import { MistralAgent } from "../mistral/mistral"
+import { OpenAIAgent } from "../openai/openai"
 
 let mockDbData = null
 
@@ -37,6 +38,9 @@ export const createAgent = (dbAgent: DBAgent): IAgent => {
 	}
 	if (dbAgent.config.type === "mistral-conversation" || dbAgent.config.type === "mistral-agent") {
 		return new MistralAgent(dbAgent)
+	}
+	if (dbAgent.config.type === "openai-response" || dbAgent.config.type === "openai-prompt") {
+		return new OpenAIAgent(dbAgent)
 	}
 	throw new Error(`Unsupported agent type: ${dbAgent.config.type}`)
 }
