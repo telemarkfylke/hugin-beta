@@ -27,6 +27,12 @@
 			"semicolons": "asNeeded"
 		}
 	},
+	"html": {
+		"formatter": {
+			"indentScriptAndStyle": true,
+			"lineWidth": 200
+		}
+	},
 	"css": {
 		"formatter": {
 			"lineWidth": 200
