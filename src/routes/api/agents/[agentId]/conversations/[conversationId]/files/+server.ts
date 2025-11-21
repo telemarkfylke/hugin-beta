@@ -1,4 +1,4 @@
-import { json } from "@sveltejs/kit"
+import { json, type RequestHandler } from "@sveltejs/kit"
 import { getAgent } from "$lib/server/agents/agents.js"
 import { getConversation, updateConversation } from "$lib/server/agents/conversations.js"
 import { uploadFilesToMistralLibrary } from "$lib/server/mistral/document-library.js"
@@ -6,11 +6,7 @@ import { getMockAiFiles, uploadFilesToMockAI } from "$lib/server/mock-ai/mock-ai
 import { uploadFilesToOpenAIVectorStore } from "$lib/server/openai/vector-store.js"
 import { responseStream } from "$lib/streaming.js"
 
-/**
- *
- * @type {import("@sveltejs/kit").RequestHandler}
- */
-export const GET = async ({ params }) => {
+export const GET: RequestHandler = async ({ params }) => {
 	const { conversationId, agentId } = params
 	if (!agentId || !conversationId) {
 		return json({ error: "agentId and conversationId are required" }, { status: 400 })
@@ -27,11 +23,7 @@ export const GET = async ({ params }) => {
 	throw new Error(`Unsupported agent config type: ${agent.config}`)
 }
 
-/**
- *
- * @type {import("@sveltejs/kit").RequestHandler}
- */
-export const POST = async ({ request, params }) => {
+export const POST: RequestHandler = async ({ request, params }) => {
 	// Da legger vi til en ny melding i samtalen i denne agenten via leverandør basert på agenten, og får tilbake responseStream med oppdatert samtalehistorikk
 	const { conversationId, agentId } = params
 	if (!agentId || !conversationId) {
