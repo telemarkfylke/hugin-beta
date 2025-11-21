@@ -110,7 +110,8 @@ export const POST: RequestHandler = async ({ request, params }) => {
       name: 'New Conversation',
       description: 'Conversation started via API',
       relatedConversationId: res.ollamaConversationId,
-      vectorStoreId: null
+      vectorStoreId: null,
+      messages:res.messages
     });
 
     if (stream) {
