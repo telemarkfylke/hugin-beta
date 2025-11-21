@@ -1,42 +1,42 @@
 <script lang="ts">
-  // Get state modifying functions from props
-  let { postUserPrompt, addKnowledgeFilesToConversation } = $props();
+	// Get state modifying functions from props
+	let { postUserPrompt, addKnowledgeFilesToConversation } = $props()
 
-  // Internal state for this component
-  let userPrompt = $state('');
-  let files = $state(new DataTransfer().files)
+	// Internal state for this component
+	let userPrompt = $state("")
+	let files = $state(new DataTransfer().files)
 
-  // Simple helper for posting prompt, and clearing input
-  const submitPrompt = () => {
-    postUserPrompt(userPrompt);
-    userPrompt = '';
-  };
+	// Simple helper for posting prompt, and clearing input
+	const submitPrompt = () => {
+		postUserPrompt(userPrompt)
+		userPrompt = ""
+	}
 
-  const submitFiles = () => {
-    if (files.length > 0) {
-      addKnowledgeFilesToConversation(files);
-      files = new DataTransfer().files; // Clear files after submission
-    }
-  };
+	const submitFiles = () => {
+		if (files.length > 0) {
+			addKnowledgeFilesToConversation(files)
+			files = new DataTransfer().files // Clear files after submission
+		}
+	}
 
-  // Some element references
-  let textArea: HTMLTextAreaElement;
-  let wrapDiv: HTMLDivElement;
-  /**
-   * As we wait for "textarea {field-sizing: content;}" to be supported in all browsers
-   * Magic is in CSS below, this JS just updates the data attribute on input
-   * Thank you to Chris Coyier and Stephen Shaw
-   * @link https://chriscoyier.net/2023/09/29/css-solves-auto-expanding-textareas-probably-eventually/
-   */
-  const sneakyTextArea = () => {
-    wrapDiv.setAttribute('data-replicated-value', textArea.value);
-  };
-  const submitOnEnter = (event: KeyboardEvent) => {
-    if (event.key === 'Enter' && !event.shiftKey) {
-      event.preventDefault();
-      submitPrompt();
-    }
-  };
+	// Some element references
+	let textArea: HTMLTextAreaElement
+	let wrapDiv: HTMLDivElement
+	/**
+	 * As we wait for "textarea {field-sizing: content;}" to be supported in all browsers
+	 * Magic is in CSS below, this JS just updates the data attribute on input
+	 * Thank you to Chris Coyier and Stephen Shaw
+	 * @link https://chriscoyier.net/2023/09/29/css-solves-auto-expanding-textareas-probably-eventually/
+	 */
+	const sneakyTextArea = () => {
+		wrapDiv.setAttribute("data-replicated-value", textArea.value)
+	}
+	const submitOnEnter = (event: KeyboardEvent) => {
+		if (event.key === "Enter" && !event.shiftKey) {
+			event.preventDefault()
+			submitPrompt()
+		}
+	}
 </script>
 
 <div>
