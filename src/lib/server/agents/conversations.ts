@@ -1,7 +1,6 @@
 import { ObjectId } from "mongodb"
 import { env } from "$env/dynamic/private"
-import type { Conversation, Message  } from "$lib/types/agents.ts"
-
+import type { Conversation, Message } from "$lib/types/agents.ts"
 
 let mockDbData = null
 
@@ -33,26 +32,26 @@ export const getConversation = async (conversationId: string): Promise<Conversat
 }
 
 type ConversationData = {
-  name: string
-  description: string
-  relatedConversationId: string,
-  vectorStoreId: string | null,
-  messages?:Message[]
+	name: string
+	description: string
+	relatedConversationId: string
+	vectorStoreId: string | null
+	messages?: Message[]
 }
 
 export const insertConversation = async (agentId: string, conversationData: ConversationData): Promise<Conversation> => {
-  if (mockDbData) {
-    const coversationToInsert = {
-      _id: new ObjectId().toString(),
-      agentId,
-      messages:[],
-      ...conversationData      
-    }
-    mockDbData.conversations.push(coversationToInsert);
-    return coversationToInsert;
-  }
-  throw new Error('Not implemented - please set MOCK_DB to true in env');
-  // Implement real DB insert here
+	if (mockDbData) {
+		const coversationToInsert = {
+			_id: new ObjectId().toString(),
+			agentId,
+			messages: [],
+			...conversationData
+		}
+		mockDbData.conversations.push(coversationToInsert)
+		return coversationToInsert
+	}
+	throw new Error("Not implemented - please set MOCK_DB to true in env")
+	// Implement real DB insert here
 }
 
 export const updateConversation = async (conversationId: string, updateData: Partial<ConversationData>): Promise<Conversation> => {

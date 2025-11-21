@@ -1,16 +1,17 @@
+import type { EventStream } from "@mistralai/mistralai/lib/event-streams"
+import type { ConversationEvents } from "@mistralai/mistralai/models/components/conversationevents"
 import { json, type RequestHandler } from "@sveltejs/kit"
-import { handleMistralStream, appendToMistralConversation, getMistralConversationItems } from "$lib/server/mistral/mistral.js";
-import { handleOpenAIStream, appendToOpenAIConversation, getOpenAIConversationItems } from "$lib/server/openai/openai.js";
-import { handleOllamaStream, appendToOllamaConversation } from "$lib/server/ollama/ollama";
-import { getAgent } from "$lib/server/agents/agents.js";
-import { getConversation } from "$lib/server/agents/conversations.js";
-import { handleMockAiStream } from "$lib/server/mock-ai/mock-ai.js";
-import type { EventStream } from "@mistralai/mistralai/lib/event-streams";
-import type { ConversationEvents } from "@mistralai/mistralai/models/components/conversationevents";
-import type { Stream } from "openai/streaming";
-import type { ResponseStreamEvent } from "openai/resources/responses/responses.mjs";
-import { ConversationRequest, GetConversationResult } from "$lib/types/requests";
-import { responseStream } from "$lib/streaming";
+import type { AbortableAsyncIterator, ChatResponse } from "ollama"
+import type { ResponseStreamEvent } from "openai/resources/responses/responses.mjs"
+import type { Stream } from "openai/streaming"
+import { getAgent } from "$lib/server/agents/agents.js"
+import { getConversation } from "$lib/server/agents/conversations.js"
+import { appendToMistralConversation, getMistralConversationItems, handleMistralStream } from "$lib/server/mistral/mistral.js"
+import { handleMockAiStream } from "$lib/server/mock-ai/mock-ai.js"
+import { appendToOllamaConversation, handleOllamaStream } from "$lib/server/ollama/ollama"
+import { appendToOpenAIConversation, getOpenAIConversationItems, handleOpenAIStream } from "$lib/server/openai/openai.js"
+import { responseStream } from "$lib/streaming"
+import { ConversationRequest, type GetConversationResult } from "$lib/types/requests"
 
 export const GET: RequestHandler = async ({ params }): Promise<Response> => {
 	const { conversationId, agentId } = params
@@ -126,24 +127,17 @@ export const POST: RequestHandler = async ({ request, params }): Promise<Respons
 			console.error("Error appending to OpenAI conversation:", error)
 			return json({ error: "Failed to get response from OpenAI" }, { status: 500 })
 		}
-  }
+	}
 
-  // OLLAMA
-  if (agent.config.type == 'ollama-response'){
-    const openAIResponse = await appendToOllamaConversation(agent.config, conversation, prompt, stream);
-    if (stream) {
-      const readableStream = handleOllamaStream(conversation, openAIResponse, conversation._id);
+	// OLLAMA
+	if (agent.config.type === "ollama-response") {
+		const ollamaResponse = await appendToOllamaConversation(agent.config, conversation, prompt, stream)
+		if (stream) {
+			const readableStream = handleOllamaStream(conversation, ollamaResponse as AbortableAsyncIterator<ChatResponse>, conversation._id)
 
-      return new Response(readableStream, {
-        headers: {
-          'Content-Type': 'text/event-stream',
-          'Cache-Control': 'no-cache',
-          Connection: 'keep-alive'
-        }
-      })
-    }
-
-    return json({ conversation: conversation, initialResponse: openAIResponse.message })
-  }
-  throw new Error(`Unsupported agent config type: ${agent.config}`);
+			return responseStream(readableStream)
+		}
+		return json({ conversation: conversation, initialResponse: (ollamaResponse as ChatResponse).message })
+	}
+	throw new Error(`Unsupported agent config type: ${agent.config}`)
 }

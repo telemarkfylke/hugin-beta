@@ -1,14 +1,15 @@
 import { json, type RequestHandler } from "@sveltejs/kit"
+import type { AbortableAsyncIterator, ChatResponse } from "ollama"
 import type { ResponseStreamEvent } from "openai/resources/responses/responses.mjs"
 import type { Stream } from "openai/streaming"
 import { getAgent } from "$lib/server/agents/agents.js"
 import { getConversations, insertConversation } from "$lib/server/agents/conversations.js"
 import { createMistralConversation, handleMistralStream } from "$lib/server/mistral/mistral.js"
 import { handleMockAiStream } from "$lib/server/mock-ai/mock-ai.js"
+import { createOllamaConversation, handleOllamaStream } from "$lib/server/ollama/ollama"
 import { createOpenAIConversation, handleOpenAIStream } from "$lib/server/openai/openai.js"
 import { responseStream } from "$lib/streaming"
 import { ConversationRequest } from "$lib/types/requests"
-import { createOllamaConversation, handleOllamaStream } from "$lib/server/ollama/ollama";
 
 // OBS OBS Kan hende vi bare skal ha dette endepunktet - og dersom man ikke sender med en conversationId så oppretter vi en ny conversation, hvis ikke fortsetter vi den eksisterende (ja, kan fortsatt kanskje hende det)
 
@@ -95,37 +96,30 @@ export const POST: RequestHandler = async ({ request, params }) => {
 		}
 
 		return json({ conversation: ourConversation, initialResponse: response })
-  }
+	}
 
-  // OLLAMA
-  if (agent.config.type == 'ollama-response') {
-    // Opprett conversation mot OpenAI her og returner
-    console.log('Creating OpenAI conversation for agent:', agent._id)
+	// OLLAMA
+	if (agent.config.type === "ollama-response") {
+		// Opprett conversation mot OpenAI her og returner
+		console.log("Creating OpenAI conversation for agent:", agent._id)
 
-    // Create responsestream and return
-    const res = await createOllamaConversation(agent.config, prompt, stream);
+		// Create responsestream and return
+		const res = await createOllamaConversation(agent.config, prompt, stream)
 
-    const ourConversation = await insertConversation(agentId, {
-      name: 'New Conversation',
-      description: 'Conversation started via API',
-      relatedConversationId: res.ollamaConversationId,
-      vectorStoreId: null,
-      messages:res.messages
-    });
+		const ourConversation = await insertConversation(agentId, {
+			name: "New Conversation",
+			description: "Conversation started via API",
+			relatedConversationId: res.ollamaConversationId,
+			vectorStoreId: null,
+			messages: res.messages
+		})
 
-    if (stream) {
-      const readableStream = handleOllamaStream(ourConversation, res.response, ourConversation._id);
+		if (stream) {
+			const readableStream = handleOllamaStream(ourConversation, res.response as AbortableAsyncIterator<ChatResponse>, ourConversation._id)
 
-      return new Response(readableStream, {
-        headers: {
-          'Content-Type': 'text/event-stream',
-          'Cache-Control': 'no-cache',
-          Connection: 'keep-alive'
-        }
-      })
-    }
-
-    return json({ conversation: ourConversation, initialResponse: res.response.message })
-  }
-  throw new Error(`Unsupported agent config type: ${agent.config}`);
+			return responseStream(readableStream)
+		}
+		return json({ conversation: ourConversation, initialResponse: (res.response as ChatResponse).message })
+	}
+	throw new Error(`Unsupported agent config type: ${agent.config}`)
 }
