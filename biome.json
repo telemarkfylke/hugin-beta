@@ -1,5 +1,5 @@
 {
-	"$schema": "https://biomejs.dev/schemas/2.3.3/schema.json",
+	"$schema": "https://biomejs.dev/schemas/2.3.6/schema.json",
 	"vcs": {
 		"enabled": true,
 		"clientKind": "git",
@@ -27,6 +27,11 @@
 			"semicolons": "asNeeded"
 		}
 	},
+	"css": {
+		"formatter": {
+			"lineWidth": 200
+		}
+	},
 	"assist": {
 		"enabled": true,
 		"actions": {
@@ -36,20 +41,26 @@
 		}
 	},
 	"overrides": [
-    {
-      "includes": ["**/*.svelte", "**/+page.js", "**/+page.ts", "**/+layout.js", "**/+layout.ts"],
-      "linter": {
-        "rules": {
-          "style": {
-            "useConst": "off",
-            "useImportType": "on"
-          },
-          "correctness": {
-            "noUnusedVariables": "off",
-            "noUnusedImports": "off"
-          }
-        }
-      }
-    }
-  ]
+		{
+			"includes": [
+				"**/*.svelte",
+				"**/+page.js",
+				"**/+page.ts",
+				"**/+layout.js",
+				"**/+layout.ts"
+			],
+			"linter": {
+				"rules": {
+					"style": {
+						"useConst": "off",
+						"useImportType": "on"
+					},
+					"correctness": {
+						"noUnusedVariables": "off",
+						"noUnusedImports": "off"
+					}
+				}
+			}
+		}
+	]
 }

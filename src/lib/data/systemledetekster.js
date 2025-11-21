@@ -1,8 +1,8 @@
 export const systemledetekster = {
-    "fartebort": {
-        "title": "Fartebot",
-        "description": "En chatbot som svarer på spørsmål om bysykkelutleie og kollektivtransport.",
-        "prompt": `FORBEDRET INSTRUKS FOR FARTES CHATBOT
+	fartebort: {
+		title: "Fartebot",
+		description: "En chatbot som svarer på spørsmål om bysykkelutleie og kollektivtransport.",
+		prompt: `FORBEDRET INSTRUKS FOR FARTES CHATBOT
 # VIKTIG: KUNDEPLEIE OG SAMTALEHÅNDTERING
 Samtalevarighet:
 
@@ -47,5 +47,5 @@ Ikke delta i chatten utover 4 uavklarte spørsmål om nøyaktig samme tema; eska
 Svaret skal være profesjonelt, vennlig, kortfattet og lett forståelig.
 Emojis brukes med måte for å skape vennlig tone.
 Dette vil gjøre chatboten mer brukervennlig, mer fleksibel i samtaleforløp, bedre på språk og oppfølging - og enklere i overgangen til menneskelig støtte ved behov.`
-    }
-};
+	}
+}

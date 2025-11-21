@@ -1,9 +1,9 @@
 <script lang="ts">
-  import { createAgentState } from "./AgentState.svelte.ts";
-  import AgentConversations from "./AgentConversations.svelte";
-  import { markdownFormatter } from "$lib/formatting/markdown-formatter.ts";
-  import AgentChatInput from "./AgentChatInput.svelte";
-  import AgentInfo from "./AgentInfo.svelte";
+  import { markdownFormatter } from "$lib/formatting/markdown-formatter.ts"
+  import AgentChatInput from "./AgentChatInput.svelte"
+  import AgentConversations from "./AgentConversations.svelte"
+  import AgentInfo from "./AgentInfo.svelte"
+  import { createAgentState } from "./AgentState.svelte.ts"
 
   // Input props
   let { agentId } = $props()
@@ -16,12 +16,11 @@
     agentStateHandler.changeAgent(agentId) // This resets, as we need to load new agent data, should probs set loading state here as well
   })
 
-  let menuOpen = $state(false);
+  let menuOpen = $state(false)
 
   const toggleMenu = () => {
-    menuOpen = !menuOpen;
-  };
-
+    menuOpen = !menuOpen
+  }
 </script>
 
 <div class="agent-container">
