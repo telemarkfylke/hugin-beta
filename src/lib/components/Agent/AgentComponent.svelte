@@ -1,26 +1,26 @@
 <script lang="ts">
-import { markdownFormatter } from "$lib/formatting/markdown-formatter.ts"
-import AgentChatInput from "./AgentChatInput.svelte"
-import AgentConversations from "./AgentConversations.svelte"
-import AgentInfo from "./AgentInfo.svelte"
-import { createAgentState } from "./AgentState.svelte.ts"
+	import { markdownFormatter } from "$lib/formatting/markdown-formatter.ts"
+	import AgentChatInput from "./AgentChatInput.svelte"
+	import AgentConversations from "./AgentConversations.svelte"
+	import AgentInfo from "./AgentInfo.svelte"
+	import { createAgentState } from "./AgentState.svelte.ts"
 
-// Input props
-let { agentId } = $props()
+	// Input props
+	let { agentId } = $props()
 
-// State
-const agentStateHandler = createAgentState()
-$effect(() => {
-	// Initialize or change agent when agentId prop changes
-	// It is not reccommended to change state in effect, but this is ONLY dependent on prop change, so it might be acceptable.
-	agentStateHandler.changeAgent(agentId) // This resets, as we need to load new agent data, should probs set loading state here as well
-})
+	// State
+	const agentStateHandler = createAgentState()
+	$effect(() => {
+		// Initialize or change agent when agentId prop changes
+		// It is not reccommended to change state in effect, but this is ONLY dependent on prop change, so it might be acceptable.
+		agentStateHandler.changeAgent(agentId) // This resets, as we need to load new agent data, should probs set loading state here as well
+	})
 
-let menuOpen = $state(false)
+	let menuOpen = $state(false)
 
-const toggleMenu = () => {
-	menuOpen = !menuOpen
-}
+	const toggleMenu = () => {
+		menuOpen = !menuOpen
+	}
 </script>
 
 <div class="agent-container">

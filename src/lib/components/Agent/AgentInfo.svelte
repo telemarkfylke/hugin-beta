@@ -1,10 +1,10 @@
 <script lang="ts">
-import type { AgentInfo } from "$lib/types/agent-state"
+	import type { AgentInfo } from "$lib/types/agent-state"
 
-type Props = {
-	agentInfo: AgentInfo
-}
-let { agentInfo }: Props = $props()
+	type Props = {
+		agentInfo: AgentInfo
+	}
+	let { agentInfo }: Props = $props()
 </script>
 
 <div>

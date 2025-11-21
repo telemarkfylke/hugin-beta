@@ -1,9 +1,9 @@
 <script>
-import favicon from "$lib/assets/favicon.svg"
-import "../style.css" // Add global css (and make it hot reload)
-import "../lib/axe.js"
+	import favicon from "$lib/assets/favicon.svg"
+	import "../style.css" // Add global css (and make it hot reload)
+	import "../lib/axe.js"
 
-let { children } = $props()
+	let { children } = $props()
 </script>
 
 <svelte:head>
