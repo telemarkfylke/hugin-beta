@@ -12,7 +12,7 @@
 		"enabled": true,
 		"indentStyle": "tab",
 		"indentWidth": 2,
-    "lineEnding":"lf"
+		"lineEnding": "auto"
 	},
 	"linter": {
 		"enabled": true,

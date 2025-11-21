@@ -1,6 +1,16 @@
 import { type AbortableAsyncIterator, type ChatResponse, Ollama } from "ollama"
 import { createSse } from "$lib/streaming.js"
-import type { AddConversationFilesResult, AppendToConversationResult, Conversation, CreateConversationResult, DBAgent, GetConversationMessagesResult, IAgent, Message, OllamaAIResponseConfig } from "$lib/types/agents"
+import type {
+	AddConversationFilesResult,
+	AppendToConversationResult,
+	Conversation,
+	CreateConversationResult,
+	DBAgent,
+	GetConversationMessagesResult,
+	IAgent,
+	Message,
+	OllamaAIResponseConfig
+} from "$lib/types/agents"
 
 type OllamaResponse = ChatResponse | AbortableAsyncIterator<ChatResponse>
 const ollama = new Ollama({ host: "http://127.0.0.1:11434" })
@@ -82,39 +92,38 @@ const convertToOllamaMessages = (messages: Message[]): OllamaMessage[] => {
 }
 
 export class OllamaAgent implements IAgent {
+	constructor(private dbAgent: DBAgent) {}
 
-	constructor(private dbAgent: DBAgent) { }
-
-  public async createConversation (conversation: Conversation, initialPrompt: string, streamResponse: boolean): Promise<CreateConversationResult>{
-    addMessage(initialPrompt, conversation.messages, "user", "inputText")
-    const ollamaResponse = await makeOllamaInstance(this.dbAgent.config as OllamaAIResponseConfig, convertToOllamaMessages(conversation.messages), streamResponse)
-    if (streamResponse) {
-      return {
-        relatedConversationId: crypto.randomUUID(),
-        vectorStoreId: null,
-        response: handleOllamaStream(conversation, ollamaResponse as AbortableAsyncIterator<ChatResponse>)
-      }      
+	public async createConversation(conversation: Conversation, initialPrompt: string, streamResponse: boolean): Promise<CreateConversationResult> {
+		addMessage(initialPrompt, conversation.messages, "user", "inputText")
+		const ollamaResponse = await makeOllamaInstance(this.dbAgent.config as OllamaAIResponseConfig, convertToOllamaMessages(conversation.messages), streamResponse)
+		if (streamResponse) {
+			return {
+				relatedConversationId: crypto.randomUUID(),
+				vectorStoreId: null,
+				response: handleOllamaStream(conversation, ollamaResponse as AbortableAsyncIterator<ChatResponse>)
+			}
 		}
-    throw new Error("Non-streaming Ollama conversation creation is not yet implemented")
-  }
+		throw new Error("Non-streaming Ollama conversation creation is not yet implemented")
+	}
 
-  public async appendMessageToConversation (conversation: Conversation, prompt: string, streamResponse: boolean): Promise<AppendToConversationResult>{
-    addMessage(prompt, conversation.messages, "user", "inputText")
-    const ollamaResponse = await makeOllamaInstance(this.dbAgent.config as OllamaAIResponseConfig, convertToOllamaMessages(conversation.messages), streamResponse)
-    if (streamResponse) {
-      return {
-        response : handleOllamaStream(conversation, ollamaResponse as AbortableAsyncIterator<ChatResponse>)
-      }      
+	public async appendMessageToConversation(conversation: Conversation, prompt: string, streamResponse: boolean): Promise<AppendToConversationResult> {
+		addMessage(prompt, conversation.messages, "user", "inputText")
+		const ollamaResponse = await makeOllamaInstance(this.dbAgent.config as OllamaAIResponseConfig, convertToOllamaMessages(conversation.messages), streamResponse)
+		if (streamResponse) {
+			return {
+				response: handleOllamaStream(conversation, ollamaResponse as AbortableAsyncIterator<ChatResponse>)
+			}
 		}
-    throw new Error("Non-streaming Ollama conversation creation is not yet implemented")  
-  }
-  public async addConversationFiles (conversation: Conversation, files: File[], streamResponse: boolean): Promise<AddConversationFilesResult>{
-			throw new Error("Conversation does not have a vector store associated, cannot add files")
-  }
+		throw new Error("Non-streaming Ollama conversation creation is not yet implemented")
+	}
+	public async addConversationFiles(_conversation: Conversation, _files: File[], _streamResponse: boolean): Promise<AddConversationFilesResult> {
+		throw new Error("Conversation does not have a vector store associated, cannot add files")
+	}
 
-  public async getConversationMessages (conversation: Conversation): Promise<GetConversationMessagesResult>{
-      return {
-        messages: conversation.messages
-      }
-  }
+	public async getConversationMessages(conversation: Conversation): Promise<GetConversationMessagesResult> {
+		return {
+			messages: conversation.messages
+		}
+	}
 }
