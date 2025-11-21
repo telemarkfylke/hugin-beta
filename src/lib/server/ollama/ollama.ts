@@ -65,11 +65,11 @@ const makeOllamaInstance = async(ollamaResponseConfig: OllamaAIResponseConfig, m
    chat for stream er enten true eller false, men det er ikke en boolean
   */  
   const response = streamResponse ?  await ollama.chat({
-    model: 'gemma3',
+    model: ollamaResponseConfig.model,
     messages: messages,
     stream: true
   }) : await ollama.chat({
-    model: 'gemma3',
+    model: ollamaResponseConfig.model,
     messages: messages,
     stream: false
   })
