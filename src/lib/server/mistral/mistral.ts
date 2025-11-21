@@ -132,7 +132,7 @@ const createMistralConversationConfig = async (agentConfig: AgentConfig, initial
 export class MistralAgent implements IAgent {
 	constructor(private dbAgent: DBAgent) {}
 
-	public async createConversation(initialPrompt: string, dbConversationId: string, streamResponse: boolean): Promise<CreateConversationResult> {
+	public async createConversation(conversation: Conversation, initialPrompt: string, streamResponse: boolean): Promise<CreateConversationResult> {
 		const mistralConversationConfig = await createMistralConversationConfig(this.dbAgent.config, initialPrompt)
 
 		if (streamResponse) {
@@ -147,7 +147,7 @@ export class MistralAgent implements IAgent {
 				const { value, done } = await reader.read()
 				if (value?.data.type === "conversation.response.started") {
 					reader.cancel() // Vi trenger ikke lese mer her, vi har det vi trenger
-					const readableStream = handleMistralStream(actualStream as EventStream<ConversationEvents>, dbConversationId, mistralConversationConfig.data.userLibraryId)
+					const readableStream = handleMistralStream(actualStream as EventStream<ConversationEvents>, conversation._id, mistralConversationConfig.data.userLibraryId)
 
 					return { relatedConversationId: value.data.conversationId, vectorStoreId: mistralConversationConfig.data.userLibraryId, response: readableStream }
 				}

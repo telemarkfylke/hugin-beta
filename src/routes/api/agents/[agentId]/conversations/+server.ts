@@ -40,7 +40,7 @@ export const POST: RequestHandler = async ({ request, params }) => {
 	})
 
 	try {
-		const { relatedConversationId, response, vectorStoreId } = await agent.createConversation(prompt, dbConversation._id, stream)
+		const { relatedConversationId, response, vectorStoreId } = await agent.createConversation(dbConversation, prompt, stream)
 
 		// Oppdaterer vår conversation med riktig relatedConversationId og vectorStoreId
 		updateConversation(dbConversation._id, {
