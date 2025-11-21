@@ -31,7 +31,17 @@ export const MistralAgentConfig = z.object({
 
 export type MistralAgentConfig = z.infer<typeof MistralAgentConfig>
 
-// OPENAI
+export const OllamaAIResponseConfig = z.object({
+	type: z.literal("ollama-response"), // discriminator
+	model: z.enum(["gemma3"]), // add models we want to support here
+	instructions: z.string().nullable(),
+	fileSearchEnabled: z.boolean(),
+	webSearchEnabled: z.boolean(),
+	vectorStoreIds: z.array(z.string()).nullable().optional()
+})
+
+export type OllamaAIResponseConfig = z.infer<typeof OllamaAIResponseConfig>
+
 export const OpenAIAResponseConfig = z.object({
 	type: z.literal("openai-response"), // discriminator
 	model: z.enum(["gpt-4o"]), // add models we want to support here
@@ -54,7 +64,7 @@ export const OpenAIPromptConfig = z.object({
 export type OpenAIPromptConfig = z.infer<typeof OpenAIPromptConfig>
 
 // AGENT UNION TYPE
-export const AgentConfig = z.discriminatedUnion("type", [MockAgentConfig, MistralConversationConfig, MistralAgentConfig, OpenAIAResponseConfig, OpenAIPromptConfig])
+export const AgentConfig = z.discriminatedUnion("type", [MockAgentConfig, MistralConversationConfig, MistralAgentConfig, OpenAIAResponseConfig, OpenAIPromptConfig, OllamaAIResponseConfig])
 
 export type AgentConfig = z.infer<typeof AgentConfig>
 
@@ -67,17 +77,6 @@ export const Agent = z.object({
 })
 
 export type Agent = z.infer<typeof Agent>
-
-export const Conversation = z.object({
-	_id: z.string(),
-	agentId: z.string(),
-	name: z.string(),
-	description: z.string().nullable().optional(),
-	relatedConversationId: z.string(), // id fra leverandør (Mistral/OpenAI)
-	vectorStoreId: z.string().nullable() // id for vector store knyttet til denne samtalen (for filer bruker laster opp i en conversation)
-})
-
-export type Conversation = z.infer<typeof Conversation>
 
 // MESSAGE TYPES
 export const Message = z.object({
@@ -92,3 +91,15 @@ export const Message = z.object({
 })
 
 export type Message = z.infer<typeof Message>
+
+export const Conversation = z.object({
+	_id: z.string(),
+	agentId: z.string(),
+	name: z.string(),
+	description: z.string().nullable().optional(),
+	relatedConversationId: z.string(), // id fra leverandør (Mistral/OpenAI)
+	vectorStoreId: z.string().nullable(), // id for vector store knyttet til denne samtalen (for filer bruker laster opp i en conversation)
+	messages: z.array(Message)
+})
+
+export type Conversation = z.infer<typeof Conversation>

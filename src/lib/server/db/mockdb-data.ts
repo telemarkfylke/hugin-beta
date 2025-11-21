@@ -62,6 +62,18 @@ export const agents: Agent[] = [
 			fileSearchEnabled: false,
 			webSearchEnabled: false
 		}
+	},
+	{
+		_id: "ollama_basic",
+		name: "Ollama basic orakel",
+		description: "A basic ollama bot",
+		config: {
+			type: "ollama-response",
+			model: "gemma3",
+			instructions: "Svar veldig generelt på spessifike spørsmål",
+			fileSearchEnabled: false,
+			webSearchEnabled: false
+		}
 	}
 ]
 

@@ -1,6 +1,6 @@
 import { ObjectId } from "mongodb"
 import { env } from "$env/dynamic/private"
-import type { Conversation } from "$lib/types/agents.ts"
+import type { Conversation, Message } from "$lib/types/agents.ts"
 
 let mockDbData = null
 
@@ -36,6 +36,7 @@ type ConversationData = {
 	description: string
 	relatedConversationId: string
 	vectorStoreId: string | null
+	messages?: Message[]
 }
 
 export const insertConversation = async (agentId: string, conversationData: ConversationData): Promise<Conversation> => {
@@ -43,6 +44,7 @@ export const insertConversation = async (agentId: string, conversationData: Conv
 		const coversationToInsert = {
 			_id: new ObjectId().toString(),
 			agentId,
+			messages: [],
 			...conversationData
 		}
 		mockDbData.conversations.push(coversationToInsert)

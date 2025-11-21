@@ -85,13 +85,7 @@ export const POST: RequestHandler = async ({ request, params }) => {
 			console.log(`Vector store ID changed for conversation ${conversationId}, updating to ${vectorStoreId}`)
 			await updateConversation(conversationId, { vectorStoreId })
 		}
-		return new Response(readableStream, {
-			headers: {
-				"Content-Type": "text/event-stream",
-				"Cache-Control": "no-cache",
-				Connection: "keep-alive"
-			}
-		})
+		return responseStream(readableStream)
 	}
 	throw new Error(`Unsupported agent config type: ${agent.config}`)
 }
