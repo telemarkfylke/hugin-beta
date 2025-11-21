@@ -1,9 +1,11 @@
 import OpenAI from "openai"
-import type { Response, ResponseCreateParamsBase, ResponseStreamEvent, Tool } from "openai/resources/responses/responses"
+import type { ResponseCreateParamsBase, ResponseStreamEvent, Tool } from "openai/resources/responses/responses"
 import type { Stream } from "openai/streaming"
 import { env } from "$env/dynamic/private"
 import { createSse } from "$lib/streaming.js"
-import type { AgentConfig, Message } from "$lib/types/agents"
+import type { AddConversationFilesResult, AgentConfig, AppendToConversationResult, Conversation, CreateConversationResult, DBAgent, IAgent, Message } from "$lib/types/agents"
+import { updateConversation } from "../agents/conversations"
+import { createOpenAIVectorStore, uploadFilesToOpenAIVectorStore } from "./vector-store"
 
 export const openai = new OpenAI({
 	apiKey: env.OPENAI_API_KEY || "bare-en-tulle-key"
@@ -45,13 +47,7 @@ type OpenAIResponseConfigResult = {
 	requestConfig: ResponseCreateParamsBase
 }
 
-const createOpenAIResponseConfig = (
-	agentConfig: AgentConfig,
-	openAIConversationId: string,
-	inputPrompt: string,
-	userVectorStoreId: string | null,
-	streamResponse: boolean
-): OpenAIResponseConfigResult => {
+const createOpenAIResponseConfig = (agentConfig: AgentConfig, openAIConversationId: string, inputPrompt: string, userVectorStoreId: string | null): OpenAIResponseConfigResult => {
 	if (agentConfig.type !== "openai-response" && agentConfig.type !== "openai-prompt") {
 		throw new Error("Invalid agent config type for OpenAI response configuration")
 	}
@@ -62,8 +58,7 @@ const createOpenAIResponseConfig = (
 				prompt: {
 					id: agentConfig.prompt.id
 				},
-				conversation: openAIConversationId,
-				stream: streamResponse
+				conversation: openAIConversationId
 			}
 		}
 	}
@@ -72,8 +67,7 @@ const createOpenAIResponseConfig = (
 		model: agentConfig.model,
 		conversation: openAIConversationId,
 		input: inputPrompt,
-		instructions: agentConfig.instructions || null,
-		stream: streamResponse
+		instructions: agentConfig.instructions || null
 	}
 	const fileSearchTool: Tool = {
 		type: "file_search",
@@ -96,55 +90,67 @@ const createOpenAIResponseConfig = (
 	}
 }
 
-export const appendToOpenAIConversation = async (
-	agentConfig: AgentConfig,
-	openAIConversationId: string,
-	prompt: string,
-	userVectorStoreId: string | null,
-	streamResponse: boolean
-): Promise<Response | Stream<ResponseStreamEvent>> => {
-	// Create response and return
-	const { requestConfig } = createOpenAIResponseConfig(agentConfig, openAIConversationId, prompt, userVectorStoreId, streamResponse)
-	return await openai.responses.create(requestConfig)
-}
-
-export const createOpenAIConversation = async (
-	agentConfig: AgentConfig,
-	prompt: string,
-	userVectorStoreId: string | null,
-	streamResponse: boolean
-): Promise<{ openAiConversationId: string; response: Response | Stream<ResponseStreamEvent> }> => {
-	const conversation = await openai.conversations.create({
-		metadata: { topic: "demo" }
-	})
-	// Må vi kanskje lage en vector store også, og knytte den til samtalen her?
-
-	const response = await appendToOpenAIConversation(agentConfig, conversation.id, prompt, userVectorStoreId, streamResponse)
-	return { openAiConversationId: conversation.id, response }
-}
-
-export const getOpenAIConversationItems = async (openAIConversationId: string): Promise<Message[]> => {
-	const conversationItems = await openai.conversations.items.list(openAIConversationId, { limit: 50, order: "desc" })
-	// Vi tar først bare de som er message, og mapper de om til Message type vårt system bruker
-	const messages = conversationItems.data
-		.filter((item) => item.type === "message")
-		.map((item) => {
-			// Obs, kommer nok noe citations og greier etterhvert
-
-			const newMessage: Message = {
-				id: item.id || "what",
-				role: item.role === "assistant" ? "agent" : "user", // TODO - her kan dukke opp flere roller akkurat nå altså...
-				type: item.type,
-				status: item.status,
-				content: {
-					type: item.role === "user" ? "inputText" : "outputText",
-					text:
-						item.role === "user"
-							? item.content.find((con) => con.type === "input_text")?.text || "ukjent input drit"
-							: item.content.find((con) => con.type === "output_text")?.text || "ukjent output drit"
-				}
+export class OpenAIAgent implements IAgent {
+	constructor(private dbAgent: DBAgent) {}
+	public async appendMessageToConversation(conversation: Conversation, prompt: string, streamResponse: boolean): Promise<AppendToConversationResult> {
+		const { requestConfig } = createOpenAIResponseConfig(this.dbAgent.config, conversation.relatedConversationId, prompt, conversation.vectorStoreId || null)
+		if (streamResponse) {
+			const responseStream = await openai.responses.create({ ...requestConfig, stream: true })
+			return {
+				response: handleOpenAIStream(responseStream)
 			}
-			return newMessage
-		})
-	return messages.reverse() // Vi vil ha ascending order på de nyeste
+		}
+		throw new Error("Non-streaming append message not implemented yet")
+	}
+	public async createConversation(conversation: Conversation, initialPrompt: string, streamResponse: boolean): Promise<CreateConversationResult> {
+		const openAIConversation = await openai.conversations.create({ metadata: { agent: this.dbAgent.name } })
+
+		const { requestConfig } = createOpenAIResponseConfig(this.dbAgent.config, openAIConversation.id, initialPrompt, null)
+		if (streamResponse) {
+			const responseStream = await openai.responses.create({ ...requestConfig, stream: true })
+			return {
+				relatedConversationId: openAIConversation.id,
+				vectorStoreId: null,
+				response: handleOpenAIStream(responseStream, conversation._id)
+			}
+		}
+		throw new Error("Non-streaming create conversation not implemented yet")
+	}
+	public async addConversationFiles(conversation: Conversation, files: File[], streamResponse: boolean): Promise<AddConversationFilesResult> {
+		let vectorStoreId = conversation.vectorStoreId
+		if (!vectorStoreId) {
+			const newVectorStoreId = await createOpenAIVectorStore(conversation._id)
+			updateConversation(conversation._id, { vectorStoreId: newVectorStoreId })
+			vectorStoreId = newVectorStoreId // obs obs, det er en referanse, så oppdaterer faktisk conversation objektet også
+		}
+		if (streamResponse) {
+			return await uploadFilesToOpenAIVectorStore(conversation._id, vectorStoreId, files, streamResponse)
+		}
+		throw new Error("Non-streaming add conversation files not implemented yet")
+	}
+	public async getConversationMessages(conversation: Conversation): Promise<{ messages: Message[] }> {
+		const conversationItems = await openai.conversations.items.list(conversation.relatedConversationId, { limit: 50, order: "desc" })
+		// Vi tar først bare de som er message, og mapper de om til Message type vårt system bruker
+		const messages = conversationItems.data
+			.filter((item) => item.type === "message")
+			.map((item) => {
+				// Obs, kommer nok noe citations og greier etterhvert
+
+				const newMessage: Message = {
+					id: item.id || "what",
+					role: item.role === "assistant" ? "agent" : "user", // TODO - her kan dukke opp flere roller akkurat nå altså...
+					type: item.type,
+					status: item.status,
+					content: {
+						type: item.role === "user" ? "inputText" : "outputText",
+						text:
+							item.role === "user"
+								? item.content.find((con) => con.type === "input_text")?.text || "ukjent input drit"
+								: item.content.find((con) => con.type === "output_text")?.text || "ukjent output drit"
+					}
+				}
+				return newMessage
+			})
+		return { messages: messages.reverse() } // Vi vil ha ascending order på de nyeste
+	}
 }

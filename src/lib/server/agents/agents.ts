@@ -1,7 +1,9 @@
 import { env } from "$env/dynamic/private"
 import type { DBAgent, IAgent } from "$lib/types/agents.ts"
 import { MistralAgent } from "../mistral/mistral"
+import { MockAIAgent } from "../mock-ai/mock-ai"
 import { OllamaAgent } from "../ollama/ollama"
+import { OpenAIAgent } from "../openai/openai"
 
 let mockDbData = null
 
@@ -34,13 +36,16 @@ export const getDBAgents = async (): Promise<DBAgent[]> => {
 
 export const createAgent = (dbAgent: DBAgent): IAgent => {
 	if (dbAgent.config.type === "mock-agent") {
-		throw new Error("Not implemented - create mock agent")
+		return new MockAIAgent()
 	}
 	if (dbAgent.config.type === "mistral-conversation" || dbAgent.config.type === "mistral-agent") {
 		return new MistralAgent(dbAgent)
 	}
+	if (dbAgent.config.type === "openai-response" || dbAgent.config.type === "openai-prompt") {
+		return new OpenAIAgent(dbAgent)
+	}
 	if (dbAgent.config.type === "ollama-response") {
 		return new OllamaAgent(dbAgent)
 	}
-	throw new Error(`Unsupported agent type: ${dbAgent.config.type}`)
+	throw new Error(`Unsupported agent: ${dbAgent.name}`)
 }

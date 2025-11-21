@@ -72,36 +72,3 @@ export const POST: RequestHandler = async ({ request, params }) => {
 	}
 	throw new Error("Non-streaming file upload not implemented yet")
 }
-
-/*
-	// MOCK AI
-	if (agent.config.type === "mock-agent") {
-		// Last opp en eller flere filer mock mock
-		const response = await uploadFilesToMockAI(conversation.vectorStoreId || "mock-library-id", files, stream)
-
-		return responseStream(response)
-	}
-	// MISTRAL
-	if (agent.config.type === "mistral-conversation") {
-		if (!conversation.vectorStoreId) {
-			throw new Error("Conversation does not have a vectorStoreId to upload files to")
-		}
-		// Last opp en eller flere filer mistral
-		const response = await uploadFilesToMistralLibrary(conversation.vectorStoreId, files, stream)
-		return responseStream(response)
-	}
-	// OPENAI
-	if (agent.config.type === "openai-response") {
-		// Last opp en eller flere filer openai
-		const { vectorStoreId, readableStream } = await uploadFilesToOpenAIVectorStore(conversation.relatedConversationId, conversation.vectorStoreId, files, stream)
-		// Check if vectorStoreId has changed and update conversation if needed
-		if (vectorStoreId !== conversation.vectorStoreId) {
-			// Oppdater conversation i DB med ny vectorStoreId
-			console.log(`Vector store ID changed for conversation ${conversationId}, updating to ${vectorStoreId}`)
-			await updateConversation(conversationId, { vectorStoreId })
-		}
-		return responseStream(readableStream)
-	}
-	throw new Error(`Unsupported agent config type: ${agent.config}`)
-}
-*/
