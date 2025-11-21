@@ -1,8 +1,9 @@
 import { env } from "$env/dynamic/private"
 import type { DBAgent, IAgent } from "$lib/types/agents.ts"
 import { MistralAgent } from "../mistral/mistral"
-import { OpenAIAgent } from "../openai/openai"
+import { MockAIAgent } from "../mock-ai/mock-ai"
 import { OllamaAgent } from "../ollama/ollama"
+import { OpenAIAgent } from "../openai/openai"
 
 let mockDbData = null
 
@@ -35,7 +36,7 @@ export const getDBAgents = async (): Promise<DBAgent[]> => {
 
 export const createAgent = (dbAgent: DBAgent): IAgent => {
 	if (dbAgent.config.type === "mock-agent") {
-		throw new Error("Not implemented - create mock agent")
+		return new MockAIAgent()
 	}
 	if (dbAgent.config.type === "mistral-conversation" || dbAgent.config.type === "mistral-agent") {
 		return new MistralAgent(dbAgent)
