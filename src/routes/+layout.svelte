@@ -11,13 +11,14 @@
 </svelte:head>
 
 
-	<header>
+<header>
 	<h1>Hugin Beta</h1>
 	<menu>
 		<li><a class="menu_links" href="/">Home</a></li>
 		<li><a class="menu_links" href="/agents">Agents</a></li>
 	</menu>
 </header>
+
 <main>
 	{#if children}
 		{@render children()}
@@ -35,31 +36,6 @@
 		box-sizing: border-box;
 		font-family: Arial, Helvetica, sans-serif;
 	}
-	:global(html) {
-    /* Bakgrunnsfarge som minner om papir */
-    background-color: #fbfbfb;
-
-    /* Horisontale linjer for notatark-effekt */
-    background-image: 
-        linear-gradient(to right, #e77 2px, transparent 2px), /* Rød marg på venstre side */
-        repeating-linear-gradient(
-            to bottom, 
-            #e4e7ec 0px, #e4e7ec 1px, 
-            transparent 1px, transparent 32px
-        ); 
-
-    background-size: 
-        40px 100%, /* Marglinje bredde */
-        100% 32px; /* Avstand mellom linjer */
-
-    background-position: 
-        left top,
-        left top;
-
-    background-repeat: 
-        no-repeat,
-        repeat;
-}
 
 
 	:global(html) {
@@ -87,6 +63,8 @@
 	h1 {
 		margin: 0;
 	}
+	
+	
 	.menu_links {
 		color: #333;
 	}
@@ -97,6 +75,7 @@
 		align-items: center;
 		position: absolute;
 		right: 1rem;
+
 	}
 	main {
 		box-sizing: border-box;

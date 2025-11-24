@@ -80,11 +80,12 @@
     margin-bottom: 30px;
   }
 
+
   .fils-btn {
     margin-top: 10px;
     margin-right: 10px;
     padding: 8px 12px;
-    background: #CCDCDF;
+    background-color: #B2CBCF;
     color: #333;
     border: 1px solid #ccc;
     border-radius: 5px;
@@ -96,8 +97,9 @@
   }
   input[type="file"]::file-selector-button {
     padding: 8px 12px;
-    background: #CCDCDF;
+    background-color: #B2CBCF;
     color: #333;
+    margin-left: 80px;
     border: 1px solid #ccc;
     border-radius: 5px;
     font-size: 0.9rem;
@@ -105,10 +107,12 @@
     cursor: pointer;
     margin-right: 10px;
     box-shadow: 0 2px 4px rgba(44, 44, 44, 0.25);
+    transition: background 0.15s ease, border-color 0.15s ease;
 }
 
 input[type="file"]::file-selector-button:hover {
-    background: #E7F2F3;
+        background: #CCDCDF;
+    border-color: #666;
 }
 
   .input-with-send {
@@ -125,7 +129,7 @@ input[type="file"]::file-selector-button:hover {
     height: 40px;
     width: 40px;
     padding: 0 12px;
-    background: #CCDCDF;
+    background-color: #B2CBCF;
     color: #333;
     border: 1px solid #555;
     border-radius: 5px;
@@ -137,7 +141,7 @@ input[type="file"]::file-selector-button:hover {
   }
 
   .snd-btn-in-input:hover {
-    background: #E7F2F3;
+    background: #CCDCDF;
     border-color: #666;
   }
 

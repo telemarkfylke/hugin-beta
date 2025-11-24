@@ -22,12 +22,14 @@
     menuOpen = !menuOpen;
   };
 
+
+
 </script>
 
 <div class="agent-container">
   <div class="agent-menu-bar">
     <div class="agent-menu-bar-left">
-      <button class="conv-btn" onclick={toggleMenu}>{agentId} {menuOpen ? '⬆️' : '⬇️'}</button>
+      <button class="conv-btn" onclick={toggleMenu}>{agentId} {menuOpen ? '＾' : 'ｖ'}</button>
       {#if agentStateHandler.agentState.currentConversation.value.id}
         <span> Conversation: {agentStateHandler.agentState.currentConversation.value.name} (ID: {agentStateHandler.agentState.currentConversation.value.id})</span>
       {/if}
@@ -69,22 +71,23 @@
       {/each}
     {/if}
   </div>
-  <AgentChatInput postUserPrompt={agentStateHandler.postUserPrompt} addKnowledgeFilesToConversation={agentStateHandler.addKnowledgeFilesToConversation} />
 </div>
+<AgentChatInput postUserPrompt={agentStateHandler.postUserPrompt} addKnowledgeFilesToConversation={agentStateHandler.addKnowledgeFilesToConversation} />
 
 <style>
   .agent-container {
     box-sizing: border-box; /* Include padding and border in total size, to avoid overflow */
     display: flex;
     flex-direction: column;
-    height: 700px;
+    height: 580px;
     width: 1000px;
     margin: 0 auto;
     color: #333;
-    margin-top: 40px;
+    margin-top: 10px;
     font-size: 18px;
+    z-index: 50;
+
   }
-  
   .agent-menu-bar {
     display: flex;
     justify-content: space-between;
@@ -93,24 +96,34 @@
   .agent-menu {
     margin-bottom: 0.5rem;
     padding: 1rem;
-    display: none;
     border-radius: 2px;
+    /* display: none;  <-- FJERN DENNE LINJEN */
+    max-height: 0;
+    opacity: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease, opacity 0.3s ease;
   }
+
   .conv-btn {
     border: 1px solid #ccc;
     border-radius: 5px;
     font-size: 0.9rem;
     font-weight: 500;
-    background: #E7F2F3;
+    background-color: #B2CBCF;
     cursor: pointer;
     color: #333;
-
+    height: 40px;
+    position: relative;
+    z-index: 40;
     transition: background 0.15s ease, border-color 0.15s ease;
     box-shadow: 0 2px 4px rgba(44, 44, 44, 0.25);
+    transition: opacity 0.3s ease-in-out, visibility 0.3s ease-in-out;
+    
   }
   .conv-btn:hover {
     background: #CCDCDF;
     border-color: #666;
+    
   }
   .restart-btn {
     position: absolute;
@@ -135,9 +148,16 @@
     border-color: #666;
   }
   .agent-menu.open {
+    max-height: 1000px; /* Må være større enn alt innholdet! */
+    opacity: 1;
+    visibility: visible;
+    display: block;
+    overflow-y: auto;
+
     display: block;
     margin-bottom: 1rem;
     border-radius: 5px;
+    z-index: 30;
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
     background: rgba(255,255,255,0.3);
