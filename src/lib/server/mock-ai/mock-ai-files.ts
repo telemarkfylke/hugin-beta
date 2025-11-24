@@ -15,7 +15,7 @@ export const getMockAiFiles = async (): Promise<{ files: MockAiFile[] }> => {
 	return { files: mockAiFileStore }
 }
 
-export const uploadFilesToMockAI = async (libraryId: string, files: File[], streamResponse: boolean): Promise<ReadableStream> => {
+export const uploadFilesToMockAI = async (libraryId: string, files: File[], streamResponse: boolean): Promise<ReadableStream<Uint8Array>> => {
 	if (!libraryId) {
 		throw new Error("libraryId is required to upload files to Mock-AI")
 	}

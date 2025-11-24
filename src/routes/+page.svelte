@@ -1,8 +1,8 @@
 <script lang="ts">
 	import AgentComponent from "$lib/components/Agent/AgentComponent.svelte"
-	import type { Agent } from "../lib/types/agents"
+	import type { DBAgent } from "../lib/types/agents"
 
-	const getAgents = async (): Promise<Agent[]> => {
+	const getAgents = async (): Promise<DBAgent[]> => {
 		const res = await fetch("/api/agents")
 		const data = await res.json()
 		if (!res.ok) {
@@ -12,8 +12,10 @@
 	}
 </script>
 <div class="page-content">
-  {#await getAgents() then agents}
-    <div class="left-menu">
+  <div class="left-menu">
+    {#await getAgents()}
+      <p>Loading agents...</p>
+    {:then agents}
       <h2>Agents</h2>
       {#if agents.length === 0}
         <p>No agents found. Go play with yourself (or create a new agent)</p>
@@ -23,13 +25,13 @@
           <a href="/agents/{agent._id}">{agent.name}</a>
         </div>
       {/each}
-    </div>
-    <div class="right-content">
-      <AgentComponent agentId={"mistral-conversation"} />
-    </div>
-  {:catch error}
-    <p style="color: red;">Error: {error.stack || error.message}</p>
-  {/await}
+    {:catch error}
+      <p style="color: red;">Error: {error.stack || error.message}</p>
+    {/await}
+  </div>
+  <div class="right-content">
+    <AgentComponent agentId={"mistral-conversation"} />
+  </div>
 </div>
 
 <style>
