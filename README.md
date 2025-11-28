@@ -26,6 +26,7 @@ A SvelteKit-based application leveraging AI capabilities through Mistral and Ope
       - `Here are all the API routes for the application`
   - style.css
     - `Here is the global styling defined`
+hei
 
 ### Solution-principles
 - Our main entry point to AI are agents. Our agents work the same way everywhere, and the Agent-Component can be used anywhere, and with any AI-provider. Our agents are wrappers that convert underlying AI providers to a common structure and functionality.
