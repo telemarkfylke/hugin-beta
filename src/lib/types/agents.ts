@@ -9,7 +9,7 @@ export const BaseConfig = z.object({
 })
 
 export const MockAgentConfig = BaseConfig.extend({
-	type: z.literal("mock-agent"),
+	type: z.literal("mock-agent"), // discriminator
 	instructions: z.string().nullable(),
 	vectorStoreIds: z.array(z.string()).nullable().optional()
 })
