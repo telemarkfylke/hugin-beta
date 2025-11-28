@@ -117,7 +117,7 @@ export class OllamaAgent implements IAgent {
 		}
 		throw new Error("Non-streaming Ollama conversation creation is not yet implemented")
 	}
-	public async addConversationFiles(_conversation: Conversation, _files: File[], _streamResponse: boolean): Promise<AddConversationFilesResult> {
+	public async addConversationVectorStoreFiles(_conversation: Conversation, _files: File[], _streamResponse: boolean): Promise<AddConversationFilesResult> {
 		throw new Error("Conversation does not have a vector store associated, cannot add files")
 	}
 

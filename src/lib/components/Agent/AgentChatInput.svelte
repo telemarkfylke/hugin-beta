@@ -1,6 +1,6 @@
 <script lang="ts">
 	// Get state modifying functions from props
-	let { postUserPrompt, addKnowledgeFilesToConversation } = $props()
+	let { postUserPrompt, addConversationVectorStoreFiles } = $props()
 
 	// Internal state for this component
 	let userPrompt = $state("")
@@ -14,7 +14,7 @@
 
 	const submitFiles = () => {
 		if (files.length > 0) {
-			addKnowledgeFilesToConversation(files)
+			addConversationVectorStoreFiles(files)
 			files = new DataTransfer().files // Clear files after submission
 		}
 	}

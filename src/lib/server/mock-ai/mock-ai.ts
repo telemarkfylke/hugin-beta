@@ -51,7 +51,7 @@ export class MockAIAgent implements IAgent {
 		// For non-streaming, return full response at once (not implemented here)
 		throw new Error("Non-streaming response not implemented in MockAIAgent")
 	}
-	public async addConversationFiles(conversation: Conversation, files: File[], streamResponse: boolean): Promise<AddConversationFilesResult> {
+	public async addConversationVectorStoreFiles(conversation: Conversation, files: File[], streamResponse: boolean): Promise<AddConversationFilesResult> {
 		if (streamResponse) {
 			const readableStream = await uploadFilesToMockAI(conversation.vectorStoreId || `mock-vector-store-${conversation._id}`, files, true)
 			return { response: readableStream }

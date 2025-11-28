@@ -1,7 +1,6 @@
 import { json, type RequestHandler } from "@sveltejs/kit"
 import { createAgent, getDBAgent } from "$lib/server/agents/agents.js"
 import { getConversation } from "$lib/server/agents/conversations"
-import { getMockAiFiles } from "$lib/server/mock-ai/mock-ai-files.js"
 import { responseStream } from "$lib/streaming.js"
 
 export const GET: RequestHandler = async ({ params }) => {
@@ -11,14 +10,13 @@ export const GET: RequestHandler = async ({ params }) => {
 	}
 
 	const dbAgent = await getDBAgent(agentId)
-	// const conversation = await getConversation(conversationId)
+	const conversation = await getConversation(conversationId)
 
-	// Mock AI
-	if (dbAgent.config.type === "mock-agent") {
-		const mockFiles = await getMockAiFiles()
-		return json(mockFiles)
-	}
-	throw new Error(`Unsupported agent config type: ${dbAgent.config.type}`)
+	const agent = createAgent(dbAgent)
+
+	const getConversationVectorStoreFilesResult = await agent.getConversationVectorStoreFiles(conversation)
+	
+	return json(getConversationVectorStoreFilesResult)
 }
 
 export const POST: RequestHandler = async ({ request, params }) => {
@@ -65,7 +63,7 @@ export const POST: RequestHandler = async ({ request, params }) => {
 
 	const agent = createAgent(dbAgent)
 
-	const { response } = await agent.addConversationFiles(conversation, files, stream)
+	const { response } = await agent.addConversationVectorStoreFiles(conversation, files, stream)
 
 	if (stream) {
 		return responseStream(response)

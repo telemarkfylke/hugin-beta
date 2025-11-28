@@ -15,7 +15,8 @@ import type {
 	IAgent,
 	Message
 } from "$lib/types/agents.js"
-import { uploadFilesToMistralLibrary } from "./document-library"
+import { getDocumentsInMistralLibrary, uploadFilesToMistralLibrary } from "./document-library"
+import type { GetVectorStoreFilesResult, VectorStoreFile } from "$lib/types/requests"
 
 export const mistral = new Mistral({
 	apiKey: env.MISTRAL_API_KEY || "bare-en-tulle-key"
@@ -173,7 +174,7 @@ export class MistralAgent implements IAgent {
 		}
 		throw new Error("Non-streaming Mistral conversation append is not yet implemented")
 	}
-	public async addConversationFiles(conversation: Conversation, files: File[], streamResponse: boolean): Promise<AddConversationFilesResult> {
+	public async addConversationVectorStoreFiles(conversation: Conversation, files: File[], streamResponse: boolean): Promise<AddConversationFilesResult> {
 		if (!conversation.vectorStoreId) {
 			throw new Error("Conversation does not have a vector store associated, cannot add files")
 		}
@@ -182,6 +183,49 @@ export class MistralAgent implements IAgent {
 			return { response: readableStream }
 		}
 		throw new Error("Non-streaming Mistral conversation add files is not yet implemented")
+	}
+	public async getConversationVectorStoreFiles(conversation: Conversation): Promise<GetVectorStoreFilesResult> {
+		// Må hente filene som ligger i vector store knyttet til samtalen, må kanskje ha en get file også, som henter fildataene
+		if (!conversation.vectorStoreId) {
+			throw new Error("Conversation does not have a vector store associated, cannot get files")
+		}
+		const vectorStoreFiles = await getDocumentsInMistralLibrary(conversation.vectorStoreId)
+		// Map om til riktig type
+		const files: VectorStoreFile[] = vectorStoreFiles.map((doc) => {
+			
+			return {
+				id: doc.id,
+				type: doc.mimeType,
+				name: doc.name,
+				size: doc.size,
+				status: 'ready', // TODO, sjekk hva de dumme statusene til Mistral er... og mappe de til våre egne
+				summary: doc.summary || null,
+				uploadedAt: doc.createdAt
+			}
+		})
+		return { files }
+	}
+	public async getConversationVectorStoreFileContent(conversation: Conversation, fileId: string): Promise<string | unknown> {
+		if (!conversation.vectorStoreId) {
+			throw new Error("Conversation does not have a vector store associated, cannot get file content")
+		}
+		console.log(`Fetching content for document ${fileId} from Mistral library ${conversation.vectorStoreId}`)
+		const documentContent = await mistral.beta.libraries.documents.getSignedUrl({
+			libraryId: conversation.vectorStoreId,
+			documentId: fileId
+		})
+		return documentContent
+	}
+	public async deleteConversationVectorStoreFile(conversation: Conversation, fileId: string): Promise<void> {
+		if (!conversation.vectorStoreId) {
+			throw new Error("Conversation does not have a vector store associated, cannot delete files")
+		}
+		console.log(`Deleting document ${fileId} from Mistral library ${conversation.vectorStoreId}`)
+		await mistral.beta.libraries.documents.delete({
+			libraryId: conversation.vectorStoreId,
+			documentId: fileId
+		})
+		console.log(`Deleted document ${fileId} from Mistral library ${conversation.vectorStoreId}`) // TODO - status på at en fil driver å sletter?
 	}
 	public async getConversationMessages(conversation: Conversation): Promise<GetConversationMessagesResult> {
 		const conversationItems = await mistral.beta.conversations.getHistory({ conversationId: conversation.relatedConversationId }) // Får ascending order (tror jeg)

@@ -116,7 +116,7 @@ export class OpenAIAgent implements IAgent {
 		}
 		throw new Error("Non-streaming create conversation not implemented yet")
 	}
-	public async addConversationFiles(conversation: Conversation, files: File[], streamResponse: boolean): Promise<AddConversationFilesResult> {
+	public async addConversationVectorStoreFiles(conversation: Conversation, files: File[], streamResponse: boolean): Promise<AddConversationFilesResult> {
 		let vectorStoreId = conversation.vectorStoreId
 		if (!vectorStoreId) {
 			const newVectorStoreId = await createOpenAIVectorStore(conversation._id)

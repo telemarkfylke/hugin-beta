@@ -26,3 +26,24 @@ export const GetConversationsResult = z.object({
 })
 
 export type GetConversationsResult = z.infer<typeof GetConversationsResult>
+
+const vectorStoreFileStatusEnum = z.enum(['ready', 'processing', 'error'])
+
+export type VectorStoreFileStatus = z.infer<typeof vectorStoreFileStatusEnum>
+
+export const VectorStoreFile = z.object({
+	id: z.string(),
+	name: z.string(),
+	type: z.string(),
+	size: z.number(),
+	summary: z.string().nullable().optional(),
+	status: vectorStoreFileStatusEnum
+})
+
+export type VectorStoreFile = z.infer<typeof VectorStoreFile>
+
+export const GetVectorStoreFilesResult = z.object({
+	files: z.array(VectorStoreFile)
+})
+
+export type GetVectorStoreFilesResult = z.infer<typeof GetVectorStoreFilesResult>

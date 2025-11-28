@@ -1,9 +1,10 @@
 // Keeps track of the entire state of an agent component (async stuff are allowed here)
-import type { AgentState, AgentStateHandler, AgentVectorStoreFile } from "$lib/types/agent-state"
+import type { AddConversationVectorStoreFiles, AddConversationVectorStoreFileToState, AgentState, AgentStateHandler, ClearConversation, GetAgentInfo, GetConversationVectorStoreFileContent, LoadAgentConversation, RemoveConversationVectorStoreFile, RemoveConversationVectorStoreFileFromState, UpdateConversationVectorStoreFileStatusInState } from "$lib/types/agent-state"
 import type { DBAgent, Message } from "$lib/types/agents.js"
+import type { VectorStoreFile, VectorStoreFileStatus } from "$lib/types/requests.js"
 import { getAgentConversation, getAgentConversations } from "./AgentConversations.svelte.js"
 import { promptAgent } from "./PromptAgent.svelte.js"
-import { getConversationFiles, uploadFilesToConversation } from "./UploadFiles.svelte.js"
+import { deleteConversationVectorStoreFile, getConversationVectorStoreFiles, uploadFilesToConversationVectorStore } from "./AgentConversationVectorStoreFiles.svelte.js"
 
 // DO NOT set agentState (dont pass it, pass methods) directly from outside this file, always use the provided methods to modify it (to keep it consistent and simpler to understand how changes to state happen)
 export const createAgentState = (): AgentStateHandler => {
@@ -21,7 +22,7 @@ export const createAgentState = (): AgentStateHandler => {
 				id: null,
 				name: null,
 				messages: {},
-				files: []
+				vectorStoreFiles: []
 			}
 		},
 		conversations: {
@@ -30,7 +31,7 @@ export const createAgentState = (): AgentStateHandler => {
 			value: []
 		}
 	})
-	const clearConversation = () => {
+	const clearConversation: ClearConversation = () => {
 		agentState.currentConversation = {
 			isLoading: false,
 			error: null,
@@ -38,12 +39,12 @@ export const createAgentState = (): AgentStateHandler => {
 				id: null,
 				name: null,
 				messages: {},
-				files: [] // Or the ones connected to the agent by default?
+				vectorStoreFiles: [] // Or the ones connected to the agent by default?
 			}
 		}
 	}
 
-	const getAgentInfo = async () => {
+	const getAgentInfo: GetAgentInfo = async () => {
 		if (!agentState.agentId) {
 			throw new Error("agentId is required to fetch agent info")
 		}
@@ -67,7 +68,7 @@ export const createAgentState = (): AgentStateHandler => {
 		agentState.agentInfo.isLoading = false
 	}
 
-	const loadAgentConversations = async () => {
+	const loadAgentConversations: () => Promise<void> = async () => {
 		if (!agentState.agentId) {
 			throw new Error("agentId is required to fetch conversations")
 		}
@@ -82,7 +83,7 @@ export const createAgentState = (): AgentStateHandler => {
 		agentState.conversations.isLoading = false
 	}
 
-	const loadAgentConversation = async (conversationId: string): Promise<void> => {
+	const loadAgentConversation: LoadAgentConversation = async (conversationId: string) => {
 		if (!agentState.agentId || !conversationId) {
 			throw new Error("agentId and conversationId are required to fetch conversation")
 		}
@@ -99,6 +100,7 @@ export const createAgentState = (): AgentStateHandler => {
 				messagesRecord[message.id] = message
 			}
 			agentState.currentConversation.value.messages = messagesRecord
+			getConversationVectorStoreFiles(agentState.agentId, conversationId, addConversationVectorStoreFileToState)
 		} catch (error) {
 			console.error("Error loading conversation:", error)
 			agentState.currentConversation.error = (error as Error).message
@@ -106,20 +108,68 @@ export const createAgentState = (): AgentStateHandler => {
 		agentState.currentConversation.isLoading = false
 	}
 
-	const setConversationFiles = (files: AgentVectorStoreFile[]) => {
-		agentState.currentConversation.value.files = files
-	}
-	const refreshConversationFiles = async () => {
+	const getConversationVectorStoreFileContent: GetConversationVectorStoreFileContent = (fileId: string) => {
 		if (!agentState.agentId || !agentState.currentConversation.value.id) {
-			throw new Error("agentId and conversationId are required to fetch conversation files")
+			throw new Error("agentId and conversationId are required to get conversation vector store file content")
 		}
-		getConversationFiles(agentState.agentId, agentState.currentConversation.value.id, setConversationFiles)
+		try {
+			// Fire and forget, we don't need to wait for this to complete here
+			fetch(`/api/agents/${agentState.agentId}/conversations/${agentState.currentConversation.value.id}/vectorstorefiles/${fileId}`)
+		} catch (error) {
+			console.error("Error getting conversation vector store file content:", error)
+			agentState.currentConversation.error = (error as Error).message
+		}
 	}
+
 	/*
-	const addConversationFiles = (files: AgentVectorStoreFile[]) => {
-		agentState.currentConversation.value.files.push(...files)
-	}
+	VEd en ny samtale, så er det ingen filer, så da trenger vi ikke å hente no.
+	Ved lasting av en eksisterende samtale, så må vi hente filene som hører til den samtalen.
+	Ved opplasting av filer, så må vi legge til de nye filene i state også. - eller bare kjøre en refresh hvis vi er late. Men det er ikke poeng å hente inn alle filene på nytt hver gang.
+	Ved sletting av filer må vi fjerne filen fra state også.
 	*/
+	const addConversationVectorStoreFileToState: AddConversationVectorStoreFileToState = (file: VectorStoreFile) => {
+		const alreadyExists = agentState.currentConversation.value.vectorStoreFiles.some(f => f.id === file.id)
+		if (alreadyExists) {
+			console.log(`File with id ${file.id} already exists in current conversation vector store files, skipping add.`)
+			return
+		}
+		agentState.currentConversation.value.vectorStoreFiles.push(file)
+	}
+	const updateConversationVectorStoreFileStatusInState: UpdateConversationVectorStoreFileStatusInState = (fileId: string, status: VectorStoreFileStatus) => {
+		const fileToUpdate = agentState.currentConversation.value.vectorStoreFiles.find(f => f.id === fileId)
+		if (fileToUpdate) {
+			fileToUpdate.status = status
+			return
+		}
+		throw new Error(`File with id ${fileId} not found in current conversation vector store files`)
+	}
+
+	const addConversationVectorStoreFiles: AddConversationVectorStoreFiles = (files: FileList) => {
+		if (!agentState.agentId || !agentState.currentConversation.value.id) {
+			throw new Error("agentId and conversationId are required to upload files to a conversation")
+		}
+		try {
+			uploadFilesToConversationVectorStore(files, agentState.agentId, agentState.currentConversation.value.id, addConversationVectorStoreFileToState, updateConversationVectorStoreFileStatusInState, addAgentMessageToConversation)
+		} catch (error) {
+			console.error("Error uploading files:", error)
+			agentState.currentConversation.error = (error as Error).message
+		}
+	}
+
+	const removeConversationVectorStoreFileFromState: (fileId: string) => void = (fileId: string) => {
+		agentState.currentConversation.value.vectorStoreFiles = agentState.currentConversation.value.vectorStoreFiles.filter(f => f.id !== fileId)
+	}
+	const removeConversationVectorStoreFile: RemoveConversationVectorStoreFile = (fileId: string) => {
+		if (!agentState.agentId || !agentState.currentConversation.value.id) {
+			throw new Error("agentId and conversationId are required to delete conversation vector store file")
+		}
+		try {
+			deleteConversationVectorStoreFile(agentState.agentId, agentState.currentConversation.value.id, fileId, removeConversationVectorStoreFileFromState)
+		} catch (error) {
+			console.error("Error deleting conversation vector store file:", error)
+			agentState.currentConversation.error = (error as Error).message
+		}
+	}
 
 	const setCurrentConversationId = (conversationId: string) => {
 		agentState.currentConversation.value.id = conversationId
@@ -178,20 +228,7 @@ export const createAgentState = (): AgentStateHandler => {
 			agentState.currentConversation.error = (error as Error).message
 		}
 	}
-	const addKnowledgeFilesToConversation = (files: FileList) => {
-		if (!agentState.agentId || !agentState.currentConversation.value.id) {
-			throw new Error("agentId and conversationId are required to upload files to a conversation")
-		}
-		try {
-			uploadFilesToConversation(files, agentState.agentId, agentState.currentConversation.value.id, addAgentMessageToConversation)
-		} catch (error) {
-			console.error("Error uploading files:", error)
-			agentState.currentConversation.error = (error as Error).message
-		}
-	}
-	const deleteKnowledgeFileFromConversation = (_fileId: string) => {
-		// Ensure vector store exists, delete file from it, check status etc. (check api before implementing)
-	}
+
 	const deleteConversation = (_conversationId: string) => {
 		/*
     agentState.conversations.value = agentState.conversations.value.filter(c => c.id !== conversationId);
@@ -200,9 +237,6 @@ export const createAgentState = (): AgentStateHandler => {
     }
     // And implement db deletion via api, as well as cleanup on provider side
     */
-	}
-	const createAgentFromConversation = async () => {
-		// Implement api call to create a new agent based on the current conversation (then redirect to that agent's page, or something like that)
 	}
 
 	return {
@@ -213,11 +247,10 @@ export const createAgentState = (): AgentStateHandler => {
 		changeAgent,
 		getAgentInfo,
 		loadAgentConversation,
-		postUserPrompt,
-		addKnowledgeFilesToConversation,
-		refreshConversationFiles,
-		deleteKnowledgeFileFromConversation,
 		deleteConversation,
-		createAgentFromConversation
+		addConversationVectorStoreFiles,
+		removeConversationVectorStoreFile,
+		getConversationVectorStoreFileContent,
+		postUserPrompt,
 	}
 }

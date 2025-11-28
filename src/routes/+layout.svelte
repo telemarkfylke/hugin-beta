@@ -11,10 +11,12 @@
 </svelte:head>
 
 <header>
-	<h1>Hugin Beta</h1>
+	<h1>Hugin Beta<img src="https://arngren.net/JUL-2009-5.gif" alt="funny gif" /></h1>
+	<img src="https://arngren.net/JUL-2009-4.gif" alt="funny gif" />
 	<menu>
 		<li><a href="/">Home</a></li>
 		<li><a href="/agents">Agents</a></li>
+		<img src="https://arngren.net/JUL-2009-4.gif" alt="funny gif" />
 	</menu>
 </header>
 <main>
@@ -26,6 +28,9 @@
 </main>
 <footer>
 	<span>Footer</span>
+	<img src="https://arngren.net/JUL-2009-4.gif" alt="funny gif" />
+	<img src="https://arngren.net/JUL-2009-5.gif" alt="funny gif" />
+	<img src="https://arngren.net/JUL-2009-6.gif" alt="funny gif" />
 </footer>
 
 <style>
