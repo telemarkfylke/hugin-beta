@@ -70,4 +70,3 @@ export const getDocumentsInMistralLibrary = async (libraryId: string): Promise<D
 	// TODO implement pagination if needed
 	return documents.data
 }
-

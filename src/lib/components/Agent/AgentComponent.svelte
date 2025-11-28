@@ -2,7 +2,7 @@
 	import { markdownFormatter } from "$lib/formatting/markdown-formatter.ts"
 	import AgentChatInput from "./AgentChatInput.svelte"
 	import AgentConversations from "./AgentConversations.svelte"
-    import AgentConversationVectorStoreFiles from "./AgentConversationVectorStoreFiles.svelte";
+	import AgentConversationVectorStoreFiles from "./AgentConversationVectorStoreFiles.svelte"
 	import AgentInfo from "./AgentInfo.svelte"
 	import { createAgentState } from "./AgentState.svelte.ts"
 

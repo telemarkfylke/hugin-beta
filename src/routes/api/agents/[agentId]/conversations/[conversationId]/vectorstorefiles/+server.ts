@@ -15,7 +15,7 @@ export const GET: RequestHandler = async ({ params }) => {
 	const agent = createAgent(dbAgent)
 
 	const getConversationVectorStoreFilesResult = await agent.getConversationVectorStoreFiles(conversation)
-	
+
 	return json(getConversationVectorStoreFilesResult)
 }
 

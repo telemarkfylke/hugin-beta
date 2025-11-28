@@ -15,8 +15,8 @@ import type {
 	IAgent,
 	Message
 } from "$lib/types/agents.js"
-import { getDocumentsInMistralLibrary, uploadFilesToMistralLibrary } from "./document-library"
 import type { GetVectorStoreFilesResult, VectorStoreFile } from "$lib/types/requests"
+import { getDocumentsInMistralLibrary, uploadFilesToMistralLibrary } from "./document-library"
 
 export const mistral = new Mistral({
 	apiKey: env.MISTRAL_API_KEY || "bare-en-tulle-key"
@@ -192,13 +192,12 @@ export class MistralAgent implements IAgent {
 		const vectorStoreFiles = await getDocumentsInMistralLibrary(conversation.vectorStoreId)
 		// Map om til riktig type
 		const files: VectorStoreFile[] = vectorStoreFiles.map((doc) => {
-			
 			return {
 				id: doc.id,
 				type: doc.mimeType,
 				name: doc.name,
 				size: doc.size,
-				status: 'ready', // TODO, sjekk hva de dumme statusene til Mistral er... og mappe de til våre egne
+				status: "ready", // TODO, sjekk hva de dumme statusene til Mistral er... og mappe de til våre egne
 				summary: doc.summary || null,
 				uploadedAt: doc.createdAt
 			}

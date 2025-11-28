@@ -27,7 +27,7 @@ export const GetConversationsResult = z.object({
 
 export type GetConversationsResult = z.infer<typeof GetConversationsResult>
 
-const vectorStoreFileStatusEnum = z.enum(['ready', 'processing', 'error'])
+const vectorStoreFileStatusEnum = z.enum(["ready", "processing", "error"])
 
 export type VectorStoreFileStatus = z.infer<typeof vectorStoreFileStatusEnum>
 

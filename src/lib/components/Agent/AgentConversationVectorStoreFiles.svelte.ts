@@ -12,7 +12,7 @@ export const getConversationVectorStoreFiles = async (agentId: string, conversat
 		throw new Error(`HTTP error! status: ${filesResponse.status}`)
 	}
 	const getVectorStoreFilesResult: GetVectorStoreFilesResult = await filesResponse.json()
-	
+
 	GetVectorStoreFilesResult.parse(getVectorStoreFilesResult) // Validate response
 
 	for (const file of getVectorStoreFilesResult.files) {
@@ -20,7 +20,12 @@ export const getConversationVectorStoreFiles = async (agentId: string, conversat
 	}
 }
 
-export const deleteConversationVectorStoreFile = async (agentId: string, conversationId: string, fileId: string, removeConversationVectorStoreFileFromState: RemoveConversationVectorStoreFileFromState) => {
+export const deleteConversationVectorStoreFile = async (
+	agentId: string,
+	conversationId: string,
+	fileId: string,
+	removeConversationVectorStoreFileFromState: RemoveConversationVectorStoreFileFromState
+) => {
 	if (!agentId || !conversationId) {
 		throw new Error("agentId and conversationId are required to delete conversation vector store file")
 	}
@@ -83,7 +88,7 @@ export const uploadFilesToConversationVectorStore = async (
 						name: fileName,
 						type: "unknown", // Type and size are unknown at this point, need to return it somehow from backend
 						size: 0, // Size is unknown at this point, need to return it somehow from backend
-						summary: null, 
+						summary: null,
 						status: "processing"
 					}
 					addConversationVectorStoreFileToState(vectorStoreFile)
@@ -94,7 +99,7 @@ export const uploadFilesToConversationVectorStore = async (
 					const { files } = uploadResult.data
 					console.log("Files processed:", files.map((file) => file.fileId).join(", "))
 					for (const file of files) {
-						updateConversationVectorStoreFileStatusInState(file.fileId, 'ready')
+						updateConversationVectorStoreFileStatusInState(file.fileId, "ready")
 					}
 					addAgentMessageToConversation(`${files.map((file) => file.fileId).join(", ")}-msg`, `Files processed successfully.`) // Temporary message, må finne på noe penere
 					break

@@ -1,10 +1,22 @@
 // Keeps track of the entire state of an agent component (async stuff are allowed here)
-import type { AddConversationVectorStoreFiles, AddConversationVectorStoreFileToState, AgentState, AgentStateHandler, ClearConversation, GetAgentInfo, GetConversationVectorStoreFileContent, LoadAgentConversation, RemoveConversationVectorStoreFile, RemoveConversationVectorStoreFileFromState, UpdateConversationVectorStoreFileStatusInState } from "$lib/types/agent-state"
+import type {
+	AddConversationVectorStoreFiles,
+	AddConversationVectorStoreFileToState,
+	AgentState,
+	AgentStateHandler,
+	ClearConversation,
+	GetAgentInfo,
+	GetConversationVectorStoreFileContent,
+	LoadAgentConversation,
+	RemoveConversationVectorStoreFile,
+	RemoveConversationVectorStoreFileFromState,
+	UpdateConversationVectorStoreFileStatusInState
+} from "$lib/types/agent-state"
 import type { DBAgent, Message } from "$lib/types/agents.js"
 import type { VectorStoreFile, VectorStoreFileStatus } from "$lib/types/requests.js"
 import { getAgentConversation, getAgentConversations } from "./AgentConversations.svelte.js"
-import { promptAgent } from "./PromptAgent.svelte.js"
 import { deleteConversationVectorStoreFile, getConversationVectorStoreFiles, uploadFilesToConversationVectorStore } from "./AgentConversationVectorStoreFiles.svelte.js"
+import { promptAgent } from "./PromptAgent.svelte.js"
 
 // DO NOT set agentState (dont pass it, pass methods) directly from outside this file, always use the provided methods to modify it (to keep it consistent and simpler to understand how changes to state happen)
 export const createAgentState = (): AgentStateHandler => {
@@ -128,7 +140,7 @@ export const createAgentState = (): AgentStateHandler => {
 	Ved sletting av filer må vi fjerne filen fra state også.
 	*/
 	const addConversationVectorStoreFileToState: AddConversationVectorStoreFileToState = (file: VectorStoreFile) => {
-		const alreadyExists = agentState.currentConversation.value.vectorStoreFiles.some(f => f.id === file.id)
+		const alreadyExists = agentState.currentConversation.value.vectorStoreFiles.some((f) => f.id === file.id)
 		if (alreadyExists) {
 			console.log(`File with id ${file.id} already exists in current conversation vector store files, skipping add.`)
 			return
@@ -136,7 +148,7 @@ export const createAgentState = (): AgentStateHandler => {
 		agentState.currentConversation.value.vectorStoreFiles.push(file)
 	}
 	const updateConversationVectorStoreFileStatusInState: UpdateConversationVectorStoreFileStatusInState = (fileId: string, status: VectorStoreFileStatus) => {
-		const fileToUpdate = agentState.currentConversation.value.vectorStoreFiles.find(f => f.id === fileId)
+		const fileToUpdate = agentState.currentConversation.value.vectorStoreFiles.find((f) => f.id === fileId)
 		if (fileToUpdate) {
 			fileToUpdate.status = status
 			return
@@ -149,7 +161,14 @@ export const createAgentState = (): AgentStateHandler => {
 			throw new Error("agentId and conversationId are required to upload files to a conversation")
 		}
 		try {
-			uploadFilesToConversationVectorStore(files, agentState.agentId, agentState.currentConversation.value.id, addConversationVectorStoreFileToState, updateConversationVectorStoreFileStatusInState, addAgentMessageToConversation)
+			uploadFilesToConversationVectorStore(
+				files,
+				agentState.agentId,
+				agentState.currentConversation.value.id,
+				addConversationVectorStoreFileToState,
+				updateConversationVectorStoreFileStatusInState,
+				addAgentMessageToConversation
+			)
 		} catch (error) {
 			console.error("Error uploading files:", error)
 			agentState.currentConversation.error = (error as Error).message
@@ -157,7 +176,7 @@ export const createAgentState = (): AgentStateHandler => {
 	}
 
 	const removeConversationVectorStoreFileFromState: (fileId: string) => void = (fileId: string) => {
-		agentState.currentConversation.value.vectorStoreFiles = agentState.currentConversation.value.vectorStoreFiles.filter(f => f.id !== fileId)
+		agentState.currentConversation.value.vectorStoreFiles = agentState.currentConversation.value.vectorStoreFiles.filter((f) => f.id !== fileId)
 	}
 	const removeConversationVectorStoreFile: RemoveConversationVectorStoreFile = (fileId: string) => {
 		if (!agentState.agentId || !agentState.currentConversation.value.id) {
@@ -251,6 +270,6 @@ export const createAgentState = (): AgentStateHandler => {
 		addConversationVectorStoreFiles,
 		removeConversationVectorStoreFile,
 		getConversationVectorStoreFileContent,
-		postUserPrompt,
+		postUserPrompt
 	}
 }
