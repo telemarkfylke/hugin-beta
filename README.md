@@ -12,6 +12,8 @@ A SvelteKit-based application leveraging AI capabilities through Mistral and Ope
 - We want to build an API-first solution, where everything you can do in the frontend, is also available throug API in the backend
 - SvelteKit App, with both frontend and backend in the same project.
 
+<img width="1111" height="763" alt="image" src="https://github.com/user-attachments/assets/ecbdd982-0d79-4b94-8cab-b172a5291a5d" />
+
 ### Project structure
 - src
   - lib
