@@ -1,9 +1,11 @@
 import type { Conversation, DBAgent, Message } from "./agents"
-import type { VectorStoreFile, VectorStoreFileStatus } from "./requests"
+import type { VectorStoreFile } from "./requests"
+
+type FrontEndError = string | null
 
 type CurrentAgentConversation = {
 	isLoading: boolean
-	error: string | null
+	error: FrontEndError
 	value: {
 		id: string | null
 		name: string | null
@@ -14,7 +16,7 @@ type CurrentAgentConversation = {
 
 export type AgentInfo = {
 	isLoading: boolean
-	error: string | null
+	error: FrontEndError
 	value: DBAgent | null
 }
 
@@ -25,39 +27,35 @@ export type AgentState = {
 	currentConversation: CurrentAgentConversation
 	conversations: {
 		isLoading: boolean
-		error: string | null
+		error: FrontEndError
 		value: Conversation[]
 	}
 }
 
-// Methods to modify agent state
-export type ClearConversation = () => void
-export type ChangeAgent = (newAgentId: string) => Promise<void>
-export type GetAgentInfo = () => Promise<void>
-export type LoadAgentConversation = (conversationId: string) => Promise<void>
-export type PostUserPrompt = (userPrompt: string) => Promise<void>
+/**
+ * Recursively makes all properties of an object type readonly.
+ * @link https://www.geeksforgeeks.org/typescript/how-to-create-deep-readonly-type-in-typescript/
+ */
+type DeepReadonly<T> = T extends (infer U)[]
+	? ReadonlyArray<DeepReadonly<U>>
+	: {
+			readonly [K in keyof T]: T[K] extends object
+				? DeepReadonly<T[K]>
+				: // Recursively apply DeepReadonly for nested objects
+					T[K]
+			// Otherwise, keep the original type
+		}
 
-// Vector store file methods
-export type AddConversationVectorStoreFileToState = (file: VectorStoreFile) => void
-export type RemoveConversationVectorStoreFileFromState = (fileId: string) => void
-export type AddConversationVectorStoreFiles = (files: FileList) => void
-export type UpdateConversationVectorStoreFileStatusInState = (fileId: string, status: VectorStoreFileStatus) => void
-export type GetConversationVectorStoreFiles = () => Promise<void>
-export type RemoveConversationVectorStoreFile = (fileId: string) => void
-export type DeleteConversation = (conversationId: string) => void
-export type GetConversationVectorStoreFileContent = (fileId: string) => void
+export type ReadonlyAgentState = DeepReadonly<AgentState>
 
 // Full handler type
 export type AgentStateHandler = {
-	readonly agentState: AgentState
-	clearConversation: ClearConversation
-	changeAgent: ChangeAgent
-	getAgentInfo: GetAgentInfo
-	loadAgentConversation: LoadAgentConversation
-	postUserPrompt: PostUserPrompt
-	addConversationVectorStoreFiles: AddConversationVectorStoreFiles
-	getConversationVectorStoreFiles: GetConversationVectorStoreFiles
-	getConversationVectorStoreFileContent: GetConversationVectorStoreFileContent
-	removeConversationVectorStoreFile: RemoveConversationVectorStoreFile
-	deleteConversation: DeleteConversation
+	readonly agentState: ReadonlyAgentState
+	promptAgent: (userPrompt: string) => void
+	clearCurrentConversation: () => void
+	changeAgent: (newAgentId: string) => void
+	getAgentInfo: () => void
+	getAgentConversation: (conversationId: string) => void
+	addConversationVectorStoreFiles: (files: FileList) => void
+	deleteConversationVectorStoreFile: (fileId: string) => void
 }

@@ -33,7 +33,7 @@
       {/if}
     </div>
     <div class="agent-menu-bar-right">
-      <button onclick={agentStateHandler.clearConversation}>Start ny samtale</button>
+      <button onclick={agentStateHandler.clearCurrentConversation}>Start ny samtale</button>
     </div>
   </div>
   <div class="agent-menu" class:open={menuOpen}>
@@ -69,7 +69,7 @@
       {/each}
     {/if}
   </div>
-  <AgentChatInput postUserPrompt={agentStateHandler.postUserPrompt} addConversationVectorStoreFiles={agentStateHandler.addConversationVectorStoreFiles} />
+  <AgentChatInput {agentStateHandler} />
 </div>
 
 <style>

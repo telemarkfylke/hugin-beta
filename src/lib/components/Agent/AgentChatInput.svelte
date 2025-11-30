@@ -1,6 +1,10 @@
 <script lang="ts">
-	// Get state modifying functions from props
-	let { postUserPrompt, addConversationVectorStoreFiles } = $props()
+	import type { AgentStateHandler } from "$lib/types/agent-state"
+
+	type Props = {
+		agentStateHandler: AgentStateHandler
+	}
+	let { agentStateHandler }: Props = $props()
 
 	// Internal state for this component
 	let userPrompt = $state("")
@@ -8,13 +12,13 @@
 
 	// Simple helper for posting prompt, and clearing input
 	const submitPrompt = () => {
-		postUserPrompt(userPrompt)
+		agentStateHandler.promptAgent(userPrompt)
 		userPrompt = ""
 	}
 
 	const submitFiles = () => {
 		if (files.length > 0) {
-			addConversationVectorStoreFiles(files)
+			agentStateHandler.addConversationVectorStoreFiles(files)
 			files = new DataTransfer().files // Clear files after submission
 		}
 	}

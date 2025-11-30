@@ -1,26 +1,56 @@
+import type { AgentState } from "$lib/types/agent-state"
+import type { Message } from "$lib/types/agents"
 import { GetConversationResult, GetConversationsResult } from "$lib/types/requests"
 
-export const getAgentConversations = async (agentId: string): Promise<GetConversationsResult> => {
-	if (!agentId) {
+// Internal method to update agent state with conversations, only to be used as internal function	in AgentState.svelte.ts
+export const _getAgentConversations = async (agentState: AgentState): Promise<void> => {
+	if (!agentState.agentId) {
 		throw new Error("agentId is required to fetch conversations")
 	}
-	const fetchConversationsResult = await fetch(`/api/agents/${agentId}/conversations`)
-	if (!fetchConversationsResult.ok) {
-		throw new Error(`Failed to fetch conversations: ${fetchConversationsResult.status}`)
+	agentState.conversations.isLoading = true
+	agentState.conversations.error = null
+	try {
+		const fetchConversationsResult = await fetch(`/api/agents/${agentState.agentId}/conversations`)
+		if (!fetchConversationsResult.ok) {
+			throw new Error(`Failed to fetch conversations: ${fetchConversationsResult.status}`) // Hm bad
+		}
+		const data = await fetchConversationsResult.json()
+		agentState.conversations.value = GetConversationsResult.parse(data).conversations
+	} catch (error) {
+		agentState.conversations.error = (error as Error).message
 	}
-	const data = await fetchConversationsResult.json()
-	return GetConversationsResult.parse(data)
+	agentState.conversations.isLoading = false
 }
 
-export const getAgentConversation = async (agentId: string, conversationId: string): Promise<GetConversationResult> => {
-	if (!agentId || !conversationId) {
-		throw new Error("agentId and conversationId are required to fetch conversation")
+export const _getAgentConversation = async (agentState: AgentState, conversationId: string): Promise<void> => {
+	if (!agentState.agentId) {
+		throw new Error("agentId is required to fetch conversation")
 	}
-	const fetchConversationResult = await fetch(`/api/agents/${agentId}/conversations/${conversationId}`)
-	if (!fetchConversationResult.ok) {
-		throw new Error(`Failed to fetch conversation: ${fetchConversationResult.status}`)
+	if (!conversationId) {
+		throw new Error("conversationId is required to fetch conversation")
 	}
-	const data = await fetchConversationResult.json()
-	console.log("Fetched conversation data:", data)
-	return GetConversationResult.parse(data)
+	agentState.currentConversation.isLoading = true
+	agentState.currentConversation.error = null
+	try {
+		const fetchConversationResult = await fetch(`/api/agents/${agentState.agentId}/conversations/${conversationId}`)
+		if (!fetchConversationResult.ok) {
+			throw new Error(`Failed to fetch conversation: ${fetchConversationResult.status}`)
+		}
+		const data = await fetchConversationResult.json()
+		const conversationData = GetConversationResult.parse(data)
+		// Set conversation data in state
+		agentState.currentConversation.value.id = conversationData.conversation._id
+		agentState.currentConversation.value.name = conversationData.conversation.name
+		// Map messages to the expected format
+		const messagesRecord: Record<string, Message> = {}
+		for (const message of conversationData.items) {
+			messagesRecord[message.id] = message
+		}
+		agentState.currentConversation.value.messages = messagesRecord
+		// getConversationVectorStoreFiles(agentState.agentId, conversationId, addConversationVectorStoreFileToState)
+	} catch (error) {
+		console.error("Error loading conversation:", error)
+		agentState.currentConversation.error = (error as Error).message
+	}
+	agentState.currentConversation.isLoading = false
 }

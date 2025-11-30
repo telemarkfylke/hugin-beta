@@ -17,9 +17,8 @@
   {:else}
     {#each agentStateHandler.agentState.currentConversation.value.vectorStoreFiles as vectorStoreFile}
       <div>
-        <!--Kjør en change conversation, så blir det stilig-->
         {vectorStoreFile.name} - {vectorStoreFile.status}
-        <button onclick={() => agentStateHandler.removeConversationVectorStoreFile(vectorStoreFile.id)}>SLÆTT</button>
+        <button onclick={() => agentStateHandler.deleteConversationVectorStoreFile(vectorStoreFile.id)}>SLÆTT</button>
         <a href="/api/agents/{agentStateHandler.agentState.agentId}/conversations/{agentStateHandler.agentState.currentConversation.value.id}/vectorstorefiles/{vectorStoreFile.id}">Last ned (link)</a>
       </div>
     {/each}
