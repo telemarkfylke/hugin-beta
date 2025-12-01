@@ -40,7 +40,7 @@
     <AgentInfo agentInfo={agentStateHandler.agentState.agentInfo} />
     <h3>Agentinnstillinger</h3>
     <p>Yada yada yada skriv instruksjoner eller no drit hvis det er tilgjengelig på agenten</p>
-    <h3>Filer i denne samtalen</h3>
+    <h3>Kunnskap</h3>
     <AgentConversationVectorStoreFiles {agentStateHandler} />
     <h3>Lagre som ny agent?</h3>
     <p>Skal det være lov?</p>

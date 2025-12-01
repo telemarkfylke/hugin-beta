@@ -11,8 +11,6 @@
 	let userPrompt: string = $state("")
 	let chatFiles = $state(new DataTransfer().files)
 
-	let vectorStoreFiles = $state(new DataTransfer().files)
-
 	const fileToBase64 = (file: File): Promise<string> => {
 		return new Promise((resolve, reject) => {
 			const reader = new FileReader()
@@ -95,13 +93,6 @@
 		userPrompt = ""
 	}
 
-	const submitFiles = () => {
-		if (vectorStoreFiles.length > 0) {
-			agentStateHandler.addConversationVectorStoreFiles(vectorStoreFiles)
-			vectorStoreFiles = new DataTransfer().files // Clear files after submission
-		}
-	}
-
 	// Helper function
 	const getAllowedMessageFileMimeTypes = (agentState: ReadonlyAgentState): string[] | "loading" | "error" => {
 		if (agentState.agentInfo.error) {
@@ -158,21 +149,12 @@
 						{/if}
 					{/if}
         </div>
-        <div id="vector-store-file-upload-container">
-          <span>Last opp filer til vector-store:</span>
-          <input bind:files={vectorStoreFiles} type="file" id="vector-store-file-upload" multiple accept=".png,.jpeg,.jpg,.webp,.gif,.pdf,.docx,.pptx,.epub,.csv,.txt,.md,.xlsx,image/png,image/jpeg,image/jpg,image/webp,image/gif,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/epub+zip,text/csv,text/plain,text/markdown,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" />
-          {#if vectorStoreFiles.length > 0}
-            <button type="button" onclick={submitFiles}>Last opp til vector-store ({vectorStoreFiles.length})</button>
-            <button type="reset" onclick={() => { vectorStoreFiles = new DataTransfer().files; }}>Clear Files ({vectorStoreFiles.length})</button>
-          {/if}
-        </div>
       </div>
       <div id="actions-right">
         <button type="submit">Send</button>
       </div>
     </div>
   </form>
-  {vectorStoreFiles.length}
 </div>
 
 <style>
