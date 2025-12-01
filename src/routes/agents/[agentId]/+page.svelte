@@ -33,20 +33,3 @@
 <div>
   <AgentComponent {agentId} />
 </div>
-<style>
-
-  .page-content {
-    display: flex;
-    gap: 2rem;
-    height: 100%;
-
-  }
-  .right-content {
-  flex: 1;
-  padding-left: 20px;
-  }
-pre {
-  white-space: pre-wrap;
-  word-wrap: break-word;
-  }
-</style>

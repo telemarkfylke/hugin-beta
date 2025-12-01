@@ -99,12 +99,4 @@ h2 {
   justify-content: center;
   display: flex;
   }
-  .right-content {
-  flex: 1;
-  padding-left: 20px;
-  }
-pre {
-  white-space: pre-wrap;
-  word-wrap: break-word;
-  }
 </style>
