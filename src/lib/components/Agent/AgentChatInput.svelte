@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { AgentStateHandler } from "$lib/types/agent-state"
+	import type { AgentStateHandler, ReadonlyAgentState } from "$lib/types/agent-state"
 	import type { AdvancedAgentPromptInput, AgentPrompt } from "$lib/types/requests"
 
 	type Props = {
@@ -39,9 +39,20 @@
 			userPrompt = ""
 			return
 		}
+		if (!agentStateHandler.agentState.agentInfo.value) {
+			throw new Error("Agent info value is null, cannot process files. Yet?")
+		}
 		const fileInputs: AdvancedAgentPromptInput[] = []
 		for (const file of Array.from(chatFiles)) {
 			console.log("Processing file for prompt:", file.name, file.type, file.size)
+			let fileType: "image" | "file" | null = null
+			if (agentStateHandler.agentState.agentInfo.value.allowedMimeTypes.messageFiles.includes(file.type)) {
+				fileType = "file"
+			} else if (agentStateHandler.agentState.agentInfo.value.allowedMimeTypes.messageImages.includes(file.type)) {
+				fileType = "image"
+			} else {
+				throw new Error(`File type ${file.type} of file ${file.name} is not allowed by the agent.`)
+			}
 			console.log("Converting file to base64...")
 			let base64Url: string
 			try {
@@ -52,10 +63,13 @@
 			}
 			console.log("File converted to base64.")
 			console.log(`Base64 URL: ${base64Url.substring(0, 100)}...`) // Log only the beginning for brevity
-			const filePrompt: AdvancedAgentPromptInput = {
-				type: "file", // TODO map til riktig type basert på filtype (image/file)
+			const filePrompt: AdvancedAgentPromptInput = fileType === 'file' ? {
+				type: "file",
 				fileName: file.name,
 				fileUrl: base64Url
+			} : {
+				type: "image",
+				imageUrl: base64Url
 			}
 			fileInputs.push(filePrompt)
 		}
@@ -83,6 +97,17 @@
 			agentStateHandler.addConversationVectorStoreFiles(vectorStoreFiles)
 			vectorStoreFiles = new DataTransfer().files // Clear files after submission
 		}
+	}
+
+	// Helper function
+	const getAllowedMessageFileMimeTypes = (agentState: ReadonlyAgentState): string[] | "loading" | "error" => {
+		if (agentState.agentInfo.error) {
+			return "error"
+		}
+		if (agentState.agentInfo.isLoading || !agentState.agentInfo.value) {
+			return "loading"
+		}
+		return [...agentState.agentInfo.value.allowedMimeTypes.messageFiles, ...agentState.agentInfo.value.allowedMimeTypes.messageImages]
 	}
 
 	// Some element references
@@ -114,9 +139,21 @@
       <div id="actions-left">
         <!-- WHOOOPS bruk dynamisk accept basert på agenten, og enable disable fileupload basert på agenten (https://platform.openai.com/docs/assistants/tools/file-search#supported-files), MISTRAL: PNG, JPEG, JPG, WEBP, GIF, PDF, DOCX, PPTX, EPUB, CSV, TXT, MD, XLSX --> 
         <div id="chat-file-upload-container">
-          <span>Last opp filer til chatten:</span>
-          <input bind:files={chatFiles} type="file" id="chat-file-upload" multiple accept=".png,.jpeg,.jpg,.webp,.gif,.pdf,.docx,.pptx,.epub,.csv,.txt,.md,.xlsx,image/png,image/jpeg,image/jpg,image/webp,image/gif,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/epub+zip,text/csv,text/plain,text/markdown,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" />
-          <button type="reset" onclick={() => { chatFiles = new DataTransfer().files; }}>Clear Files ({chatFiles.length})</button>
+					{#if getAllowedMessageFileMimeTypes(agentStateHandler.agentState) === "loading"}
+						 <span>Laster...</span>
+						<input type="file" disabled />
+					{:else if getAllowedMessageFileMimeTypes(agentStateHandler.agentState) === "error"}
+						<span>Feil ved lasting av tillatte filtyper: </span>
+						<input type="file" disabled />
+					{:else if getAllowedMessageFileMimeTypes(agentStateHandler.agentState).length === 0}
+						<span>Filopplasting er ikke mulig på denne agenten</span>
+					{:else}
+						<span>Last opp filer til chat:</span>
+          	<input bind:files={chatFiles} type="file" id="chat-file-upload" multiple accept={(getAllowedMessageFileMimeTypes(agentStateHandler.agentState) as string[]).join(",")} />
+						{#if chatFiles.length > 0}
+          		<button type="reset" onclick={() => { chatFiles = new DataTransfer().files; }}>Clear Files ({chatFiles.length})</button>
+						{/if}
+					{/if}
         </div>
         <div id="vector-store-file-upload-container">
           <span>Last opp filer til vector-store:</span>

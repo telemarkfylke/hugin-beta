@@ -1,4 +1,4 @@
-import type { Conversation, DBAgent, Message } from "./agents"
+import type { Agent, Conversation, Message } from "./agents"
 import type { AgentPrompt, VectorStoreFile } from "./requests"
 
 type FrontEndError = string | null
@@ -17,7 +17,7 @@ type CurrentAgentConversation = {
 export type AgentInfo = {
 	isLoading: boolean
 	error: FrontEndError
-	value: DBAgent | null
+	value: Agent | null
 }
 
 // Might be funny to add agent data and user configuration as well later?

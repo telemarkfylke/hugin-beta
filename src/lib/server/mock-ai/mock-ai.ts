@@ -1,6 +1,7 @@
 import { createSse } from "$lib/streaming.js"
 import type {
 	AddConversationFilesResult,
+	Agent,
 	AppendToConversationResult,
 	Conversation,
 	CreateConversationResult,
@@ -43,6 +44,9 @@ export const handleMockAiStream = (conversationId?: string): ReadableStream => {
 }
 
 export class MockAIAgent implements IAgent {
+	public getAgentInfo(): Agent {
+		throw new Error("Method not implemented in MockAIAgent")
+	}
 	public async createConversation(conversation: Conversation, _initialPrompt: AgentPrompt, streamResponse: boolean): Promise<CreateConversationResult> {
 		const relatedConversationId = `mock-related-conversation-${Date.now()}`
 		const vectorStoreId = null // Mock agent does not use vector store

@@ -9,7 +9,7 @@ export const getMockDb = async (): Promise<{ agents: DBAgent[]; conversations: C
 		config: {
 			type: "mock-agent",
 			instructions: "You are a mock AI agent that provides streaming mock responses for testing purposes.",
-			fileSearchEnabled: true,
+			vectorStoreEnabled: true,
 			webSearchEnabled: false
 		}
 	}

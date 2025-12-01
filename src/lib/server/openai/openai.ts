@@ -5,6 +5,7 @@ import { env } from "$env/dynamic/private"
 import { createSse } from "$lib/streaming.js"
 import type {
 	AddConversationFilesResult,
+	Agent,
 	AgentConfig,
 	AppendToConversationResult,
 	Conversation,
@@ -16,6 +17,7 @@ import type {
 } from "$lib/types/agents"
 import type { AgentPrompt, GetVectorStoreFilesResult, VectorStoreFile } from "$lib/types/requests"
 import { updateConversation } from "../agents/conversations"
+import { OPEN_AI_SUPPORTED_MESSAGE_FILE_MIME_TYPES, OPEN_AI_SUPPORTED_MESSAGE_IMAGE_MIME_TYPES, OPEN_AI_SUPPORTED_VECTOR_STORE_FILE_MIME_TYPES } from "./openai-supported-filetypes"
 import { createOpenAIVectorStore, getOpenAIVectorStoreFiles, uploadFilesToOpenAIVectorStore } from "./vector-store"
 
 export const openai = new OpenAI({
@@ -57,36 +59,6 @@ export const handleOpenAIStream = (stream: Stream<ResponseStreamEvent>, conversa
 type OpenAIResponseConfigResult = {
 	requestConfig: ResponseCreateParamsBase
 }
-
-/*
-const createMistralPromptFromAgentPrompt = (initialPrompt: AgentPrompt): ConversationInputs => {
-	if (typeof initialPrompt === "string") {
-		return initialPrompt
-	}
-	return initialPrompt.map((item) => {
-		if (item.role !== "user" && item.role !== "agent") {
-			throw new Error(`Unsupported role in advanced prompt for Mistral: ${item.role}`)
-		}
-		const inputEntry: InputEntries = {
-			role: item.role === "user" ? "user" : "assistant",
-			type: "message.input",
-			content: item.input.map((inputItem) => {
-				switch (inputItem.type) {
-					case "text":
-						return { type: "text", text: inputItem.text }
-					case "image":
-						return { type: "image_url", imageUrl: inputItem.imageUrl }
-					case "file":
-						return { type: "document_url", documentUrl: inputItem.fileUrl, documentName: inputItem.fileName }
-					default:
-						throw new Error(`Unsupported input type in advanced prompt for Mistral...`)
-				}
-			})
-		}
-		return inputEntry
-	})
-}
-*/
 
 const createOpenAIPromptFromAgentPrompt = (initialPrompt: AgentPrompt): string | ResponseInput => {
 	if (typeof initialPrompt === "string") {
@@ -142,7 +114,7 @@ const createOpenAIResponseConfig = (agentConfig: AgentConfig, openAIConversation
 		vector_store_ids: []
 	}
 	// If we have userVectorStoreId and allowed, add it to tools
-	if (agentConfig.fileSearchEnabled && userVectorStoreId) {
+	if (agentConfig.vectorStoreEnabled && userVectorStoreId) {
 		fileSearchTool.vector_store_ids.push(userVectorStoreId)
 	}
 	// If we have preconfigured vectorStoreIds in agentConfig, add them too
@@ -160,6 +132,17 @@ const createOpenAIResponseConfig = (agentConfig: AgentConfig, openAIConversation
 
 export class OpenAIAgent implements IAgent {
 	constructor(private dbAgent: DBAgent) {}
+	public getAgentInfo(): Agent {
+		// In the future, we might want to change types based on model as well.
+		return {
+			...this.dbAgent,
+			allowedMimeTypes: {
+				messageFiles: this.dbAgent.config.messageFilesEnabled ? OPEN_AI_SUPPORTED_MESSAGE_FILE_MIME_TYPES : [],
+				messageImages: this.dbAgent.config.messageFilesEnabled ? OPEN_AI_SUPPORTED_MESSAGE_IMAGE_MIME_TYPES : [],
+				vectorStoreFiles: this.dbAgent.config.vectorStoreEnabled ? OPEN_AI_SUPPORTED_VECTOR_STORE_FILE_MIME_TYPES : []
+			}
+		}
+	}
 	public async createConversation(conversation: Conversation, initialPrompt: AgentPrompt, streamResponse: boolean): Promise<CreateConversationResult> {
 		const openAIConversation = await openai.conversations.create({ metadata: { agent: this.dbAgent.name } })
 
@@ -208,7 +191,7 @@ export class OpenAIAgent implements IAgent {
 			return {
 				id: file.id,
 				name: file.filename,
-				type: "open-ai-drittfil", // todo, finn mimeType eller noe
+				type: "open-ai-drittfil", // todo, finn mimeType eller noe, den ekke der
 				bytes: file.bytes,
 				summary: null, // OpenAI gir ikke summary per nå
 				status: file.status === "completed" ? "ready" : file.status === "failed" ? "error" : "processing" // Obs, Jørgen er lat, men det går sikkert bra

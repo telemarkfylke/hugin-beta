@@ -39,7 +39,7 @@ export const POST: RequestHandler = async ({ request, params }) => {
 	}
 	const dbAgent = await getDBAgent(agentId)
 
-	if (!dbAgent.config.fileSearchEnabled) {
+	if (!dbAgent.config.vectorStoreEnabled) {
 		return json({ error: "File upload is not enabled for this agent" }, { status: 403 })
 	}
 

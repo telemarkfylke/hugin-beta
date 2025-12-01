@@ -2,6 +2,7 @@ import { type AbortableAsyncIterator, type ChatResponse, Ollama } from "ollama"
 import { createSse } from "$lib/streaming.js"
 import type {
 	AddConversationFilesResult,
+	Agent,
 	AppendToConversationResult,
 	Conversation,
 	CreateConversationResult,
@@ -98,6 +99,10 @@ const convertToOllamaMessages = (messages: Message[]): OllamaMessage[] => {
 
 export class OllamaAgent implements IAgent {
 	constructor(private dbAgent: DBAgent) {}
+
+	public getAgentInfo(): Agent {
+		throw new Error("Method not implemented in OllamaAgent")
+	}
 
 	public async createConversation(conversation: Conversation, initialPrompt: AgentPrompt, streamResponse: boolean): Promise<CreateConversationResult> {
 		addMessage(initialPrompt, conversation.messages, "user", "inputText")

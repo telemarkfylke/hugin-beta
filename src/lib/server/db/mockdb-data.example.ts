@@ -20,7 +20,7 @@ export const agents: DBAgent[] = [
 			type: "mistral-conversation",
 			model: "mistral-medium-latest",
 			instructions: "You are a helpful assistant that answers in Norwegian. Always search document libraries before answering user questions.",
-			fileSearchEnabled: true,
+			vectorStoreEnabled: true,
 			webSearchEnabled: false,
 			documentLibraryIds: ["preconfigured-library-id-from-mistral"]
 		}
@@ -45,7 +45,7 @@ export const agents: DBAgent[] = [
 			type: "openai-response",
 			model: "gpt-4o",
 			instructions: "You are a helpful assistant that answers in Norwegian.",
-			fileSearchEnabled: true,
+			vectorStoreEnabled: true,
 			webSearchEnabled: false
 		}
 	}

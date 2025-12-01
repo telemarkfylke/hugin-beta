@@ -1,6 +1,6 @@
 import { json, type RequestHandler } from "@sveltejs/kit"
-import { getDBAgent } from "$lib/server/agents/agents"
-import type { DBAgent } from "$lib/types/agents"
+import { createAgent, getDBAgent } from "$lib/server/agents/agents"
+import type { Agent, DBAgent } from "$lib/types/agents"
 
 /**
  *
@@ -12,19 +12,22 @@ export const GET: RequestHandler = async ({ params }) => {
 		throw new Error("agentId is required")
 	}
 	console.log(`Fetching agent with ID ${params.agentId}`)
-	const agent: DBAgent = await getDBAgent(params.agentId)
-	if (!agent) {
+	const dbAgent: DBAgent = await getDBAgent(params.agentId)
+
+	if (!dbAgent) {
 		return json({ error: `Agent ${params.agentId} not found` }, { status: 404 })
 	}
-	// If agent has vector store or library, we want to include files as well
+	// If agent has vector store or library, we want to include files as well - this should be implemented in each agent type (interface IAgent)
 	// MOCK AI
-	if (agent.config.type === "mock-agent") {
-		if (agent.config.vectorStoreIds && agent.config.vectorStoreIds.length > 0) {
+	if (dbAgent.config.type === "mock-agent") {
+		if (dbAgent.config.vectorStoreIds && dbAgent.config.vectorStoreIds.length > 0) {
 			// Fetch files from mock AI vector store
-			// const files = await getFilesFromMockAIVectorStore(agent.config.vectorStoreIds)
+			// const files = await getFilesFromMockAIVectorStore(dbAgent.config.vectorStoreIds)
 			// agent.files = files
 		}
 	}
+
+	const agent: Agent = createAgent(dbAgent).getAgentInfo()
 
 	return json({ agent })
 }

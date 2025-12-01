@@ -11,7 +11,8 @@ export const agents: DBAgent[] = [
 			type: "mistral-conversation",
 			model: "mistral-medium-latest",
 			instructions: "You are a helpful assistant that answers in Norwegian.",
-			fileSearchEnabled: true,
+			vectorStoreEnabled: true,
+			messageFilesEnabled: true,
 			webSearchEnabled: false
 		}
 	},
@@ -22,9 +23,7 @@ export const agents: DBAgent[] = [
 		config: {
 			type: "mistral-conversation",
 			model: "mistral-medium-latest",
-			instructions: "You are a helpful assistant that answers in Swedish.",
-			fileSearchEnabled: false,
-			webSearchEnabled: false
+			instructions: "You are a helpful assistant that answers in Swedish."
 		}
 	},
 	{
@@ -35,8 +34,8 @@ export const agents: DBAgent[] = [
 			type: "openai-response",
 			model: "gpt-4o",
 			instructions: null,
-			fileSearchEnabled: true,
-			webSearchEnabled: false
+			vectorStoreEnabled: true,
+			messageFilesEnabled: true
 		}
 	},
 	{
@@ -46,9 +45,7 @@ export const agents: DBAgent[] = [
 		config: {
 			type: "openai-response",
 			model: "gpt-4o",
-			instructions: "Svar sarkastisk og kort på alt",
-			fileSearchEnabled: false,
-			webSearchEnabled: false
+			instructions: "Svar sarkastisk og kort på alt"
 		}
 	},
 	{
@@ -58,9 +55,7 @@ export const agents: DBAgent[] = [
 		config: {
 			type: "openai-response",
 			model: "gpt-4o",
-			instructions: "Svar som et nettroll i et kommentarfelt på en luguber nettside",
-			fileSearchEnabled: false,
-			webSearchEnabled: false
+			instructions: "Svar som et nettroll i et kommentarfelt på en luguber nettside"
 		}
 	},
 	{
@@ -70,9 +65,7 @@ export const agents: DBAgent[] = [
 		config: {
 			type: "ollama-response",
 			model: "gemma3",
-			instructions: "Svar veldig generelt på spessifike spørsmål",
-			fileSearchEnabled: false,
-			webSearchEnabled: false
+			instructions: "Svar veldig generelt på spessifike spørsmål"
 		}
 	}
 ]
