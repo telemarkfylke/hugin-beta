@@ -1,0 +1,73 @@
+{
+	"$schema": "https://biomejs.dev/schemas/2.3.6/schema.json",
+	"vcs": {
+		"enabled": true,
+		"clientKind": "git",
+		"useIgnoreFile": true
+	},
+	"files": {
+		"ignoreUnknown": false
+	},
+	"formatter": {
+		"enabled": true,
+		"indentStyle": "tab",
+		"indentWidth": 2,
+		"lineEnding": "auto"
+	},
+	"linter": {
+		"enabled": true,
+		"rules": {
+			"recommended": true
+		}
+	},
+	"javascript": {
+		"formatter": {
+			"quoteStyle": "double",
+			"lineWidth": 200,
+			"trailingCommas": "none",
+			"semicolons": "asNeeded"
+		}
+	},
+	"html": {
+		"formatter": {
+			"indentScriptAndStyle": true,
+			"lineWidth": 200
+		}
+	},
+	"css": {
+		"formatter": {
+			"lineWidth": 200
+		}
+	},
+	"assist": {
+		"enabled": true,
+		"actions": {
+			"source": {
+				"organizeImports": "on"
+			}
+		}
+	},
+	"overrides": [
+		{
+			"includes": [
+				"**/*.svelte",
+				"**/+page.js",
+				"**/+page.ts",
+				"**/+layout.js",
+				"**/+layout.ts"
+			],
+			"linter": {
+				"rules": {
+					"style": {
+						"useConst": "off",
+						"useImportType": "on"
+					},
+					"correctness": {
+						"noUnusedVariables": "off",
+						"noUnusedImports": "off"
+					}
+				}
+			}
+		}
+	]
+}

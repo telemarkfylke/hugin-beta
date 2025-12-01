@@ -1,4 +1,5 @@
 <script lang="ts">
+<<<<<<< HEAD
   import { page } from "$app/state";
   import AgentComponent from "$lib/components/Agent/AgentComponent.svelte";
   import SideMenu from "$lib/components/Agent/sideMenu.svelte";
@@ -18,6 +19,13 @@
     }
     return data.agents;
   };
+=======
+	import { page } from "$app/state"
+	import AgentComponent from "$lib/components/Agent/AgentComponent.svelte"
+
+	// Derive agent id from the page params (it goddamn should be string, look at where it is located...)
+	const agentId: string = $derived(page.params.agentId) as string
+>>>>>>> main
 </script>
 
 {#await getAgents() then agents}
