@@ -1,9 +1,9 @@
 <script lang="ts">
-  import type { Agent } from "$lib/types/agents";
+  import type { DBAgent } from "$lib/types/agents";
 
   
   type Props = {
-    agents?: Agent[];
+    agents?: DBAgent[];
     menuOpen?: boolean;
   };
   

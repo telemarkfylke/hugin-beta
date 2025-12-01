@@ -5,6 +5,7 @@
 	import AgentInfo from "./AgentInfo.svelte"
 	import { createAgentState } from "./AgentState.svelte.ts"
 
+
 	// Input props
 	let { agentId } = $props()
 
