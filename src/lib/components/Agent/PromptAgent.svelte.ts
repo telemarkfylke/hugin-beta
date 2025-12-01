@@ -1,10 +1,10 @@
 // Keeps track of the entire state of an agent component (async stuff are allowed here)
 import { parseSse } from "$lib/streaming.js"
 import type { AgentState } from "$lib/types/agent-state"
-import type { ConversationRequest } from "$lib/types/requests"
+import type { AgentPrompt, ConversationRequest } from "$lib/types/requests"
 import { _getAgentConversations } from "./AgentConversations.svelte.js"
 
-export const _addUserMessageToConversation = (agentState: AgentState, messageContent: string) => {
+export const _addUserMessageToConversation = (agentState: AgentState, messageContent: AgentPrompt) => {
 	agentState.currentConversation.value.messages[Date.now().toString()] = {
 		role: "user",
 		id: Date.now().toString(),
@@ -12,7 +12,7 @@ export const _addUserMessageToConversation = (agentState: AgentState, messageCon
 		type: "message",
 		content: {
 			type: "inputText",
-			text: messageContent
+			text: typeof messageContent === "string" ? messageContent : 'Det var noe annet rar content vi må fikse, sjekk PromptAgent.svelte.ts (_addUserMessageToConversation)'
 		}
 	}
 }
@@ -33,11 +33,11 @@ export const _addAgentMessageToConversation = (agentState: AgentState, messageId
 	agentState.currentConversation.value.messages[messageId].content.text += messageContent
 }
 
-export const _promptAgent = async (agentState: AgentState, userPrompt: string): Promise<void> => {
+export const _promptAgent = async (agentState: AgentState, userPrompt: AgentPrompt): Promise<void> => {
 	if (!agentState.agentId) {
 		throw new Error("Agent ID is not set")
 	}
-	if (!userPrompt || userPrompt.trim() === "") {
+	if (!userPrompt || (typeof userPrompt === "string" && userPrompt.trim() === "")) {
 		throw new Error("User prompt is empty") // or just return? Or something fancy
 	}
 	// Reset error state

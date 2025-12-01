@@ -1,11 +1,12 @@
 import OpenAI from "openai"
-import type { ResponseCreateParamsBase, ResponseStreamEvent, Tool } from "openai/resources/responses/responses"
+import type { ResponseCreateParamsBase, ResponseInput, ResponseInputContent, ResponseInputItem, ResponseStreamEvent, Tool } from "openai/resources/responses/responses"
 import type { Stream } from "openai/streaming"
 import { env } from "$env/dynamic/private"
 import { createSse } from "$lib/streaming.js"
-import type { AddConversationFilesResult, AgentConfig, AppendToConversationResult, Conversation, CreateConversationResult, DBAgent, IAgent, Message } from "$lib/types/agents"
+import type { AddConversationFilesResult, AgentConfig, AppendToConversationResult, Conversation, CreateConversationResult, DBAgent, GetConversationMessagesResult, GetConversationVectorStoreFileContentResult, IAgent, Message } from "$lib/types/agents"
 import { updateConversation } from "../agents/conversations"
-import { createOpenAIVectorStore, uploadFilesToOpenAIVectorStore } from "./vector-store"
+import { createOpenAIVectorStore, getOpenAIVectorStoreFiles, uploadFilesToOpenAIVectorStore } from "./vector-store"
+import type { AgentPrompt, GetVectorStoreFilesResult, VectorStoreFile } from "$lib/types/requests"
 
 export const openai = new OpenAI({
 	apiKey: env.OPENAI_API_KEY || "bare-en-tulle-key"
@@ -47,14 +48,71 @@ type OpenAIResponseConfigResult = {
 	requestConfig: ResponseCreateParamsBase
 }
 
-const createOpenAIResponseConfig = (agentConfig: AgentConfig, openAIConversationId: string, inputPrompt: string, userVectorStoreId: string | null): OpenAIResponseConfigResult => {
+/*
+const createMistralPromptFromAgentPrompt = (initialPrompt: AgentPrompt): ConversationInputs => {
+	if (typeof initialPrompt === "string") {
+		return initialPrompt
+	}
+	return initialPrompt.map((item) => {
+		if (item.role !== "user" && item.role !== "agent") {
+			throw new Error(`Unsupported role in advanced prompt for Mistral: ${item.role}`)
+		}
+		const inputEntry: InputEntries = {
+			role: item.role === "user" ? "user" : "assistant",
+			type: "message.input",
+			content: item.input.map((inputItem) => {
+				switch (inputItem.type) {
+					case "text":
+						return { type: "text", text: inputItem.text }
+					case "image":
+						return { type: "image_url", imageUrl: inputItem.imageUrl }
+					case "file":
+						return { type: "document_url", documentUrl: inputItem.fileUrl, documentName: inputItem.fileName }
+					default:
+						throw new Error(`Unsupported input type in advanced prompt for Mistral...`)
+				}
+			})
+		}
+		return inputEntry
+	})
+}
+*/
+
+const createOpenAIPromptFromAgentPrompt = (initialPrompt: AgentPrompt): string | ResponseInput => {
+	if (typeof initialPrompt === "string") {
+		return initialPrompt
+	}
+	
+	return initialPrompt.map((item) => {
+		const inputItem: ResponseInputItem = {
+			role: item.role === "agent" ? "assistant" : item.role,
+			type: 'message',
+			content: item.input.map((inputPart) => {
+				switch (inputPart.type) {
+					case "text":
+						return { type: 'input_text', text: inputPart.text } as ResponseInputContent
+					case "image":
+						return { type: 'input_image', image_url: inputPart.imageUrl } as ResponseInputContent
+					case "file": {
+						return { type: 'input_file', file_data: inputPart.fileUrl, filename: inputPart.fileName } as ResponseInputContent
+					}
+					default:
+						throw new Error(`Unsupported input type in advanced prompt for OpenAI...`)
+				}
+			})
+		}
+		return inputItem
+	})
+}
+
+const createOpenAIResponseConfig = (agentConfig: AgentConfig, openAIConversationId: string, inputPrompt: AgentPrompt, userVectorStoreId: string | null): OpenAIResponseConfigResult => {
 	if (agentConfig.type !== "openai-response" && agentConfig.type !== "openai-prompt") {
 		throw new Error("Invalid agent config type for OpenAI response configuration")
 	}
 	if (agentConfig.type === "openai-prompt") {
 		return {
 			requestConfig: {
-				input: inputPrompt,
+				input: createOpenAIPromptFromAgentPrompt(inputPrompt),
 				prompt: {
 					id: agentConfig.prompt.id
 				},
@@ -66,7 +124,7 @@ const createOpenAIResponseConfig = (agentConfig: AgentConfig, openAIConversation
 	const openAIResponseConfig: ResponseCreateParamsBase = {
 		model: agentConfig.model,
 		conversation: openAIConversationId,
-		input: inputPrompt,
+		input: createOpenAIPromptFromAgentPrompt(inputPrompt),
 		instructions: agentConfig.instructions || null
 	}
 	const fileSearchTool: Tool = {

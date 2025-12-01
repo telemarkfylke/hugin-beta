@@ -2,7 +2,7 @@
 // MOCK
 
 import z from "zod"
-import type { GetVectorStoreFilesResult } from "./requests"
+import type { AgentPrompt, GetVectorStoreFilesResult } from "./requests"
 
 export const BaseConfig = z.object({
 	fileSearchEnabled: z.boolean().default(false).optional(),
@@ -100,16 +100,21 @@ export type AddConversationFilesResult = {
 }
 
 export type GetConversationMessagesResult = {
-	messages: Message[] // Legg inn riktig type senere
+	messages: Message[] // Legg inn riktig type senere (er ikke dette riktig da?)
+}
+
+export type GetConversationVectorStoreFileContentResult = {
+	redirectUrl?: string,
+	content?: Response
 }
 
 // AGENT INTERFACE
 export interface IAgent {
-	createConversation: (conversation: Conversation, initialPrompt: string, streamResponse: boolean) => Promise<CreateConversationResult>
-	appendMessageToConversation: (conversation: Conversation, prompt: string, streamResponse: boolean) => Promise<AppendToConversationResult>
+	createConversation: (conversation: Conversation, initialPrompt: AgentPrompt, streamResponse: boolean) => Promise<CreateConversationResult>
+	appendMessageToConversation: (conversation: Conversation, prompt: AgentPrompt, streamResponse: boolean) => Promise<AppendToConversationResult>
 	addConversationVectorStoreFiles: (conversation: Conversation, files: File[], streamResponse: boolean) => Promise<AddConversationFilesResult>
 	getConversationVectorStoreFiles: (conversation: Conversation) => Promise<GetVectorStoreFilesResult>
-	getConversationVectorStoreFileContent: (conversation: Conversation, fileId: string) => Promise<string | unknown>
+	getConversationVectorStoreFileContent: (conversation: Conversation, fileId: string) => Promise<GetConversationVectorStoreFileContentResult>
 	deleteConversationVectorStoreFile: (conversation: Conversation, fileId: string) => Promise<void>
 	getConversationMessages: (conversation: Conversation) => Promise<GetConversationMessagesResult>
 }

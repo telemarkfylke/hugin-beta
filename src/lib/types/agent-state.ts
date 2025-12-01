@@ -1,5 +1,5 @@
 import type { Conversation, DBAgent, Message } from "./agents"
-import type { VectorStoreFile } from "./requests"
+import type { AgentPrompt, VectorStoreFile } from "./requests"
 
 type FrontEndError = string | null
 
@@ -51,7 +51,7 @@ export type ReadonlyAgentState = DeepReadonly<AgentState>
 // Full handler type
 export type AgentStateHandler = {
 	readonly agentState: ReadonlyAgentState
-	promptAgent: (userPrompt: string) => void
+	promptAgent: (userPrompt: AgentPrompt) => void
 	clearCurrentConversation: () => void
 	changeAgent: (newAgentId: string) => void
 	getAgentInfo: () => void

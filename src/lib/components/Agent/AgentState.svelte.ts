@@ -1,6 +1,7 @@
 // Keeps track of the entire state of an agent component (async stuff are allowed here)
 import type { AgentState, AgentStateHandler, ReadonlyAgentState } from "$lib/types/agent-state"
 import type { DBAgent } from "$lib/types/agents.js"
+import type { AgentPrompt } from "$lib/types/requests.js"
 import { _getAgentConversation, _getAgentConversations } from "./AgentConversations.svelte.js"
 import { _addConversationVectorStoreFiles, _deleteConversationVectorStoreFile } from "./AgentConversationVectorStoreFiles.svelte.js"
 import { _promptAgent } from "./PromptAgent.svelte.js"
@@ -74,7 +75,7 @@ export const createAgentState = (): AgentStateHandler => {
 		get agentState() {
 			return agentState as ReadonlyAgentState // Should only be mutated via the handler methods
 		},
-		promptAgent: (userPrompt: string) => _promptAgent(agentState, userPrompt),
+		promptAgent: (userPrompt: AgentPrompt) => _promptAgent(agentState, userPrompt),
 		changeAgent: (newAgentId: string): void => {
 			if (!newAgentId) {
 				throw new Error("newAgentId is required to change agent")
