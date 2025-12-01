@@ -7,10 +7,12 @@ import type {
 	CreateConversationResult,
 	DBAgent,
 	GetConversationMessagesResult,
+	GetConversationVectorStoreFileContentResult,
 	IAgent,
 	Message,
 	OllamaAIResponseConfig
 } from "$lib/types/agents"
+import type { AgentPrompt, GetVectorStoreFilesResult } from "$lib/types/requests"
 
 type OllamaResponse = ChatResponse | AbortableAsyncIterator<ChatResponse>
 const ollama = new Ollama({ host: "http://127.0.0.1:11434" })
@@ -48,9 +50,12 @@ type OllamaMessage = {
 	content: string
 }
 
-const addMessage = (prompt: string, messages: Message[], originator: "user" | "agent", contentType: "inputText" | "outputText") => {
+const addMessage = (prompt: AgentPrompt, messages: Message[], originator: "user" | "agent", contentType: "inputText" | "outputText") => {
 	if (!messages) {
 		messages = []
+	}
+	if (typeof prompt !== "string") {
+		throw new Error("Only string prompts are supported for OllamaAgent for now")
 	}
 	const msg: Message = {
 		id: crypto.randomUUID(),
@@ -94,7 +99,7 @@ const convertToOllamaMessages = (messages: Message[]): OllamaMessage[] => {
 export class OllamaAgent implements IAgent {
 	constructor(private dbAgent: DBAgent) {}
 
-	public async createConversation(conversation: Conversation, initialPrompt: string, streamResponse: boolean): Promise<CreateConversationResult> {
+	public async createConversation(conversation: Conversation, initialPrompt: AgentPrompt, streamResponse: boolean): Promise<CreateConversationResult> {
 		addMessage(initialPrompt, conversation.messages, "user", "inputText")
 		const ollamaResponse = await makeOllamaInstance(this.dbAgent.config as OllamaAIResponseConfig, convertToOllamaMessages(conversation.messages), streamResponse)
 		if (streamResponse) {
@@ -107,7 +112,7 @@ export class OllamaAgent implements IAgent {
 		throw new Error("Non-streaming Ollama conversation creation is not yet implemented")
 	}
 
-	public async appendMessageToConversation(conversation: Conversation, prompt: string, streamResponse: boolean): Promise<AppendToConversationResult> {
+	public async appendMessageToConversation(conversation: Conversation, prompt: AgentPrompt, streamResponse: boolean): Promise<AppendToConversationResult> {
 		addMessage(prompt, conversation.messages, "user", "inputText")
 		const ollamaResponse = await makeOllamaInstance(this.dbAgent.config as OllamaAIResponseConfig, convertToOllamaMessages(conversation.messages), streamResponse)
 		if (streamResponse) {
@@ -119,6 +124,15 @@ export class OllamaAgent implements IAgent {
 	}
 	public async addConversationVectorStoreFiles(_conversation: Conversation, _files: File[], _streamResponse: boolean): Promise<AddConversationFilesResult> {
 		throw new Error("Conversation does not have a vector store associated, cannot add files")
+	}
+	public async getConversationVectorStoreFiles(_conversation: Conversation): Promise<GetVectorStoreFilesResult> {
+		throw new Error("Method not implemented in MockAIAgent")
+	}
+	public async getConversationVectorStoreFileContent(_conversation: Conversation, _fileId: string): Promise<GetConversationVectorStoreFileContentResult> {
+		throw new Error("Method not implemented in MockAIAgent")
+	}
+	public async deleteConversationVectorStoreFile(_conversation: Conversation, _fileId: string): Promise<void> {
+		throw new Error("Method not implemented in MockAIAgent")
 	}
 
 	public async getConversationMessages(conversation: Conversation): Promise<GetConversationMessagesResult> {
