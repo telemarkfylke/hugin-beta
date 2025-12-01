@@ -6,16 +6,16 @@
 	}
 	let { agentStateHandler }: Props = $props()
 
-  let vectorStoreFiles = $state(new DataTransfer().files)
+	let vectorStoreFiles = $state(new DataTransfer().files)
 
-  const submitFiles = () => {
+	const submitFiles = () => {
 		if (vectorStoreFiles.length > 0) {
 			agentStateHandler.addConversationVectorStoreFiles(vectorStoreFiles)
 			vectorStoreFiles = new DataTransfer().files // Clear files after submission
 		}
 	}
 
-  // Helper function
+	// Helper function
 	const getAllowedVectorStoreFileMimeTypes = (agentState: ReadonlyAgentState): string[] | "loading" | "error" => {
 		if (agentState.agentInfo.error) {
 			return "error"
