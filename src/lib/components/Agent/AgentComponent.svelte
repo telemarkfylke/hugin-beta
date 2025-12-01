@@ -18,15 +18,9 @@
 	})
 
 	let menuOpen = $state(false)
-
-<<<<<<< HEAD
-
-
-=======
-	const toggleMenu = () => {
-		menuOpen = !menuOpen
-	}
->>>>>>> main
+  const toggleMenu = () => {
+    menuOpen = !menuOpen
+  }
 </script>
 
 <div class="agent-container">
