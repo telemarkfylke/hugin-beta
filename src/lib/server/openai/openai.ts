@@ -150,17 +150,7 @@ const createOpenAIResponseConfig = (agentConfig: AgentConfig, openAIConversation
 
 export class OpenAIAgent implements IAgent {
 	constructor(private dbAgent: DBAgent) {}
-	public async appendMessageToConversation(conversation: Conversation, prompt: string, streamResponse: boolean): Promise<AppendToConversationResult> {
-		const { requestConfig } = createOpenAIResponseConfig(this.dbAgent.config, conversation.relatedConversationId, prompt, conversation.vectorStoreId || null)
-		if (streamResponse) {
-			const responseStream = await openai.responses.create({ ...requestConfig, stream: true })
-			return {
-				response: handleOpenAIStream(responseStream)
-			}
-		}
-		throw new Error("Non-streaming append message not implemented yet")
-	}
-	public async createConversation(conversation: Conversation, initialPrompt: string, streamResponse: boolean): Promise<CreateConversationResult> {
+	public async createConversation(conversation: Conversation, initialPrompt: AgentPrompt, streamResponse: boolean): Promise<CreateConversationResult> {
 		const openAIConversation = await openai.conversations.create({ metadata: { agent: this.dbAgent.name } })
 
 		const { requestConfig } = createOpenAIResponseConfig(this.dbAgent.config, openAIConversation.id, initialPrompt, null)
@@ -174,6 +164,18 @@ export class OpenAIAgent implements IAgent {
 		}
 		throw new Error("Non-streaming create conversation not implemented yet")
 	}
+
+	public async appendMessageToConversation(conversation: Conversation, prompt: AgentPrompt, streamResponse: boolean): Promise<AppendToConversationResult> {
+		const { requestConfig } = createOpenAIResponseConfig(this.dbAgent.config, conversation.relatedConversationId, prompt, conversation.vectorStoreId || null)
+		if (streamResponse) {
+			const responseStream = await openai.responses.create({ ...requestConfig, stream: true })
+			return {
+				response: handleOpenAIStream(responseStream)
+			}
+		}
+		throw new Error("Non-streaming append message not implemented yet")
+	}
+
 	public async addConversationVectorStoreFiles(conversation: Conversation, files: File[], streamResponse: boolean): Promise<AddConversationFilesResult> {
 		let vectorStoreId = conversation.vectorStoreId
 		if (!vectorStoreId) {
@@ -186,6 +188,41 @@ export class OpenAIAgent implements IAgent {
 		}
 		throw new Error("Non-streaming add conversation files not implemented yet")
 	}
+	public async getConversationVectorStoreFiles(conversation: Conversation): Promise<GetVectorStoreFilesResult> {
+		// Hent filer fra OpenAI vector store her
+		if (!conversation.vectorStoreId) {
+			throw new Error("Conversation has no vector store associated, cannot get files")
+		}
+		const filesList = await getOpenAIVectorStoreFiles(conversation.vectorStoreId)
+		const files: VectorStoreFile[] = filesList.map(file => {
+			return {
+				id: file.id,
+				name: file.filename,
+				type: 'open-ai-drittfil', // todo, finn mimeType eller noe
+				bytes: file.bytes,
+				summary: null, // OpenAI gir ikke summary per nå
+				status: file.status === 'completed' ? 'ready' : file.status === 'failed' ? 'error' : 'processing' // Obs, Jørgen er lat, men det går sikkert bra
+			}
+		})
+		return { files }
+	}
+
+	public async getConversationVectorStoreFileContent(conversation: Conversation, _fileId: string): Promise<GetConversationVectorStoreFileContentResult> {
+		// Hent filinnhold fra OpenAI her
+		if (!conversation.vectorStoreId) {
+			throw new Error("Conversation has no vector store associated, cannot get file content")
+		}
+		throw new Error("Get conversation vector store file content is not supported by OpenAI API. Gotta solve this differently.")
+	}
+
+	public async deleteConversationVectorStoreFile(conversation: Conversation, fileId: string): Promise<void> {
+		if (!conversation.vectorStoreId) {
+			throw new Error("Conversation has no vector store associated, cannot delete file")
+		}
+		const response = await openai.files.delete(fileId)
+		console.log("Delete file response from OpenAI:", response)
+	}
+
 	public async getConversationMessages(conversation: Conversation): Promise<{ messages: Message[] }> {
 		const conversationItems = await openai.conversations.items.list(conversation.relatedConversationId, { limit: 50, order: "desc" })
 		// Vi tar først bare de som er message, og mapper de om til Message type vårt system bruker

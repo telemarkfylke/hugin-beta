@@ -1,6 +1,7 @@
 import type { AgentState } from "$lib/types/agent-state"
 import type { Message } from "$lib/types/agents"
 import { GetConversationResult, GetConversationsResult } from "$lib/types/requests"
+import { _getConversationVectorStoreFiles } from "./AgentConversationVectorStoreFiles.svelte.js"
 
 // Internal method to update agent state with conversations, only to be used as internal function	in AgentState.svelte.ts
 export const _getAgentConversations = async (agentState: AgentState): Promise<void> => {
@@ -47,7 +48,7 @@ export const _getAgentConversation = async (agentState: AgentState, conversation
 			messagesRecord[message.id] = message
 		}
 		agentState.currentConversation.value.messages = messagesRecord
-		// getConversationVectorStoreFiles(agentState.agentId, conversationId, addConversationVectorStoreFileToState)
+		_getConversationVectorStoreFiles(agentState)
 	} catch (error) {
 		console.error("Error loading conversation:", error)
 		agentState.currentConversation.error = (error as Error).message

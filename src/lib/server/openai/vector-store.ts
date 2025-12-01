@@ -1,4 +1,5 @@
 import { createSse } from "$lib/streaming.js"
+import { APIError } from "openai"
 import { openai } from "./openai.js"
 
 export const createOpenAIVectorStore = async (conversationId: string): Promise<string> => {
@@ -80,4 +81,27 @@ export const uploadFilesToOpenAIVectorStore = async (conversationId: string, vec
 	}
 
 	throw new Error("Regular upload not implemented yet")
+}
+
+export const getOpenAIVectorStoreFiles = async (vectorStoreId: string) => {
+	// Må først hente liste over filer i vector store fra OpenAI, deretter hente filinformasjon fra files i openai
+	const vectorStoreFiles = await openai.vectorStores.files.list(vectorStoreId, { limit: 100 })
+
+	// Så henter vi filinformasjon for hver fil
+	const getFilePromises = vectorStoreFiles.data.map(async (vsFile) => {
+		try {
+			const fileInfo = await openai.files.retrieve(vsFile.id)
+			return {
+				...fileInfo,
+				status: vsFile.status
+			}
+		} catch (error) {
+			if (error instanceof APIError && error.status === 404) {
+				console.warn(`File with id ${vsFile.id} not found in OpenAI files. Probably deleted, returning null`)
+				return null
+			}
+			throw error
+		}
+	})
+	return (await Promise.all(getFilePromises)).filter(file => file !== null)
 }
