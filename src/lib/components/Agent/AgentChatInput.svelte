@@ -56,7 +56,7 @@
       </div>
     </div>
   </form>
-  {files.length}
+  <!--{files.length}--> 
 </div>
 
 <style>
@@ -85,7 +85,7 @@
     margin-top: 10px;
     margin-right: 10px;
     padding: 8px 12px;
-    background-color: #B2CBCF;
+    background-color: #E7F2F3;
     color: #333;
     border: 1px solid #ccc;
     border-radius: 5px;
@@ -97,7 +97,7 @@
   }
   input[type="file"]::file-selector-button {
     padding: 8px 12px;
-    background-color: #B2CBCF;
+    background-color: #E7F2F3;
     color: #333;
     margin-left: 80px;
     border: 1px solid #ccc;
@@ -111,7 +111,7 @@
 }
 
 input[type="file"]::file-selector-button:hover {
-        background: #CCDCDF;
+    background: #CCDCDF;
     border-color: #666;
 }
 
@@ -129,10 +129,10 @@ input[type="file"]::file-selector-button:hover {
     height: 40px;
     width: 40px;
     padding: 0 12px;
-    background-color: #B2CBCF;
+    background-color: #E7F2F3;
     color: #333;
     border: 1px solid #555;
-    border-radius: 5px;
+    border-radius: 10px;
     font-size: 0.9rem;
     font-weight: 500;
     cursor: pointer;

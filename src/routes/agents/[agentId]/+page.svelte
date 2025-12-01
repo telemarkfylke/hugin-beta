@@ -33,7 +33,6 @@
 <div style="height: 100%; box-sizing: border-box; padding: 2rem 0rem;">
   <AgentComponent {agentId} />
 </div>
-
 <style>
 
   .page-content {

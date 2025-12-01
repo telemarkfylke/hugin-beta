@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { Agent } from "$lib/types/agents";
+
   
   type Props = {
     agents?: Agent[];
@@ -49,7 +50,7 @@
   border-radius: 5px;
   flex-shrink: 0;
   z-index: 10;
-  background-color:#E7F2F3;
+  background-color:#D2E2E2;
   box-shadow: 0 2px 4px rgba(44, 44, 44, 0.25);
   color: #333;
   transition: left 0.3s;
@@ -85,7 +86,7 @@
   cursor: pointer;
   width: 40px;
   height: 40px;
-  background-color: #B2CBCF;
+  background-color: #E7F2F3;
   box-shadow: 0 2px 4px rgba(44, 44, 44, 0.25);
   transition: background 0.2s, color 0.2s;
 }

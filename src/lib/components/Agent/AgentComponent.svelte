@@ -72,22 +72,36 @@
     {/if}
   </div>
 </div>
-<AgentChatInput postUserPrompt={agentStateHandler.postUserPrompt} addKnowledgeFilesToConversation={agentStateHandler.addKnowledgeFilesToConversation} />
+<div class="chat-input-container">
+  <AgentChatInput postUserPrompt={agentStateHandler.postUserPrompt} addKnowledgeFilesToConversation={agentStateHandler.addKnowledgeFilesToConversation} />
+</div>
 
 <style>
   .agent-container {
     box-sizing: border-box; /* Include padding and border in total size, to avoid overflow */
     display: flex;
     flex-direction: column;
-    height: 580px;
+    height: calc(90vh - 45px - 120px); /* Trekk fra header + plass til input */
+    max-height: calc(90vh - 45px - 120px);
     width: 1000px;
     margin: 0 auto;
     color: #333;
     margin-top: 10px;
     font-size: 18px;
     z-index: 50;
-
+    overflow: hidden;
   }
+
+  .chat-input-container {
+    position: fixed;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 1000px;
+    padding: 10px 0;
+    z-index: 100;
+  }
+
   .agent-menu-bar {
     display: flex;
     justify-content: space-between;
@@ -109,7 +123,7 @@
     border-radius: 5px;
     font-size: 0.9rem;
     font-weight: 500;
-    background-color: #B2CBCF;
+    background-color: #E7F2F3;
     cursor: pointer;
     color: #333;
     height: 40px;
@@ -139,7 +153,7 @@
     cursor: pointer;
     width: 40px;
     height: 40px;
-    background-color: #B2CBCF;
+    background-color: #E7F2F3;
     box-shadow: 0 2px 4px rgba(44, 44, 44, 0.25);
     transition: background 0.2s, color 0.2s;
   }
