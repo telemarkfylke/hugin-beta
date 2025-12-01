@@ -106,7 +106,7 @@ export const _addConversationVectorStoreFiles = async (agentState: AgentState, f
 							id: fileId,
 							name: fileName,
 							type: "unknown", // Type and size are unknown at this point, need to return it somehow from backend
-							size: 0, // Size is unknown at this point, need to return it somehow from backend
+							bytes: 0, // Size is unknown at this point, need to return it somehow from backend
 							summary: null,
 							status: "processing"
 						}
