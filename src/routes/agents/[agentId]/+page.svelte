@@ -30,7 +30,7 @@
   </div>
 {/await}
 
-<div style="height: 100%; box-sizing: border-box; padding: 2rem 0rem;">
+<div>
   <AgentComponent {agentId} />
 </div>
 <style>
