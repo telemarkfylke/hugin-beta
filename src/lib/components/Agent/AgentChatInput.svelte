@@ -63,14 +63,17 @@
 			}
 			console.log("File converted to base64.")
 			console.log(`Base64 URL: ${base64Url.substring(0, 100)}...`) // Log only the beginning for brevity
-			const filePrompt: AdvancedAgentPromptInput = fileType === 'file' ? {
-				type: "file",
-				fileName: file.name,
-				fileUrl: base64Url
-			} : {
-				type: "image",
-				imageUrl: base64Url
-			}
+			const filePrompt: AdvancedAgentPromptInput =
+				fileType === "file"
+					? {
+							type: "file",
+							fileName: file.name,
+							fileUrl: base64Url
+						}
+					: {
+							type: "image",
+							imageUrl: base64Url
+						}
 			fileInputs.push(filePrompt)
 		}
 		const combinedPrompt: AgentPrompt = JSON.parse(
