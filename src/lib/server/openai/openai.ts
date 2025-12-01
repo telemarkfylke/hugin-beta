@@ -219,8 +219,17 @@ export class OpenAIAgent implements IAgent {
 		if (!conversation.vectorStoreId) {
 			throw new Error("Conversation has no vector store associated, cannot delete file")
 		}
-		const response = await openai.files.delete(fileId)
-		console.log("Delete file response from OpenAI:", response)
+		// First delete from vector store - OpenAI says that deleting the file will also remove it from vector store, but that is not the case (https://platform.openai.com/docs/api-reference/files/delete)
+		const deleteFromVectorStore = await openai.vectorStores.files.delete(fileId, { vector_store_id: conversation.vectorStoreId })
+		console.log("Delete from vector store response:", deleteFromVectorStore)
+		if (!deleteFromVectorStore.deleted) {
+			throw new Error(`Failed to delete file ${fileId} from OpenAI vector store ${conversation.vectorStoreId}`)
+		}
+		const deleteFileResponse = await openai.files.delete(fileId)
+		console.log("Delete file response:", deleteFileResponse)
+		if (!deleteFileResponse.deleted) {
+			throw new Error(`Failed to delete file ${fileId} from OpenAI files`)
+		}
 	}
 
 	public async getConversationMessages(conversation: Conversation): Promise<{ messages: Message[] }> {
