@@ -104,7 +104,7 @@ export type GetConversationMessagesResult = {
 }
 
 export type GetConversationVectorStoreFileContentResult = {
-	redirectUrl?: string,
+	redirectUrl?: string
 	content?: Response
 }
 

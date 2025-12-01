@@ -1,5 +1,5 @@
-import { createSse } from "$lib/streaming.js"
 import { APIError } from "openai"
+import { createSse } from "$lib/streaming.js"
 import { openai } from "./openai.js"
 
 export const createOpenAIVectorStore = async (conversationId: string): Promise<string> => {
@@ -103,5 +103,5 @@ export const getOpenAIVectorStoreFiles = async (vectorStoreId: string) => {
 			throw error
 		}
 	})
-	return (await Promise.all(getFilePromises)).filter(file => file !== null)
+	return (await Promise.all(getFilePromises)).filter((file) => file !== null)
 }

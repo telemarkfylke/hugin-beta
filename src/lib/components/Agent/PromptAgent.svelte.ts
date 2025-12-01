@@ -12,7 +12,7 @@ export const _addUserMessageToConversation = (agentState: AgentState, messageCon
 		type: "message",
 		content: {
 			type: "inputText",
-			text: typeof messageContent === "string" ? messageContent : 'Det var noe annet rar content vi må fikse, sjekk PromptAgent.svelte.ts (_addUserMessageToConversation)'
+			text: typeof messageContent === "string" ? messageContent : "Det var noe annet rar content vi må fikse, sjekk PromptAgent.svelte.ts (_addUserMessageToConversation)"
 		}
 	}
 }

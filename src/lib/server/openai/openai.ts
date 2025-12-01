@@ -3,10 +3,20 @@ import type { ResponseCreateParamsBase, ResponseInput, ResponseInputContent, Res
 import type { Stream } from "openai/streaming"
 import { env } from "$env/dynamic/private"
 import { createSse } from "$lib/streaming.js"
-import type { AddConversationFilesResult, AgentConfig, AppendToConversationResult, Conversation, CreateConversationResult, DBAgent, GetConversationMessagesResult, GetConversationVectorStoreFileContentResult, IAgent, Message } from "$lib/types/agents"
+import type {
+	AddConversationFilesResult,
+	AgentConfig,
+	AppendToConversationResult,
+	Conversation,
+	CreateConversationResult,
+	DBAgent,
+	GetConversationVectorStoreFileContentResult,
+	IAgent,
+	Message
+} from "$lib/types/agents"
+import type { AgentPrompt, GetVectorStoreFilesResult, VectorStoreFile } from "$lib/types/requests"
 import { updateConversation } from "../agents/conversations"
 import { createOpenAIVectorStore, getOpenAIVectorStoreFiles, uploadFilesToOpenAIVectorStore } from "./vector-store"
-import type { AgentPrompt, GetVectorStoreFilesResult, VectorStoreFile } from "$lib/types/requests"
 
 export const openai = new OpenAI({
 	apiKey: env.OPENAI_API_KEY || "bare-en-tulle-key"
@@ -82,19 +92,19 @@ const createOpenAIPromptFromAgentPrompt = (initialPrompt: AgentPrompt): string |
 	if (typeof initialPrompt === "string") {
 		return initialPrompt
 	}
-	
+
 	return initialPrompt.map((item) => {
 		const inputItem: ResponseInputItem = {
 			role: item.role === "agent" ? "assistant" : item.role,
-			type: 'message',
+			type: "message",
 			content: item.input.map((inputPart) => {
 				switch (inputPart.type) {
 					case "text":
-						return { type: 'input_text', text: inputPart.text } as ResponseInputContent
+						return { type: "input_text", text: inputPart.text } as ResponseInputContent
 					case "image":
-						return { type: 'input_image', image_url: inputPart.imageUrl } as ResponseInputContent
+						return { type: "input_image", image_url: inputPart.imageUrl } as ResponseInputContent
 					case "file": {
-						return { type: 'input_file', file_data: inputPart.fileUrl, filename: inputPart.fileName } as ResponseInputContent
+						return { type: "input_file", file_data: inputPart.fileUrl, filename: inputPart.fileName } as ResponseInputContent
 					}
 					default:
 						throw new Error(`Unsupported input type in advanced prompt for OpenAI...`)
@@ -194,14 +204,14 @@ export class OpenAIAgent implements IAgent {
 			throw new Error("Conversation has no vector store associated, cannot get files")
 		}
 		const filesList = await getOpenAIVectorStoreFiles(conversation.vectorStoreId)
-		const files: VectorStoreFile[] = filesList.map(file => {
+		const files: VectorStoreFile[] = filesList.map((file) => {
 			return {
 				id: file.id,
 				name: file.filename,
-				type: 'open-ai-drittfil', // todo, finn mimeType eller noe
+				type: "open-ai-drittfil", // todo, finn mimeType eller noe
 				bytes: file.bytes,
 				summary: null, // OpenAI gir ikke summary per nå
-				status: file.status === 'completed' ? 'ready' : file.status === 'failed' ? 'error' : 'processing' // Obs, Jørgen er lat, men det går sikkert bra
+				status: file.status === "completed" ? "ready" : file.status === "failed" ? "error" : "processing" // Obs, Jørgen er lat, men det går sikkert bra
 			}
 		})
 		return { files }

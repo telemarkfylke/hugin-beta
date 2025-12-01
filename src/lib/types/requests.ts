@@ -31,9 +31,7 @@ export const AdvancedAgentPrompt = z.object({
 
 export type AdvancedAgentPrompt = z.infer<typeof AdvancedAgentPrompt>
 
-export const AgentPrompt = z.string().min(1, "Prompt cannot be empty").or(
-	z.array(AdvancedAgentPrompt).min(1, "At least one prompt is required")
-)
+export const AgentPrompt = z.string().min(1, "Prompt cannot be empty").or(z.array(AdvancedAgentPrompt).min(1, "At least one prompt is required"))
 
 export type AgentPrompt = z.infer<typeof AgentPrompt>
 

@@ -1,9 +1,9 @@
+import { writeFileSync } from "node:fs"
 import { Mistral } from "@mistralai/mistralai"
 import type { EventStream } from "@mistralai/mistralai/lib/event-streams"
 import type { ConversationInputs, ConversationRequest, DocumentLibraryTool, InputEntries, MessageInputEntry, MessageOutputEntry } from "@mistralai/mistralai/models/components"
 import type { ConversationEvents } from "@mistralai/mistralai/models/components/conversationevents"
 import { env } from "$env/dynamic/private"
-import { writeFileSync } from "node:fs"
 import { createSse } from "$lib/streaming.js"
 import type {
 	AddConversationFilesResult,
@@ -125,7 +125,7 @@ const createMistralConversationConfig = async (agentConfig: AgentConfig, initial
 	}
 	// Now we know it's type mistral-conversation
 	// If we fileSearchEnabled, we need to create a library for the user to upload files to
-	
+
 	const mistralConversationConfig: ConversationRequest = {
 		model: agentConfig.model,
 		inputs: mistralPrompt,

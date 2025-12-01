@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { AgentStateHandler } from "$lib/types/agent-state"
-  import { AdvancedAgentPromptInput, type AgentPrompt } from "$lib/types/requests"
+	import type { AdvancedAgentPromptInput, AgentPrompt } from "$lib/types/requests"
 
 	type Props = {
 		agentStateHandler: AgentStateHandler
@@ -9,70 +9,73 @@
 
 	// Internal state for this component
 	let userPrompt: string = $state("")
-  let chatFiles = $state(new DataTransfer().files)
+	let chatFiles = $state(new DataTransfer().files)
 
 	let vectorStoreFiles = $state(new DataTransfer().files)
 
-  const fileToBase64 = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = () => {
-        if (typeof reader.result === 'string') {
-          resolve(reader.result);
-        } else {
-          reject(new Error('Failed to convert file to Base64'));
-        }
-      };
-      reader.onerror = (error) => reject(error);
-    });
-  }
+	const fileToBase64 = (file: File): Promise<string> => {
+		return new Promise((resolve, reject) => {
+			const reader = new FileReader()
+			reader.readAsDataURL(file)
+			reader.onload = () => {
+				if (typeof reader.result === "string") {
+					resolve(reader.result)
+				} else {
+					reject(new Error("Failed to convert file to Base64"))
+				}
+			}
+			reader.onerror = (error) => reject(error)
+		})
+	}
 
 	// Simple helper for posting prompt, and clearing input
 	const submitPrompt = async (): Promise<void> => {
-    if (userPrompt.trim() === "") {
-      return // Do not submit empty prompts
-    }
-    if (chatFiles.length === 0) { // No files, simple prompt, just send as string
-      agentStateHandler.promptAgent(userPrompt)
-		  userPrompt = ""
-      return
-    }
-    const fileInputs: AdvancedAgentPromptInput[] = []
-    for (const file of Array.from(chatFiles)) {
-      console.log("Processing file for prompt:", file.name, file.type, file.size)
-      console.log("Converting file to base64...")
-      let base64Url: string
-      try {
-        base64Url = await fileToBase64(file)
-      } catch (error) {
-        console.error("Error converting file to base64:", error)
-        throw error
-      }
-      console.log("File converted to base64.")
-      console.log("Base64 URL:", base64Url.substring(0, 100) + "...") // Log only the beginning for brevity
-      const filePrompt: AdvancedAgentPromptInput = {
-        type: "file", // TODO map til riktig type basert på filtype (image/file)
-        fileName: file.name,
-        fileUrl: base64Url
-      }
-      fileInputs.push(filePrompt)
-    }
-    const combinedPrompt: AgentPrompt = JSON.parse(JSON.stringify([
-      {
-        role: "user",
-        input: [
-          ...fileInputs,
-          {
-            type: "text",
-            text: userPrompt
-          }
-        ]
-      }
-    ]))
-    agentStateHandler.promptAgent(combinedPrompt)
-    chatFiles = new DataTransfer().files // Clear chat files after submission
-    userPrompt = ""
+		if (userPrompt.trim() === "") {
+			return // Do not submit empty prompts
+		}
+		if (chatFiles.length === 0) {
+			// No files, simple prompt, just send as string
+			agentStateHandler.promptAgent(userPrompt)
+			userPrompt = ""
+			return
+		}
+		const fileInputs: AdvancedAgentPromptInput[] = []
+		for (const file of Array.from(chatFiles)) {
+			console.log("Processing file for prompt:", file.name, file.type, file.size)
+			console.log("Converting file to base64...")
+			let base64Url: string
+			try {
+				base64Url = await fileToBase64(file)
+			} catch (error) {
+				console.error("Error converting file to base64:", error)
+				throw error
+			}
+			console.log("File converted to base64.")
+			console.log(`Base64 URL: ${base64Url.substring(0, 100)}...`) // Log only the beginning for brevity
+			const filePrompt: AdvancedAgentPromptInput = {
+				type: "file", // TODO map til riktig type basert på filtype (image/file)
+				fileName: file.name,
+				fileUrl: base64Url
+			}
+			fileInputs.push(filePrompt)
+		}
+		const combinedPrompt: AgentPrompt = JSON.parse(
+			JSON.stringify([
+				{
+					role: "user",
+					input: [
+						...fileInputs,
+						{
+							type: "text",
+							text: userPrompt
+						}
+					]
+				}
+			])
+		)
+		agentStateHandler.promptAgent(combinedPrompt)
+		chatFiles = new DataTransfer().files // Clear chat files after submission
+		userPrompt = ""
 	}
 
 	const submitFiles = () => {
