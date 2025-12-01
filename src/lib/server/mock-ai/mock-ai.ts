@@ -1,5 +1,15 @@
 import { createSse } from "$lib/streaming.js"
-import type { AddConversationFilesResult, AppendToConversationResult, Conversation, CreateConversationResult, GetConversationMessagesResult, IAgent, Message } from "$lib/types/agents"
+import type {
+	AddConversationFilesResult,
+	AppendToConversationResult,
+	Conversation,
+	CreateConversationResult,
+	GetConversationMessagesResult,
+	GetConversationVectorStoreFileContentResult,
+	IAgent,
+	Message
+} from "$lib/types/agents"
+import type { AgentPrompt, GetVectorStoreFilesResult } from "$lib/types/requests"
 import { uploadFilesToMockAI } from "./mock-ai-files"
 
 // Markdown works (could move out to md file if needed)
@@ -33,7 +43,7 @@ export const handleMockAiStream = (conversationId?: string): ReadableStream => {
 }
 
 export class MockAIAgent implements IAgent {
-	public async createConversation(conversation: Conversation, _initialPrompt: string, streamResponse: boolean): Promise<CreateConversationResult> {
+	public async createConversation(conversation: Conversation, _initialPrompt: AgentPrompt, streamResponse: boolean): Promise<CreateConversationResult> {
 		const relatedConversationId = `mock-related-conversation-${Date.now()}`
 		const vectorStoreId = null // Mock agent does not use vector store
 		if (streamResponse) {
@@ -43,7 +53,7 @@ export class MockAIAgent implements IAgent {
 		// For non-streaming, return full response at once (not implemented here)
 		throw new Error("Non-streaming response not implemented in MockAIAgent")
 	}
-	public async appendMessageToConversation(conversation: Conversation, _prompt: string, streamResponse: boolean): Promise<AppendToConversationResult> {
+	public async appendMessageToConversation(conversation: Conversation, _prompt: AgentPrompt, streamResponse: boolean): Promise<AppendToConversationResult> {
 		if (streamResponse) {
 			const readableStream = handleMockAiStream(conversation._id)
 			return { response: readableStream }
@@ -51,12 +61,22 @@ export class MockAIAgent implements IAgent {
 		// For non-streaming, return full response at once (not implemented here)
 		throw new Error("Non-streaming response not implemented in MockAIAgent")
 	}
-	public async addConversationFiles(conversation: Conversation, files: File[], streamResponse: boolean): Promise<AddConversationFilesResult> {
+	public async addConversationVectorStoreFiles(conversation: Conversation, files: File[], streamResponse: boolean): Promise<AddConversationFilesResult> {
 		if (streamResponse) {
 			const readableStream = await uploadFilesToMockAI(conversation.vectorStoreId || `mock-vector-store-${conversation._id}`, files, true)
 			return { response: readableStream }
 		}
 		throw new Error("Non-streaming add files not implemented in MockAIAgent")
+	}
+	public async getConversationVectorStoreFiles(_conversation: Conversation): Promise<GetVectorStoreFilesResult> {
+		throw new Error("Method not implemented in MockAIAgent")
+	}
+
+	public async getConversationVectorStoreFileContent(_conversation: Conversation, _fileId: string): Promise<GetConversationVectorStoreFileContentResult> {
+		throw new Error("Method not implemented in MockAIAgent")
+	}
+	public async deleteConversationVectorStoreFile(_conversation: Conversation, _fileId: string): Promise<void> {
+		throw new Error("Method not implemented in MockAIAgent")
 	}
 	public async getConversationMessages(_conversation: Conversation): Promise<GetConversationMessagesResult> {
 		const mockMessages: Message[] = [

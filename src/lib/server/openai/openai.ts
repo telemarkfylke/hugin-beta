@@ -1,11 +1,22 @@
 import OpenAI from "openai"
-import type { ResponseCreateParamsBase, ResponseStreamEvent, Tool } from "openai/resources/responses/responses"
+import type { ResponseCreateParamsBase, ResponseInput, ResponseInputContent, ResponseInputItem, ResponseStreamEvent, Tool } from "openai/resources/responses/responses"
 import type { Stream } from "openai/streaming"
 import { env } from "$env/dynamic/private"
 import { createSse } from "$lib/streaming.js"
-import type { AddConversationFilesResult, AgentConfig, AppendToConversationResult, Conversation, CreateConversationResult, DBAgent, IAgent, Message } from "$lib/types/agents"
+import type {
+	AddConversationFilesResult,
+	AgentConfig,
+	AppendToConversationResult,
+	Conversation,
+	CreateConversationResult,
+	DBAgent,
+	GetConversationVectorStoreFileContentResult,
+	IAgent,
+	Message
+} from "$lib/types/agents"
+import type { AgentPrompt, GetVectorStoreFilesResult, VectorStoreFile } from "$lib/types/requests"
 import { updateConversation } from "../agents/conversations"
-import { createOpenAIVectorStore, uploadFilesToOpenAIVectorStore } from "./vector-store"
+import { createOpenAIVectorStore, getOpenAIVectorStoreFiles, uploadFilesToOpenAIVectorStore } from "./vector-store"
 
 export const openai = new OpenAI({
 	apiKey: env.OPENAI_API_KEY || "bare-en-tulle-key"
@@ -47,14 +58,71 @@ type OpenAIResponseConfigResult = {
 	requestConfig: ResponseCreateParamsBase
 }
 
-const createOpenAIResponseConfig = (agentConfig: AgentConfig, openAIConversationId: string, inputPrompt: string, userVectorStoreId: string | null): OpenAIResponseConfigResult => {
+/*
+const createMistralPromptFromAgentPrompt = (initialPrompt: AgentPrompt): ConversationInputs => {
+	if (typeof initialPrompt === "string") {
+		return initialPrompt
+	}
+	return initialPrompt.map((item) => {
+		if (item.role !== "user" && item.role !== "agent") {
+			throw new Error(`Unsupported role in advanced prompt for Mistral: ${item.role}`)
+		}
+		const inputEntry: InputEntries = {
+			role: item.role === "user" ? "user" : "assistant",
+			type: "message.input",
+			content: item.input.map((inputItem) => {
+				switch (inputItem.type) {
+					case "text":
+						return { type: "text", text: inputItem.text }
+					case "image":
+						return { type: "image_url", imageUrl: inputItem.imageUrl }
+					case "file":
+						return { type: "document_url", documentUrl: inputItem.fileUrl, documentName: inputItem.fileName }
+					default:
+						throw new Error(`Unsupported input type in advanced prompt for Mistral...`)
+				}
+			})
+		}
+		return inputEntry
+	})
+}
+*/
+
+const createOpenAIPromptFromAgentPrompt = (initialPrompt: AgentPrompt): string | ResponseInput => {
+	if (typeof initialPrompt === "string") {
+		return initialPrompt
+	}
+
+	return initialPrompt.map((item) => {
+		const inputItem: ResponseInputItem = {
+			role: item.role === "agent" ? "assistant" : item.role,
+			type: "message",
+			content: item.input.map((inputPart) => {
+				switch (inputPart.type) {
+					case "text":
+						return { type: "input_text", text: inputPart.text } as ResponseInputContent
+					case "image":
+						return { type: "input_image", image_url: inputPart.imageUrl } as ResponseInputContent
+					case "file": {
+						return { type: "input_file", file_data: inputPart.fileUrl, filename: inputPart.fileName } as ResponseInputContent
+					}
+					default:
+						throw new Error(`Unsupported input type in advanced prompt for OpenAI...`)
+				}
+			})
+		}
+		return inputItem
+	})
+}
+
+const createOpenAIResponseConfig = (agentConfig: AgentConfig, openAIConversationId: string, inputPrompt: AgentPrompt, userVectorStoreId: string | null): OpenAIResponseConfigResult => {
 	if (agentConfig.type !== "openai-response" && agentConfig.type !== "openai-prompt") {
 		throw new Error("Invalid agent config type for OpenAI response configuration")
 	}
 	if (agentConfig.type === "openai-prompt") {
 		return {
 			requestConfig: {
-				input: inputPrompt,
+				input: createOpenAIPromptFromAgentPrompt(inputPrompt),
 				prompt: {
 					id: agentConfig.prompt.id
 				},
@@ -66,7 +134,7 @@ const createOpenAIResponseConfig = (agentConfig: AgentConfig, openAIConversation
 	const openAIResponseConfig: ResponseCreateParamsBase = {
 		model: agentConfig.model,
 		conversation: openAIConversationId,
-		input: inputPrompt,
+		input: createOpenAIPromptFromAgentPrompt(inputPrompt),
 		instructions: agentConfig.instructions || null
 	}
 	const fileSearchTool: Tool = {
@@ -92,17 +160,7 @@ const createOpenAIResponseConfig = (agentConfig: AgentConfig, openAIConversation
 
 export class OpenAIAgent implements IAgent {
 	constructor(private dbAgent: DBAgent) {}
-	public async appendMessageToConversation(conversation: Conversation, prompt: string, streamResponse: boolean): Promise<AppendToConversationResult> {
-		const { requestConfig } = createOpenAIResponseConfig(this.dbAgent.config, conversation.relatedConversationId, prompt, conversation.vectorStoreId || null)
-		if (streamResponse) {
-			const responseStream = await openai.responses.create({ ...requestConfig, stream: true })
-			return {
-				response: handleOpenAIStream(responseStream)
-			}
-		}
-		throw new Error("Non-streaming append message not implemented yet")
-	}
-	public async createConversation(conversation: Conversation, initialPrompt: string, streamResponse: boolean): Promise<CreateConversationResult> {
+	public async createConversation(conversation: Conversation, initialPrompt: AgentPrompt, streamResponse: boolean): Promise<CreateConversationResult> {
 		const openAIConversation = await openai.conversations.create({ metadata: { agent: this.dbAgent.name } })
 
 		const { requestConfig } = createOpenAIResponseConfig(this.dbAgent.config, openAIConversation.id, initialPrompt, null)
@@ -116,7 +174,19 @@ export class OpenAIAgent implements IAgent {
 		}
 		throw new Error("Non-streaming create conversation not implemented yet")
 	}
-	public async addConversationFiles(conversation: Conversation, files: File[], streamResponse: boolean): Promise<AddConversationFilesResult> {
+
+	public async appendMessageToConversation(conversation: Conversation, prompt: AgentPrompt, streamResponse: boolean): Promise<AppendToConversationResult> {
+		const { requestConfig } = createOpenAIResponseConfig(this.dbAgent.config, conversation.relatedConversationId, prompt, conversation.vectorStoreId || null)
+		if (streamResponse) {
+			const responseStream = await openai.responses.create({ ...requestConfig, stream: true })
+			return {
+				response: handleOpenAIStream(responseStream)
+			}
+		}
+		throw new Error("Non-streaming append message not implemented yet")
+	}
+
+	public async addConversationVectorStoreFiles(conversation: Conversation, files: File[], streamResponse: boolean): Promise<AddConversationFilesResult> {
 		let vectorStoreId = conversation.vectorStoreId
 		if (!vectorStoreId) {
 			const newVectorStoreId = await createOpenAIVectorStore(conversation._id)
@@ -128,6 +198,50 @@ export class OpenAIAgent implements IAgent {
 		}
 		throw new Error("Non-streaming add conversation files not implemented yet")
 	}
+	public async getConversationVectorStoreFiles(conversation: Conversation): Promise<GetVectorStoreFilesResult> {
+		// Hent filer fra OpenAI vector store her
+		if (!conversation.vectorStoreId) {
+			throw new Error("Conversation has no vector store associated, cannot get files")
+		}
+		const filesList = await getOpenAIVectorStoreFiles(conversation.vectorStoreId)
+		const files: VectorStoreFile[] = filesList.map((file) => {
+			return {
+				id: file.id,
+				name: file.filename,
+				type: "open-ai-drittfil", // todo, finn mimeType eller noe
+				bytes: file.bytes,
+				summary: null, // OpenAI gir ikke summary per nå
+				status: file.status === "completed" ? "ready" : file.status === "failed" ? "error" : "processing" // Obs, Jørgen er lat, men det går sikkert bra
+			}
+		})
+		return { files }
+	}
+
+	public async getConversationVectorStoreFileContent(conversation: Conversation, _fileId: string): Promise<GetConversationVectorStoreFileContentResult> {
+		// Hent filinnhold fra OpenAI her
+		if (!conversation.vectorStoreId) {
+			throw new Error("Conversation has no vector store associated, cannot get file content")
+		}
+		throw new Error("Get conversation vector store file content is not supported by OpenAI API. Gotta solve this differently.")
+	}
+
+	public async deleteConversationVectorStoreFile(conversation: Conversation, fileId: string): Promise<void> {
+		if (!conversation.vectorStoreId) {
+			throw new Error("Conversation has no vector store associated, cannot delete file")
+		}
+		// First delete from vector store - OpenAI says that deleting the file will also remove it from vector store, but that is not the case (https://platform.openai.com/docs/api-reference/files/delete)
+		const deleteFromVectorStore = await openai.vectorStores.files.delete(fileId, { vector_store_id: conversation.vectorStoreId })
+		console.log("Delete from vector store response:", deleteFromVectorStore)
+		if (!deleteFromVectorStore.deleted) {
+			throw new Error(`Failed to delete file ${fileId} from OpenAI vector store ${conversation.vectorStoreId}`)
+		}
+		const deleteFileResponse = await openai.files.delete(fileId)
+		console.log("Delete file response:", deleteFileResponse)
+		if (!deleteFileResponse.deleted) {
+			throw new Error(`Failed to delete file ${fileId} from OpenAI files`)
+		}
+	}
+
 	public async getConversationMessages(conversation: Conversation): Promise<{ messages: Message[] }> {
 		const conversationItems = await openai.conversations.items.list(conversation.relatedConversationId, { limit: 50, order: "desc" })
 		// Vi tar først bare de som er message, og mapper de om til Message type vårt system bruker

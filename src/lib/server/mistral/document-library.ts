@@ -64,7 +64,8 @@ export const getDocumentsInMistralLibrary = async (libraryId: string): Promise<D
 		throw new Error("libraryId is required to get documents from Mistral library")
 	}
 	const documents = await mistral.beta.libraries.documents.list({
-		libraryId
+		libraryId,
+		pageSize: 100
 	})
 	// TODO implement pagination if needed
 	return documents.data

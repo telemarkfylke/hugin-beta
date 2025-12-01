@@ -2,6 +2,7 @@
 // MOCK
 
 import z from "zod"
+import type { AgentPrompt, GetVectorStoreFilesResult } from "./requests"
 
 export const BaseConfig = z.object({
 	fileSearchEnabled: z.boolean().default(false).optional(),
@@ -19,7 +20,7 @@ export type MockAgentConfig = z.infer<typeof MockAgentConfig>
 // MISTRAL
 export const MistralConversationConfig = BaseConfig.extend({
 	type: z.literal("mistral-conversation"), // discriminator
-	model: z.enum(["mistral-small-latest", "mistral-medium-latest", "mistral-large-latest"]), // add models we want to support here
+	model: z.enum(["mistral-small-latest", "mistral-medium-latest", "mistral-large-latest", "pixtral-large-2411"]), // add models we want to support here
 	instructions: z.string().nullable(),
 	documentLibraryIds: z.array(z.string()).nullable().optional()
 })
@@ -99,14 +100,22 @@ export type AddConversationFilesResult = {
 }
 
 export type GetConversationMessagesResult = {
-	messages: Message[] // Legg inn riktig type senere
+	messages: Message[] // Legg inn riktig type senere (er ikke dette riktig da?)
+}
+
+export type GetConversationVectorStoreFileContentResult = {
+	redirectUrl?: string
+	content?: Response
 }
 
 // AGENT INTERFACE
 export interface IAgent {
-	createConversation: (conversation: Conversation, initialPrompt: string, streamResponse: boolean) => Promise<CreateConversationResult>
-	appendMessageToConversation: (conversation: Conversation, prompt: string, streamResponse: boolean) => Promise<AppendToConversationResult>
-	addConversationFiles: (conversation: Conversation, files: File[], streamResponse: boolean) => Promise<AddConversationFilesResult>
+	createConversation: (conversation: Conversation, initialPrompt: AgentPrompt, streamResponse: boolean) => Promise<CreateConversationResult>
+	appendMessageToConversation: (conversation: Conversation, prompt: AgentPrompt, streamResponse: boolean) => Promise<AppendToConversationResult>
+	addConversationVectorStoreFiles: (conversation: Conversation, files: File[], streamResponse: boolean) => Promise<AddConversationFilesResult>
+	getConversationVectorStoreFiles: (conversation: Conversation) => Promise<GetVectorStoreFilesResult>
+	getConversationVectorStoreFileContent: (conversation: Conversation, fileId: string) => Promise<GetConversationVectorStoreFileContentResult>
+	deleteConversationVectorStoreFile: (conversation: Conversation, fileId: string) => Promise<void>
 	getConversationMessages: (conversation: Conversation) => Promise<GetConversationMessagesResult>
 }
 

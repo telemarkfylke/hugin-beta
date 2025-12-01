@@ -1,6 +1,7 @@
+import { writeFileSync } from "node:fs"
 import { Mistral } from "@mistralai/mistralai"
 import type { EventStream } from "@mistralai/mistralai/lib/event-streams"
-import type { ConversationRequest, DocumentLibraryTool, MessageInputEntry, MessageOutputEntry } from "@mistralai/mistralai/models/components"
+import type { ConversationInputs, ConversationRequest, DocumentLibraryTool, InputEntries, MessageInputEntry, MessageOutputEntry } from "@mistralai/mistralai/models/components"
 import type { ConversationEvents } from "@mistralai/mistralai/models/components/conversationevents"
 import { env } from "$env/dynamic/private"
 import { createSse } from "$lib/streaming.js"
@@ -12,10 +13,12 @@ import type {
 	CreateConversationResult,
 	DBAgent,
 	GetConversationMessagesResult,
+	GetConversationVectorStoreFileContentResult,
 	IAgent,
 	Message
 } from "$lib/types/agents.js"
-import { uploadFilesToMistralLibrary } from "./document-library"
+import type { AgentPrompt, GetVectorStoreFilesResult, VectorStoreFile } from "$lib/types/requests"
+import { getDocumentsInMistralLibrary, uploadFilesToMistralLibrary } from "./document-library"
 
 export const mistral = new Mistral({
 	apiKey: env.MISTRAL_API_KEY || "bare-en-tulle-key"
@@ -48,19 +51,49 @@ const handleMistralStream = (stream: EventStream<ConversationEvents>, dbConversa
 						)
 						break
 					case "conversation.response.done":
-						console.log("Mistral conversation done event data:", chunk.data)
 						controller.enqueue(createSse({ event: "conversation.message.ended", data: { totalTokens: chunk.data.usage.totalTokens || 0 } }))
 						break
 					case "conversation.response.error":
 						controller.enqueue(createSse({ event: "error", data: { message: chunk.data.message } }))
 						break
 					// Ta hensyn til flere event typer her etter behov
+					default:
+						console.warn("Unhandled Mistral stream event type:", chunk.data.type)
+						console.log("Full chunk data:", chunk.data)
 				}
 			}
 			controller.close()
 		}
 	})
 	return readableStream
+}
+
+const createMistralPromptFromAgentPrompt = (initialPrompt: AgentPrompt): ConversationInputs => {
+	if (typeof initialPrompt === "string") {
+		return initialPrompt
+	}
+	return initialPrompt.map((item) => {
+		if (item.role !== "user" && item.role !== "agent") {
+			throw new Error(`Unsupported role in advanced prompt for Mistral: ${item.role}`)
+		}
+		const inputEntry: InputEntries = {
+			role: item.role === "user" ? "user" : "assistant",
+			type: "message.input",
+			content: item.input.map((inputItem) => {
+				switch (inputItem.type) {
+					case "text":
+						return { type: "text", text: inputItem.text }
+					case "image":
+						return { type: "image_url", imageUrl: inputItem.imageUrl }
+					case "file":
+						return { type: "document_url", documentUrl: inputItem.fileUrl, documentName: inputItem.fileName }
+					default:
+						throw new Error(`Unsupported input type in advanced prompt for Mistral...`)
+				}
+			})
+		}
+		return inputEntry
+	})
 }
 
 // TODO - gjør noe med det under om du trenger
@@ -70,16 +103,20 @@ type MistralConversationConfigResult = {
 		userLibraryId: string | null
 	}
 }
-const createMistralConversationConfig = async (agentConfig: AgentConfig, initialPrompt: string): Promise<MistralConversationConfigResult> => {
+const createMistralConversationConfig = async (agentConfig: AgentConfig, initialPrompt: AgentPrompt): Promise<MistralConversationConfigResult> => {
 	if (agentConfig.type !== "mistral-conversation" && agentConfig.type !== "mistral-agent") {
 		throw new Error(`Invalid agent config type for Mistral conversation: ${agentConfig.type}`)
 	}
+
+	// Map initialPrompt to Mistral ConversationInputs
+	const mistralPrompt: ConversationInputs = createMistralPromptFromAgentPrompt(initialPrompt)
+
 	// If simple agentId, use that and return
 	if (agentConfig.type === "mistral-agent") {
 		return {
 			requestConfig: {
 				agentId: agentConfig.agentId,
-				inputs: initialPrompt
+				inputs: mistralPrompt
 			},
 			data: {
 				userLibraryId: null
@@ -88,9 +125,10 @@ const createMistralConversationConfig = async (agentConfig: AgentConfig, initial
 	}
 	// Now we know it's type mistral-conversation
 	// If we fileSearchEnabled, we need to create a library for the user to upload files to
+
 	const mistralConversationConfig: ConversationRequest = {
 		model: agentConfig.model,
-		inputs: initialPrompt,
+		inputs: mistralPrompt,
 		instructions: agentConfig.instructions || ""
 	}
 	// Tool if needed
@@ -132,7 +170,7 @@ const createMistralConversationConfig = async (agentConfig: AgentConfig, initial
 export class MistralAgent implements IAgent {
 	constructor(private dbAgent: DBAgent) {}
 
-	public async createConversation(conversation: Conversation, initialPrompt: string, streamResponse: boolean): Promise<CreateConversationResult> {
+	public async createConversation(conversation: Conversation, initialPrompt: AgentPrompt, streamResponse: boolean): Promise<CreateConversationResult> {
 		const mistralConversationConfig = await createMistralConversationConfig(this.dbAgent.config, initialPrompt)
 
 		if (streamResponse) {
@@ -160,12 +198,13 @@ export class MistralAgent implements IAgent {
 
 		throw new Error("Non-streaming Mistral conversation creation is not yet implemented")
 	}
-	public async appendMessageToConversation(conversation: Conversation, prompt: string, streamResponse: boolean): Promise<AppendToConversationResult> {
+
+	public async appendMessageToConversation(conversation: Conversation, prompt: AgentPrompt, streamResponse: boolean): Promise<AppendToConversationResult> {
 		if (streamResponse) {
 			const stream = await mistral.beta.conversations.appendStream({
 				conversationId: conversation.relatedConversationId,
 				conversationAppendStreamRequest: {
-					inputs: prompt
+					inputs: createMistralPromptFromAgentPrompt(prompt)
 				}
 			})
 			const readableStream = handleMistralStream(stream)
@@ -173,7 +212,8 @@ export class MistralAgent implements IAgent {
 		}
 		throw new Error("Non-streaming Mistral conversation append is not yet implemented")
 	}
-	public async addConversationFiles(conversation: Conversation, files: File[], streamResponse: boolean): Promise<AddConversationFilesResult> {
+
+	public async addConversationVectorStoreFiles(conversation: Conversation, files: File[], streamResponse: boolean): Promise<AddConversationFilesResult> {
 		if (!conversation.vectorStoreId) {
 			throw new Error("Conversation does not have a vector store associated, cannot add files")
 		}
@@ -183,8 +223,57 @@ export class MistralAgent implements IAgent {
 		}
 		throw new Error("Non-streaming Mistral conversation add files is not yet implemented")
 	}
+
+	public async getConversationVectorStoreFiles(conversation: Conversation): Promise<GetVectorStoreFilesResult> {
+		// Må hente filene som ligger i vector store knyttet til samtalen, må kanskje ha en get file også, som henter fildataene
+		if (!conversation.vectorStoreId) {
+			throw new Error("Conversation does not have a vector store associated, cannot get files")
+		}
+		const vectorStoreFiles = await getDocumentsInMistralLibrary(conversation.vectorStoreId)
+		// Map om til riktig type
+		const files: VectorStoreFile[] = vectorStoreFiles.map((doc) => {
+			return {
+				id: doc.id,
+				type: doc.mimeType,
+				name: doc.name,
+				bytes: doc.size,
+				status: "ready", // TODO, sjekk hva de dumme statusene til Mistral er... og mappe de til våre egne
+				summary: doc.summary || null,
+				uploadedAt: doc.createdAt
+			}
+		})
+		return { files }
+	}
+
+	public async getConversationVectorStoreFileContent(conversation: Conversation, fileId: string): Promise<GetConversationVectorStoreFileContentResult> {
+		if (!conversation.vectorStoreId) {
+			throw new Error("Conversation does not have a vector store associated, cannot get file content")
+		}
+		console.log(`Fetching content for document ${fileId} from Mistral library ${conversation.vectorStoreId}`)
+		const documentSignedUrl = await mistral.beta.libraries.documents.getSignedUrl({
+			libraryId: conversation.vectorStoreId,
+			documentId: fileId
+		})
+		return { redirectUrl: documentSignedUrl }
+	}
+
+	public async deleteConversationVectorStoreFile(conversation: Conversation, fileId: string): Promise<void> {
+		if (!conversation.vectorStoreId) {
+			throw new Error("Conversation does not have a vector store associated, cannot delete files")
+		}
+		console.log(`Deleting document ${fileId} from Mistral library ${conversation.vectorStoreId}`)
+		await mistral.beta.libraries.documents.delete({
+			libraryId: conversation.vectorStoreId,
+			documentId: fileId
+		})
+		console.log(`Deleted document ${fileId} from Mistral library ${conversation.vectorStoreId}`) // TODO - status på at en fil driver å sletter?
+	}
+
 	public async getConversationMessages(conversation: Conversation): Promise<GetConversationMessagesResult> {
 		const conversationItems = await mistral.beta.conversations.getHistory({ conversationId: conversation.relatedConversationId }) // Får ascending order (tror jeg)
+
+		// Write temp to file
+		writeFileSync("./ignore/mistral-conversation-items.json", JSON.stringify(conversationItems, null, 2))
 		// Vi tar først bare de som er message, og mapper de om til Message type vårt system bruker
 		const messages = conversationItems.entries
 			.filter((item) => item.type === "message.input" || item.type === "message.output")

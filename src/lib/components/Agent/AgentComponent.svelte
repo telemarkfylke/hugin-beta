@@ -2,6 +2,7 @@
 	import { markdownFormatter } from "$lib/formatting/markdown-formatter.ts"
 	import AgentChatInput from "./AgentChatInput.svelte"
 	import AgentConversations from "./AgentConversations.svelte"
+	import AgentConversationVectorStoreFiles from "./AgentConversationVectorStoreFiles.svelte"
 	import AgentInfo from "./AgentInfo.svelte"
 	import { createAgentState } from "./AgentState.svelte.ts"
 
@@ -32,7 +33,7 @@
       {/if}
     </div>
     <div class="agent-menu-bar-right">
-      <button onclick={agentStateHandler.clearConversation}>Start ny samtale</button>
+      <button onclick={agentStateHandler.clearCurrentConversation}>Start ny samtale</button>
     </div>
   </div>
   <div class="agent-menu" class:open={menuOpen}>
@@ -40,7 +41,7 @@
     <h3>Agentinnstillinger</h3>
     <p>Yada yada yada skriv instruksjoner eller no drit hvis det er tilgjengelig på agenten</p>
     <h3>Filer i denne samtalen</h3>
-    <p>Yada yada filer osv</p>
+    <AgentConversationVectorStoreFiles {agentStateHandler} />
     <h3>Lagre som ny agent?</h3>
     <p>Skal det være lov?</p>
     <h3>Samtale-logg (agent-spesifikt)</h3>
@@ -68,7 +69,7 @@
       {/each}
     {/if}
   </div>
-  <AgentChatInput postUserPrompt={agentStateHandler.postUserPrompt} addKnowledgeFilesToConversation={agentStateHandler.addKnowledgeFilesToConversation} />
+  <AgentChatInput {agentStateHandler} />
 </div>
 
 <style>
