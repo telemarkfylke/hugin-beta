@@ -1,4 +1,5 @@
-import type { Conversation, DBAgent } from "$lib/types/agents.js"
+import type { DBAgent } from "$lib/types/agents.js"
+import type { Conversation } from "$lib/types/conversation.js"
 
 export const getMockDb = async (): Promise<{ agents: DBAgent[]; conversations: Conversation[] }> => {
 	// We add the mock agent here so it is always present in the mock db

@@ -4,16 +4,16 @@ import type {
 	AddConversationFilesResult,
 	Agent,
 	AppendToConversationResult,
-	Conversation,
 	CreateConversationResult,
 	DBAgent,
 	GetConversationMessagesResult,
 	GetConversationVectorStoreFileContentResult,
 	IAgent,
-	Message,
 	OllamaAIResponseConfig
 } from "$lib/types/agents"
-import type { AgentPrompt, GetVectorStoreFilesResult } from "$lib/types/requests"
+import type { Conversation } from "$lib/types/conversation"
+import type { AgentPrompt, Message } from "$lib/types/message"
+import type { GetVectorStoreFilesResult } from "$lib/types/requests"
 
 type OllamaResponse = ChatResponse | AbortableAsyncIterator<ChatResponse>
 const ollama = new Ollama({ host: "http://127.0.0.1:11434" })
@@ -39,7 +39,7 @@ export const handleOllamaStream = (conversation: Conversation, stream: Abortable
 				message += part.message.content
 			}
 
-			addMessage(message, conversation.messages, "agent", "outputText")
+			addMessage(message, conversation.messages, "agent", "text")
 			controller.close()
 		}
 	})
@@ -51,7 +51,7 @@ type OllamaMessage = {
 	content: string
 }
 
-const addMessage = (prompt: AgentPrompt, messages: Message[], originator: "user" | "agent", contentType: "inputText" | "outputText") => {
+const addMessage = (prompt: AgentPrompt, messages: Message[], originator: "user" | "agent", contentType: "text") => {
 	if (!messages) {
 		messages = []
 	}
@@ -63,10 +63,12 @@ const addMessage = (prompt: AgentPrompt, messages: Message[], originator: "user"
 		type: "message",
 		status: "completed",
 		role: originator,
-		content: {
-			text: prompt,
-			type: contentType
-		}
+		content: [
+			{
+				text: prompt,
+				type: contentType
+			}
+		]
 	}
 	messages.push(msg)
 }
@@ -93,7 +95,13 @@ const makeOllamaInstance = async (ollamaResponseConfig: OllamaAIResponseConfig, 
 
 const convertToOllamaMessages = (messages: Message[]): OllamaMessage[] => {
 	return messages.map((value: Message) => {
-		return { role: value.role === "agent" ? "assistant" : value.role, content: value.content.text }
+		return {
+			role: value.role === "agent" ? "assistant" : value.role,
+			content: value.content
+				.filter((contentPart) => contentPart.type === "text")
+				.map((contentPart) => contentPart.text)
+				.join(" ")
+		}
 	})
 }
 
@@ -105,7 +113,7 @@ export class OllamaAgent implements IAgent {
 	}
 
 	public async createConversation(conversation: Conversation, initialPrompt: AgentPrompt, streamResponse: boolean): Promise<CreateConversationResult> {
-		addMessage(initialPrompt, conversation.messages, "user", "inputText")
+		addMessage(initialPrompt, conversation.messages, "user", "text")
 		const ollamaResponse = await makeOllamaInstance(this.dbAgent.config as OllamaAIResponseConfig, convertToOllamaMessages(conversation.messages), streamResponse)
 		if (streamResponse) {
 			return {
@@ -118,7 +126,7 @@ export class OllamaAgent implements IAgent {
 	}
 
 	public async appendMessageToConversation(conversation: Conversation, prompt: AgentPrompt, streamResponse: boolean): Promise<AppendToConversationResult> {
-		addMessage(prompt, conversation.messages, "user", "inputText")
+		addMessage(prompt, conversation.messages, "user", "text")
 		const ollamaResponse = await makeOllamaInstance(this.dbAgent.config as OllamaAIResponseConfig, convertToOllamaMessages(conversation.messages), streamResponse)
 		if (streamResponse) {
 			return {

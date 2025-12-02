@@ -1,5 +1,7 @@
-import type { Agent, Conversation, Message } from "./agents"
-import type { AgentPrompt, VectorStoreFile } from "./requests"
+import type { Agent } from "./agents.js"
+import type { Conversation } from "./conversation.js"
+import type { AgentPrompt, Message } from "./message.js"
+import type { VectorStoreFile } from "./vector-store.js"
 
 type FrontEndError = string | null
 

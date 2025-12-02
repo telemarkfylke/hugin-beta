@@ -1,6 +1,6 @@
 import type { AgentState } from "$lib/types/agent-state"
-import type { Message } from "$lib/types/agents"
-import { GetConversationResult, GetConversationsResult } from "$lib/types/requests"
+import type { Message } from "$lib/types/message.js"
+import { GetConversationResult, GetConversationsResult } from "$lib/types/requests.js"
 import { _getConversationVectorStoreFiles } from "./AgentConversationVectorStoreFiles.svelte.js"
 
 // Internal method to update agent state with conversations, only to be used as internal function	in AgentState.svelte.ts

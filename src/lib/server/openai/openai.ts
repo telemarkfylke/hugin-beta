@@ -1,3 +1,4 @@
+import { writeFileSync } from "node:fs"
 import OpenAI from "openai"
 import type { ResponseCreateParamsBase, ResponseInput, ResponseInputContent, ResponseInputItem, ResponseStreamEvent, Tool } from "openai/resources/responses/responses"
 import type { Stream } from "openai/streaming"
@@ -8,15 +9,17 @@ import type {
 	Agent,
 	AgentConfig,
 	AppendToConversationResult,
-	Conversation,
 	CreateConversationResult,
 	DBAgent,
 	GetConversationVectorStoreFileContentResult,
-	IAgent,
-	Message
+	IAgent
 } from "$lib/types/agents"
-import type { AgentPrompt, GetVectorStoreFilesResult, VectorStoreFile } from "$lib/types/requests"
+import type { Conversation } from "$lib/types/conversation"
+import type { AgentPrompt, Message } from "$lib/types/message"
+import type { GetVectorStoreFilesResult } from "$lib/types/requests"
+import type { VectorStoreFile } from "$lib/types/vector-store"
 import { updateConversation } from "../agents/conversations"
+import { createMessageFromOpenAIMessage } from "./openai-message"
 import { OPEN_AI_SUPPORTED_MESSAGE_FILE_MIME_TYPES, OPEN_AI_SUPPORTED_MESSAGE_IMAGE_MIME_TYPES, OPEN_AI_SUPPORTED_VECTOR_STORE_FILE_MIME_TYPES } from "./openai-supported-filetypes"
 import { createOpenAIVectorStore, getOpenAIVectorStoreFiles, uploadFilesToOpenAIVectorStore } from "./vector-store"
 
@@ -227,27 +230,11 @@ export class OpenAIAgent implements IAgent {
 
 	public async getConversationMessages(conversation: Conversation): Promise<{ messages: Message[] }> {
 		const conversationItems = await openai.conversations.items.list(conversation.relatedConversationId, { limit: 50, order: "desc" })
-		// Vi tar først bare de som er message, og mapper de om til Message type vårt system bruker
-		const messages = conversationItems.data
-			.filter((item) => item.type === "message")
-			.map((item) => {
-				// Obs, kommer nok noe citations og greier etterhvert
 
-				const newMessage: Message = {
-					id: item.id || "what",
-					role: item.role === "assistant" ? "agent" : "user", // TODO - her kan dukke opp flere roller akkurat nå altså...
-					type: item.type,
-					status: item.status,
-					content: {
-						type: item.role === "user" ? "inputText" : "outputText",
-						text:
-							item.role === "user"
-								? item.content.find((con) => con.type === "input_text")?.text || "ukjent input drit"
-								: item.content.find((con) => con.type === "output_text")?.text || "ukjent output drit"
-					}
-				}
-				return newMessage
-			})
+		// Tmp write to file for inspection
+		writeFileSync(`./ignore/openai-conversation-items.json`, JSON.stringify(conversationItems.data, null, 2))
+		// Vi tar først bare de som er message, og mapper de om til Message type vårt system bruker
+		const messages = conversationItems.data.map((item) => createMessageFromOpenAIMessage(item))
 		return { messages: messages.reverse() } // Vi vil ha ascending order på de nyeste
 	}
 }

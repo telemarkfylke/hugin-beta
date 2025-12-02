@@ -2,7 +2,9 @@
 // MOCK
 
 import z from "zod"
-import type { AgentPrompt, GetVectorStoreFilesResult } from "./requests"
+import type { Conversation } from "./conversation"
+import type { AgentPrompt, Message } from "./message"
+import type { GetVectorStoreFilesResult } from "./requests"
 
 export const BaseConfig = z.object({
 	vectorStoreEnabled: z.boolean().default(false).optional(),
@@ -135,29 +137,3 @@ export interface IAgent {
 	deleteConversationVectorStoreFile: (conversation: Conversation, fileId: string) => Promise<void>
 	getConversationMessages: (conversation: Conversation) => Promise<GetConversationMessagesResult>
 }
-
-// MESSAGE TYPES
-export const Message = z.object({
-	id: z.string(),
-	type: z.enum(["message"]),
-	status: z.string(),
-	role: z.enum(["user", "agent"]), // Legg inn flere ved behov (f. eks developer)
-	content: z.object({
-		type: z.enum(["inputText", "outputText"]),
-		text: z.string()
-	})
-})
-
-export type Message = z.infer<typeof Message>
-
-export const Conversation = z.object({
-	_id: z.string(),
-	agentId: z.string(),
-	name: z.string(),
-	description: z.string().nullable().optional(),
-	relatedConversationId: z.string(), // id fra leverandør (Mistral/OpenAI)
-	vectorStoreId: z.string().nullable(), // id for vector store knyttet til denne samtalen (for filer bruker laster opp i en conversation)
-	messages: z.array(Message)
-})
-
-export type Conversation = z.infer<typeof Conversation>

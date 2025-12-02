@@ -3,14 +3,14 @@ import type {
 	AddConversationFilesResult,
 	Agent,
 	AppendToConversationResult,
-	Conversation,
 	CreateConversationResult,
 	GetConversationMessagesResult,
 	GetConversationVectorStoreFileContentResult,
-	IAgent,
-	Message
+	IAgent
 } from "$lib/types/agents"
-import type { AgentPrompt, GetVectorStoreFilesResult } from "$lib/types/requests"
+import type { Conversation } from "$lib/types/conversation"
+import type { AgentPrompt, Message } from "$lib/types/message"
+import type { GetVectorStoreFilesResult } from "$lib/types/requests"
 import { uploadFilesToMockAI } from "./mock-ai-files"
 
 // Markdown works (could move out to md file if needed)
@@ -89,40 +89,48 @@ export class MockAIAgent implements IAgent {
 				type: "message",
 				status: "completed",
 				role: "user",
-				content: {
-					type: "inputText",
-					text: "Hello, Mock AI!"
-				}
+				content: [
+					{
+						type: "text",
+						text: "Hello, Mock AI!"
+					}
+				]
 			},
 			{
 				id: `mock-message-2`,
 				type: "message",
 				status: "completed",
 				role: "agent",
-				content: {
-					type: "outputText",
-					text: "Hello, this is a response from Mock AI."
-				}
+				content: [
+					{
+						type: "text",
+						text: "Hello, this is a response from Mock AI."
+					}
+				]
 			},
 			{
 				id: `mock-message-3`,
 				type: "message",
 				status: "completed",
 				role: "user",
-				content: {
-					type: "inputText",
-					text: "Can you help me with something?"
-				}
+				content: [
+					{
+						type: "text",
+						text: "Can you help me with something?"
+					}
+				]
 			},
 			{
 				id: `mock-message-4`,
 				type: "message",
 				status: "completed",
 				role: "agent",
-				content: {
-					type: "outputText",
-					text: "no"
-				}
+				content: [
+					{
+						type: "text",
+						text: "no"
+					}
+				]
 			}
 		]
 		return { messages: mockMessages }
