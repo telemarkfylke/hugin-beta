@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { markdownFormatter } from "$lib/formatting/markdown-formatter.ts"
 	import AgentChatInput from "./AgentChatInput.svelte"
+	import AgentConversationMessage from "./AgentConversationMessage.svelte"
 	import AgentConversations from "./AgentConversations.svelte"
 	import AgentConversationVectorStoreFiles from "./AgentConversationVectorStoreFiles.svelte"
 	import AgentInfo from "./AgentInfo.svelte"
@@ -55,17 +55,8 @@
     {:else if !agentStateHandler.agentState.currentConversation.value || Object.keys(agentStateHandler.agentState.currentConversation.value.messages).length === 0}
       <p>No messages in current conversation.</p>
     {:else}
-      {#each Object.entries(agentStateHandler.agentState.currentConversation.value.messages) as [id, message]}
-      <!-- Check if user or agent and handle, maybe handle some agent tools / processing as well eventually --> 
-        {#if message.role === 'user'}
-          <div id="message-{id}" class="user-message">
-            {message.content.text || ''}
-          </div>
-        {:else}
-          <div id="message-{id}" class="agent-message">
-            {@html markdownFormatter(message.content.text || '')}
-          </div>
-        {/if}
+      {#each Object.values(agentStateHandler.agentState.currentConversation.value.messages) as message}
+        <AgentConversationMessage {message} />
       {/each}
     {/if}
   </div>
@@ -104,11 +95,5 @@
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
-  }
-  .user-message {
-    align-self: flex-end;
-    background-color: #daf1da;
-    padding: 0.5rem;
-    border-radius: 8px;
   }
 </style>

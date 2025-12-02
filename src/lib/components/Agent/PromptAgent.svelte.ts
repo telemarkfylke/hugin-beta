@@ -1,13 +1,13 @@
 // Keeps track of the entire state of an agent component (async stuff are allowed here)
 import { parseSse } from "$lib/streaming.js"
 import type { AgentState } from "$lib/types/agent-state"
-import type { AgentPrompt } from "$lib/types/message.js"
+import type { AgentPrompt, Message } from "$lib/types/message.js"
 import type { ConversationRequest } from "$lib/types/requests"
 import { _getAgentConversations } from "./AgentConversations.svelte.js"
 
 export const _addUserMessageToConversation = (agentState: AgentState, agentPrompt: AgentPrompt) => {
 	console.log("Adding user message to conversation:", agentPrompt)
-	agentState.currentConversation.value.messages[Date.now().toString()] = {
+	const newMessage: Message = {
 		role: "user",
 		id: Date.now().toString(),
 		status: "completed",
@@ -22,6 +22,8 @@ export const _addUserMessageToConversation = (agentState: AgentState, agentPromp
 					]
 				: agentPrompt.flatMap((promptMessage) => promptMessage.input)
 	}
+	console.log("New user message:", newMessage)
+	agentState.currentConversation.value.messages[newMessage.id] = newMessage
 }
 
 export const _addAgentMessageDeltaToConversation = (agentState: AgentState, messageId: string, messageDelta: string) => {
