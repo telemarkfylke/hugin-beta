@@ -1,6 +1,6 @@
 export const OPEN_AI_SUPPORTED_MESSAGE_IMAGE_MIME_TYPES = ["image/png", "image/jpeg", "image/jpg", "image/bmp", "image/tiff", "image/heif"]
 
-export const OPEN_AI_SUPPORTED_MESSAGE_FILE_MIME_TYPES = ["text/plain", "application/pdf"]
+export const OPEN_AI_SUPPORTED_MESSAGE_FILE_MIME_TYPES = ["application/pdf"] // Not even text/plain is supported... i tried
 
 /**
  * @link https://platform.openai.com/docs/assistants/tools/file-search#supported-files
