@@ -48,7 +48,9 @@ export const _getAgentConversation = async (agentState: AgentState, conversation
 			messagesRecord[message.id] = message
 		}
 		agentState.currentConversation.value.messages = messagesRecord
-		_getConversationVectorStoreFiles(agentState)
+		if (conversationData.conversation.vectorStoreId) {
+			_getConversationVectorStoreFiles(agentState)
+		}
 	} catch (error) {
 		console.error("Error loading conversation:", error)
 		agentState.currentConversation.error = (error as Error).message
