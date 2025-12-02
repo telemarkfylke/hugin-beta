@@ -201,10 +201,27 @@ export class MistralAgent implements IAgent {
 
 	public async appendMessageToConversation(conversation: Conversation, prompt: AgentPrompt, streamResponse: boolean): Promise<AppendToConversationResult> {
 		if (streamResponse) {
+			// Sjekker om vi har dokumenter i vectorstore
+			let docsExists = false
+			if (conversation.vectorStoreId && typeof prompt === "string") {
+				try {
+					const docs = await getDocumentsInMistralLibrary(conversation.vectorStoreId)
+					docsExists = docs.length > 0
+				} catch (error) {
+					console.error("Feilet ved sjekk av dokumenter:", error)
+				}
+			}
+
+			// Legger kun til prefix hvis vi har dokumenter i vectorstore
+			let prefixedPrompt = prompt
+			if (docsExists) {
+				prefixedPrompt = `Always use the documents in the document library to answer the query.\n\n${prompt}`
+			}
+
 			const stream = await mistral.beta.conversations.appendStream({
 				conversationId: conversation.relatedConversationId,
 				conversationAppendStreamRequest: {
-					inputs: createMistralPromptFromAgentPrompt(prompt)
+					inputs: createMistralPromptFromAgentPrompt(prefixedPrompt)
 				}
 			})
 			const readableStream = handleMistralStream(stream)
