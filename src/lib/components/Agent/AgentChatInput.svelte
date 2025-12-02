@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { AgentStateHandler, ReadonlyAgentState } from "$lib/types/agent-state"
-	import type { AdvancedAgentPromptInput, AgentPrompt } from "$lib/types/requests"
+	import type { AdvancedAgentPromptInput, AgentPrompt } from "$lib/types/message"
+	import FileDropZone from "../FileDropZone.svelte"
 
 	type Props = {
 		agentStateHandler: AgentStateHandler
@@ -125,6 +126,7 @@
 </script>
 
 <div>
+	<FileDropZone onFilesDropped={(files) => { chatFiles = files; }} />
   <form onsubmit={(event: Event) => { event.preventDefault(); submitPrompt() }}>
     <div class="grow-wrap" bind:this={wrapDiv}>
       <textarea rows="1" bind:this={textArea} placeholder="Skriv et eller annet (shift + enter for ny linje)" name="prompt-input" id="prompt-input" oninput={sneakyTextArea} onkeydown={submitOnEnter} bind:value={userPrompt}></textarea>
