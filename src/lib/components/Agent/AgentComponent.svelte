@@ -5,6 +5,7 @@
 	import AgentConversationVectorStoreFiles from "./AgentConversationVectorStoreFiles.svelte"
 	import AgentInfo from "./AgentInfo.svelte"
 	import { createAgentState } from "./AgentState.svelte.ts"
+	import FileDropZone from "$lib/components/FileDropZone.svelte"
 
 	// Input props
 	let { agentId } = $props()
@@ -22,7 +23,13 @@
 	const toggleMenu = () => {
 		menuOpen = !menuOpen
 	}
+
+	const handleFilesDropped = (files: FileList) => {
+    agentStateHandler.addConversationVectorStoreFiles(files)
+	}
 </script>
+
+<FileDropZone onFilesDropped={handleFilesDropped} />
 
 <div class="agent-container">
   <div class="agent-menu-bar">
