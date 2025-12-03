@@ -1,1 +1,1 @@
-export const ssr = false // disable server-side rendering
+export const ssr = false // disable server-side rendering, as this page is only for client-side use

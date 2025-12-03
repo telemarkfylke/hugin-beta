@@ -1,9 +1,11 @@
-<script>
+<script lang="ts">
 	import favicon from "$lib/assets/favicon.svg"
 	import "../style.css" // Add global css (and make it hot reload)
 	import "../lib/axe.js"
+	import type { LayoutProps } from "./$types.js"
 
-	let { children } = $props()
+	// Get layout props, data will be accessible for children as well, so do not put too much here to avoid overfetching
+	let { children }: LayoutProps = $props()
 </script>
 
 <svelte:head>
