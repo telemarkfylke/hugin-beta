@@ -1,0 +1,57 @@
+Deploying to Azure
+
+1. **Set Up Your Azure Account**
+  - Create an Azure account at https://azure.microsoft.com if you don't already have one.
+  - Log in to the Azure Portal.
+
+2. **Install Azure CLI**
+  - Download and install the Azure CLI from https://learn.microsoft.com/en-us/cli/azure/install-azure-cli.
+  - Verify the installation by running:
+    ```
+    az --version
+    ```
+
+3. **Log in to Azure**
+  - Use the Azure CLI to log in:
+    ```
+    az login
+    ```
+
+4. **Prepare Your Application**
+  - Ensure your application is ready for deployment (e.g., all dependencies are installed, and the app is tested locally).
+
+5. **Create an Azure Resource Group**
+  - Create a resource group to organize your resources:
+    ```
+    az group create --name <ResourceGroupName> --location <Location>
+    ```
+
+6. **Create an Azure App Service Plan**
+  - Create a hosting plan for your app:
+    ```
+    az appservice plan create --name <AppServicePlanName> --resource-group <ResourceGroupName> --sku F1
+    ```
+
+7. **Create an Azure Web App**
+  - Create a web app:
+    ```
+    az webapp create --name <WebAppName> --resource-group <ResourceGroupName> --plan <AppServicePlanName>
+    ```
+
+8. **Deploy Your Application**
+  - Use the Azure CLI to deploy your app:
+    ```
+    az webapp up --name <WebAppName> --resource-group <ResourceGroupName> --runtime <Runtime>
+    ```
+  - Replace `<Runtime>` with the runtime stack your app uses (e.g., `PYTHON:3.9`, `NODE:16-lts`).
+
+9. **Verify Deployment**
+  - Visit the URL of your web app:
+    ```
+    https://<WebAppName>.azurewebsites.net
+    ```
+
+10. **Monitor and Manage**
+   - Use the Azure Portal or Azure CLI to monitor and manage your app.
+
+For more details, refer to the official Azure documentation: https://learn.microsoft.com/en-us/azure/

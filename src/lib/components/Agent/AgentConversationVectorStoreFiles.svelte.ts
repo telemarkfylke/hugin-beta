@@ -1,7 +1,7 @@
 import { parseSse } from "$lib/streaming.js"
 import type { AgentState } from "$lib/types/agent-state"
-import { GetVectorStoreFilesResult, type VectorStoreFile, type VectorStoreFileStatus } from "$lib/types/requests"
-import { _addAgentMessageToConversation } from "./PromptAgent.svelte"
+import { GetVectorStoreFilesResult } from "$lib/types/requests"
+import type { VectorStoreFile, VectorStoreFileStatus } from "$lib/types/vector-store"
 
 const _addConversationVectorStoreFileToState = (agentState: AgentState, file: VectorStoreFile): void => {
 	const alreadyExists = agentState.currentConversation.value.vectorStoreFiles.some((f) => f.id === file.id)
@@ -111,7 +111,6 @@ export const _addConversationVectorStoreFiles = async (agentState: AgentState, f
 							status: "processing"
 						}
 						_addConversationVectorStoreFileToState(agentState, vectorStoreFile)
-						_addAgentMessageToConversation(agentState, `${fileId}-msg`, `File "${fileName}" uploaded successfully. Processing...`) // Temporary message, må finne på noe penere
 						break
 					}
 					case "conversation.vectorstore.files.processed": {
@@ -120,7 +119,6 @@ export const _addConversationVectorStoreFiles = async (agentState: AgentState, f
 						for (const file of files) {
 							_updateConversationVectorStoreFileStatusInState(agentState, file.fileId, "ready")
 						}
-						_addAgentMessageToConversation(agentState, `${files.map((file) => file.fileId).join(", ")}-msg`, `Files processed successfully.`) // Temporary message, må finne på noe penere
 						break
 					}
 					default:

@@ -12,7 +12,7 @@ export const GET: RequestHandler = async ({ params }) => {
 
 	const dbAgent = await getDBAgent(agentId)
 
-	if (!dbAgent.config.fileSearchEnabled) {
+	if (!dbAgent.config.vectorStoreEnabled) {
 		return json({ error: "File upload is not enabled for this agent" }, { status: 403 })
 	}
 
@@ -45,7 +45,7 @@ export const DELETE: RequestHandler = async ({ params }) => {
 
 	const dbAgent = await getDBAgent(agentId)
 
-	if (!dbAgent.config.fileSearchEnabled) {
+	if (!dbAgent.config.vectorStoreEnabled) {
 		return json({ error: "File upload is not enabled for this agent" }, { status: 403 })
 	}
 

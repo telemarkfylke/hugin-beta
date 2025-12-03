@@ -1,6 +1,7 @@
 import { ObjectId } from "mongodb"
 import { env } from "$env/dynamic/private"
-import type { Conversation, Message } from "$lib/types/agents.ts"
+import type { Conversation } from "$lib/types/conversation"
+import type { Message } from "$lib/types/message"
 
 let mockDbData = null
 

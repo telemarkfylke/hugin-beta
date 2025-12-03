@@ -2,6 +2,7 @@ import { json, type RequestHandler } from "@sveltejs/kit"
 import { createAgent, getDBAgent } from "$lib/server/agents/agents.js"
 import { getConversation } from "$lib/server/agents/conversations"
 import { responseStream } from "$lib/streaming.js"
+import type { Agent } from "$lib/types/agents"
 
 export const GET: RequestHandler = async ({ params }) => {
 	const { conversationId, agentId } = params
@@ -39,29 +40,26 @@ export const POST: RequestHandler = async ({ request, params }) => {
 	}
 	const dbAgent = await getDBAgent(agentId)
 
-	if (!dbAgent.config.fileSearchEnabled) {
+	if (!dbAgent.config.vectorStoreEnabled) {
 		return json({ error: "File upload is not enabled for this agent" }, { status: 403 })
 	}
 
 	const conversation = await getConversation(conversationId)
 	//	TODO: validate that conversation belongs to agentId and that user has access to it
 
-	// Validate file types
-	const allFilesValid = files.every((file) => {
-		if (!(file instanceof File)) {
-			return false
-		}
-		/* Må komme fra agent ellerno
-    const validTypes = [];
-    return validTypes.includes(file.type);
-    */
-		return true // For now, aksepter alle typer
-	})
-	if (!allFilesValid) {
-		return json({ error: "One or more files have invalid type" }, { status: 400 }) // Add valid types message senere
-	}
-
 	const agent = createAgent(dbAgent)
+	const agentInfo: Agent = agent.getAgentInfo()
+
+	// Validate each file
+	if (!files.every((file) => file instanceof File)) {
+		return json({ error: "One or more files are not valid File instances" }, { status: 400 })
+	}
+	if (!files.every((file) => file.type)) {
+		return json({ error: "One or more files have empty file type" }, { status: 400 })
+	}
+	if (!files.every((file) => agentInfo.allowedMimeTypes.vectorStoreFiles.includes(file.type))) {
+		return json({ error: "One or more files have invalid file type" }, { status: 400 }) // Add valid types message senere
+	}
 
 	const { response } = await agent.addConversationVectorStoreFiles(conversation, files, stream)
 

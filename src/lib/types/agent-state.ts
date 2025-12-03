@@ -1,5 +1,8 @@
-import type { Conversation, DBAgent, Message } from "./agents"
-import type { AgentPrompt, VectorStoreFile } from "./requests"
+import type { Agent } from "./agents.js"
+import type { Conversation } from "./conversation.js"
+import type { DeepReadonly } from "./deep-read-only.js"
+import type { AgentPrompt, Message } from "./message.js"
+import type { VectorStoreFile } from "./vector-store.js"
 
 type FrontEndError = string | null
 
@@ -17,7 +20,7 @@ type CurrentAgentConversation = {
 export type AgentInfo = {
 	isLoading: boolean
 	error: FrontEndError
-	value: DBAgent | null
+	value: Agent | null
 }
 
 // Might be funny to add agent data and user configuration as well later?
@@ -31,20 +34,6 @@ export type AgentState = {
 		value: Conversation[]
 	}
 }
-
-/**
- * Recursively makes all properties of an object type readonly.
- * @link https://www.geeksforgeeks.org/typescript/how-to-create-deep-readonly-type-in-typescript/
- */
-type DeepReadonly<T> = T extends (infer U)[]
-	? ReadonlyArray<DeepReadonly<U>>
-	: {
-			readonly [K in keyof T]: T[K] extends object
-				? DeepReadonly<T[K]>
-				: // Recursively apply DeepReadonly for nested objects
-					T[K]
-			// Otherwise, keep the original type
-		}
 
 export type ReadonlyAgentState = DeepReadonly<AgentState>
 

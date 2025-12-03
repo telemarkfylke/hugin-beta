@@ -1,36 +1,55 @@
 // Keeps track of the entire state of an agent component (async stuff are allowed here)
 import { parseSse } from "$lib/streaming.js"
 import type { AgentState } from "$lib/types/agent-state"
-import type { AgentPrompt, ConversationRequest } from "$lib/types/requests"
+import type { AgentPrompt, Message } from "$lib/types/message.js"
+import type { ConversationRequest } from "$lib/types/requests"
 import { _getAgentConversations } from "./AgentConversations.svelte.js"
 
-export const _addUserMessageToConversation = (agentState: AgentState, messageContent: AgentPrompt) => {
-	agentState.currentConversation.value.messages[Date.now().toString()] = {
+export const _addUserMessageToConversation = (agentState: AgentState, agentPrompt: AgentPrompt) => {
+	console.log("Adding user message to conversation:", agentPrompt)
+	const newMessage: Message = {
 		role: "user",
 		id: Date.now().toString(),
 		status: "completed",
 		type: "message",
-		content: {
-			type: "inputText",
-			text: typeof messageContent === "string" ? messageContent : "Det var noe annet rar content vi må fikse, sjekk PromptAgent.svelte.ts (_addUserMessageToConversation)"
-		}
+		content:
+			typeof agentPrompt === "string"
+				? [
+						{
+							type: "text",
+							text: agentPrompt
+						}
+					]
+				: agentPrompt.flatMap((promptMessage) => promptMessage.input)
 	}
+	console.log("New user message:", newMessage)
+	agentState.currentConversation.value.messages[newMessage.id] = newMessage
 }
 
-export const _addAgentMessageToConversation = (agentState: AgentState, messageId: string, messageContent: string) => {
+export const _addAgentMessageDeltaToConversation = (agentState: AgentState, messageId: string, messageDelta: string) => {
 	if (!agentState.currentConversation.value.messages[messageId]) {
 		agentState.currentConversation.value.messages[messageId] = {
 			role: "agent",
 			id: messageId,
 			status: "in_progress", // TODO handle status updates? and set to completed when done (or error or something)
 			type: "message",
-			content: {
-				type: "outputText",
-				text: ""
-			}
+			content: [
+				{
+					type: "text",
+					text: ""
+				}
+			]
 		}
 	}
-	agentState.currentConversation.value.messages[messageId].content.text += messageContent
+	let textContentPart = agentState.currentConversation.value.messages[messageId].content.find((part) => part.type === "text")
+	if (!textContentPart) {
+		textContentPart = {
+			type: "text",
+			text: ""
+		}
+		agentState.currentConversation.value.messages[messageId].content.push(textContentPart)
+	}
+	textContentPart.text += messageDelta
 }
 
 export const _promptAgent = async (agentState: AgentState, userPrompt: AgentPrompt): Promise<void> => {
@@ -84,7 +103,7 @@ export const _promptAgent = async (agentState: AgentState, userPrompt: AgentProm
 					}
 					case "conversation.message.delta": {
 						const { messageId, content } = chatResult.data
-						_addAgentMessageToConversation(agentState, messageId, content)
+						_addAgentMessageDeltaToConversation(agentState, messageId, content)
 						break
 					}
 					case "conversation.message.ended": {

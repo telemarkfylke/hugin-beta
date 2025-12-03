@@ -1,4 +1,5 @@
-import type { Conversation, DBAgent } from "$lib/types/agents.js"
+import type { DBAgent } from "$lib/types/agents.js"
+import type { Conversation } from "$lib/types/conversation.js"
 
 export const getMockDb = async (): Promise<{ agents: DBAgent[]; conversations: Conversation[] }> => {
 	// We add the mock agent here so it is always present in the mock db
@@ -9,7 +10,7 @@ export const getMockDb = async (): Promise<{ agents: DBAgent[]; conversations: C
 		config: {
 			type: "mock-agent",
 			instructions: "You are a mock AI agent that provides streaming mock responses for testing purposes.",
-			fileSearchEnabled: true,
+			vectorStoreEnabled: true,
 			webSearchEnabled: false
 		}
 	}

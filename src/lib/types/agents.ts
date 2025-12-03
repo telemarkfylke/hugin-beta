@@ -2,10 +2,13 @@
 // MOCK
 
 import z from "zod"
-import type { AgentPrompt, GetVectorStoreFilesResult } from "./requests"
+import type { Conversation } from "./conversation"
+import type { AgentPrompt, Message } from "./message"
+import type { GetVectorStoreFilesResult } from "./requests"
 
 export const BaseConfig = z.object({
-	fileSearchEnabled: z.boolean().default(false).optional(),
+	vectorStoreEnabled: z.boolean().default(false).optional(),
+	messageFilesEnabled: z.boolean().default(false).optional(),
 	webSearchEnabled: z.boolean().default(false).optional()
 })
 
@@ -85,6 +88,21 @@ export const DBAgent = z.object({
 
 export type DBAgent = z.infer<typeof DBAgent>
 
+// ZOD v4 has mime, but we are on v3 for now, wait a week or so until super-stable
+const MimeType = z.string()
+
+// FULL AGENT TYPE
+export const Agent = DBAgent.extend({
+	allowedMimeTypes: z.object({
+		messageImages: z.array(MimeType),
+		messageFiles: z.array(MimeType),
+		vectorStoreFiles: z.array(MimeType)
+	})
+})
+
+export type Agent = z.infer<typeof Agent>
+
+// RESULT TYPES
 export type CreateConversationResult = {
 	relatedConversationId: string
 	vectorStoreId: string | null
@@ -110,6 +128,7 @@ export type GetConversationVectorStoreFileContentResult = {
 
 // AGENT INTERFACE
 export interface IAgent {
+	getAgentInfo: () => Agent
 	createConversation: (conversation: Conversation, initialPrompt: AgentPrompt, streamResponse: boolean) => Promise<CreateConversationResult>
 	appendMessageToConversation: (conversation: Conversation, prompt: AgentPrompt, streamResponse: boolean) => Promise<AppendToConversationResult>
 	addConversationVectorStoreFiles: (conversation: Conversation, files: File[], streamResponse: boolean) => Promise<AddConversationFilesResult>
@@ -118,29 +137,3 @@ export interface IAgent {
 	deleteConversationVectorStoreFile: (conversation: Conversation, fileId: string) => Promise<void>
 	getConversationMessages: (conversation: Conversation) => Promise<GetConversationMessagesResult>
 }
-
-// MESSAGE TYPES
-export const Message = z.object({
-	id: z.string(),
-	type: z.enum(["message"]),
-	status: z.string(),
-	role: z.enum(["user", "agent"]), // Legg inn flere ved behov (f. eks developer)
-	content: z.object({
-		type: z.enum(["inputText", "outputText"]),
-		text: z.string()
-	})
-})
-
-export type Message = z.infer<typeof Message>
-
-export const Conversation = z.object({
-	_id: z.string(),
-	agentId: z.string(),
-	name: z.string(),
-	description: z.string().nullable().optional(),
-	relatedConversationId: z.string(), // id fra leverandør (Mistral/OpenAI)
-	vectorStoreId: z.string().nullable(), // id for vector store knyttet til denne samtalen (for filer bruker laster opp i en conversation)
-	messages: z.array(Message)
-})
-
-export type Conversation = z.infer<typeof Conversation>

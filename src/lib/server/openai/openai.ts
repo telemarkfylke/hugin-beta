@@ -1,3 +1,4 @@
+import { writeFileSync } from "node:fs"
 import OpenAI from "openai"
 import type { ResponseCreateParamsBase, ResponseInput, ResponseInputContent, ResponseInputItem, ResponseStreamEvent, Tool } from "openai/resources/responses/responses"
 import type { Stream } from "openai/streaming"
@@ -5,17 +6,21 @@ import { env } from "$env/dynamic/private"
 import { createSse } from "$lib/streaming.js"
 import type {
 	AddConversationFilesResult,
+	Agent,
 	AgentConfig,
 	AppendToConversationResult,
-	Conversation,
 	CreateConversationResult,
 	DBAgent,
 	GetConversationVectorStoreFileContentResult,
-	IAgent,
-	Message
+	IAgent
 } from "$lib/types/agents"
-import type { AgentPrompt, GetVectorStoreFilesResult, VectorStoreFile } from "$lib/types/requests"
+import type { Conversation } from "$lib/types/conversation"
+import type { AgentPrompt, Message } from "$lib/types/message"
+import type { GetVectorStoreFilesResult } from "$lib/types/requests"
+import type { VectorStoreFile } from "$lib/types/vector-store"
 import { updateConversation } from "../agents/conversations"
+import { createMessageFromOpenAIMessage } from "./openai-message"
+import { OPEN_AI_SUPPORTED_MESSAGE_FILE_MIME_TYPES, OPEN_AI_SUPPORTED_MESSAGE_IMAGE_MIME_TYPES, OPEN_AI_SUPPORTED_VECTOR_STORE_FILE_MIME_TYPES } from "./openai-supported-filetypes"
 import { createOpenAIVectorStore, getOpenAIVectorStoreFiles, uploadFilesToOpenAIVectorStore } from "./vector-store"
 
 export const openai = new OpenAI({
@@ -57,36 +62,6 @@ export const handleOpenAIStream = (stream: Stream<ResponseStreamEvent>, conversa
 type OpenAIResponseConfigResult = {
 	requestConfig: ResponseCreateParamsBase
 }
-
-/*
-const createMistralPromptFromAgentPrompt = (initialPrompt: AgentPrompt): ConversationInputs => {
-	if (typeof initialPrompt === "string") {
-		return initialPrompt
-	}
-	return initialPrompt.map((item) => {
-		if (item.role !== "user" && item.role !== "agent") {
-			throw new Error(`Unsupported role in advanced prompt for Mistral: ${item.role}`)
-		}
-		const inputEntry: InputEntries = {
-			role: item.role === "user" ? "user" : "assistant",
-			type: "message.input",
-			content: item.input.map((inputItem) => {
-				switch (inputItem.type) {
-					case "text":
-						return { type: "text", text: inputItem.text }
-					case "image":
-						return { type: "image_url", imageUrl: inputItem.imageUrl }
-					case "file":
-						return { type: "document_url", documentUrl: inputItem.fileUrl, documentName: inputItem.fileName }
-					default:
-						throw new Error(`Unsupported input type in advanced prompt for Mistral...`)
-				}
-			})
-		}
-		return inputEntry
-	})
-}
-*/
 
 const createOpenAIPromptFromAgentPrompt = (initialPrompt: AgentPrompt): string | ResponseInput => {
 	if (typeof initialPrompt === "string") {
@@ -142,7 +117,7 @@ const createOpenAIResponseConfig = (agentConfig: AgentConfig, openAIConversation
 		vector_store_ids: []
 	}
 	// If we have userVectorStoreId and allowed, add it to tools
-	if (agentConfig.fileSearchEnabled && userVectorStoreId) {
+	if (agentConfig.vectorStoreEnabled && userVectorStoreId) {
 		fileSearchTool.vector_store_ids.push(userVectorStoreId)
 	}
 	// If we have preconfigured vectorStoreIds in agentConfig, add them too
@@ -160,6 +135,17 @@ const createOpenAIResponseConfig = (agentConfig: AgentConfig, openAIConversation
 
 export class OpenAIAgent implements IAgent {
 	constructor(private dbAgent: DBAgent) {}
+	public getAgentInfo(): Agent {
+		// In the future, we might want to change types based on model as well.
+		return {
+			...this.dbAgent,
+			allowedMimeTypes: {
+				messageFiles: this.dbAgent.config.messageFilesEnabled ? OPEN_AI_SUPPORTED_MESSAGE_FILE_MIME_TYPES : [],
+				messageImages: this.dbAgent.config.messageFilesEnabled ? OPEN_AI_SUPPORTED_MESSAGE_IMAGE_MIME_TYPES : [],
+				vectorStoreFiles: this.dbAgent.config.vectorStoreEnabled ? OPEN_AI_SUPPORTED_VECTOR_STORE_FILE_MIME_TYPES : []
+			}
+		}
+	}
 	public async createConversation(conversation: Conversation, initialPrompt: AgentPrompt, streamResponse: boolean): Promise<CreateConversationResult> {
 		const openAIConversation = await openai.conversations.create({ metadata: { agent: this.dbAgent.name } })
 
@@ -208,7 +194,7 @@ export class OpenAIAgent implements IAgent {
 			return {
 				id: file.id,
 				name: file.filename,
-				type: "open-ai-drittfil", // todo, finn mimeType eller noe
+				type: "open-ai-drittfil", // todo, finn mimeType eller noe, den ekke der
 				bytes: file.bytes,
 				summary: null, // OpenAI gir ikke summary per nå
 				status: file.status === "completed" ? "ready" : file.status === "failed" ? "error" : "processing" // Obs, Jørgen er lat, men det går sikkert bra
@@ -244,27 +230,11 @@ export class OpenAIAgent implements IAgent {
 
 	public async getConversationMessages(conversation: Conversation): Promise<{ messages: Message[] }> {
 		const conversationItems = await openai.conversations.items.list(conversation.relatedConversationId, { limit: 50, order: "desc" })
-		// Vi tar først bare de som er message, og mapper de om til Message type vårt system bruker
-		const messages = conversationItems.data
-			.filter((item) => item.type === "message")
-			.map((item) => {
-				// Obs, kommer nok noe citations og greier etterhvert
 
-				const newMessage: Message = {
-					id: item.id || "what",
-					role: item.role === "assistant" ? "agent" : "user", // TODO - her kan dukke opp flere roller akkurat nå altså...
-					type: item.type,
-					status: item.status,
-					content: {
-						type: item.role === "user" ? "inputText" : "outputText",
-						text:
-							item.role === "user"
-								? item.content.find((con) => con.type === "input_text")?.text || "ukjent input drit"
-								: item.content.find((con) => con.type === "output_text")?.text || "ukjent output drit"
-					}
-				}
-				return newMessage
-			})
+		// Tmp write to file for inspection
+		writeFileSync(`./ignore/openai-conversation-items.json`, JSON.stringify(conversationItems.data, null, 2))
+		// Vi tar først bare de som er message, og mapper de om til Message type vårt system bruker
+		const messages = conversationItems.data.map((item) => createMessageFromOpenAIMessage(item))
 		return { messages: messages.reverse() } // Vi vil ha ascending order på de nyeste
 	}
 }

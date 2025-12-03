@@ -1,24 +1,28 @@
 import { writeFileSync } from "node:fs"
 import { Mistral } from "@mistralai/mistralai"
 import type { EventStream } from "@mistralai/mistralai/lib/event-streams"
-import type { ConversationInputs, ConversationRequest, DocumentLibraryTool, InputEntries, MessageInputEntry, MessageOutputEntry } from "@mistralai/mistralai/models/components"
+import type { ConversationInputs, ConversationRequest, DocumentLibraryTool, InputEntries } from "@mistralai/mistralai/models/components"
 import type { ConversationEvents } from "@mistralai/mistralai/models/components/conversationevents"
 import { env } from "$env/dynamic/private"
 import { createSse } from "$lib/streaming.js"
 import type {
 	AddConversationFilesResult,
+	Agent,
 	AgentConfig,
 	AppendToConversationResult,
-	Conversation,
 	CreateConversationResult,
 	DBAgent,
 	GetConversationMessagesResult,
 	GetConversationVectorStoreFileContentResult,
-	IAgent,
-	Message
+	IAgent
 } from "$lib/types/agents.js"
-import type { AgentPrompt, GetVectorStoreFilesResult, VectorStoreFile } from "$lib/types/requests"
+import type { Conversation } from "$lib/types/conversation"
+import type { AgentPrompt } from "$lib/types/message"
+import type { GetVectorStoreFilesResult } from "$lib/types/requests"
+import type { VectorStoreFile } from "$lib/types/vector-store"
 import { getDocumentsInMistralLibrary, uploadFilesToMistralLibrary } from "./document-library"
+import { createMessageFromMistralMessage } from "./mistral-message"
+import { MISTRAL_SUPPORTED_MESSAGE_FILE_MIME_TYPES, MISTRAL_SUPPORTED_MESSAGE_IMAGE_MIME_TYPES, MISTRAL_SUPPORTED_VECTOR_STORE_FILE_MIME_TYPES } from "./mistral-supported-filetypes"
 
 export const mistral = new Mistral({
 	apiKey: env.MISTRAL_API_KEY || "bare-en-tulle-key"
@@ -139,7 +143,7 @@ const createMistralConversationConfig = async (agentConfig: AgentConfig, initial
 
 	// If file search is enabled, create a library for the user and add document_library tool
 	let userLibraryId: string | null = null
-	if (agentConfig.fileSearchEnabled) {
+	if (agentConfig.vectorStoreEnabled) {
 		const userLibrary = await mistral.beta.libraries.create({
 			name: `Library for conversation - add something useful here`,
 			description: "Library created for conversation with document tools"
@@ -169,6 +173,18 @@ const createMistralConversationConfig = async (agentConfig: AgentConfig, initial
 
 export class MistralAgent implements IAgent {
 	constructor(private dbAgent: DBAgent) {}
+
+	public getAgentInfo(): Agent {
+		// In the future, we might want to change types based on model as well.
+		return {
+			...this.dbAgent,
+			allowedMimeTypes: {
+				messageFiles: this.dbAgent.config.messageFilesEnabled ? MISTRAL_SUPPORTED_MESSAGE_FILE_MIME_TYPES : [],
+				messageImages: this.dbAgent.config.messageFilesEnabled ? MISTRAL_SUPPORTED_MESSAGE_IMAGE_MIME_TYPES : [],
+				vectorStoreFiles: this.dbAgent.config.vectorStoreEnabled ? MISTRAL_SUPPORTED_VECTOR_STORE_FILE_MIME_TYPES : []
+			}
+		}
+	}
 
 	public async createConversation(conversation: Conversation, initialPrompt: AgentPrompt, streamResponse: boolean): Promise<CreateConversationResult> {
 		const mistralConversationConfig = await createMistralConversationConfig(this.dbAgent.config, initialPrompt)
@@ -271,27 +287,10 @@ export class MistralAgent implements IAgent {
 
 	public async getConversationMessages(conversation: Conversation): Promise<GetConversationMessagesResult> {
 		const conversationItems = await mistral.beta.conversations.getHistory({ conversationId: conversation.relatedConversationId }) // Får ascending order (tror jeg)
-
-		// Write temp to file
+		// Write temp to file for now TODO - remove later
 		writeFileSync("./ignore/mistral-conversation-items.json", JSON.stringify(conversationItems, null, 2))
 		// Vi tar først bare de som er message, og mapper de om til Message type vårt system bruker
-		const messages = conversationItems.entries
-			.filter((item) => item.type === "message.input" || item.type === "message.output")
-			.map((item) => {
-				// Obs, kommer nok noe andre typer etterhvert
-				item = item as MessageInputEntry | MessageOutputEntry
-				const newMessage: Message = {
-					id: item.id || "what-ingen-mistral-id",
-					type: "message",
-					status: "completed",
-					role: item.type === "message.input" && item.role === "user" ? "user" : "agent",
-					content: {
-						type: item.type === "message.input" ? "inputText" : "outputText",
-						text: typeof item.content === "string" ? item.content : "FIKK EN CONTENT SOM IKKE ER STRING, sjekk mistral-typen OutputContent"
-					}
-				}
-				return newMessage
-			})
+		const messages = conversationItems.entries.map((item) => createMessageFromMistralMessage(item))
 		return { messages }
 	}
 }
