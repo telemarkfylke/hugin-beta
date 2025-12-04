@@ -5,7 +5,7 @@ import { getAuthenticatedUser } from "$lib/server/auth/get-authenticated-user"
 import type { MSPrincipalClaims } from "$lib/types/authentication"
 import type { PageServerLoad } from "./$types"
 
-const ADMIN_ROLE = env.HUGIN_BETA_ADMIN_ROLE
+const ADMIN_ROLE = env.APP_ROLE_ADMIN
 if (!ADMIN_ROLE) {
 	logger.error("HUGIN_BETA_ADMIN_ROLE is not set in environment variables, cannot proceed")
 	throw new Error("HUGIN_BETA_ADMIN_ROLE is not set in environment variables, cannot proceed")
