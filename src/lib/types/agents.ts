@@ -23,7 +23,7 @@ export type MockAgentConfig = z.infer<typeof MockAgentConfig>
 // MISTRAL
 export const MistralConversationConfig = BaseConfig.extend({
 	type: z.literal("mistral-conversation"), // discriminator
-	model: z.enum(["mistral-small-latest", "mistral-medium-latest", "mistral-large-latest", "pixtral-large-2411"]), // add models we want to support here
+	model: z.enum(["mistral-small-latest", "mistral-medium-latest", "mistral-large-latest", "pixtral-large-2411", "mistral-large-2512"]), // add models we want to support here
 	instructions: z.string().nullable(),
 	documentLibraryIds: z.array(z.string()).nullable().optional()
 })
