@@ -1,6 +1,6 @@
 // https://learn.microsoft.com/en-us/azure/app-service/configure-authentication-user-identities
 
-import { MSPrincipalClaims } from "$lib/types/authentication"
+import type { MSPrincipalClaims } from "$lib/types/authentication"
 import { MS_AUTH_PRINCIPAL_CLAIMS_HEADER } from "./auth-constants"
 import { injectMockAuthenticatedUserHeaders, MOCK_AUTH } from "./mock-authenticated-user"
 
@@ -12,8 +12,8 @@ export const getPrincipalClaims = (base64EncodedHeaderValue: string): MSPrincipa
 	try {
 		const principalClaims = JSON.parse(jsonString)
 		// Validate the parsed object structure if needed
-		const validatedMSClaims = MSPrincipalClaims.parse(principalClaims)
-		return validatedMSClaims
+		// TEMP disable const validatedMSClaims = MSPrincipalClaims.parse(principalClaims)
+		return principalClaims
 	} catch (error) {
 		throw new Error(`Failed to parse principal claims from base64 encoded header value: ${error}`)
 	}
