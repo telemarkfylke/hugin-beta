@@ -19,4 +19,3 @@ export const POST: RequestHandler = async () => {
 	// Da lager vi en ny agent og redirecter til dens side når det er gjort
 	throw new Error("Not implemented yet")
 }
-
