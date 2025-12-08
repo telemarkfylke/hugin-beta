@@ -1,7 +1,8 @@
 import { error } from "@sveltejs/kit"
 import { logger } from "@vestfoldfylke/loglady"
 import { env } from "$env/dynamic/private"
-import { getAuthenticatedUser } from "$lib/server/auth/get-authenticated-user"
+import { MS_AUTH_PRINCIPAL_CLAIMS_HEADER } from "$lib/server/auth/auth-constants"
+import { getPrincipalClaims } from "$lib/server/auth/get-authenticated-user"
 import type { MSPrincipalClaims } from "$lib/types/authentication"
 import type { PageServerLoad } from "./$types"
 
@@ -13,9 +14,13 @@ if (!ADMIN_ROLE) {
 
 logger.info("Admin role for Hugin Beta is set to {adminRole}:", ADMIN_ROLE)
 
-export const load: PageServerLoad = async ({ request }): Promise<MSPrincipalClaims> => {
+export const load: PageServerLoad = async ({ request }): Promise<{ claims: MSPrincipalClaims }> => {
 	try {
-		const userClaims = getAuthenticatedUser(request.headers)
+		const userClaimsHeaderValue = request.headers.get(MS_AUTH_PRINCIPAL_CLAIMS_HEADER)
+		if (!userClaimsHeaderValue) {
+			error(401, "Missing claims in request headers")
+		}
+		const userClaims = getPrincipalClaims(userClaimsHeaderValue)
 		if (!userClaims) {
 			error(401, "User not authenticated")
 		}
@@ -31,7 +36,7 @@ export const load: PageServerLoad = async ({ request }): Promise<MSPrincipalClai
 			error(403, "User does not have admin role, access forbidden")
 		}
 
-		return userClaims
+		return { claims: userClaims }
 	} catch (err) {
 		logger.errorException(err, "Error in admin page load")
 		return error(500, `Internal server error ${err instanceof Error ? err.message : ""}`)
