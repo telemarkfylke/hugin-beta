@@ -10,3 +10,12 @@ export const GET: RequestHandler = async () => {
 	const agents = await getDBAgents()
 	return json({ agents })
 }
+
+/**
+ *
+ * @type {import("@sveltejs/kit").RequestHandler}
+ */
+export const POST: RequestHandler = async () => {
+	// Da lager vi en ny agent og redirecter til dens side når det er gjort
+	throw new Error("Not implemented yet")
+}

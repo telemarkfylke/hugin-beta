@@ -1,138 +1,110 @@
-import { createSse } from "$lib/streaming.js"
-import type {
-	AddConversationFilesResult,
-	Agent,
-	AppendToConversationResult,
-	CreateConversationResult,
-	GetConversationMessagesResult,
-	GetConversationVectorStoreFileContentResult,
-	IAgent
-} from "$lib/types/agents"
-import type { Conversation } from "$lib/types/conversation"
-import type { AgentPrompt, Message } from "$lib/types/message"
-import type { GetVectorStoreFilesResult } from "$lib/types/requests"
+import type { VendorConversation } from "$lib/types/conversation"
+import type { VectorStoreFile } from "$lib/types/vector-store"
+import type { IVendor, IVendorResults } from "$lib/types/vendors"
 import { uploadFilesToMockAI } from "./mock-ai-files"
 
-// Markdown works (could move out to md file if needed)
-const mockAiResponse = `Hello, this is a mock AI response streaming to you!
-  Here's some more information from the mock AI.
-  
-  Finally, this is the last part of the mock AI response.
-`
-
-const mockResponseTokens = mockAiResponse.split(" ").map((token) => `${token} `)
-
-export const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms))
-
-export const handleMockAiStream = (conversationId?: string): ReadableStream => {
-	const messageId = `mock-message-${Date.now()}`
-	const readableStream = new ReadableStream({
-		async start(controller) {
-			if (conversationId) {
-				controller.enqueue(createSse({ event: "conversation.started", data: { conversationId } }))
-			}
-			for (const message of mockResponseTokens) {
-				controller.enqueue(createSse({ event: "conversation.message.delta", data: { messageId, content: message } }))
-				// Simuler litt delay mellom meldingene
-				await sleep(50)
-			}
-			controller.enqueue(createSse({ event: "conversation.message.ended", data: { totalTokens: mockResponseTokens.length } }))
-			controller.close()
+export class MockAIVendor implements IVendor {
+	public getVendorInfo(): IVendorResults["GetVendorInfoResult"] {
+		return {
+			id: "mock-ai",
+			name: "Mock AI",
+			description: "Mock AI - bare drit og møkk"
 		}
-	})
-	return readableStream
-}
-
-export class MockAIAgent implements IAgent {
-	public getAgentInfo(): Agent {
-		throw new Error("Method not implemented in MockAIAgent")
-	}
-	public async createConversation(conversation: Conversation, _initialPrompt: AgentPrompt, streamResponse: boolean): Promise<CreateConversationResult> {
-		const relatedConversationId = `mock-related-conversation-${Date.now()}`
-		const vectorStoreId = null // Mock agent does not use vector store
-		if (streamResponse) {
-			const readableStream = handleMockAiStream(conversation._id)
-			return { relatedConversationId, response: readableStream, vectorStoreId }
-		}
-		// For non-streaming, return full response at once (not implemented here)
-		throw new Error("Non-streaming response not implemented in MockAIAgent")
-	}
-	public async appendMessageToConversation(conversation: Conversation, _prompt: AgentPrompt, streamResponse: boolean): Promise<AppendToConversationResult> {
-		if (streamResponse) {
-			const readableStream = handleMockAiStream(conversation._id)
-			return { response: readableStream }
-		}
-		// For non-streaming, return full response at once (not implemented here)
-		throw new Error("Non-streaming response not implemented in MockAIAgent")
-	}
-	public async addConversationVectorStoreFiles(conversation: Conversation, files: File[], streamResponse: boolean): Promise<AddConversationFilesResult> {
-		if (streamResponse) {
-			const readableStream = await uploadFilesToMockAI(conversation.vectorStoreId || `mock-vector-store-${conversation._id}`, files, true)
-			return { response: readableStream }
-		}
-		throw new Error("Non-streaming add files not implemented in MockAIAgent")
-	}
-	public async getConversationVectorStoreFiles(_conversation: Conversation): Promise<GetVectorStoreFilesResult> {
-		throw new Error("Method not implemented in MockAIAgent")
 	}
 
-	public async getConversationVectorStoreFileContent(_conversation: Conversation, _fileId: string): Promise<GetConversationVectorStoreFileContentResult> {
-		throw new Error("Method not implemented in MockAIAgent")
-	}
-	public async deleteConversationVectorStoreFile(_conversation: Conversation, _fileId: string): Promise<void> {
-		throw new Error("Method not implemented in MockAIAgent")
-	}
-	public async getConversationMessages(_conversation: Conversation): Promise<GetConversationMessagesResult> {
-		const mockMessages: Message[] = [
+	public async listConversations(): Promise<IVendorResults["ListConversationsResult"]> {
+		const conversations: VendorConversation[] = [
 			{
-				id: `mock-message-1`,
-				type: "message",
-				status: "completed",
-				role: "user",
-				content: [
-					{
-						type: "text",
-						text: "Hello, Mock AI!"
-					}
-				]
+				id: "conv-1",
+				vendorId: "mock-ai",
+				createdAt: new Date().toISOString(),
+				title: "Mock Conversation 1"
 			},
 			{
-				id: `mock-message-2`,
-				type: "message",
-				status: "completed",
-				role: "agent",
-				content: [
-					{
-						type: "text",
-						text: "Hello, this is a response from Mock AI."
-					}
-				]
-			},
-			{
-				id: `mock-message-3`,
-				type: "message",
-				status: "completed",
-				role: "user",
-				content: [
-					{
-						type: "text",
-						text: "Can you help me with something?"
-					}
-				]
-			},
-			{
-				id: `mock-message-4`,
-				type: "message",
-				status: "completed",
-				role: "agent",
-				content: [
-					{
-						type: "text",
-						text: "no"
-					}
-				]
+				id: "conv-2",
+				vendorId: "mock-ai",
+				createdAt: new Date().toISOString(),
+				title: "Mock Conversation 2"
 			}
 		]
-		return { messages: mockMessages }
+		return { vendorConversations: conversations }
+	}
+
+	public async deleteConversation(_vendorConversationId: string): Promise<void> {
+		return
+	}
+
+	public async listVectorStores(): Promise<IVendorResults["ListVectorStoresResult"]> {
+		return {
+			vectorstores: [
+				{
+					id: "vs-1",
+					generatedDescription: null,
+					numberOfFiles: 2,
+					totalBytes: 2048,
+					updatedAt: new Date().toISOString(),
+					vendorId: "mock-ai",
+					name: "Mock Vector Store 1",
+					description: "This is a mock vector store",
+					createdAt: new Date().toISOString()
+				}
+			]
+		}
+	}
+
+	public async getVectorStore(_vendorVectorStoreId: string): Promise<IVendorResults["GetVectorStoreResult"]> {
+		return {
+			vectorStore: {
+				id: "vs-1",
+				generatedDescription: null,
+				numberOfFiles: 2,
+				totalBytes: 2048,
+				updatedAt: new Date().toISOString(),
+				vendorId: "mock-ai",
+				name: "Mock Vector Store 1",
+				description: "This is a mock vector store",
+				createdAt: new Date().toISOString()
+			}
+		}
+	}
+
+	public async getVectorStoreFiles(_vendorVectorStoreId: string): Promise<IVendorResults["GetVectorStoreFilesResult"]> {
+		const files: VectorStoreFile[] = [
+			{
+				id: "file-1",
+				name: "document1.pdf",
+				bytes: 1024,
+				status: "ready",
+				type: "application/pdf",
+				summary: null
+			}
+		]
+		return { files }
+	}
+
+	public async addVectorStore(_name: string, _description: string): Promise<IVendorResults["AddVectorStoreResult"]> {
+		return {
+			id: "vs-new",
+			vendorId: "mock-ai"
+		}
+	}
+
+	public async deleteVectorStore(_vendorVectorStoreId: string): Promise<void> {
+		return
+	}
+
+	public async addVectorStoreFiles(vendorVectorStoreId: string, files: File[], streamResponse: boolean): Promise<IVendorResults["AddVectorStoreFilesResult"]> {
+		if (!vendorVectorStoreId) {
+			throw new Error("Vector store ID is required to add files")
+		}
+		if (streamResponse) {
+			const readableStream = await uploadFilesToMockAI(vendorVectorStoreId, files, true)
+			return { response: readableStream }
+		}
+		throw new Error("Non-streaming Mock AI conversation add files is not yet implemented")
+	}
+
+	public async deleteVectorStoreFile(_vendorVectorStoreId: string, _fileId: string): Promise<void> {
+		return
 	}
 }

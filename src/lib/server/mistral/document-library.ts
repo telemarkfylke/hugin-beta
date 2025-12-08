@@ -1,5 +1,6 @@
-import type { DocumentOut } from "@mistralai/mistralai/models/components"
+import type { LibraryOut } from "@mistralai/mistralai/models/components"
 import { createSse } from "$lib/streaming.js"
+import type { VectorStore, VectorStoreFile } from "$lib/types/vector-store"
 import { mistral } from "./mistral"
 
 // Document libraries in Mistral are vector stores, but called libraries
@@ -59,7 +60,7 @@ export const uploadFilesToMistralLibrary = async (libraryId: string, files: File
 	throw new Error("Regular upload not implemented yet")
 }
 
-export const getDocumentsInMistralLibrary = async (libraryId: string): Promise<DocumentOut[]> => {
+export const getDocumentsInMistralLibrary = async (libraryId: string): Promise<VectorStoreFile[]> => {
 	if (!libraryId) {
 		throw new Error("libraryId is required to get documents from Mistral library")
 	}
@@ -67,6 +68,46 @@ export const getDocumentsInMistralLibrary = async (libraryId: string): Promise<D
 		libraryId,
 		pageSize: 100
 	})
-	// TODO implement pagination if needed
-	return documents.data
+	const files: VectorStoreFile[] = documents.data.map((doc) => {
+		return {
+			id: doc.id,
+			type: doc.mimeType,
+			name: doc.name,
+			bytes: doc.size,
+			status: "ready", // TODO, sjekk hva de dumme statusene til Mistral er... og mappe de til våre egne
+			summary: doc.summary || null,
+			uploadedAt: doc.createdAt.toISOString()
+		}
+	})
+	return files
+}
+
+const mapLibraryToVectorStore = (library: LibraryOut): VectorStore => {
+	return {
+		id: library.id,
+		vendorId: "mistral",
+		name: library.name,
+		description: library.description || "No description provided",
+		generatedDescription: library.generatedDescription || null,
+		numberOfFiles: library.nbDocuments,
+		totalBytes: library.totalSize,
+		createdAt: library.createdAt.toISOString(),
+		updatedAt: library.updatedAt ? library.updatedAt.toISOString() : null
+	}
+}
+
+export const getMistralLibrary = async (libraryId: string): Promise<VectorStore> => {
+	if (!libraryId) {
+		throw new Error("libraryId is required to get Mistral library")
+	}
+	const library = await mistral.beta.libraries.get({
+		libraryId
+	})
+	return mapLibraryToVectorStore(library)
+}
+
+export const getMistralLibraries = async (): Promise<VectorStore[]> => {
+	// Inntil videre går det bare å liste alle libraries hos Mistral uten filtrering...
+	const libraries = await mistral.beta.libraries.list()
+	return libraries.data.map(mapLibraryToVectorStore)
 }

@@ -1,6 +1,6 @@
 // https://learn.microsoft.com/en-us/azure/app-service/configure-authentication-user-identities
 
-import type { MSPrincipalClaims } from "$lib/types/authentication"
+import { type AuthenticatedUser, MSPrincipalClaims } from "$lib/types/authentication"
 import { MS_AUTH_PRINCIPAL_CLAIMS_HEADER } from "./auth-constants"
 import { injectMockAuthenticatedUserHeaders, MOCK_AUTH } from "./mock-authenticated-user"
 
@@ -12,14 +12,13 @@ export const getPrincipalClaims = (base64EncodedHeaderValue: string): MSPrincipa
 	try {
 		const principalClaims = JSON.parse(jsonString)
 		// Validate the parsed object structure if needed
-		// TEMP disable const validatedMSClaims = MSPrincipalClaims.parse(principalClaims)
-		return principalClaims
+		return MSPrincipalClaims.parse(principalClaims)
 	} catch (error) {
 		throw new Error(`Failed to parse principal claims from base64 encoded header value: ${error}`)
 	}
 }
 
-export const getAuthenticatedUser = (headers: Headers): MSPrincipalClaims => {
+export const getAuthenticatedUser = (headers: Headers): AuthenticatedUser => {
 	if (MOCK_AUTH) {
 		headers = injectMockAuthenticatedUserHeaders(headers)
 	}
@@ -27,5 +26,28 @@ export const getAuthenticatedUser = (headers: Headers): MSPrincipalClaims => {
 	if (!base64EncodedHeaderValue) {
 		throw new Error(`Missing ${MS_AUTH_PRINCIPAL_CLAIMS_HEADER} header, cannot get authenticated user`)
 	}
-	return getPrincipalClaims(base64EncodedHeaderValue)
+
+	const principalClaims = getPrincipalClaims(base64EncodedHeaderValue)
+	const userId = principalClaims.claims.find((claim) => claim.typ === "http://schemas.microsoft.com/identity/claims/objectidentifier")?.val
+	if (!userId) {
+		throw new Error("User ID claim is missing in principal claims")
+	}
+	const preferredUserName = principalClaims.claims.find((claim) => claim.typ === "preferred_username")?.val || "unknown"
+	const name = principalClaims.claims.find((claim) => claim.typ === "name")?.val
+	if (!name) {
+		throw new Error("Name claim is missing in principal claims")
+	}
+	const roles = principalClaims.claims.filter((claim) => claim.typ === "roles").map((claim) => claim.val)
+	if (roles.length === 0) {
+		throw new Error("No roles found in principal claims")
+	}
+	const groups = principalClaims.claims.filter((claim) => claim.typ === "groups").map((claim) => claim.val)
+
+	return {
+		userId,
+		preferredUserName,
+		name,
+		roles,
+		groups
+	}
 }

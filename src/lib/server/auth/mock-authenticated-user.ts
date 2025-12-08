@@ -1,7 +1,7 @@
 // https://learn.microsoft.com/en-us/azure/app-service/configure-authentication-user-identities
 
 import { env } from "$env/dynamic/private"
-import type { MSPrincipalClaims } from "$lib/types/authentication"
+import type { MSPrincipalClaims, MSUserClaim } from "$lib/types/authentication"
 import { MS_AUTH_PRINCIPAL_CLAIMS_HEADER } from "./auth-constants"
 
 export const MOCK_AUTH = env.MOCK_AUTH === "true"
@@ -12,33 +12,91 @@ if (MOCK_AUTH) {
 	}
 }
 
+// Claims are based on a real authentication from this web app via EasyAuth / EntraID
+// https://learn.microsoft.com/en-us/entra/identity-platform/id-token-claims-reference#payload-claims
 const _mockClaims: MSPrincipalClaims = {
 	auth_typ: "aad",
 	claims: [
 		{
 			typ: "aud",
-			val: "guid-guid" // Audience - the client ID of the application?
+			val: "guid-guid" // Audience - the client ID of the FRONTEND application
+		},
+		{
+			typ: "iss",
+			val: "https://login.microsoftonline.com/{tenantId}/v2.0" // Who issued the token / authentication
+		},
+		{
+			typ: "iat",
+			val: "1764835806" // Issued at - timestamp of when the token was issued
+		},
+		{
+			typ: "nbf",
+			val: "1764835806" // Not before - timestamp of when the token becomes valid
+		},
+		{
+			typ: "exp",
+			val: "1764839706" // Expiration - timestamp of when the token expires
+		},
+		{
+			typ: "aio",
+			val: "AcQAO/8aAAAA...." // An internal claim that's used to record data for token reuse. Should be ignored.
+		},
+		{
+			typ: "c_hash",
+			val: "Ajijifd..." // Used to validate the authenticity of an authorization code
 		},
 		{
 			typ: "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress",
-			val: `demo.spokelse@fylke.no` // User's email address
+			val: `demo.spokelse@fylke.no` // This value isn't guaranteed to be correct and is mutable over time. Never use it for authorization or to save data for a user.
+		},
+		{
+			typ: "groups",
+			val: "ObjectId-of-a-group-if-any" // Group Object ID if groups are included in the token
 		},
 		{
 			typ: "name",
-			val: "Demo Spøkelse" // User's full name?
+			val: "Demo Spøkelse" // The name claim provides a human-readable value that identifies the subject of the token. The value isn't guaranteed to be unique, it can be changed, and should be used only for display purposes
+		},
+		{
+			typ: "nonce",
+			val: "4fd69fsdfdsf" // Nonce value to mitigate replay attacks (internal OAuth2 Entra stuff)
 		},
 		{
 			typ: "http://schemas.microsoft.com/identity/claims/objectidentifier",
-			val: "12345-4378493-fjdiofjd" // Object ID - unique identifier for the user?
+			val: "12345-4378493-fjdiofjd" // The immutable identifier for an object, in this case, a user account. This ID uniquely identifies the user across applications
 		},
 		{
 			typ: "preferred_username",
-			val: `demo.spokelse@fylke.no` // Preferred username??
+			val: `demo.spokelse@fylke.no` // The primary username that represents the user
 		},
-		...MOCK_AUTH_ROLES.map((role) => ({
+		{
+			typ: "rh", // An internal claim used to revalidate tokens. Should be ignored.
+			val: "dsfdsf..."
+		},
+		{
+			typ: "sid",
+			val: "guid" // Represents a unique identifier for a session and will be generated when a new session is established.
+		},
+		{
+			typ: "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier",
+			val: "b-lM4...." // Dont know... bing it
+		},
+		{
+			typ: "http://schemas.microsoft.com/identity/claims/tenantid",
+			val: "guid" // Tenant ID - identifies the EntraID tenant
+		},
+		{
+			typ: "uti",
+			val: "CpU...." // Token identifier claim, equivalent to jti in the JWT specification. Unique, per-token identifier that is case-sensitive.
+		},
+		{
+			typ: "ver",
+			val: "2.0" // Indicates the version of the ID token.
+		},
+		...(MOCK_AUTH_ROLES.map((role) => ({
 			typ: "roles",
 			val: role
-		}))
+		})) as MSUserClaim[])
 	],
 	name_typ: "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress",
 	role_typ: "http://schemas.microsoft.com/ws/2008/06/identity/claims/role"

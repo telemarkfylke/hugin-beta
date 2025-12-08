@@ -28,6 +28,10 @@
     {:catch error}
       <p style="color: red;">Error: {error.stack || error.message}</p>
     {/await}
+    <h2>Conversations</h2>
+    <a href="/conversations">Go to Conversations</a>
+    <h2>Vector stores</h2>
+    <a href="/vectorstores">Go to Vector Stores</a>
   </div>
   <div class="right-content">
     <AgentComponent agentId={"mistral-conversation"} />

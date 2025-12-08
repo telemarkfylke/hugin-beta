@@ -5,7 +5,7 @@
 	import type { LayoutProps } from "./$types.js"
 
 	// Get layout props, data will be accessible for children as well, so do not put too much here to avoid overfetching
-	let { children }: LayoutProps = $props()
+	let { children, data }: LayoutProps = $props()
 </script>
 
 <svelte:head>
@@ -13,12 +13,11 @@
 </svelte:head>
 
 <header>
-	<h1>Hugin Beta<img src="https://arngren.net/JUL-2009-5.gif" alt="funny gif" /></h1>
-	<img src="https://arngren.net/JUL-2009-4.gif" alt="funny gif" />
+	<h1>Hugin Beta</h1>
 	<menu>
+		{data.authenticatedUser.name}
 		<li><a href="/">Home</a></li>
 		<li><a href="/agents">Agents</a></li>
-		<img src="https://arngren.net/JUL-2009-4.gif" alt="funny gif" />
 	</menu>
 </header>
 <main>
@@ -30,25 +29,28 @@
 </main>
 <footer>
 	<span>Footer</span>
-	<img src="https://arngren.net/JUL-2009-4.gif" alt="funny gif" />
 	<img src="https://arngren.net/JUL-2009-5.gif" alt="funny gif" />
 	<img src="https://arngren.net/JUL-2009-6.gif" alt="funny gif" />
 </footer>
 
 <style>
+	:root {
+		--header-height: 60px;
+		--footer-height: 40px;
+	}
 	header {
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
-		height: 40px;
+		height: var(--header-height);
 		box-sizing: border-box;
 	}
 	main {
 		box-sizing: border-box;
-		height: calc(100% - 80px); /* Adjust based on header and footer height */
+		height: calc(100% - var(--header-height) - var(--footer-height)); /* Adjust based on header and footer height */
 	}
 	footer {
 		box-sizing: border-box;
-		height: 40px;
+		height: var(--footer-height);
 	}
 </style>

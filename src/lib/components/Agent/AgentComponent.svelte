@@ -68,7 +68,7 @@
     box-sizing: border-box; /* Include padding and border in total size, to avoid overflow */
     display: flex;
     flex-direction: column;
-    max-width: 1024px;
+    max-width: 1280px;
     margin: 0 auto;
     border: 1px solid #ccc;
     height: 100%;

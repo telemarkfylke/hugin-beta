@@ -1,6 +1,94 @@
 import z from "zod"
 
-export const MSUserClaim = z.object({
+/**
+ * @links
+ * https://learn.microsoft.com/en-us/azure/app-service/configure-authentication-user-identities
+ * https://learn.microsoft.com/en-us/entra/identity-platform/id-token-claims-reference#payload-claims
+ */
+export const MSUserClaim = z.discriminatedUnion("typ", [
+	z.object({
+		typ: z.literal("aud"),
+		val: z.string()
+	}),
+	z.object({
+		typ: z.literal("iss"),
+		val: z.string()
+	}),
+	z.object({
+		typ: z.literal("iat"),
+		val: z.string()
+	}),
+	z.object({
+		typ: z.literal("nbf"),
+		val: z.string()
+	}),
+	z.object({
+		typ: z.literal("exp"),
+		val: z.string()
+	}),
+	z.object({
+		typ: z.literal("aio"),
+		val: z.string()
+	}),
+	z.object({
+		typ: z.literal("c_hash"),
+		val: z.string()
+	}),
+	z.object({
+		typ: z.literal("http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress"),
+		val: z.string()
+	}),
+	z.object({
+		typ: z.literal("groups"),
+		val: z.string()
+	}),
+	z.object({
+		typ: z.literal("name"),
+		val: z.string()
+	}),
+	z.object({
+		typ: z.literal("nonce"),
+		val: z.string()
+	}),
+	z.object({
+		typ: z.literal("http://schemas.microsoft.com/identity/claims/objectidentifier"),
+		val: z.string()
+	}),
+	z.object({
+		typ: z.literal("preferred_username"),
+		val: z.string()
+	}),
+	z.object({
+		typ: z.literal("rh"),
+		val: z.string()
+	}),
+	z.object({
+		typ: z.literal("sid"),
+		val: z.string()
+	}),
+	z.object({
+		typ: z.literal("http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier"),
+		val: z.string()
+	}),
+	z.object({
+		typ: z.literal("http://schemas.microsoft.com/identity/claims/tenantid"),
+		val: z.string()
+	}),
+	z.object({
+		typ: z.literal("uti"),
+		val: z.string()
+	}),
+	z.object({
+		typ: z.literal("ver"),
+		val: z.string()
+	}),
+	z.object({
+		typ: z.literal("roles"),
+		val: z.string()
+	})
+])
+
+export const MSUserClaimOLD = z.object({
 	typ: z.string(),
 	val: z.string()
 })
@@ -15,3 +103,13 @@ export const MSPrincipalClaims = z.object({
 })
 
 export type MSPrincipalClaims = z.infer<typeof MSPrincipalClaims>
+
+export const AuthenticatedUser = z.object({
+	userId: z.string(),
+	name: z.string(),
+	preferredUserName: z.string(),
+	roles: z.array(z.string()),
+	groups: z.array(z.string())
+})
+
+export type AuthenticatedUser = z.infer<typeof AuthenticatedUser>

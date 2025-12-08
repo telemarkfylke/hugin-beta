@@ -1,6 +1,6 @@
 import { json, type RequestHandler } from "@sveltejs/kit"
 import { createAgent, getDBAgent } from "$lib/server/agents/agents.js"
-import { deleteConversation, getConversations, insertConversation, updateConversation } from "$lib/server/agents/conversations.js"
+import { deleteDBConversation, getDBConversations, insertDBConversation, updateDBConversation } from "$lib/server/agents/conversations.js"
 import { responseStream } from "$lib/streaming"
 import { ConversationRequest } from "$lib/types/requests"
 
@@ -12,7 +12,7 @@ export const GET: RequestHandler = async ({ params }): Promise<Response> => {
 		throw new Error("agentId is required")
 	}
 	console.log(`Fetching conversations for agent ${params.agentId}`)
-	const conversations = await getConversations(params.agentId)
+	const conversations = await getDBConversations(params.agentId)
 
 	return json({ conversations })
 }
@@ -32,19 +32,20 @@ export const POST: RequestHandler = async ({ request, params }) => {
 	const agent = createAgent(dbAgent)
 
 	// Oppretter en conversation i egen db
-	const dbConversation = await insertConversation(agentId, {
+	const dbConversation = await insertDBConversation(agentId, {
 		name: "New Conversation",
+		vendorId: dbAgent.vendorId,
 		description: "Conversation started via API",
-		relatedConversationId: "",
+		vendorConversationId: "",
 		vectorStoreId: null
 	})
 
 	try {
-		const { relatedConversationId, response, vectorStoreId } = await agent.createConversation(dbConversation, prompt, stream)
+		const { vendorConversationId, response, vectorStoreId } = await agent.createConversation(dbConversation, prompt, stream)
 
 		// Oppdaterer vår conversation med riktig relatedConversationId og vectorStoreId
-		updateConversation(dbConversation._id, {
-			relatedConversationId,
+		updateDBConversation(dbConversation._id, {
+			vendorConversationId,
 			vectorStoreId
 		})
 
@@ -56,7 +57,7 @@ export const POST: RequestHandler = async ({ request, params }) => {
 	} catch (error) {
 		console.error("Error creating conversation:", error)
 		// delete the conversation we just created in db
-		await deleteConversation(dbConversation._id)
+		await deleteDBConversation(dbConversation._id)
 		throw error
 	}
 }

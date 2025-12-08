@@ -1,11 +1,12 @@
 // simply in-memory mock database corresponding to collections in mongodb
 
 import type { DBAgent } from "$lib/types/agents.ts"
-import type { Conversation } from "$lib/types/conversation"
+import type { DBConversation } from "$lib/types/conversation"
 
 export const agents: DBAgent[] = [
 	{
 		_id: "mistral",
+		vendorId: "mistral",
 		name: "Mistral demo agent",
 		description: "Mistral agent based on an agent in mistral - connected to a mistral agent id",
 		config: {
@@ -15,6 +16,7 @@ export const agents: DBAgent[] = [
 	},
 	{
 		_id: "mistral-conversation",
+		vendorId: "mistral",
 		name: "Mistral rett på conversation",
 		description: "Mistral agent som går rett på en model og conversation",
 		config: {
@@ -28,6 +30,7 @@ export const agents: DBAgent[] = [
 	},
 	{
 		_id: "openai_prompt",
+		vendorId: "openai",
 		name: "Open AI prompt demo agent",
 		description: "An agent that uses an OpenAI prompt-id as its configuration (saved prompt in OpenAI)",
 		config: {
@@ -40,6 +43,7 @@ export const agents: DBAgent[] = [
 	},
 	{
 		_id: "openai_response_4o",
+		vendorId: "openai",
 		name: "Open AI demo agent",
 		description: "An agent that uses an OpenAI response configuration with gpt-4o model",
 		config: {
@@ -52,4 +56,4 @@ export const agents: DBAgent[] = [
 	}
 ]
 
-export const conversations: Conversation[] = []
+export const conversations: DBConversation[] = []

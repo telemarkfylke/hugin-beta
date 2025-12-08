@@ -1,7 +1,7 @@
 import { json, type RequestHandler, redirect } from "@sveltejs/kit"
 import { createAgent, getDBAgent } from "$lib/server/agents/agents.js"
-import { getConversation } from "$lib/server/agents/conversations"
-import type { GetConversationVectorStoreFileContentResult } from "$lib/types/agents"
+import { getDBConversation } from "$lib/server/agents/conversations"
+import type { IAgentResults } from "$lib/types/agents"
 
 export const GET: RequestHandler = async ({ params }) => {
 	// Da legger vi til en ny melding i samtalen i denne agenten via leverandør basert på agenten, og får tilbake responseStream med oppdatert samtalehistorikk
@@ -16,12 +16,12 @@ export const GET: RequestHandler = async ({ params }) => {
 		return json({ error: "File upload is not enabled for this agent" }, { status: 403 })
 	}
 
-	const conversation = await getConversation(conversationId)
+	const conversation = await getDBConversation(conversationId)
 	//	TODO: validate that conversation belongs to agentId and that user has access to it
 
 	const agent = createAgent(dbAgent)
 
-	let fileResponse: GetConversationVectorStoreFileContentResult
+	let fileResponse: IAgentResults["GetConversationVectorStoreFileContentResult"]
 	try {
 		fileResponse = await agent.getConversationVectorStoreFileContent(conversation, fileId)
 		// Return the file as a downloadable url or blob or something
@@ -49,7 +49,7 @@ export const DELETE: RequestHandler = async ({ params }) => {
 		return json({ error: "File upload is not enabled for this agent" }, { status: 403 })
 	}
 
-	const conversation = await getConversation(conversationId)
+	const conversation = await getDBConversation(conversationId)
 	//	TODO: validate that conversation belongs to agentId and that user has access to it
 
 	const agent = createAgent(dbAgent)

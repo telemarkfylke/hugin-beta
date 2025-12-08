@@ -1,5 +1,5 @@
 import type { Agent } from "./agents.js"
-import type { Conversation } from "./conversation.js"
+import type { DBConversation } from "./conversation.js"
 import type { DeepReadonly } from "./deep-read-only.js"
 import type { AgentPrompt, Message } from "./message.js"
 import type { VectorStoreFile } from "./vector-store.js"
@@ -31,7 +31,7 @@ export type AgentState = {
 	conversations: {
 		isLoading: boolean
 		error: FrontEndError
-		value: Conversation[]
+		value: DBConversation[]
 	}
 }
 
