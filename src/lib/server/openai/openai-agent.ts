@@ -14,7 +14,7 @@ import { uploadFilesToOpenAIVectorStore } from "./vector-store"
 const openAIVendor = new OpenAIVendor()
 
 export const handleOpenAIStream = (stream: Stream<ResponseStreamEvent>, conversationId?: string): ReadableStream => {
-	const readableStream = new ReadableStream({
+	return new ReadableStream({
 		async start(controller) {
 			if (conversationId) {
 				controller.enqueue(createSse({ event: "conversation.started", data: { conversationId } }))
@@ -42,7 +42,6 @@ export const handleOpenAIStream = (stream: Stream<ResponseStreamEvent>, conversa
 			controller.close()
 		}
 	})
-	return readableStream
 }
 
 type OpenAIResponseConfigResult = {

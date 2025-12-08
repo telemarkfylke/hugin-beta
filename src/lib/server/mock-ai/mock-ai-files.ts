@@ -24,7 +24,7 @@ export const uploadFilesToMockAI = async (libraryId: string, files: File[], stre
 	}
 	// Maybe validate files types as well here
 	if (streamResponse) {
-		const readableStream = new ReadableStream({
+		return new ReadableStream({
 			async start(controller) {
 				for (const file of files) {
 					try {
@@ -63,7 +63,6 @@ export const uploadFilesToMockAI = async (libraryId: string, files: File[], stre
 				controller.close()
 			}
 		})
-		return readableStream
 	}
 
 	throw new Error("Regular upload (json response) not implemented yet")

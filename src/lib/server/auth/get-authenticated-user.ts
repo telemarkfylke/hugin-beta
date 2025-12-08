@@ -12,8 +12,7 @@ export const getPrincipalClaims = (base64EncodedHeaderValue: string): MSPrincipa
 	try {
 		const principalClaims = JSON.parse(jsonString)
 		// Validate the parsed object structure if needed
-		const validatedMSClaims = MSPrincipalClaims.parse(principalClaims)
-		return validatedMSClaims
+		return MSPrincipalClaims.parse(principalClaims)
 	} catch (error) {
 		throw new Error(`Failed to parse principal claims from base64 encoded header value: ${error}`)
 	}

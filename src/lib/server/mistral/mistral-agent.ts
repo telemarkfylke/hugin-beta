@@ -13,7 +13,7 @@ import { MISTRAL_SUPPORTED_MESSAGE_FILE_MIME_TYPES, MISTRAL_SUPPORTED_MESSAGE_IM
 const mistralVendor = new MistralVendor()
 
 const handleMistralStream = (stream: EventStream<ConversationEvents>, dbConversationId?: string, userLibraryId?: string | null): ReadableStream<Uint8Array> => {
-	const readableStream: ReadableStream<Uint8Array> = new ReadableStream({
+	return new ReadableStream({
 		async start(controller) {
 			if (dbConversationId) {
 				controller.enqueue(createSse({ event: "conversation.started", data: { conversationId: dbConversationId } }))
@@ -53,7 +53,6 @@ const handleMistralStream = (stream: EventStream<ConversationEvents>, dbConversa
 			controller.close()
 		}
 	})
-	return readableStream
 }
 
 const createMistralPromptFromAgentPrompt = (initialPrompt: AgentPrompt): ConversationInputs => {

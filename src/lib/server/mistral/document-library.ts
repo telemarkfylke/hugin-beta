@@ -83,7 +83,7 @@ export const getDocumentsInMistralLibrary = async (libraryId: string): Promise<V
 }
 
 const mapLibraryToVectorStore = (library: LibraryOut): VectorStore => {
-	const vectorStore: VectorStore = {
+	return {
 		id: library.id,
 		vendorId: "mistral",
 		name: library.name,
@@ -94,7 +94,6 @@ const mapLibraryToVectorStore = (library: LibraryOut): VectorStore => {
 		createdAt: library.createdAt.toISOString(),
 		updatedAt: library.updatedAt ? library.updatedAt.toISOString() : null
 	}
-	return vectorStore
 }
 
 export const getMistralLibrary = async (libraryId: string): Promise<VectorStore> => {
