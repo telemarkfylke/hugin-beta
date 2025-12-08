@@ -1,9 +1,9 @@
 import { env } from "$env/dynamic/private"
 import type { DBAgent, IAgent } from "$lib/types/agents.ts"
-import { MistralAgent } from "../mistral/mistral"
-import { MockAIAgent } from "../mock-ai/mock-ai"
-import { OllamaAgent } from "../ollama/ollama"
-import { OpenAIAgent } from "../openai/openai"
+import { MistralAgent } from "../mistral/mistral-agent.js"
+import { MockAIAgent } from "../mock-ai/mock-ai-agent"
+import { OllamaAgent } from "../ollama/ollama-agent"
+import { OpenAIAgent } from "../openai/openai-agent"
 
 let mockDbData = null
 

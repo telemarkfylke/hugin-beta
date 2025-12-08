@@ -1,5 +1,5 @@
 import { createSse } from "$lib/streaming.js"
-import { sleep } from "./mock-ai"
+import { sleep } from "./mock-ai-agent"
 
 type MockAiFile = {
 	id: string

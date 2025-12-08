@@ -1,296 +1,110 @@
-import { writeFileSync } from "node:fs"
 import { Mistral } from "@mistralai/mistralai"
-import type { EventStream } from "@mistralai/mistralai/lib/event-streams"
-import type { ConversationInputs, ConversationRequest, DocumentLibraryTool, InputEntries } from "@mistralai/mistralai/models/components"
-import type { ConversationEvents } from "@mistralai/mistralai/models/components/conversationevents"
 import { env } from "$env/dynamic/private"
-import { createSse } from "$lib/streaming.js"
-import type {
-	AddConversationFilesResult,
-	Agent,
-	AgentConfig,
-	AppendToConversationResult,
-	CreateConversationResult,
-	DBAgent,
-	GetConversationMessagesResult,
-	GetConversationVectorStoreFileContentResult,
-	IAgent
-} from "$lib/types/agents.js"
-import type { Conversation } from "$lib/types/conversation"
-import type { AgentPrompt } from "$lib/types/message"
-import type { GetVectorStoreFilesResult } from "$lib/types/requests"
-import type { VectorStoreFile } from "$lib/types/vector-store"
-import { getDocumentsInMistralLibrary, uploadFilesToMistralLibrary } from "./document-library"
-import { createMessageFromMistralMessage } from "./mistral-message"
-import { MISTRAL_SUPPORTED_MESSAGE_FILE_MIME_TYPES, MISTRAL_SUPPORTED_MESSAGE_IMAGE_MIME_TYPES, MISTRAL_SUPPORTED_VECTOR_STORE_FILE_MIME_TYPES } from "./mistral-supported-filetypes"
+import type { VendorConversation } from "$lib/types/conversation"
+import type { IVendor, IVendorResults } from "$lib/types/vendors"
+import { getDocumentsInMistralLibrary, getMistralLibraries, getMistralLibrary, uploadFilesToMistralLibrary } from "./document-library"
 
 export const mistral = new Mistral({
 	apiKey: env.MISTRAL_API_KEY || "bare-en-tulle-key"
 })
 
-const handleMistralStream = (stream: EventStream<ConversationEvents>, dbConversationId?: string, userLibraryId?: string | null): ReadableStream<Uint8Array> => {
-	const readableStream: ReadableStream<Uint8Array> = new ReadableStream({
-		async start(controller) {
-			if (dbConversationId) {
-				controller.enqueue(createSse({ event: "conversation.started", data: { conversationId: dbConversationId } }))
-			}
-			if (userLibraryId) {
-				controller.enqueue(createSse({ event: "conversation.vectorstore.created", data: { vectorStoreId: userLibraryId } }))
-			}
-			for await (const chunk of stream) {
-				if (!["conversation.response.started", "message.output.delta"].includes(chunk.event)) {
-					console.log("Mistral stream chunk event:", chunk.event, chunk.data)
-				}
-				// Types are not connected to the event in mistral... so we use type instead
-				switch (chunk.data.type) {
-					case "conversation.response.started":
-						// controller.enqueue(createSse('conversation.started', { MistralConversationId: chunk.data.conversationId }));
-						break
-					case "message.output.delta":
-						controller.enqueue(
-							createSse({
-								event: "conversation.message.delta",
-								data: { messageId: chunk.data.id, content: typeof chunk.data.content === "string" ? chunk.data.content : "FIKK EN CHUNK SOM IKKE ER STRING, sjekk mistral-typen OutputContentChunks" }
-							})
-						)
-						break
-					case "conversation.response.done":
-						controller.enqueue(createSse({ event: "conversation.message.ended", data: { totalTokens: chunk.data.usage.totalTokens || 0 } }))
-						break
-					case "conversation.response.error":
-						controller.enqueue(createSse({ event: "error", data: { message: chunk.data.message } }))
-						break
-					// Ta hensyn til flere event typer her etter behov
-					default:
-						console.warn("Unhandled Mistral stream event type:", chunk.data.type)
-						console.log("Full chunk data:", chunk.data)
-				}
-			}
-			controller.close()
-		}
-	})
-	return readableStream
-}
-
-const createMistralPromptFromAgentPrompt = (initialPrompt: AgentPrompt): ConversationInputs => {
-	if (typeof initialPrompt === "string") {
-		return initialPrompt
-	}
-	return initialPrompt.map((item) => {
-		if (item.role !== "user" && item.role !== "agent") {
-			throw new Error(`Unsupported role in advanced prompt for Mistral: ${item.role}`)
-		}
-		const inputEntry: InputEntries = {
-			role: item.role === "user" ? "user" : "assistant",
-			type: "message.input",
-			content: item.input.map((inputItem) => {
-				switch (inputItem.type) {
-					case "text":
-						return { type: "text", text: inputItem.text }
-					case "image":
-						return { type: "image_url", imageUrl: inputItem.imageUrl }
-					case "file":
-						return { type: "document_url", documentUrl: inputItem.fileUrl, documentName: inputItem.fileName }
-					default:
-						throw new Error(`Unsupported input type in advanced prompt for Mistral...`)
-				}
-			})
-		}
-		return inputEntry
-	})
-}
-
-// TODO - gjør noe med det under om du trenger
-type MistralConversationConfigResult = {
-	requestConfig: ConversationRequest
-	data: {
-		userLibraryId: string | null
-	}
-}
-const createMistralConversationConfig = async (agentConfig: AgentConfig, initialPrompt: AgentPrompt): Promise<MistralConversationConfigResult> => {
-	if (agentConfig.type !== "mistral-conversation" && agentConfig.type !== "mistral-agent") {
-		throw new Error(`Invalid agent config type for Mistral conversation: ${agentConfig.type}`)
-	}
-
-	// Map initialPrompt to Mistral ConversationInputs
-	const mistralPrompt: ConversationInputs = createMistralPromptFromAgentPrompt(initialPrompt)
-
-	// If simple agentId, use that and return
-	if (agentConfig.type === "mistral-agent") {
+export class MistralVendor implements IVendor {
+	public getVendorInfo(): IVendorResults["GetVendorInfoResult"] {
 		return {
-			requestConfig: {
-				agentId: agentConfig.agentId,
-				inputs: mistralPrompt
-			},
-			data: {
-				userLibraryId: null
-			}
+			id: "mistral",
+			name: "Mistral AI",
+			description: "Mistral AI - cutting-edge language models and AI solutions."
 		}
 	}
-	// Now we know it's type mistral-conversation
-	// If we fileSearchEnabled, we need to create a library for the user to upload files to
 
-	const mistralConversationConfig: ConversationRequest = {
-		model: agentConfig.model,
-		inputs: mistralPrompt,
-		instructions: agentConfig.instructions || ""
-	}
-	// Tool if needed
-	const documentLibraryTool: DocumentLibraryTool & { type: "document_library" } = {
-		type: "document_library",
-		libraryIds: [] as string[]
-	}
-
-	// If file search is enabled, create a library for the user and add document_library tool
-	let userLibraryId: string | null = null
-	if (agentConfig.vectorStoreEnabled) {
-		const userLibrary = await mistral.beta.libraries.create({
-			name: `Library for conversation - add something useful here`,
-			description: "Library created for conversation with document tools"
+	public async listConversations(): Promise<IVendorResults["ListConversationsResult"]> {
+		const conversations = await mistral.beta.conversations.list({
+			pageSize: 100
 		})
-		userLibraryId = userLibrary.id
-		documentLibraryTool.libraryIds.push(userLibrary.id)
+		// TODO: pagination
+		const mappedConversations: VendorConversation[] = conversations.map((mistralConv) => {
+			return {
+				id: mistralConv.id,
+				vendorId: "mistral",
+				createdAt: mistralConv.createdAt.toISOString(),
+				title: mistralConv.name || null
+			}
+		})
+		return { vendorConversations: mappedConversations }
 	}
-	// If preconfigured document libraries, add them as well
-	if (agentConfig.documentLibraryIds && agentConfig.documentLibraryIds.length > 0) {
-		documentLibraryTool.libraryIds.push(...agentConfig.documentLibraryIds)
-	}
-	// Add documentLibraryTool only if we have library ids
-	if (documentLibraryTool.libraryIds.length > 0) {
-		mistralConversationConfig.tools = [documentLibraryTool]
-	}
-	// If web search is enabled, add web_search tool
-	if (agentConfig.webSearchEnabled) {
-		throw new Error("Web search tool is not yet implemented for Mistral agents")
-	}
-	return {
-		requestConfig: mistralConversationConfig,
-		data: {
-			userLibraryId
+
+	public async deleteConversation(vendorConversationId: string): Promise<void> {
+		// Not supported by SDK yet, so we do it manually
+		const deleteResponse = await fetch(`https://api.mistral.ai/v1/conversations/${vendorConversationId}`, {
+			method: "DELETE",
+			headers: {
+				Authorization: `Bearer ${env.MISTRAL_API_KEY}`
+			}
+		})
+		if (!deleteResponse.ok) {
+			const errorBody = await deleteResponse.text()
+			throw new Error(`Failed to delete Mistral conversation ${vendorConversationId}: ${deleteResponse.status} - ${errorBody}`)
 		}
 	}
-}
 
-export class MistralAgent implements IAgent {
-	constructor(private dbAgent: DBAgent) {}
+	public async listVectorStores(): Promise<IVendorResults["ListVectorStoresResult"]> {
+		const vectorStores = await getMistralLibraries()
+		return { vectorstores: vectorStores }
+	}
 
-	public getAgentInfo(): Agent {
-		// In the future, we might want to change types based on model as well.
+	public async getVectorStore(vendorVectorStoreId: string): Promise<IVendorResults["GetVectorStoreResult"]> {
+		const vectorStore = await getMistralLibrary(vendorVectorStoreId)
+		return { vectorStore }
+	}
+
+	public async getVectorStoreFiles(vendorVectorStoreId: string): Promise<IVendorResults["GetVectorStoreFilesResult"]> {
+		const files = await getDocumentsInMistralLibrary(vendorVectorStoreId)
+		return { files }
+	}
+
+	public async addVectorStore(name: string, description: string): Promise<IVendorResults["AddVectorStoreResult"]> {
+		const library = await mistral.beta.libraries.create({
+			name,
+			description
+		})
 		return {
-			...this.dbAgent,
-			allowedMimeTypes: {
-				messageFiles: this.dbAgent.config.messageFilesEnabled ? MISTRAL_SUPPORTED_MESSAGE_FILE_MIME_TYPES : [],
-				messageImages: this.dbAgent.config.messageFilesEnabled ? MISTRAL_SUPPORTED_MESSAGE_IMAGE_MIME_TYPES : [],
-				vectorStoreFiles: this.dbAgent.config.vectorStoreEnabled ? MISTRAL_SUPPORTED_VECTOR_STORE_FILE_MIME_TYPES : []
-			}
+			id: library.id,
+			vendorId: "mistral"
 		}
 	}
 
-	public async createConversation(conversation: Conversation, initialPrompt: AgentPrompt, streamResponse: boolean): Promise<CreateConversationResult> {
-		const mistralConversationConfig = await createMistralConversationConfig(this.dbAgent.config, initialPrompt)
-
-		if (streamResponse) {
-			const conversationStarter = await mistral.beta.conversations.startStream(mistralConversationConfig.requestConfig)
-			// REMARK: Dirty hack to extract conversationId from stream - hopefully Mistral wont change this behaviour in a long long time...
-
-			const [conversationStarterStream, actualStream] = conversationStarter.tee() // Haha, lets create a tee so we can read it multiple time (creates two duplicate readable streams)
-
-			// Then we extract the conversationId from the first stream, and pass the actualStream back (if it works...)
-			const reader = conversationStarterStream.getReader()
-			while (true) {
-				const { value, done } = await reader.read()
-				if (value?.data.type === "conversation.response.started") {
-					reader.cancel() // Vi trenger ikke lese mer her, vi har det vi trenger
-					const readableStream = handleMistralStream(actualStream as EventStream<ConversationEvents>, conversation._id, mistralConversationConfig.data.userLibraryId)
-
-					return { relatedConversationId: value.data.conversationId, vectorStoreId: mistralConversationConfig.data.userLibraryId, response: readableStream }
-				}
-				if (done) {
-					break // Oh no, vi fant ikke conversation response started event, har ikke noe å gå for... throw error under her
-				}
-			}
-			throw new Error("Did not receive conversation started event from mistral, the dirty hack failed")
+	public async deleteVectorStore(vendorVectorStoreId: string): Promise<void> {
+		if (!vendorVectorStoreId) {
+			throw new Error("Vector store ID is required to delete vector store")
 		}
-
-		throw new Error("Non-streaming Mistral conversation creation is not yet implemented")
+		await mistral.beta.libraries.delete({
+			libraryId: vendorVectorStoreId
+		})
 	}
 
-	public async appendMessageToConversation(conversation: Conversation, prompt: AgentPrompt, streamResponse: boolean): Promise<AppendToConversationResult> {
-		if (streamResponse) {
-			const stream = await mistral.beta.conversations.appendStream({
-				conversationId: conversation.relatedConversationId,
-				conversationAppendStreamRequest: {
-					inputs: createMistralPromptFromAgentPrompt(prompt)
-				}
-			})
-			const readableStream = handleMistralStream(stream)
-			return { response: readableStream }
-		}
-		throw new Error("Non-streaming Mistral conversation append is not yet implemented")
-	}
-
-	public async addConversationVectorStoreFiles(conversation: Conversation, files: File[], streamResponse: boolean): Promise<AddConversationFilesResult> {
-		if (!conversation.vectorStoreId) {
-			throw new Error("Conversation does not have a vector store associated, cannot add files")
+	public async addVectorStoreFiles(vendorVectorStoreId: string, files: File[], streamResponse: boolean): Promise<IVendorResults["AddVectorStoreFilesResult"]> {
+		if (!vendorVectorStoreId) {
+			throw new Error("Vector store ID is required to add files")
 		}
 		if (streamResponse) {
-			const readableStream = await uploadFilesToMistralLibrary(conversation.vectorStoreId, files, true)
+			const readableStream = await uploadFilesToMistralLibrary(vendorVectorStoreId, files, true)
 			return { response: readableStream }
 		}
 		throw new Error("Non-streaming Mistral conversation add files is not yet implemented")
 	}
 
-	public async getConversationVectorStoreFiles(conversation: Conversation): Promise<GetVectorStoreFilesResult> {
-		// Må hente filene som ligger i vector store knyttet til samtalen, må kanskje ha en get file også, som henter fildataene
-		if (!conversation.vectorStoreId) {
-			throw new Error("Conversation does not have a vector store associated, cannot get files")
+	public async deleteVectorStoreFile(vendorVectorStoreId: string, fileId: string): Promise<void> {
+		if (!vendorVectorStoreId) {
+			throw new Error("Vector store ID is required to delete files")
 		}
-		const vectorStoreFiles = await getDocumentsInMistralLibrary(conversation.vectorStoreId)
-		// Map om til riktig type
-		const files: VectorStoreFile[] = vectorStoreFiles.map((doc) => {
-			return {
-				id: doc.id,
-				type: doc.mimeType,
-				name: doc.name,
-				bytes: doc.size,
-				status: "ready", // TODO, sjekk hva de dumme statusene til Mistral er... og mappe de til våre egne
-				summary: doc.summary || null,
-				uploadedAt: doc.createdAt
-			}
-		})
-		return { files }
-	}
-
-	public async getConversationVectorStoreFileContent(conversation: Conversation, fileId: string): Promise<GetConversationVectorStoreFileContentResult> {
-		if (!conversation.vectorStoreId) {
-			throw new Error("Conversation does not have a vector store associated, cannot get file content")
+		if (!fileId) {
+			throw new Error("File ID is required to delete file from vector store")
 		}
-		console.log(`Fetching content for document ${fileId} from Mistral library ${conversation.vectorStoreId}`)
-		const documentSignedUrl = await mistral.beta.libraries.documents.getSignedUrl({
-			libraryId: conversation.vectorStoreId,
-			documentId: fileId
-		})
-		return { redirectUrl: documentSignedUrl }
-	}
-
-	public async deleteConversationVectorStoreFile(conversation: Conversation, fileId: string): Promise<void> {
-		if (!conversation.vectorStoreId) {
-			throw new Error("Conversation does not have a vector store associated, cannot delete files")
-		}
-		console.log(`Deleting document ${fileId} from Mistral library ${conversation.vectorStoreId}`)
+		console.log(`Deleting document ${fileId} from Mistral library ${vendorVectorStoreId}`)
 		await mistral.beta.libraries.documents.delete({
-			libraryId: conversation.vectorStoreId,
+			libraryId: vendorVectorStoreId,
 			documentId: fileId
 		})
-		console.log(`Deleted document ${fileId} from Mistral library ${conversation.vectorStoreId}`) // TODO - status på at en fil driver å sletter?
-	}
-
-	public async getConversationMessages(conversation: Conversation): Promise<GetConversationMessagesResult> {
-		const conversationItems = await mistral.beta.conversations.getHistory({ conversationId: conversation.relatedConversationId }) // Får ascending order (tror jeg)
-		// Write temp to file for now TODO - remove later
-		writeFileSync("./ignore/mistral-conversation-items.json", JSON.stringify(conversationItems, null, 2))
-		// Vi tar først bare de som er message, og mapper de om til Message type vårt system bruker
-		const messages = conversationItems.entries.map((item) => createMessageFromMistralMessage(item))
-		return { messages }
+		console.log(`Deleted document ${fileId} from Mistral library ${vendorVectorStoreId}`) // TODO - status på at en fil driver å sletter?
 	}
 }

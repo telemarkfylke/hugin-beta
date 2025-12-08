@@ -1,6 +1,6 @@
 import { json, type RequestHandler } from "@sveltejs/kit"
 import { createAgent, getDBAgent } from "$lib/server/agents/agents.js"
-import { getConversation } from "$lib/server/agents/conversations"
+import { getDBConversation } from "$lib/server/agents/conversations"
 import { responseStream } from "$lib/streaming.js"
 import type { Agent } from "$lib/types/agents"
 
@@ -11,7 +11,7 @@ export const GET: RequestHandler = async ({ params }) => {
 	}
 
 	const dbAgent = await getDBAgent(agentId)
-	const conversation = await getConversation(conversationId)
+	const conversation = await getDBConversation(conversationId)
 
 	const agent = createAgent(dbAgent)
 
@@ -44,7 +44,7 @@ export const POST: RequestHandler = async ({ request, params }) => {
 		return json({ error: "File upload is not enabled for this agent" }, { status: 403 })
 	}
 
-	const conversation = await getConversation(conversationId)
+	const conversation = await getDBConversation(conversationId)
 	//	TODO: validate that conversation belongs to agentId and that user has access to it
 
 	const agent = createAgent(dbAgent)

@@ -1,7 +1,8 @@
 import { ObjectId } from "mongodb"
 import { env } from "$env/dynamic/private"
-import type { Conversation } from "$lib/types/conversation"
+import type { DBConversation } from "$lib/types/conversation"
 import type { Message } from "$lib/types/message"
+import type { VendorId } from "$lib/types/vendor-ids"
 
 let mockDbData = null
 
@@ -11,7 +12,7 @@ if (env.MOCK_DB === "true") {
 	console.log(mockDbData)
 }
 
-export const getConversations = async (agentId: string): Promise<Conversation[]> => {
+export const getDBConversations = async (agentId: string): Promise<DBConversation[]> => {
 	if (mockDbData) {
 		const foundConversations = mockDbData.conversations.filter((conversation) => conversation.agentId === agentId)
 		return foundConversations
@@ -20,7 +21,7 @@ export const getConversations = async (agentId: string): Promise<Conversation[]>
 	// Implement real DB fetch here
 }
 
-export const getConversation = async (conversationId: string): Promise<Conversation> => {
+export const getDBConversation = async (conversationId: string): Promise<DBConversation> => {
 	if (mockDbData) {
 		const foundConversation = mockDbData.conversations.find((conversation) => conversation._id === conversationId)
 		if (!foundConversation) {
@@ -35,12 +36,13 @@ export const getConversation = async (conversationId: string): Promise<Conversat
 type ConversationData = {
 	name: string
 	description: string
-	relatedConversationId: string
+	vendorId: VendorId
+	vendorConversationId: string
 	vectorStoreId: string | null
 	messages?: Message[]
 }
 
-export const insertConversation = async (agentId: string, conversationData: ConversationData): Promise<Conversation> => {
+export const insertDBConversation = async (agentId: string, conversationData: ConversationData): Promise<DBConversation> => {
 	if (mockDbData) {
 		const coversationToInsert = {
 			_id: new ObjectId().toString(),
@@ -55,7 +57,7 @@ export const insertConversation = async (agentId: string, conversationData: Conv
 	// Implement real DB insert here
 }
 
-export const updateConversation = async (conversationId: string, updateData: Partial<ConversationData>): Promise<Conversation> => {
+export const updateDBConversation = async (conversationId: string, updateData: Partial<ConversationData>): Promise<DBConversation> => {
 	if (mockDbData) {
 		const foundConversation = mockDbData.conversations.find((conversation) => conversation._id === conversationId)
 		if (!foundConversation) {
@@ -71,7 +73,7 @@ export const updateConversation = async (conversationId: string, updateData: Par
 	// Implement real DB update here
 }
 
-export const deleteConversation = async (conversationId: string): Promise<void> => {
+export const deleteDBConversation = async (conversationId: string): Promise<void> => {
 	if (mockDbData) {
 		mockDbData.conversations = mockDbData.conversations.filter((conversation) => conversation._id !== conversationId)
 		return

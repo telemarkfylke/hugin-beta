@@ -1,11 +1,12 @@
 // simply in-memory mock database corresponding to collections in mongodb
 
 import type { DBAgent } from "$lib/types/agents.ts"
-import type { Conversation } from "$lib/types/conversation"
+import type { DBConversation } from "$lib/types/conversation"
 
 export const agents: DBAgent[] = [
 	{
 		_id: "mistral-conversation",
+		vendorId: "mistral",
 		name: "Mistral",
 		description: "Mistral agent som går rett på en model og conversation",
 		config: {
@@ -19,6 +20,7 @@ export const agents: DBAgent[] = [
 	},
 	{
 		_id: "mistral-conversation-swedish",
+		vendorId: "mistral",
 		name: "Mistral på svensk",
 		description: "Mistral agent som går rett på en model og conversation",
 		config: {
@@ -29,6 +31,7 @@ export const agents: DBAgent[] = [
 	},
 	{
 		_id: "openai_response_4o",
+		vendorId: "openai",
 		name: "Open AI demo agent",
 		description: "An agent that uses an OpenAI response configuration with gpt-4o model",
 		config: {
@@ -41,6 +44,7 @@ export const agents: DBAgent[] = [
 	},
 	{
 		_id: "openai_response_4o_2",
+		vendorId: "openai",
 		name: "Sarkastisk",
 		description: "An agent that uses an OpenAI response configuration with gpt-4o model",
 		config: {
@@ -51,6 +55,7 @@ export const agents: DBAgent[] = [
 	},
 	{
 		_id: "openai_response_4o_TROLL",
+		vendorId: "openai",
 		name: "Nettroll",
 		description: "An agent that uses an OpenAI response configuration with gpt-4o model",
 		config: {
@@ -61,6 +66,7 @@ export const agents: DBAgent[] = [
 	},
 	{
 		_id: "ollama_basic",
+		vendorId: "ollama",
 		name: "Ollama basic orakel",
 		description: "A basic ollama bot",
 		config: {
@@ -71,4 +77,4 @@ export const agents: DBAgent[] = [
 	}
 ]
 
-export const conversations: Conversation[] = []
+export const conversations: DBConversation[] = []
