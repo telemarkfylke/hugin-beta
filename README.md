@@ -66,6 +66,13 @@ Create a `.env` file in the project root with the following variables:
 MISTRAL_API_KEY="your-mistral-api-key"
 OPENAI_API_KEY="your-openai-api-key"
 MOCK_DB="true"
+MOCK_AUTH_ROLES="Employee,Admin" # Pick from APP_ROLE_X, which ones you want to mock the current user to have
+MOCK_AUTH_GROUPS="a23d4ddd-8e3a-40ca-b4ce-a32e87508094" # GUIDS of groups you want to mock the current user to be a member of
+DEFAULT_AGENT_ID="mistral-conversation"
+APP_ROLE_EMPLOYEE="Employee"
+APP_ROLE_STUDENT="Student"
+APP_ROLE_ADMIN="Admin"
+APP_ROLE_AGENT_MAINTAINER="AgentMaintainer"
 ```
 
 > **Note:** `MOCK_DB` is currently required as database integration is in development.
