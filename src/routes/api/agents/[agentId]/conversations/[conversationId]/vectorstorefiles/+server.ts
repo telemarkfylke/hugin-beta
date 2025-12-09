@@ -3,68 +3,103 @@ import { createAgent, getDBAgent } from "$lib/server/agents/agents.js"
 import { getDBConversation } from "$lib/server/agents/conversations"
 import { responseStream } from "$lib/streaming.js"
 import type { Agent } from "$lib/types/agents"
+import { httpRequestMiddleWare, type MiddlewareNextFunction } from "$lib/server/middleware/http-request"
+import { HTTPError } from "$lib/server/middleware/http-error"
+import { canPromptAgent, canViewConversation } from "$lib/server/auth/authorization"
 
-export const GET: RequestHandler = async ({ params }) => {
-	const { conversationId, agentId } = params
-	if (!agentId || !conversationId) {
-		return json({ error: "agentId and conversationId are required" }, { status: 400 })
+const getVectorStoreFiles: MiddlewareNextFunction = async ({ requestEvent, user }) => {
+	if (!requestEvent.params.agentId || !requestEvent.params.conversationId) {
+		throw new HTTPError(400, "agentId and conversationId are required")
 	}
-
-	const dbAgent = await getDBAgent(agentId)
-	const conversation = await getDBConversation(conversationId)
-
+	const dbAgent = await getDBAgent(requestEvent.params.agentId)
+	if (!canPromptAgent(user, dbAgent)) {
+		return {
+			response: new Response("Forbidden", { status: 403 }),
+			isAuthorized: false
+		}
+	}
+	const conversation = await getDBConversation(requestEvent.params.conversationId)
+	if (!canViewConversation(user, conversation)) {
+		return {
+			response: new Response("Forbidden", { status: 403 }),
+			isAuthorized: false
+		}
+	}
 	const agent = createAgent(dbAgent)
-
 	const getConversationVectorStoreFilesResult = await agent.getConversationVectorStoreFiles(conversation)
-
-	return json(getConversationVectorStoreFilesResult)
+	
+	return {
+		response: json(getConversationVectorStoreFilesResult),
+		isAuthorized: true
+	}
 }
 
-export const POST: RequestHandler = async ({ request, params }) => {
-	// Da legger vi til en ny melding i samtalen i denne agenten via leverandør basert på agenten, og får tilbake responseStream med oppdatert samtalehistorikk
-	const { conversationId, agentId } = params
-	if (!agentId || !conversationId) {
-		return json({ error: "agentId and conversationId are required" }, { status: 400 })
+export const GET: RequestHandler = async (requestEvent) => {
+	return httpRequestMiddleWare(requestEvent, getVectorStoreFiles)
+}
+
+const uploadVectorStoreFiles: MiddlewareNextFunction = async ({ requestEvent, user }) => {
+	if (!requestEvent.params.agentId || !requestEvent.params.conversationId) {
+		throw new HTTPError(400, "agentId and conversationId are required")
 	}
-	const body = await request.formData()
+	const dbAgent = await getDBAgent(requestEvent.params.agentId)
+	if (!canPromptAgent(user, dbAgent)) {
+		return {
+			response: new Response("Forbidden", { status: 403 }),
+			isAuthorized: false
+		}
+	}
+	const conversation = await getDBConversation(requestEvent.params.conversationId)
+	if (!canViewConversation(user, conversation)) {
+		return {
+			response: new Response("Forbidden", { status: 403 }),
+			isAuthorized: false
+		}
+	}
+
+	if (!dbAgent.config.vectorStoreEnabled) {
+		throw new HTTPError(403, "File upload is not enabled for this agent")
+	}
+
+	const body = await requestEvent.request.formData()
 	const files: File[] = body.getAll("files[]") as File[]
 	const streamParam = body.get("stream")
 	if (!streamParam || (streamParam !== "true" && streamParam !== "false")) {
-		return json({ error: 'stream parameter is required and must be either "true" or "false"' }, { status: 400 })
+		throw new HTTPError(400, 'stream parameter is required and must be either "true" or "false"')
 	}
 	const stream: boolean = streamParam === "true"
 
 	// Validate files
 	if (!files || files.length === 0) {
-		return json({ error: "No files provided for upload" }, { status: 400 })
+		throw new HTTPError(400, "No files provided for upload")
 	}
-	const dbAgent = await getDBAgent(agentId)
-
-	if (!dbAgent.config.vectorStoreEnabled) {
-		return json({ error: "File upload is not enabled for this agent" }, { status: 403 })
-	}
-
-	const conversation = await getDBConversation(conversationId)
-	//	TODO: validate that conversation belongs to agentId and that user has access to it
 
 	const agent = createAgent(dbAgent)
 	const agentInfo: Agent = agent.getAgentInfo()
-
 	// Validate each file
 	if (!files.every((file) => file instanceof File)) {
-		return json({ error: "One or more files are not valid File instances" }, { status: 400 })
+		throw new HTTPError(400, "One or more files are not valid File instances")
 	}
 	if (!files.every((file) => file.type)) {
-		return json({ error: "One or more files have empty file type" }, { status: 400 })
+		throw new HTTPError(400, "One or more files have empty file type")
 	}
 	if (!files.every((file) => agentInfo.allowedMimeTypes.vectorStoreFiles.includes(file.type))) {
-		return json({ error: "One or more files have invalid file type" }, { status: 400 }) // Add valid types message senere
+		throw new HTTPError(400, "One or more files have invalid file type") // Add valid types message senere
 	}
 
 	const { response } = await agent.addConversationVectorStoreFiles(conversation, files, stream)
 
 	if (stream) {
-		return responseStream(response)
+		return {
+			response: responseStream(response),
+			isAuthorized: true
+		}
 	}
 	throw new Error("Non-streaming file upload not implemented yet")
 }
+
+export const POST: RequestHandler = async (requestEvent) => {
+	return httpRequestMiddleWare(requestEvent, uploadVectorStoreFiles)
+}
+
+// TODO, fortsett med resten av endepunktene MIDDLEWARE

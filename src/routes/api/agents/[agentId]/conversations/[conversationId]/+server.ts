@@ -3,50 +3,79 @@ import { createAgent, getDBAgent } from "$lib/server/agents/agents.js"
 import { getDBConversation } from "$lib/server/agents/conversations.js"
 import { responseStream } from "$lib/streaming"
 import { ConversationRequest, type GetConversationResult } from "$lib/types/requests"
+import { httpRequestMiddleWare, type MiddlewareNextFunction } from "$lib/server/middleware/http-request"
+import { HTTPError } from "$lib/server/middleware/http-error"
+import { canPromptAgent, canViewConversation } from "$lib/server/auth/authorization"
+import { request } from "https"
 
-export const GET: RequestHandler = async ({ params }): Promise<Response> => {
-	const { conversationId, agentId } = params
-	if (!agentId || !conversationId) {
-		return json({ error: "agentId and conversationId are required" }, { status: 400 })
+const getConversation: MiddlewareNextFunction = async ({ requestEvent, user }) => {
+	if (!requestEvent.params.agentId || !requestEvent.params.conversationId) {
+		throw new HTTPError(400, "agentId and conversationId are required")
 	}
-
-	// Først må vi hente conversation fra DB, deretter må vi hente historikken fra leverandør basert på agenten og relatedConversationId - og gi tilbake hele røkla på en felles måte
-	const dbAgent = await getDBAgent(agentId)
-	const conversation = await getDBConversation(conversationId)
-
-	// Sikkert kjøre noe authorization
-
+	const dbAgent = await getDBAgent(requestEvent.params.agentId)
+	if (!canPromptAgent(user, dbAgent)) {
+		return {
+			response: new Response("Forbidden", { status: 403 }),
+			isAuthorized: false
+		}
+	}
+	const conversation = await getDBConversation(requestEvent.params.conversationId)
+	if (!canViewConversation(user, conversation)) {
+		return {
+			response: new Response("Forbidden", { status: 403 }),
+			isAuthorized: false
+		}
+	}
 	const agent = createAgent(dbAgent)
 	const { messages } = await agent.getConversationMessages(conversation)
 	const response: GetConversationResult = {
 		conversation,
 		items: messages
 	}
-
-	return json(response)
+	return {
+		response: json(response),
+		isAuthorized: true
+	}
 }
 
-export const POST: RequestHandler = async ({ request, params }): Promise<Response> => {
-	// Da legger vi til en ny melding i samtalen i denne agenten via leverandør basert på agenten, og får tilbake responseStream med oppdatert samtalehistorikk
-	const { conversationId, agentId } = params
-	if (!agentId || !conversationId) {
-		return json({ error: "agentId and conversationId are required" }, { status: 400 })
+export const GET: RequestHandler = async (requestEvent) => {
+	return httpRequestMiddleWare(requestEvent, getConversation)
+}
+
+const appendMessageToConversation: MiddlewareNextFunction = async ({ requestEvent, user }) => {
+	if (!requestEvent.params.agentId || !requestEvent.params.conversationId) {
+		throw new HTTPError(400, "agentId and conversationId are required")
+	}
+	const dbAgent = await getDBAgent(requestEvent.params.agentId)
+	if (!canPromptAgent(user, dbAgent)) {
+		return {
+			response: new Response("Forbidden", { status: 403 }),
+			isAuthorized: false
+		}
+	}
+	const conversation = await getDBConversation(requestEvent.params.conversationId)
+	if (!canViewConversation(user, conversation)) {
+		return {
+			response: new Response("Forbidden", { status: 403 }),
+			isAuthorized: false
+		}
 	}
 
-	const body = await request.json()
+	const body = await requestEvent.request.json()
 	// Validate request body
 	const { prompt, stream } = ConversationRequest.parse(body)
 
-	const dbAgent = await getDBAgent(agentId)
-	const conversation = await getDBConversation(conversationId) // HUSK authorization her
-
 	const agent = createAgent(dbAgent)
-
 	const { response } = await agent.appendMessageToConversation(conversation, prompt, stream)
-
 	if (stream) {
-		return responseStream(response)
+		return {
+			response: responseStream(response),
+			isAuthorized: true
+		}
 	}
-
 	throw new Error("Non-streaming append message not implemented yet")
+}
+
+export const POST: RequestHandler = async (requestEvent) => {
+	return httpRequestMiddleWare(requestEvent, appendMessageToConversation)
 }
