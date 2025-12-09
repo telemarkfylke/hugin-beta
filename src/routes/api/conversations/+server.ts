@@ -1,11 +1,29 @@
 import { json, type RequestHandler } from "@sveltejs/kit"
-import { MistralVendor } from "$lib/server/mistral/mistral"
+import { logger } from "@vestfoldfylke/loglady"
+import { getDBUserConversations } from "$lib/server/agents/conversations"
+import { canViewConversation } from "$lib/server/auth/authorization"
+import { httpRequestMiddleware, type MiddlewareNextFunction } from "$lib/server/middleware/http-request"
 
-export const GET: RequestHandler = async () => {
-	// Get DB conversations caller has access to
+const getConversations: MiddlewareNextFunction = async ({ user }) => {
+	const userConversations = await getDBUserConversations(user.userId)
 
-	// Get DB conversations as well here
-	const mistralVendor = new MistralVendor()
-	const mistralConversations = await mistralVendor.listConversations()
-	return json(mistralConversations)
+	const unauthorizedConversations = userConversations.filter((conv) => !canViewConversation(user, conv))
+	const authorizedConversations = userConversations.filter((conv) => canViewConversation(user, conv))
+	if (unauthorizedConversations.length > 0) {
+		logger.warn(
+			`User: {userId} got {count} conversations they are not authorized to view from db query. Filtered them out, but take a look at _ids {@ids}`,
+			user.userId,
+			unauthorizedConversations.length,
+			unauthorizedConversations.map((c) => c._id)
+		)
+	}
+
+	return {
+		response: json(authorizedConversations),
+		isAuthorized: true
+	}
+}
+
+export const GET: RequestHandler = async (requestEvent) => {
+	return httpRequestMiddleware(requestEvent, getConversations)
 }

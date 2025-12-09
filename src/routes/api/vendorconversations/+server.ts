@@ -1,0 +1,23 @@
+import { json, type RequestHandler } from "@sveltejs/kit"
+import { canViewVendorConversations } from "$lib/server/auth/authorization"
+import { HTTPError } from "$lib/server/middleware/http-error"
+import { httpRequestMiddleware, type MiddlewareNextFunction } from "$lib/server/middleware/http-request"
+import { MistralVendor } from "$lib/server/mistral/mistral"
+
+const getVendorConversations: MiddlewareNextFunction = async ({ user }) => {
+	if (!canViewVendorConversations(user)) {
+		throw new HTTPError(403, `User ${user.userId} is not authorized to view vendor conversations`)
+	}
+
+	const mistralVendor = new MistralVendor()
+	const mistralConversations = await mistralVendor.listConversations()
+
+	return {
+		response: json(mistralConversations),
+		isAuthorized: true
+	}
+}
+
+export const GET: RequestHandler = async (requestEvent) => {
+	return httpRequestMiddleware(requestEvent, getVendorConversations)
+}

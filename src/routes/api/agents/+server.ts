@@ -1,12 +1,27 @@
 import { json, type RequestHandler } from "@sveltejs/kit"
+import { logger } from "@vestfoldfylke/loglady"
 import { getDBAgents } from "$lib/server/agents/agents.js"
+import { canPromptAgent } from "$lib/server/auth/authorization"
 import { httpRequestMiddleware, type MiddlewareNextFunction } from "$lib/server/middleware/http-request"
 
 const getAgents: MiddlewareNextFunction = async ({ user }) => {
 	const agents = await getDBAgents(user)
+
+	const unauthorizedAgents = agents.filter((agent) => !canPromptAgent(user, agent))
+	const authorizedAgents = agents.filter((agent) => canPromptAgent(user, agent))
+	if (unauthorizedAgents.length > 0) {
+		// This should not happen as getDBAgents filters based on user access
+		logger.warn(
+			`User: {userId} got {count} agents they are not authorized to view from db query. Filtered them out, but take a look at _ids {@ids}`,
+			user.userId,
+			unauthorizedAgents.length,
+			unauthorizedAgents.map((c) => c._id)
+		)
+	}
+
 	return {
-		response: json({ agents }),
-		isAuthorized: true // getDBAgents only returns agents the user has access to, no need to check further (for now)
+		response: json({ agents: authorizedAgents }),
+		isAuthorized: true
 	}
 }
 

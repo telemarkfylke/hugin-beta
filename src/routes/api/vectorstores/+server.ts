@@ -1,15 +1,22 @@
 import { json, type RequestHandler } from "@sveltejs/kit"
+import { canViewVendorVectorStores } from "$lib/server/auth/authorization"
+import { HTTPError } from "$lib/server/middleware/http-error"
+import { httpRequestMiddleware, type MiddlewareNextFunction } from "$lib/server/middleware/http-request"
 import { MistralVendor } from "$lib/server/mistral/mistral"
 
-export const GET: RequestHandler = async () => {
-	// Hent alle vector store caller har tilgang på og list de opp med navn og besrivelse. Admin kan få absolutt alle gitt. Vil ha med hvilken agent de er knyttet til evt, eller om de er knyttet til en conversation. eller om de er standalone
+const getVendorVectorStores: MiddlewareNextFunction = async ({ user }) => {
+	if (!canViewVendorVectorStores(user)) {
+		throw new HTTPError(403, `User ${user.userId} is not authorized to view vendor vector stores`)
+	}
+	// Kanskje greiest å bare implemenetere per leverandør statisk her først?
 	const mistralVendor = new MistralVendor()
 	const mistralVectorStores = await mistralVendor.listVectorStores()
-	// Kanskje greiest å bare implemenetere per leverandør statisk her først?
-	return json(mistralVectorStores)
+	return {
+		response: json(mistralVectorStores),
+		isAuthorized: true
+	}
 }
 
-export const POST: RequestHandler = async () => {
-	// Slett en vector store
-	throw new Error("Not implemented yet")
+export const GET: RequestHandler = async (requestEvent) => {
+	return httpRequestMiddleware(requestEvent, getVendorVectorStores)
 }

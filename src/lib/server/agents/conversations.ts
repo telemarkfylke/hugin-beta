@@ -9,6 +9,14 @@ if (env.MOCK_DB === "true") {
 	mockDbData = await getMockDb()
 }
 
+export const getDBConversations = async (): Promise<DBConversation[]> => {
+	if (mockDbData) {
+		return mockDbData.conversations
+	}
+	throw new Error("Not implemented - please set MOCK_DB to true in env")
+	// Implement real DB fetch here
+}
+
 export const getDBUserConversations = async (userId: string): Promise<DBConversation[]> => {
 	if (mockDbData) {
 		const foundConversations = mockDbData.conversations.filter((conversation) => conversation.owner.objectId === userId)
