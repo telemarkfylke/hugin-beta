@@ -1,6 +1,6 @@
 import { json, type RequestHandler } from "@sveltejs/kit"
 import { getDBAgents } from "$lib/server/agents/agents.js"
-import { httpRequestMiddleWare, type MiddlewareNextFunction } from "$lib/server/middleware/http-request"
+import { httpRequestMiddleware, type MiddlewareNextFunction } from "$lib/server/middleware/http-request"
 
 const getAgents: MiddlewareNextFunction = async ({ user }) => {
 	const agents = await getDBAgents(user)
@@ -15,7 +15,7 @@ const getAgents: MiddlewareNextFunction = async ({ user }) => {
  * @type {import("@sveltejs/kit").RequestHandler}
  */
 export const GET: RequestHandler = async (requestEvent) => {
-	return httpRequestMiddleWare(requestEvent, getAgents)
+	return httpRequestMiddleware(requestEvent, getAgents)
 }
 
 /**

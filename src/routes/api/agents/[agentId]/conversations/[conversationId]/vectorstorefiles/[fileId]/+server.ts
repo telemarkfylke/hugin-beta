@@ -2,22 +2,27 @@ import { json, type RequestHandler, redirect } from "@sveltejs/kit"
 import { createAgent, getDBAgent } from "$lib/server/agents/agents.js"
 import { getDBConversation } from "$lib/server/agents/conversations"
 import type { IAgentResults } from "$lib/types/agents"
+import { httpRequestMiddleware, type MiddlewareNextFunction } from "$lib/server/middleware/http-request"
+import { HTTPError } from "$lib/server/middleware/http-error"
+import { canPromptAgent, canViewConversation } from "$lib/server/auth/authorization"
 
-export const GET: RequestHandler = async ({ params }) => {
-	// Da legger vi til en ny melding i samtalen i denne agenten via leverandør basert på agenten, og får tilbake responseStream med oppdatert samtalehistorikk
-	const { conversationId, agentId, fileId } = params
+const getConversationVectorStoreFileContent: MiddlewareNextFunction = async ({ requestEvent, user }) => {
+	const { agentId, conversationId, fileId } = requestEvent.params
 	if (!agentId || !conversationId || !fileId) {
-		return json({ error: "agentId, conversationId, and fileId are required" }, { status: 400 })
+		throw new HTTPError(400, "agentId, conversationId, and fileId are required")
 	}
 
 	const dbAgent = await getDBAgent(agentId)
-
-	if (!dbAgent.config.vectorStoreEnabled) {
-		return json({ error: "File upload is not enabled for this agent" }, { status: 403 })
+	if (!canPromptAgent(user, dbAgent)) {
+		throw new HTTPError(403, `User ${user.userId} is not authorized to access agent ${agentId}`)
 	}
-
+	if (!dbAgent.config.vectorStoreEnabled) {
+		throw new HTTPError(403, "File upload is not enabled for this agent")
+	}
 	const conversation = await getDBConversation(conversationId)
-	//	TODO: validate that conversation belongs to agentId and that user has access to it
+	if (!canViewConversation(user, conversation)) {
+		throw new HTTPError(403, `User ${user.userId} is not authorized to access conversation ${conversationId}`)
+	}
 
 	const agent = createAgent(dbAgent)
 
@@ -28,37 +33,50 @@ export const GET: RequestHandler = async ({ params }) => {
 	} catch (error) {
 		throw new Error(`Failed to get vector store file content: ${(error as Error).message}`)
 	}
+	throw new Error("File download not fully implemented yet, need to think about it first")
+	/*
 	if (fileResponse.redirectUrl) {
 		console.log("Redirecting to file URL:", fileResponse.redirectUrl)
 		redirect(303, fileResponse.redirectUrl) // Redirect to the file URL
 	} else {
 		throw new Error("File content response is not a valid URL string")
 	}
+	*/
 }
 
-export const DELETE: RequestHandler = async ({ params }) => {
+export const GET: RequestHandler = async (requestEvent) => {
+	return httpRequestMiddleware(requestEvent, getConversationVectorStoreFileContent)
+}
+
+const deleteConversationVectorStoreFile: MiddlewareNextFunction = async ({ requestEvent, user }) => {
 	// Da legger vi til en ny melding i samtalen i denne agenten via leverandør basert på agenten, og får tilbake responseStream med oppdatert samtalehistorikk
-	const { conversationId, agentId, fileId } = params
+	const { conversationId, agentId, fileId } = requestEvent.params
 	if (!agentId || !conversationId || !fileId) {
-		return json({ error: "agentId, conversationId, and fileId are required" }, { status: 400 })
+		throw new HTTPError(400, "agentId, conversationId, and fileId are required")
 	}
-
+	
 	const dbAgent = await getDBAgent(agentId)
-
-	if (!dbAgent.config.vectorStoreEnabled) {
-		return json({ error: "File upload is not enabled for this agent" }, { status: 403 })
+	if (!canPromptAgent(user, dbAgent)) {
+		throw new HTTPError(403, `User ${user.userId} is not authorized to access agent ${agentId}`)
 	}
-
+	if (!dbAgent.config.vectorStoreEnabled) {
+		throw new HTTPError(403, "File upload is not enabled for this agent")
+	}
 	const conversation = await getDBConversation(conversationId)
-	//	TODO: validate that conversation belongs to agentId and that user has access to it
-
+	if (!canViewConversation(user, conversation)) {
+		throw new HTTPError(403, `User ${user.userId} is not authorized to access conversation ${conversationId}`)
+	}
+	
 	const agent = createAgent(dbAgent)
 
-	try {
-		await agent.deleteConversationVectorStoreFile(conversation, fileId)
-	} catch (error) {
-		throw new Error(`Failed to delete vector store file: ${(error as Error).message}`)
+	await agent.deleteConversationVectorStoreFile(conversation, fileId)
+	
+	return {
+		response: new Response(null, { status: 204 }),
+		isAuthorized: true
 	}
+}
 
-	return new Response(null, { status: 204 })
+export const DELETE: RequestHandler = async (requestEvent) => {
+	return httpRequestMiddleware(requestEvent, deleteConversationVectorStoreFile)
 }

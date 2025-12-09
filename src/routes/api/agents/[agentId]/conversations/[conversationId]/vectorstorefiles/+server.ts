@@ -3,7 +3,7 @@ import { createAgent, getDBAgent } from "$lib/server/agents/agents.js"
 import { getDBConversation } from "$lib/server/agents/conversations"
 import { responseStream } from "$lib/streaming.js"
 import type { Agent } from "$lib/types/agents"
-import { httpRequestMiddleWare, type MiddlewareNextFunction } from "$lib/server/middleware/http-request"
+import { httpRequestMiddleware, type MiddlewareNextFunction } from "$lib/server/middleware/http-request"
 import { HTTPError } from "$lib/server/middleware/http-error"
 import { canPromptAgent, canViewConversation } from "$lib/server/auth/authorization"
 
@@ -35,7 +35,7 @@ const getVectorStoreFiles: MiddlewareNextFunction = async ({ requestEvent, user 
 }
 
 export const GET: RequestHandler = async (requestEvent) => {
-	return httpRequestMiddleWare(requestEvent, getVectorStoreFiles)
+	return httpRequestMiddleware(requestEvent, getVectorStoreFiles)
 }
 
 const uploadVectorStoreFiles: MiddlewareNextFunction = async ({ requestEvent, user }) => {
@@ -99,7 +99,7 @@ const uploadVectorStoreFiles: MiddlewareNextFunction = async ({ requestEvent, us
 }
 
 export const POST: RequestHandler = async (requestEvent) => {
-	return httpRequestMiddleWare(requestEvent, uploadVectorStoreFiles)
+	return httpRequestMiddleware(requestEvent, uploadVectorStoreFiles)
 }
 
 // TODO, fortsett med resten av endepunktene MIDDLEWARE

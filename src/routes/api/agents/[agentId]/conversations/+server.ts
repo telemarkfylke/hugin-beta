@@ -3,7 +3,7 @@ import { createAgent, getDBAgent } from "$lib/server/agents/agents.js"
 import { deleteDBConversation, getDBAgentUserConversations, insertDBConversation, updateDBConversation } from "$lib/server/agents/conversations.js"
 import { responseStream } from "$lib/streaming"
 import { ConversationRequest } from "$lib/types/requests"
-import { httpRequestMiddleWare, type MiddlewareNextFunction } from "$lib/server/middleware/http-request"
+import { httpRequestMiddleware, type MiddlewareNextFunction } from "$lib/server/middleware/http-request"
 import { canPromptAgent } from "$lib/server/auth/authorization"
 import { getUserInputTextFromPrompt } from "$lib/server/agents/message"
 import { HTTPError } from "$lib/server/middleware/http-error"
@@ -27,7 +27,7 @@ const getAgentUserConversations: MiddlewareNextFunction = async ({ requestEvent,
 
 export const GET: RequestHandler = async (requestEvent): Promise<Response> => {
 	// Da spør vi DB om å hente conversations som påkaller har tilgang på i denne assistenten
-	return httpRequestMiddleWare(requestEvent, getAgentUserConversations)
+	return httpRequestMiddleware(requestEvent, getAgentUserConversations)
 }
 
 const createAgentConversation: MiddlewareNextFunction = async ({ requestEvent, user }) => {
@@ -92,5 +92,5 @@ const createAgentConversation: MiddlewareNextFunction = async ({ requestEvent, u
 }
 
 export const POST: RequestHandler = async (requestEvent) => {
-	return httpRequestMiddleWare(requestEvent, createAgentConversation)
+	return httpRequestMiddleware(requestEvent, createAgentConversation)
 }

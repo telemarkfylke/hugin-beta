@@ -3,10 +3,9 @@ import { createAgent, getDBAgent } from "$lib/server/agents/agents.js"
 import { getDBConversation } from "$lib/server/agents/conversations.js"
 import { responseStream } from "$lib/streaming"
 import { ConversationRequest, type GetConversationResult } from "$lib/types/requests"
-import { httpRequestMiddleWare, type MiddlewareNextFunction } from "$lib/server/middleware/http-request"
+import { httpRequestMiddleware, type MiddlewareNextFunction } from "$lib/server/middleware/http-request"
 import { HTTPError } from "$lib/server/middleware/http-error"
 import { canPromptAgent, canViewConversation } from "$lib/server/auth/authorization"
-import { request } from "https"
 
 const getConversation: MiddlewareNextFunction = async ({ requestEvent, user }) => {
 	if (!requestEvent.params.agentId || !requestEvent.params.conversationId) {
@@ -39,7 +38,7 @@ const getConversation: MiddlewareNextFunction = async ({ requestEvent, user }) =
 }
 
 export const GET: RequestHandler = async (requestEvent) => {
-	return httpRequestMiddleWare(requestEvent, getConversation)
+	return httpRequestMiddleware(requestEvent, getConversation)
 }
 
 const appendMessageToConversation: MiddlewareNextFunction = async ({ requestEvent, user }) => {
@@ -77,5 +76,5 @@ const appendMessageToConversation: MiddlewareNextFunction = async ({ requestEven
 }
 
 export const POST: RequestHandler = async (requestEvent) => {
-	return httpRequestMiddleWare(requestEvent, appendMessageToConversation)
+	return httpRequestMiddleware(requestEvent, appendMessageToConversation)
 }
