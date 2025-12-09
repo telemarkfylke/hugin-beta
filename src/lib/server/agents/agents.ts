@@ -30,7 +30,7 @@ export const getDBAgent = async (agentId: string): Promise<DBAgent> => {
 
 /**
  * Handles authorization when fetching agents from DB, for faster retrieval. Probs a smarter solution somewhere...
- * @param {AuthenticatedUser} user 
+ * @param {AuthenticatedUser} user
  * @returns {Promise<DBAgent[]>}
  */
 export const getDBAgents = async (user: AuthenticatedUser): Promise<DBAgent[]> => {
@@ -38,7 +38,7 @@ export const getDBAgents = async (user: AuthenticatedUser): Promise<DBAgent[]> =
 		if (canViewAllAgents(user)) {
 			return mockDbData.agents.map((agent) => JSON.parse(JSON.stringify(agent)))
 		}
-		const authorizedAgents = mockDbData.agents.filter(agent => {
+		const authorizedAgents = mockDbData.agents.filter((agent) => {
 			if (agent.authorizedGroupIds === "all") {
 				return true
 			}

@@ -1,10 +1,11 @@
-import { json, type RequestHandler, redirect } from "@sveltejs/kit"
+import type { RequestHandler } from "@sveltejs/kit"
 import { createAgent, getDBAgent } from "$lib/server/agents/agents.js"
 import { getDBConversation } from "$lib/server/agents/conversations"
-import type { IAgentResults } from "$lib/types/agents"
-import { httpRequestMiddleware, type MiddlewareNextFunction } from "$lib/server/middleware/http-request"
-import { HTTPError } from "$lib/server/middleware/http-error"
 import { canPromptAgent, canViewConversation } from "$lib/server/auth/authorization"
+import { HTTPError } from "$lib/server/middleware/http-error"
+import { httpRequestMiddleware, type MiddlewareNextFunction } from "$lib/server/middleware/http-request"
+
+// import type { IAgentResults } from "$lib/types/agents"
 
 const getConversationVectorStoreFileContent: MiddlewareNextFunction = async ({ requestEvent, user }) => {
 	const { agentId, conversationId, fileId } = requestEvent.params
@@ -24,6 +25,10 @@ const getConversationVectorStoreFileContent: MiddlewareNextFunction = async ({ r
 		throw new HTTPError(403, `User ${user.userId} is not authorized to access conversation ${conversationId}`)
 	}
 
+	throw new Error("File download not fully implemented yet, need to think about it first")
+
+	/*
+
 	const agent = createAgent(dbAgent)
 
 	let fileResponse: IAgentResults["GetConversationVectorStoreFileContentResult"]
@@ -34,7 +39,7 @@ const getConversationVectorStoreFileContent: MiddlewareNextFunction = async ({ r
 		throw new Error(`Failed to get vector store file content: ${(error as Error).message}`)
 	}
 	throw new Error("File download not fully implemented yet, need to think about it first")
-	/*
+	
 	if (fileResponse.redirectUrl) {
 		console.log("Redirecting to file URL:", fileResponse.redirectUrl)
 		redirect(303, fileResponse.redirectUrl) // Redirect to the file URL
@@ -54,7 +59,7 @@ const deleteConversationVectorStoreFile: MiddlewareNextFunction = async ({ reque
 	if (!agentId || !conversationId || !fileId) {
 		throw new HTTPError(400, "agentId, conversationId, and fileId are required")
 	}
-	
+
 	const dbAgent = await getDBAgent(agentId)
 	if (!canPromptAgent(user, dbAgent)) {
 		throw new HTTPError(403, `User ${user.userId} is not authorized to access agent ${agentId}`)
@@ -66,11 +71,11 @@ const deleteConversationVectorStoreFile: MiddlewareNextFunction = async ({ reque
 	if (!canViewConversation(user, conversation)) {
 		throw new HTTPError(403, `User ${user.userId} is not authorized to access conversation ${conversationId}`)
 	}
-	
+
 	const agent = createAgent(dbAgent)
 
 	await agent.deleteConversationVectorStoreFile(conversation, fileId)
-	
+
 	return {
 		response: new Response(null, { status: 204 }),
 		isAuthorized: true

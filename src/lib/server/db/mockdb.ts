@@ -1,4 +1,4 @@
-import { env } from "$env/dynamic/private";
+import { env } from "$env/dynamic/private"
 import type { DBAgent } from "$lib/types/agents.js"
 import type { DBConversation } from "$lib/types/conversation.js"
 

@@ -1,11 +1,11 @@
 import { json, type RequestHandler } from "@sveltejs/kit"
 import { createAgent, getDBAgent } from "$lib/server/agents/agents.js"
 import { getDBConversation } from "$lib/server/agents/conversations.js"
+import { canPromptAgent, canViewConversation } from "$lib/server/auth/authorization"
+import { HTTPError } from "$lib/server/middleware/http-error"
+import { httpRequestMiddleware, type MiddlewareNextFunction } from "$lib/server/middleware/http-request"
 import { responseStream } from "$lib/streaming"
 import { ConversationRequest, type GetConversationResult } from "$lib/types/requests"
-import { httpRequestMiddleware, type MiddlewareNextFunction } from "$lib/server/middleware/http-request"
-import { HTTPError } from "$lib/server/middleware/http-error"
-import { canPromptAgent, canViewConversation } from "$lib/server/auth/authorization"
 
 const getConversation: MiddlewareNextFunction = async ({ requestEvent, user }) => {
 	if (!requestEvent.params.agentId || !requestEvent.params.conversationId) {

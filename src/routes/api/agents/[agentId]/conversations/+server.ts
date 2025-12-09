@@ -1,13 +1,12 @@
 import { json, type RequestHandler } from "@sveltejs/kit"
 import { createAgent, getDBAgent } from "$lib/server/agents/agents.js"
 import { deleteDBConversation, getDBAgentUserConversations, insertDBConversation, updateDBConversation } from "$lib/server/agents/conversations.js"
+import { getUserInputTextFromPrompt } from "$lib/server/agents/message"
+import { canPromptAgent } from "$lib/server/auth/authorization"
+import { HTTPError } from "$lib/server/middleware/http-error"
+import { httpRequestMiddleware, type MiddlewareNextFunction } from "$lib/server/middleware/http-request"
 import { responseStream } from "$lib/streaming"
 import { ConversationRequest } from "$lib/types/requests"
-import { httpRequestMiddleware, type MiddlewareNextFunction } from "$lib/server/middleware/http-request"
-import { canPromptAgent } from "$lib/server/auth/authorization"
-import { getUserInputTextFromPrompt } from "$lib/server/agents/message"
-import { HTTPError } from "$lib/server/middleware/http-error"
-
 
 // OBS OBS Kan hende vi bare skal ha dette endepunktet - og dersom man ikke sender med en conversationId så oppretter vi en ny conversation, hvis ikke fortsetter vi den eksisterende (ja, kan fortsatt kanskje hende det)
 
@@ -70,7 +69,7 @@ const createAgentConversation: MiddlewareNextFunction = async ({ requestEvent, u
 
 	try {
 		const { vendorConversationId, response, vectorStoreId } = await agent.createConversation(dbConversation, prompt, stream)
-		
+
 		// Updates our conversation with the correct vendorConversationId and vectorStoreId
 		await updateDBConversation(dbConversation._id, {
 			vendorConversationId,

@@ -1,9 +1,9 @@
 import { json, type RequestHandler } from "@sveltejs/kit"
 import { createAgent, getDBAgent } from "$lib/server/agents/agents"
-import type { Agent, DBAgent } from "$lib/types/agents"
-import { httpRequestMiddleware, type MiddlewareNextFunction } from "$lib/server/middleware/http-request"
 import { canPromptAgent } from "$lib/server/auth/authorization"
 import { HTTPError } from "$lib/server/middleware/http-error"
+import { httpRequestMiddleware, type MiddlewareNextFunction } from "$lib/server/middleware/http-request"
+import type { Agent, DBAgent } from "$lib/types/agents"
 
 const getAgent: MiddlewareNextFunction = async ({ requestEvent, user }) => {
 	if (!requestEvent.params.agentId) {
@@ -18,7 +18,7 @@ const getAgent: MiddlewareNextFunction = async ({ requestEvent, user }) => {
 	// If agent has vector store or library, we want to include files as well - this should be implemented in each agent type (interface IAgent) - but not now...
 
 	const agent: Agent = createAgent(dbAgent).getAgentInfo()
-	
+
 	return {
 		response: json({ agent }),
 		isAuthorized: true

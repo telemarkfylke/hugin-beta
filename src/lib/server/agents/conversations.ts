@@ -29,9 +29,7 @@ export const getDBAgentConversations = async (agentId: string): Promise<DBConver
 
 export const getDBAgentUserConversations = async (agentId: string, userId: string): Promise<DBConversation[]> => {
 	if (mockDbData) {
-		const foundConversations = mockDbData.conversations.filter(
-			(conversation) => conversation.agentId === agentId && conversation.owner.objectId === userId
-		)
+		const foundConversations = mockDbData.conversations.filter((conversation) => conversation.agentId === agentId && conversation.owner.objectId === userId)
 		return foundConversations
 	}
 	throw new Error("Not implemented - please set MOCK_DB to true in env")

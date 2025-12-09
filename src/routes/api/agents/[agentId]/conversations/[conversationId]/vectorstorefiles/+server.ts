@@ -1,11 +1,11 @@
 import { json, type RequestHandler } from "@sveltejs/kit"
 import { createAgent, getDBAgent } from "$lib/server/agents/agents.js"
 import { getDBConversation } from "$lib/server/agents/conversations"
+import { canPromptAgent, canViewConversation } from "$lib/server/auth/authorization"
+import { HTTPError } from "$lib/server/middleware/http-error"
+import { httpRequestMiddleware, type MiddlewareNextFunction } from "$lib/server/middleware/http-request"
 import { responseStream } from "$lib/streaming.js"
 import type { Agent } from "$lib/types/agents"
-import { httpRequestMiddleware, type MiddlewareNextFunction } from "$lib/server/middleware/http-request"
-import { HTTPError } from "$lib/server/middleware/http-error"
-import { canPromptAgent, canViewConversation } from "$lib/server/auth/authorization"
 
 const getVectorStoreFiles: MiddlewareNextFunction = async ({ requestEvent, user }) => {
 	if (!requestEvent.params.agentId || !requestEvent.params.conversationId) {
@@ -27,7 +27,7 @@ const getVectorStoreFiles: MiddlewareNextFunction = async ({ requestEvent, user 
 	}
 	const agent = createAgent(dbAgent)
 	const getConversationVectorStoreFilesResult = await agent.getConversationVectorStoreFiles(conversation)
-	
+
 	return {
 		response: json(getConversationVectorStoreFilesResult),
 		isAuthorized: true
