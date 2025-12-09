@@ -105,11 +105,15 @@ export const MSPrincipalClaims = z.object({
 export type MSPrincipalClaims = z.infer<typeof MSPrincipalClaims>
 
 export const AuthenticatedUser = z.object({
-	userId: z.string(),
+	/** ObjectId in EntraID */
+	userId: z.uuid(),
 	name: z.string(),
+	/** Whatever the preferred username is, don't rely on this for unique identification */
 	preferredUserName: z.string(),
+	/** list of roles (values) the user has */
 	roles: z.array(z.string()),
-	groups: z.array(z.string())
+	/** list of groupIds the user belongs to */
+	groups: z.array(z.uuid())
 })
 
 export type AuthenticatedUser = z.infer<typeof AuthenticatedUser>

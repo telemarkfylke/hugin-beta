@@ -13,6 +13,17 @@ export const getMockDb = async (): Promise<{ agents: DBAgent[]; conversations: D
 			instructions: "You are a mock AI agent that provides streaming mock responses for testing purposes.",
 			vectorStoreEnabled: true,
 			webSearchEnabled: false
+		},
+		authorizedGroupIds: "all",
+		createdAt: new Date().toISOString(),
+		updatedAt: new Date().toISOString(),
+		createdBy: {
+			objectId: "00000000-0000-0000-0000-000000000001",
+			name: "Mock User"
+		},
+		updatedBy: {
+			objectId: "00000000-0000-0000-0000-000000000001",
+			name: "Mock User"
 		}
 	}
 	try {

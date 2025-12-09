@@ -1,8 +1,6 @@
 import { ObjectId } from "mongodb"
 import { env } from "$env/dynamic/private"
 import type { DBConversation } from "$lib/types/conversation"
-import type { Message } from "$lib/types/message"
-import type { VendorId } from "$lib/types/vendor-ids"
 
 let mockDbData = null
 
@@ -12,9 +10,29 @@ if (env.MOCK_DB === "true") {
 	console.log(mockDbData)
 }
 
-export const getDBConversations = async (agentId: string): Promise<DBConversation[]> => {
+export const getDBUserConversations = async (userId: string): Promise<DBConversation[]> => {
+	if (mockDbData) {
+		const foundConversations = mockDbData.conversations.filter((conversation) => conversation.owner.objectId === userId)
+		return foundConversations
+	}
+	throw new Error("Not implemented - please set MOCK_DB to true in env")
+	// Implement real DB fetch here
+}
+
+export const getDBAgentConversations = async (agentId: string): Promise<DBConversation[]> => {
 	if (mockDbData) {
 		const foundConversations = mockDbData.conversations.filter((conversation) => conversation.agentId === agentId)
+		return foundConversations
+	}
+	throw new Error("Not implemented - please set MOCK_DB to true in env")
+	// Implement real DB fetch here
+}
+
+export const getDBAgentUserConversations = async (agentId: string, userId: string): Promise<DBConversation[]> => {
+	if (mockDbData) {
+		const foundConversations = mockDbData.conversations.filter(
+			(conversation) => conversation.agentId === agentId && conversation.owner.objectId === userId
+		)
 		return foundConversations
 	}
 	throw new Error("Not implemented - please set MOCK_DB to true in env")
@@ -33,14 +51,7 @@ export const getDBConversation = async (conversationId: string): Promise<DBConve
 	// Implement real DB fetch here
 }
 
-type ConversationData = {
-	name: string
-	description: string
-	vendorId: VendorId
-	vendorConversationId: string
-	vectorStoreId: string | null
-	messages?: Message[]
-}
+type ConversationData = Omit<DBConversation, "agentId" | "_id" | "messages"> // messages optional on insert
 
 export const insertDBConversation = async (agentId: string, conversationData: ConversationData): Promise<DBConversation> => {
 	if (mockDbData) {

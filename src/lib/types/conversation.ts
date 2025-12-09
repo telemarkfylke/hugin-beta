@@ -10,7 +10,14 @@ export const DBConversation = z.object({
 	description: z.string().nullable().optional(),
 	vendorConversationId: z.string(), // id fra leverandør
 	vectorStoreId: z.string().nullable(), // id for vector store knyttet til denne samtalen (for filer bruker laster opp i en conversation)
-	messages: z.array(Message) // Om leverandør ikke støtter hent meldingene direkte, kaaan de legges her inntil videre
+	messages: z.array(Message), // Om leverandør ikke støtter hent meldingene direkte, kaaan de legges her inntil videre
+	owner: z.object({
+		/** ObjectId in EntraID that created the conversation */
+		objectId: z.uuid(),
+		name: z.string()
+	}),
+	createdAt: z.iso.datetime(),
+	updatedAt: z.iso.datetime()
 })
 
 export type DBConversation = z.infer<typeof DBConversation>

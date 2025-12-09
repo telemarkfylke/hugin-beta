@@ -3,6 +3,15 @@
 import type { DBAgent } from "$lib/types/agents.ts"
 import type { DBConversation } from "$lib/types/conversation"
 
+const createdBy = {
+	objectId: "00000000-0000-0000-0000-000000000001",
+	name: "Mock User"
+}
+const updatedBy = {
+	objectId: "00000000-0000-0000-0000-000000000001",
+	name: "Mock User"
+}
+
 export const agents: DBAgent[] = [
 	{
 		_id: "mistral-conversation",
@@ -16,7 +25,12 @@ export const agents: DBAgent[] = [
 			vectorStoreEnabled: true,
 			messageFilesEnabled: true,
 			webSearchEnabled: false
-		}
+		},
+		authorizedGroupIds: "all",
+		createdAt: new Date().toISOString(),
+		updatedAt: new Date().toISOString(),
+		createdBy,
+		updatedBy
 	},
 	{
 		_id: "mistral-conversation-swedish",
@@ -27,7 +41,12 @@ export const agents: DBAgent[] = [
 			type: "mistral-conversation",
 			model: "mistral-medium-latest",
 			instructions: "You are a helpful assistant that answers in Swedish."
-		}
+		},
+		authorizedGroupIds: "all",
+		createdAt: new Date().toISOString(),
+		updatedAt: new Date().toISOString(),
+		createdBy,
+		updatedBy
 	},
 	{
 		_id: "openai_response_4o",
@@ -40,7 +59,12 @@ export const agents: DBAgent[] = [
 			instructions: null,
 			vectorStoreEnabled: true,
 			messageFilesEnabled: true
-		}
+		},
+		authorizedGroupIds: "all",
+		createdAt: new Date().toISOString(),
+		updatedAt: new Date().toISOString(),
+		createdBy,
+		updatedBy
 	},
 	{
 		_id: "openai_response_4o_2",
@@ -51,7 +75,12 @@ export const agents: DBAgent[] = [
 			type: "openai-response",
 			model: "gpt-4o",
 			instructions: "Svar sarkastisk og kort på alt"
-		}
+		},
+		authorizedGroupIds: "all",
+		createdAt: new Date().toISOString(),
+		updatedAt: new Date().toISOString(),
+		createdBy,
+		updatedBy
 	},
 	{
 		_id: "openai_response_4o_TROLL",
@@ -62,7 +91,12 @@ export const agents: DBAgent[] = [
 			type: "openai-response",
 			model: "gpt-4o",
 			instructions: "Svar som et nettroll i et kommentarfelt på en luguber nettside"
-		}
+		},
+		authorizedGroupIds: "all",
+		createdAt: new Date().toISOString(),
+		updatedAt: new Date().toISOString(),
+		createdBy,
+		updatedBy
 	},
 	{
 		_id: "ollama_basic",
@@ -73,7 +107,12 @@ export const agents: DBAgent[] = [
 			type: "ollama-response",
 			model: "gemma3",
 			instructions: "Svar veldig generelt på spessifike spørsmål"
-		}
+		},
+		authorizedGroupIds: "all",
+		createdAt: new Date().toISOString(),
+		updatedAt: new Date().toISOString(),
+		createdBy,
+		updatedBy
 	}
 ]
 
