@@ -1,11 +1,7 @@
 import { json, type RequestHandler } from "@sveltejs/kit"
 import { MistralVendor } from "$lib/server/mistral/mistral"
 
-const middleWare = async ({ request, params, next }) => {
-
-}
-
-export const GET: RequestHandler = async ({ request, params }) => {
+export const GET: RequestHandler = async () => {
 	// Get DB conversations caller has access to
 
 
