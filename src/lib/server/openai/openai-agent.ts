@@ -10,6 +10,7 @@ import { OpenAIVendor, openai } from "./openai"
 import { createMessageFromOpenAIMessage } from "./openai-message"
 import { OPEN_AI_SUPPORTED_MESSAGE_FILE_MIME_TYPES, OPEN_AI_SUPPORTED_MESSAGE_IMAGE_MIME_TYPES, OPEN_AI_SUPPORTED_VECTOR_STORE_FILE_MIME_TYPES } from "./openai-supported-filetypes"
 import { uploadFilesToOpenAIVectorStore } from "./vector-store"
+import { ImageType, wrapInPdf } from "$lib/util/pdf-util"
 
 const openAIVendor = new OpenAIVendor()
 
@@ -48,41 +49,54 @@ type OpenAIResponseConfigResult = {
 	requestConfig: ResponseCreateParamsBase
 }
 
-const createOpenAIPromptFromAgentPrompt = (initialPrompt: AgentPrompt): string | ResponseInput => {
+const createOpenAIPromptFromAgentPrompt = async (initialPrompt: AgentPrompt): Promise<string | ResponseInput> => {
 	if (typeof initialPrompt === "string") {
 		return initialPrompt
 	}
 
-	return initialPrompt.map((item) => {
-		const inputItem: ResponseInputItem = {
-			role: item.role === "agent" ? "assistant" : item.role,
-			type: "message",
-			content: item.input.map((inputPart) => {
+	return await Promise.all(initialPrompt.map(async (item) => {		
+		const content = await Promise.all(item.input.map(async (inputPart) => {
 				switch (inputPart.type) {
 					case "text":
 						return { type: "input_text", text: inputPart.text } as ResponseInputContent
 					case "image":
 						return { type: "input_image", image_url: inputPart.imageUrl } as ResponseInputContent
 					case "file": {
+						if(inputPart.fileUrl.startsWith('data:image/jpeg;base64')){
+							const pdfBytes = await wrapInPdf(inputPart.fileUrl, ImageType.JPG)
+							return { type: "input_file", file_data: pdfBytes, filename: inputPart.fileName } as ResponseInputContent
+						}
+							
+						if(inputPart.fileUrl.startsWith('data:image/png;base64')){
+							const pdfBytes = await wrapInPdf(inputPart.fileUrl, ImageType.JPG)
+							return { type: "input_file", file_data: pdfBytes, filename: inputPart.fileName } as ResponseInputContent
+						}
+
 						return { type: "input_file", file_data: inputPart.fileUrl, filename: inputPart.fileName } as ResponseInputContent
 					}
 					default:
 						throw new Error(`Unsupported input type in advanced prompt for OpenAI...`)
 				}
-			})
+			}))
+
+		const inputItem: ResponseInputItem = {
+			role: item.role === "agent" ? "assistant" : item.role,
+			type: "message",
+			content: content
 		}
+
 		return inputItem
-	})
+	}))
 }
 
-const createOpenAIResponseConfig = (agentConfig: AgentConfig, openAIConversationId: string, inputPrompt: AgentPrompt, userVectorStoreId: string | null): OpenAIResponseConfigResult => {
+const createOpenAIResponseConfig = async (agentConfig: AgentConfig, openAIConversationId: string, inputPrompt: AgentPrompt, userVectorStoreId: string | null): Promise<OpenAIResponseConfigResult> => {
 	if (agentConfig.type !== "openai-response" && agentConfig.type !== "openai-prompt") {
 		throw new Error("Invalid agent config type for OpenAI response configuration")
 	}
 	if (agentConfig.type === "openai-prompt") {
 		return {
 			requestConfig: {
-				input: createOpenAIPromptFromAgentPrompt(inputPrompt),
+				input: await createOpenAIPromptFromAgentPrompt(inputPrompt),
 				prompt: {
 					id: agentConfig.prompt.id
 				},
@@ -94,7 +108,7 @@ const createOpenAIResponseConfig = (agentConfig: AgentConfig, openAIConversation
 	const openAIResponseConfig: ResponseCreateParamsBase = {
 		model: agentConfig.model,
 		conversation: openAIConversationId,
-		input: createOpenAIPromptFromAgentPrompt(inputPrompt),
+		input: await createOpenAIPromptFromAgentPrompt(inputPrompt),
 		instructions: agentConfig.instructions || null
 	}
 	const fileSearchTool: Tool = {
@@ -134,7 +148,7 @@ export class OpenAIAgent implements IAgent {
 	public async createConversation(conversation: DBConversation, initialPrompt: AgentPrompt, streamResponse: boolean): Promise<IAgentResults["CreateConversationResult"]> {
 		const openAIConversation = await openai.conversations.create({ metadata: { agent: this.dbAgent.name } })
 
-		const { requestConfig } = createOpenAIResponseConfig(this.dbAgent.config, openAIConversation.id, initialPrompt, null)
+		const { requestConfig } = await createOpenAIResponseConfig(this.dbAgent.config, openAIConversation.id, initialPrompt, null)
 		if (streamResponse) {
 			const responseStream = await openai.responses.create({ ...requestConfig, stream: true })
 			return {
@@ -147,7 +161,7 @@ export class OpenAIAgent implements IAgent {
 	}
 
 	public async appendMessageToConversation(conversation: DBConversation, prompt: AgentPrompt, streamResponse: boolean): Promise<IAgentResults["AppendToConversationResult"]> {
-		const { requestConfig } = createOpenAIResponseConfig(this.dbAgent.config, conversation.vendorConversationId, prompt, conversation.vectorStoreId || null)
+		const { requestConfig } = await createOpenAIResponseConfig(this.dbAgent.config, conversation.vendorConversationId, prompt, conversation.vectorStoreId || null)
 		if (streamResponse) {
 			const responseStream = await openai.responses.create({ ...requestConfig, stream: true })
 			return {
