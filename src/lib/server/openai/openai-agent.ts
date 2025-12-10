@@ -10,7 +10,7 @@ import { OpenAIVendor, openai } from "./openai"
 import { createMessageFromOpenAIMessage } from "./openai-message"
 import { OPEN_AI_SUPPORTED_MESSAGE_FILE_MIME_TYPES, OPEN_AI_SUPPORTED_MESSAGE_IMAGE_MIME_TYPES, OPEN_AI_SUPPORTED_VECTOR_STORE_FILE_MIME_TYPES } from "./openai-supported-filetypes"
 import { uploadFilesToOpenAIVectorStore } from "./vector-store"
-import { ImageType, wrapInPdf } from "$lib/util/pdf-util"
+import { ImageType, wrapImageInPdf, wrapTextInPdf } from "$lib/util/pdf-util"
 
 const openAIVendor = new OpenAIVendor()
 
@@ -62,13 +62,11 @@ const createOpenAIPromptFromAgentPrompt = async (initialPrompt: AgentPrompt): Pr
 					case "image":
 						return { type: "input_image", image_url: inputPart.imageUrl } as ResponseInputContent
 					case "file": {
-						if(inputPart.fileUrl.startsWith('data:image/jpeg;base64')){
-							const pdfBytes = await wrapInPdf(inputPart.fileUrl, ImageType.JPG)
-							return { type: "input_file", file_data: pdfBytes, filename: inputPart.fileName } as ResponseInputContent
-						}
-							
-						if(inputPart.fileUrl.startsWith('data:image/png;base64')){
-							const pdfBytes = await wrapInPdf(inputPart.fileUrl, ImageType.JPG)
+						if(inputPart.fileUrl.startsWith('data:text/plain;base64') || 
+							 inputPart.fileUrl.startsWith('data:text/csv;base64') ||
+							 inputPart.fileUrl.startsWith('data:application/json;base64')) {
+
+							const pdfBytes = await wrapTextInPdf(inputPart.fileUrl)
 							return { type: "input_file", file_data: pdfBytes, filename: inputPart.fileName } as ResponseInputContent
 						}
 
