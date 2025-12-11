@@ -2,7 +2,7 @@ import { json, type RequestHandler } from "@sveltejs/kit"
 import { logger } from "@vestfoldfylke/loglady"
 import { getDBUserConversations } from "$lib/server/agents/conversations"
 import { canViewConversation } from "$lib/server/auth/authorization"
-import { httpRequestMiddleware} from "$lib/server/middleware/http-request"
+import { httpRequestMiddleware } from "$lib/server/middleware/http-request"
 import type { GetConversationsResponse } from "$lib/types/api-responses"
 import type { MiddlewareNextFunction } from "$lib/types/middleware/http-request"
 

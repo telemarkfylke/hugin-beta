@@ -1,9 +1,9 @@
 import { json, type RequestEvent } from "@sveltejs/kit"
 import { logger } from "@vestfoldfylke/loglady"
 import type { AuthenticatedUser } from "$lib/types/authentication"
+import type { MiddlewareNextFunction } from "$lib/types/middleware/http-request"
 import { getAuthenticatedUser } from "../auth/get-authenticated-user"
 import { HTTPError } from "./http-error"
-import type { MiddlewareNextFunction } from "$lib/types/middleware/http-request"
 
 /**
  * Wrap functionality in a server route with this middleware to handle authentication, some simple logging and error handling.

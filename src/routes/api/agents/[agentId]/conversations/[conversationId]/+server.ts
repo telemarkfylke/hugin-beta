@@ -6,8 +6,8 @@ import { HTTPError } from "$lib/server/middleware/http-error"
 import { httpRequestMiddleware } from "$lib/server/middleware/http-request"
 import { responseStream } from "$lib/streaming"
 import type { GetAgentConversationResponse } from "$lib/types/api-responses"
-import { ConversationRequest } from "$lib/types/requests"
 import type { MiddlewareNextFunction } from "$lib/types/middleware/http-request"
+import { ConversationRequest } from "$lib/types/requests"
 
 const getConversation: MiddlewareNextFunction = async ({ requestEvent, user }) => {
 	if (!requestEvent.params.agentId || !requestEvent.params.conversationId) {

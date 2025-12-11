@@ -4,8 +4,8 @@ import { canViewVendorVectorStores } from "$lib/server/auth/authorization"
 import { HTTPError } from "$lib/server/middleware/http-error"
 import { httpRequestMiddleware } from "$lib/server/middleware/http-request"
 import type { GetVendorVectorStoreFilesResponse } from "$lib/types/api-responses"
-import type { VendorId } from "$lib/types/vendor-ids"
 import type { MiddlewareNextFunction } from "$lib/types/middleware/http-request"
+import type { VendorId } from "$lib/types/vendor-ids"
 
 const getVendorVectorStoreFiles: MiddlewareNextFunction = async ({ requestEvent, user }) => {
 	if (!canViewVendorVectorStores(user)) {

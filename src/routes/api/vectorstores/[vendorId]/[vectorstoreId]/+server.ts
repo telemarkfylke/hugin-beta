@@ -4,8 +4,8 @@ import { canDeleteVendorVectorStore, canViewVendorVectorStores } from "$lib/serv
 import { HTTPError } from "$lib/server/middleware/http-error"
 import { httpRequestMiddleware } from "$lib/server/middleware/http-request"
 import type { GetVendorVectorStoreResponse } from "$lib/types/api-responses"
-import type { VendorId } from "$lib/types/vendor-ids"
 import type { MiddlewareNextFunction } from "$lib/types/middleware/http-request"
+import type { VendorId } from "$lib/types/vendor-ids"
 
 const getVendorVectorStore: MiddlewareNextFunction = async ({ requestEvent, user }) => {
 	if (!canViewVendorVectorStores(user)) {
