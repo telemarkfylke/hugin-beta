@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { page } from "$app/state"
+  import { GetVendorVectorStoreFilesResponse, GetVendorVectorStoreResponse } from "$lib/types/api-responses";
 	import type { VectorStoreFile } from "$lib/types/vector-store"
-	import { IVendorResults } from "$lib/types/vendors"
 
 	type FrontendVectorStoreFiles = {
 		isLoading: boolean
@@ -19,7 +19,8 @@
 		if (!res.ok) {
 			throw new Error("Failed to fetch vector stores")
 		}
-		const result = IVendorResults.GetVectorStoreResult.parse(await res.json()) // Validate response
+		// Get json and validate
+		const result = GetVendorVectorStoreResponse.parse(await res.json()) // Validate response
 		return result.vectorStore
 	}
 
@@ -32,7 +33,8 @@
 			if (!res.ok) {
 				throw new Error(`Failed to fetch vector store files: ${res.statusText}`)
 			}
-			const result = IVendorResults.GetVectorStoreFilesResult.parse(await res.json()) // Validate response
+			// Get json and validate
+			const result = GetVendorVectorStoreFilesResponse.parse(await res.json()) // Validate response
 			vectorstoreFiles.files = result.files
 		} catch (error) {
 			vectorstoreFiles.error = error instanceof Error ? error.message : String(error)

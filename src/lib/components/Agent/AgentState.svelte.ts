@@ -1,6 +1,6 @@
 // Keeps track of the entire state of an agent component (async stuff are allowed here)
 import type { AgentState, AgentStateHandler, ReadonlyAgentState } from "$lib/types/agent-state"
-import type { Agent } from "$lib/types/agents.js"
+import { GetAgentResponse } from "$lib/types/api-responses.js"
 import type { AgentPrompt } from "$lib/types/message.js"
 import { _getAgentConversation, _getAgentConversations } from "./AgentConversations.svelte.js"
 import { _addConversationVectorStoreFiles, _deleteConversationVectorStoreFile } from "./AgentConversationVectorStoreFiles.svelte.js"
@@ -56,7 +56,8 @@ const _getAgentInfo = async (agentState: AgentState): Promise<void> => {
 			agentState.agentInfo.error = `Failed to fetch agent info: ${response.status}`
 			agentState.agentInfo.value = null
 		} else {
-			const data: { agent: Agent } = await response.json()
+			// Get json and validate
+			const data = await GetAgentResponse.parse(response.json())
 			agentState.agentInfo.value = data.agent
 		}
 	} catch (error) {
