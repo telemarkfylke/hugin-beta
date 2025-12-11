@@ -44,7 +44,7 @@ export const httpRequestMiddleware = async (requestEvent: RequestEvent, next: Mi
 		return response
 	} catch (error) {
 		if (error instanceof HTTPError) {
-			logger.error(`${loggerPrefix} - HTTP Error {status}: {message}`, error.status, error.message)
+			logger.errorException(error, `${loggerPrefix} - HTTP Error {status}`, error.status)
 			return json({ message: error.message }, { status: error.status })
 		}
 		logger.errorException(error, `${loggerPrefix} - Internal Server Error`)
