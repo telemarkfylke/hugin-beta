@@ -3,7 +3,8 @@ import { deleteDBConversation, getDBConversation } from "$lib/server/agents/conv
 import { createVendor } from "$lib/server/agents/vendors"
 import { canDeleteConversation } from "$lib/server/auth/authorization"
 import { HTTPError } from "$lib/server/middleware/http-error"
-import { httpRequestMiddleware, type MiddlewareNextFunction } from "$lib/server/middleware/http-request"
+import { httpRequestMiddleware } from "$lib/server/middleware/http-request"
+import type { MiddlewareNextFunction } from "$lib/types/middleware/http-request"
 
 const deleteConversation: MiddlewareNextFunction = async ({ requestEvent, user }) => {
 	const { conversationId } = requestEvent.params

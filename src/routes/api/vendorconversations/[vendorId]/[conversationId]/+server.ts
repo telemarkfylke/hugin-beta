@@ -2,8 +2,9 @@ import type { RequestHandler } from "@sveltejs/kit"
 import { createVendor } from "$lib/server/agents/vendors"
 import { canDeleteVendorConversation } from "$lib/server/auth/authorization"
 import { HTTPError } from "$lib/server/middleware/http-error"
-import { httpRequestMiddleware, type MiddlewareNextFunction } from "$lib/server/middleware/http-request"
+import { httpRequestMiddleware } from "$lib/server/middleware/http-request"
 import type { VendorId } from "$lib/types/vendor-ids"
+import type { MiddlewareNextFunction } from "$lib/types/middleware/http-request"
 
 const deleteVendorConversation: MiddlewareNextFunction = async ({ requestEvent, user }) => {
 	const { vendorId, conversationId } = requestEvent.params

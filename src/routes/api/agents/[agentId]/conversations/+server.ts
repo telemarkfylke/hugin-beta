@@ -5,10 +5,11 @@ import { deleteDBConversation, getDBAgentUserConversations, insertDBConversation
 import { getUserInputTextFromPrompt } from "$lib/server/agents/message"
 import { canPromptAgent, canViewConversation } from "$lib/server/auth/authorization"
 import { HTTPError } from "$lib/server/middleware/http-error"
-import { httpRequestMiddleware, type MiddlewareNextFunction } from "$lib/server/middleware/http-request"
+import { httpRequestMiddleware } from "$lib/server/middleware/http-request"
 import { responseStream } from "$lib/streaming"
 import type { GetAgentConversationsResponse } from "$lib/types/api-responses"
 import { ConversationRequest } from "$lib/types/requests"
+import type { MiddlewareNextFunction } from "$lib/types/middleware/http-request"
 
 const getAgentUserConversations: MiddlewareNextFunction = async ({ requestEvent, user }) => {
 	if (!requestEvent.params.agentId) {

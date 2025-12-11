@@ -3,18 +3,7 @@ import { logger } from "@vestfoldfylke/loglady"
 import type { AuthenticatedUser } from "$lib/types/authentication"
 import { getAuthenticatedUser } from "../auth/get-authenticated-user"
 import { HTTPError } from "./http-error"
-
-type MiddlewareNextResponse = {
-	response: Response
-	isAuthorized: boolean
-}
-
-type MiddlewareNextParams = {
-	requestEvent: RequestEvent
-	user: AuthenticatedUser
-}
-
-export type MiddlewareNextFunction = (params: MiddlewareNextParams) => Promise<MiddlewareNextResponse>
+import type { MiddlewareNextFunction } from "$lib/types/middleware/http-request"
 
 /**
  * Wrap functionality in a server route with this middleware to handle authentication, some simple logging and error handling.
@@ -25,7 +14,7 @@ export type MiddlewareNextFunction = (params: MiddlewareNextParams) => Promise<M
  * @param {MiddlewareNextFunction} next The middleware next function to call if authentication is successful, passing in the request event and authenticated user
  * @returns {Promise<Response>} The final response to return to the client
  */
-export const httpRequestMiddleware = async (requestEvent: RequestEvent, next: (params: MiddlewareNextParams) => Promise<MiddlewareNextResponse>): Promise<Response> => {
+export const httpRequestMiddleware = async (requestEvent: RequestEvent, next: MiddlewareNextFunction): Promise<Response> => {
 	const request = requestEvent.request
 	let loggerPrefix = `[HTTP Request Middleware] - ${request.method} ${request.url}`
 

@@ -3,10 +3,11 @@ import { createAgent, getDBAgent } from "$lib/server/agents/agents.js"
 import { getDBConversation } from "$lib/server/agents/conversations"
 import { canPromptAgent, canViewConversation } from "$lib/server/auth/authorization"
 import { HTTPError } from "$lib/server/middleware/http-error"
-import { httpRequestMiddleware, type MiddlewareNextFunction } from "$lib/server/middleware/http-request"
+import { httpRequestMiddleware } from "$lib/server/middleware/http-request"
 import { responseStream } from "$lib/streaming.js"
 import type { Agent } from "$lib/types/agents"
 import type { GetAgentConversationVectorstoreFilesResponse } from "$lib/types/api-responses"
+import type { MiddlewareNextFunction } from "$lib/types/middleware/http-request"
 
 const getVectorStoreFiles: MiddlewareNextFunction = async ({ requestEvent, user }) => {
 	if (!requestEvent.params.agentId || !requestEvent.params.conversationId) {

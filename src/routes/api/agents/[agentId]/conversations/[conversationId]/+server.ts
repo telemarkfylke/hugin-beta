@@ -3,10 +3,11 @@ import { createAgent, getDBAgent } from "$lib/server/agents/agents.js"
 import { getDBConversation } from "$lib/server/agents/conversations.js"
 import { canPromptAgent, canViewConversation } from "$lib/server/auth/authorization"
 import { HTTPError } from "$lib/server/middleware/http-error"
-import { httpRequestMiddleware, type MiddlewareNextFunction } from "$lib/server/middleware/http-request"
+import { httpRequestMiddleware } from "$lib/server/middleware/http-request"
 import { responseStream } from "$lib/streaming"
 import type { GetAgentConversationResponse } from "$lib/types/api-responses"
 import { ConversationRequest } from "$lib/types/requests"
+import type { MiddlewareNextFunction } from "$lib/types/middleware/http-request"
 
 const getConversation: MiddlewareNextFunction = async ({ requestEvent, user }) => {
 	if (!requestEvent.params.agentId || !requestEvent.params.conversationId) {

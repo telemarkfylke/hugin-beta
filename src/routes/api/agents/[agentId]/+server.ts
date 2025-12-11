@@ -2,9 +2,10 @@ import { json, type RequestHandler } from "@sveltejs/kit"
 import { createAgent, getDBAgent } from "$lib/server/agents/agents"
 import { canPromptAgent } from "$lib/server/auth/authorization"
 import { HTTPError } from "$lib/server/middleware/http-error"
-import { httpRequestMiddleware, type MiddlewareNextFunction } from "$lib/server/middleware/http-request"
+import { httpRequestMiddleware } from "$lib/server/middleware/http-request"
 import type { Agent, DBAgent } from "$lib/types/agents"
 import type { GetAgentResponse } from "$lib/types/api-responses"
+import type { MiddlewareNextFunction } from "$lib/types/middleware/http-request"
 
 const getAgent: MiddlewareNextFunction = async ({ requestEvent, user }) => {
 	if (!requestEvent.params.agentId) {

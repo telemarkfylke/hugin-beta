@@ -1,9 +1,10 @@
 import { json, type RequestHandler } from "@sveltejs/kit"
 import { canViewVendorConversations } from "$lib/server/auth/authorization"
 import { HTTPError } from "$lib/server/middleware/http-error"
-import { httpRequestMiddleware, type MiddlewareNextFunction } from "$lib/server/middleware/http-request"
+import { httpRequestMiddleware } from "$lib/server/middleware/http-request"
 import { MistralVendor } from "$lib/server/mistral/mistral"
 import type { GetVendorConversationsResponse } from "$lib/types/api-responses"
+import type { MiddlewareNextFunction } from "$lib/types/middleware/http-request"
 
 const getVendorConversations: MiddlewareNextFunction = async ({ user }) => {
 	if (!canViewVendorConversations(user)) {

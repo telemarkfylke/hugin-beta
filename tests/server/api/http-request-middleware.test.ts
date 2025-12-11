@@ -2,8 +2,9 @@ import type { RequestEvent, RequestHandler } from "@sveltejs/kit"
 import { describe, expect, it } from "vitest"
 import { MS_AUTH_PRINCIPAL_CLAIMS_HEADER } from "$lib/server/auth/auth-constants"
 import { HTTPError } from "$lib/server/middleware/http-error"
-import { httpRequestMiddleware, type MiddlewareNextFunction } from "$lib/server/middleware/http-request"
+import { httpRequestMiddleware } from "$lib/server/middleware/http-request"
 import { TEST_USER_MS_HEADERS, type TestRequestEvent } from "./test-requests-data"
+import type { MiddlewareNextFunction } from "$lib/types/middleware/http-request"
 
 const idiotNextFunction: MiddlewareNextFunction = async () => {
 	return {
