@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { page } from "$app/state"
-  import { GetVendorVectorStoreFilesResponse, GetVendorVectorStoreResponse } from "$lib/types/api-responses";
+	import { GetVendorVectorStoreFilesResponse, GetVendorVectorStoreResponse } from "$lib/types/api-responses"
 	import type { VectorStoreFile } from "$lib/types/vector-store"
 
 	type FrontendVectorStoreFiles = {

@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { GetVectorStoresResponse } from "$lib/types/api-responses";
+	import { GetVectorStoresResponse } from "$lib/types/api-responses"
 	import type { VectorStore } from "$lib/types/vector-store"
 
 	type FrontendVectorStores = {

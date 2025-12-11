@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { GetConversationsResponse } from "$lib/types/api-responses";
+	import { GetConversationsResponse } from "$lib/types/api-responses"
 	import type { DBConversation } from "$lib/types/conversation"
 
 	type FrontendConversations = {

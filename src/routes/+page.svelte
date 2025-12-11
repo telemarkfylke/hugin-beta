@@ -1,12 +1,12 @@
 <script lang="ts">
 	import AgentComponent from "$lib/components/Agent/AgentComponent.svelte"
-    import { GetAgentsResponse } from "$lib/types/api-responses";
+	import { GetAgentsResponse } from "$lib/types/api-responses"
 	import type { DBAgent } from "../lib/types/agents"
 
 	const getAgents = async (): Promise<DBAgent[]> => {
 		const res = await fetch("/api/agents")
-    if (!res.ok) {
-      const resData = await res.json()
+		if (!res.ok) {
+			const resData = await res.json()
 			throw new Error(resData.message || "Failed to fetch agents")
 		}
 		const data = GetAgentsResponse.parse(await res.json())
