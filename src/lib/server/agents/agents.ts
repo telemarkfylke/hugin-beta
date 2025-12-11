@@ -28,11 +28,6 @@ export const getDBAgent = async (agentId: string): Promise<DBAgent> => {
 	// Implement real DB fetch here
 }
 
-/**
- * Handles authorization when fetching agents from DB, for faster retrieval. Probs a smarter solution somewhere...
- * @param {AuthenticatedUser} user
- * @returns {Promise<DBAgent[]>}
- */
 export const getDBAgents = async (user: AuthenticatedUser): Promise<DBAgent[]> => {
 	if (mockDbData) {
 		if (canViewAllAgents(user)) {
