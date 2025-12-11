@@ -25,7 +25,7 @@ const getAgentUserConversations: MiddlewareNextFunction = async ({ requestEvent,
 	if (unauthorizedConversations.length > 0) {
 		// This should not happen as getDBAgents filters based on user access
 		logger.warn(
-			`User: {userId} got {count} conversations they are not authorized to view from db query. Filtered them out, but take a look at _ids {@ids}`,
+			"User: {userId} got {count} conversations they are not authorized to view from db query. Filtered them out, but take a look at _ids {@ids}",
 			user.userId,
 			unauthorizedConversations.length,
 			unauthorizedConversations.map((c) => c._id)
