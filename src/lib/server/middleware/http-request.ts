@@ -25,9 +25,8 @@ export const httpRequestMiddleware = async (requestEvent: RequestEvent, next: Mi
 		user = getAuthenticatedUser(request.headers)
 		loggerPrefix += ` - User: ${user.userId} (${user.name})`
 		logger.info(`${loggerPrefix} - Authenticated user: {userId}`, user.userId)
-	} catch (err) {
-		const errorMsg = err instanceof Error ? err.message : String(err)
-		logger.error(`${loggerPrefix} - Error during authentication: {error}`, errorMsg)
+	} catch (error) {
+		logger.errorException(error, `${loggerPrefix} - Error during authentication`)
 		return json({ message: "Unauthorized" }, { status: 401 })
 	}
 	try {
