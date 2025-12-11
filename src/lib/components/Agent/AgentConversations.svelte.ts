@@ -1,6 +1,6 @@
 import type { AgentState } from "$lib/types/agent-state"
+import { GetAgentConversationResponse, GetAgentConversationsResponse } from "$lib/types/api-responses.js"
 import type { Message } from "$lib/types/message.js"
-import { GetConversationResult, GetConversationsResult } from "$lib/types/requests.js"
 import { _getConversationVectorStoreFiles } from "./AgentConversationVectorStoreFiles.svelte.js"
 
 // Internal method to update agent state with conversations, only to be used as internal function	in AgentState.svelte.ts
@@ -16,7 +16,7 @@ export const _getAgentConversations = async (agentState: AgentState): Promise<vo
 			throw new Error(`Failed to fetch conversations: ${fetchConversationsResult.status}`) // Hm bad
 		}
 		const data = await fetchConversationsResult.json()
-		agentState.conversations.value = GetConversationsResult.parse(data).conversations
+		agentState.conversations.value = GetAgentConversationsResponse.parse(data).conversations
 	} catch (error) {
 		agentState.conversations.error = (error as Error).message
 	}
@@ -38,7 +38,7 @@ export const _getAgentConversation = async (agentState: AgentState, conversation
 			throw new Error(`Failed to fetch conversation: ${fetchConversationResult.status}`)
 		}
 		const data = await fetchConversationResult.json()
-		const conversationData = GetConversationResult.parse(data)
+		const conversationData = GetAgentConversationResponse.parse(data)
 		// Set conversation data in state
 		agentState.currentConversation.value.id = conversationData.conversation._id
 		agentState.currentConversation.value.name = conversationData.conversation.name

@@ -3,6 +3,7 @@ import { logger } from "@vestfoldfylke/loglady"
 import { getDBUserConversations } from "$lib/server/agents/conversations"
 import { canViewConversation } from "$lib/server/auth/authorization"
 import { httpRequestMiddleware, type MiddlewareNextFunction } from "$lib/server/middleware/http-request"
+import type { GetConversationsResponse } from "$lib/types/api-responses"
 
 const getConversations: MiddlewareNextFunction = async ({ user }) => {
 	const userConversations = await getDBUserConversations(user.userId)
@@ -19,7 +20,7 @@ const getConversations: MiddlewareNextFunction = async ({ user }) => {
 	}
 
 	return {
-		response: json(authorizedConversations),
+		response: json({ conversations: authorizedConversations } as GetConversationsResponse),
 		isAuthorized: true
 	}
 }

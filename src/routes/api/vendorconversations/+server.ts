@@ -3,6 +3,7 @@ import { canViewVendorConversations } from "$lib/server/auth/authorization"
 import { HTTPError } from "$lib/server/middleware/http-error"
 import { httpRequestMiddleware, type MiddlewareNextFunction } from "$lib/server/middleware/http-request"
 import { MistralVendor } from "$lib/server/mistral/mistral"
+import type { GetVendorConversationsResponse } from "$lib/types/api-responses"
 
 const getVendorConversations: MiddlewareNextFunction = async ({ user }) => {
 	if (!canViewVendorConversations(user)) {
@@ -13,7 +14,7 @@ const getVendorConversations: MiddlewareNextFunction = async ({ user }) => {
 	const mistralConversations = await mistralVendor.listConversations()
 
 	return {
-		response: json(mistralConversations),
+		response: json(mistralConversations as GetVendorConversationsResponse),
 		isAuthorized: true
 	}
 }

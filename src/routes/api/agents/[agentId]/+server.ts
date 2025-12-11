@@ -4,6 +4,7 @@ import { canPromptAgent } from "$lib/server/auth/authorization"
 import { HTTPError } from "$lib/server/middleware/http-error"
 import { httpRequestMiddleware, type MiddlewareNextFunction } from "$lib/server/middleware/http-request"
 import type { Agent, DBAgent } from "$lib/types/agents"
+import type { GetAgentResponse } from "$lib/types/api-responses"
 
 const getAgent: MiddlewareNextFunction = async ({ requestEvent, user }) => {
 	if (!requestEvent.params.agentId) {
@@ -20,7 +21,7 @@ const getAgent: MiddlewareNextFunction = async ({ requestEvent, user }) => {
 	const agent: Agent = createAgent(dbAgent).getAgentInfo()
 
 	return {
-		response: json({ agent }),
+		response: json({ agent } as GetAgentResponse),
 		isAuthorized: true
 	}
 }

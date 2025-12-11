@@ -3,6 +3,7 @@ import { canViewVendorVectorStores } from "$lib/server/auth/authorization"
 import { HTTPError } from "$lib/server/middleware/http-error"
 import { httpRequestMiddleware, type MiddlewareNextFunction } from "$lib/server/middleware/http-request"
 import { MistralVendor } from "$lib/server/mistral/mistral"
+import type { GetVectorStoresResponse } from "$lib/types/api-responses"
 
 const getVendorVectorStores: MiddlewareNextFunction = async ({ user }) => {
 	if (!canViewVendorVectorStores(user)) {
@@ -12,7 +13,7 @@ const getVendorVectorStores: MiddlewareNextFunction = async ({ user }) => {
 	const mistralVendor = new MistralVendor()
 	const mistralVectorStores = await mistralVendor.listVectorStores()
 	return {
-		response: json(mistralVectorStores),
+		response: json(mistralVectorStores as GetVectorStoresResponse),
 		isAuthorized: true
 	}
 }

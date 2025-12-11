@@ -3,6 +3,7 @@ import { logger } from "@vestfoldfylke/loglady"
 import { getDBAgents } from "$lib/server/agents/agents.js"
 import { canPromptAgent } from "$lib/server/auth/authorization"
 import { httpRequestMiddleware, type MiddlewareNextFunction } from "$lib/server/middleware/http-request"
+import type { GetAgentsResponse } from "$lib/types/api-responses"
 
 const getAgents: MiddlewareNextFunction = async ({ user }) => {
 	const agents = await getDBAgents(user)
@@ -20,7 +21,7 @@ const getAgents: MiddlewareNextFunction = async ({ user }) => {
 	}
 
 	return {
-		response: json({ agents: authorizedAgents }),
+		response: json({ agents: authorizedAgents } as GetAgentsResponse),
 		isAuthorized: true
 	}
 }

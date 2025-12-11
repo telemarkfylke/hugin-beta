@@ -2,13 +2,13 @@ import { json, type RequestHandler } from "@sveltejs/kit"
 import { createAgent, getDBAgent } from "$lib/server/agents/agents.js"
 import { deleteDBConversation, getDBAgentUserConversations, insertDBConversation, updateDBConversation } from "$lib/server/agents/conversations.js"
 import { getUserInputTextFromPrompt } from "$lib/server/agents/message"
-import { canPromptAgent } from "$lib/server/auth/authorization"
+import { canPromptAgent, canViewConversation } from "$lib/server/auth/authorization"
 import { HTTPError } from "$lib/server/middleware/http-error"
 import { httpRequestMiddleware, type MiddlewareNextFunction } from "$lib/server/middleware/http-request"
 import { responseStream } from "$lib/streaming"
 import { ConversationRequest } from "$lib/types/requests"
-
-// OBS OBS Kan hende vi bare skal ha dette endepunktet - og dersom man ikke sender med en conversationId så oppretter vi en ny conversation, hvis ikke fortsetter vi den eksisterende (ja, kan fortsatt kanskje hende det)
+import type { GetAgentConversationsResponse } from "$lib/types/api-responses"
+import { logger } from "@vestfoldfylke/loglady"
 
 const getAgentUserConversations: MiddlewareNextFunction = async ({ requestEvent, user }) => {
 	if (!requestEvent.params.agentId) {
@@ -18,9 +18,22 @@ const getAgentUserConversations: MiddlewareNextFunction = async ({ requestEvent,
 		throw new HTTPError(400, "userId is required")
 	}
 	const agentUserConversations = await getDBAgentUserConversations(requestEvent.params.agentId, user.userId)
+
+	const authorizedConversations = agentUserConversations.filter(conversation => canViewConversation(user, conversation))
+	const unauthorizedConversations = agentUserConversations.filter(conversation => !canViewConversation(user, conversation))
+	if (unauthorizedConversations.length > 0) {
+		// This should not happen as getDBAgents filters based on user access
+		logger.warn(
+			`User: {userId} got {count} conversations they are not authorized to view from db query. Filtered them out, but take a look at _ids {@ids}`,
+			user.userId,
+			unauthorizedConversations.length,
+			unauthorizedConversations.map((c) => c._id)
+		)
+	}
+
 	return {
-		response: json({ conversations: agentUserConversations }),
-		isAuthorized: true // getDBAgentUserConversations only returns conversations the user has access to, no need to check further
+		response: json({ conversations: authorizedConversations } as GetAgentConversationsResponse),
+		isAuthorized: true
 	}
 }
 

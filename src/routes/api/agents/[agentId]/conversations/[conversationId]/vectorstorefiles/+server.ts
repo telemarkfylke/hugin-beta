@@ -6,6 +6,7 @@ import { HTTPError } from "$lib/server/middleware/http-error"
 import { httpRequestMiddleware, type MiddlewareNextFunction } from "$lib/server/middleware/http-request"
 import { responseStream } from "$lib/streaming.js"
 import type { Agent } from "$lib/types/agents"
+import type { GetAgentConversationVectorstoreFilesResponse } from "$lib/types/api-responses"
 
 const getVectorStoreFiles: MiddlewareNextFunction = async ({ requestEvent, user }) => {
 	if (!requestEvent.params.agentId || !requestEvent.params.conversationId) {
@@ -29,7 +30,7 @@ const getVectorStoreFiles: MiddlewareNextFunction = async ({ requestEvent, user 
 	const getConversationVectorStoreFilesResult = await agent.getConversationVectorStoreFiles(conversation)
 
 	return {
-		response: json(getConversationVectorStoreFilesResult),
+		response: json(getConversationVectorStoreFilesResult as GetAgentConversationVectorstoreFilesResponse),
 		isAuthorized: true
 	}
 }
