@@ -7,4 +7,3 @@ export const ConversationRequest = z.object({
 })
 
 export type ConversationRequest = z.infer<typeof ConversationRequest>
-

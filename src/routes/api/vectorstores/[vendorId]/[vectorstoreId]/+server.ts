@@ -3,8 +3,8 @@ import { createVendor } from "$lib/server/agents/vendors"
 import { canDeleteVendorVectorStore, canViewVendorVectorStores } from "$lib/server/auth/authorization"
 import { HTTPError } from "$lib/server/middleware/http-error"
 import { httpRequestMiddleware, type MiddlewareNextFunction } from "$lib/server/middleware/http-request"
-import type { VendorId } from "$lib/types/vendor-ids"
 import type { GetVendorVectorStoreResponse } from "$lib/types/api-responses"
+import type { VendorId } from "$lib/types/vendor-ids"
 
 const getVendorVectorStore: MiddlewareNextFunction = async ({ requestEvent, user }) => {
 	if (!canViewVendorVectorStores(user)) {

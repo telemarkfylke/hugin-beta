@@ -1,4 +1,5 @@
 import { json, type RequestHandler } from "@sveltejs/kit"
+import { logger } from "@vestfoldfylke/loglady"
 import { createAgent, getDBAgent } from "$lib/server/agents/agents.js"
 import { deleteDBConversation, getDBAgentUserConversations, insertDBConversation, updateDBConversation } from "$lib/server/agents/conversations.js"
 import { getUserInputTextFromPrompt } from "$lib/server/agents/message"
@@ -6,9 +7,8 @@ import { canPromptAgent, canViewConversation } from "$lib/server/auth/authorizat
 import { HTTPError } from "$lib/server/middleware/http-error"
 import { httpRequestMiddleware, type MiddlewareNextFunction } from "$lib/server/middleware/http-request"
 import { responseStream } from "$lib/streaming"
-import { ConversationRequest } from "$lib/types/requests"
 import type { GetAgentConversationsResponse } from "$lib/types/api-responses"
-import { logger } from "@vestfoldfylke/loglady"
+import { ConversationRequest } from "$lib/types/requests"
 
 const getAgentUserConversations: MiddlewareNextFunction = async ({ requestEvent, user }) => {
 	if (!requestEvent.params.agentId) {
@@ -19,8 +19,8 @@ const getAgentUserConversations: MiddlewareNextFunction = async ({ requestEvent,
 	}
 	const agentUserConversations = await getDBAgentUserConversations(requestEvent.params.agentId, user.userId)
 
-	const authorizedConversations = agentUserConversations.filter(conversation => canViewConversation(user, conversation))
-	const unauthorizedConversations = agentUserConversations.filter(conversation => !canViewConversation(user, conversation))
+	const authorizedConversations = agentUserConversations.filter((conversation) => canViewConversation(user, conversation))
+	const unauthorizedConversations = agentUserConversations.filter((conversation) => !canViewConversation(user, conversation))
 	if (unauthorizedConversations.length > 0) {
 		// This should not happen as getDBAgents filters based on user access
 		logger.warn(

@@ -5,8 +5,8 @@ import { canPromptAgent, canViewConversation } from "$lib/server/auth/authorizat
 import { HTTPError } from "$lib/server/middleware/http-error"
 import { httpRequestMiddleware, type MiddlewareNextFunction } from "$lib/server/middleware/http-request"
 import { responseStream } from "$lib/streaming"
-import { ConversationRequest } from "$lib/types/requests"
 import type { GetAgentConversationResponse } from "$lib/types/api-responses"
+import { ConversationRequest } from "$lib/types/requests"
 
 const getConversation: MiddlewareNextFunction = async ({ requestEvent, user }) => {
 	if (!requestEvent.params.agentId || !requestEvent.params.conversationId) {
