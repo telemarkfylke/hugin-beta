@@ -1,5 +1,8 @@
 import { env } from "$env/dynamic/private"
 import type { DBAgent, IAgent } from "$lib/types/agents.ts"
+import type { AuthenticatedUser } from "$lib/types/authentication.js"
+import { canViewAllAgents } from "../auth/authorization.js"
+import { HTTPError } from "../middleware/http-error.js"
 import { MistralAgent } from "../mistral/mistral-agent.js"
 import { MockAIAgent } from "../mock-ai/mock-ai-agent"
 import { OllamaAgent } from "../ollama/ollama-agent"
@@ -17,18 +20,26 @@ export const getDBAgent = async (agentId: string): Promise<DBAgent> => {
 	if (mockDbData) {
 		const foundAgent = mockDbData.agents.find((agent) => agent._id === agentId)
 		if (!foundAgent) {
-			throw new Error("Agent not found")
+			throw new HTTPError(404, `Agent ${agentId} not found`)
 		}
-		return JSON.parse(JSON.stringify(foundAgent))
+		return JSON.parse(JSON.stringify(foundAgent)) // Return a deep copy for not reference issues
 	}
 	throw new Error("Not implemented - please set MOCK_DB to true in env")
 	// Implement real DB fetch here
 }
 
-export const getDBAgents = async (): Promise<DBAgent[]> => {
+export const getDBAgents = async (user: AuthenticatedUser): Promise<DBAgent[]> => {
 	if (mockDbData) {
-		console.log("Returning agents from mockDbData", mockDbData.agents)
-		return mockDbData.agents.map((agent) => JSON.parse(JSON.stringify(agent)))
+		if (canViewAllAgents(user)) {
+			return mockDbData.agents.map((agent) => JSON.parse(JSON.stringify(agent)))
+		}
+		const authorizedAgents = mockDbData.agents.filter((agent) => {
+			if (agent.authorizedGroupIds === "all") {
+				return true
+			}
+			return user.groups.some((groupId) => agent.authorizedGroupIds.includes(groupId))
+		})
+		return authorizedAgents.map((agent) => JSON.parse(JSON.stringify(agent)))
 	}
 	throw new Error("Not implemented - please set MOCK_DB to true in env")
 	// Implement real DB fetch here

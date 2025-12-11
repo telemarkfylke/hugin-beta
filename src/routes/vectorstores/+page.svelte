@@ -1,6 +1,6 @@
 <script lang="ts">
+	import { GetVectorStoresResponse } from "$lib/types/api-responses"
 	import type { VectorStore } from "$lib/types/vector-store"
-	import { IVendorResults } from "$lib/types/vendors"
 
 	type FrontendVectorStores = {
 		isLoading: boolean
@@ -23,7 +23,8 @@
 			if (!res.ok) {
 				throw new Error(`Failed to fetch vector stores: ${res.statusText}`)
 			}
-			const result = IVendorResults.ListVectorStoresResult.parse(await res.json()) // Validate response
+			// get json and validate
+			const result = GetVectorStoresResponse.parse(await res.json()) // Validate response
 			vectorstores.value = result.vectorstores
 		} catch (error) {
 			vectorstores.error = error instanceof Error ? error.message : String(error)
