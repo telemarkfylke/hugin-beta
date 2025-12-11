@@ -57,7 +57,7 @@ const _getAgentInfo = async (agentState: AgentState): Promise<void> => {
 			agentState.agentInfo.value = null
 		} else {
 			// Get json and validate
-			const data = await GetAgentResponse.parse(response.json())
+			const data = GetAgentResponse.parse(await response.json())
 			agentState.agentInfo.value = data.agent
 		}
 	} catch (error) {

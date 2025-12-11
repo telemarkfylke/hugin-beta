@@ -79,16 +79,16 @@ export const DBAgent = z.object({
 	createdAt: z.iso.datetime(),
 	createdBy: z.object({
 		/** ObjectId in EntraID that created the agent */
-		objectId: z.uuid(),
+		objectId: z.string(),
 		name: z.string()
 	}),
 	updatedAt: z.iso.datetime(),
 	updatedBy: z.object({
 		/** ObjectId in EntraID that updated the agent */
-		objectId: z.uuid(),
+		objectId: z.string(),
 		name: z.string()
 	}),
-	authorizedGroupIds: z.literal("all").or(z.array(z.uuid())) // list of groupIds that have access to this agent or "all" for everyone
+	authorizedGroupIds: z.literal("all").or(z.array(z.string())) // list of groupIds that have access to this agent or "all" for everyone
 })
 
 export type DBAgent = z.infer<typeof DBAgent>

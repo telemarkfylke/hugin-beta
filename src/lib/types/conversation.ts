@@ -13,7 +13,7 @@ export const DBConversation = z.object({
 	messages: z.array(Message), // Om leverandør ikke støtter hent meldingene direkte, kaaan de legges her inntil videre
 	owner: z.object({
 		/** ObjectId in EntraID that created the conversation */
-		objectId: z.uuid(),
+		objectId: z.string(),
 		name: z.string()
 	}),
 	createdAt: z.iso.datetime(),
