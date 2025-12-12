@@ -1,21 +1,30 @@
 import { json, type RequestHandler } from "@sveltejs/kit"
 import { createVendor } from "$lib/server/agents/vendors"
+import { canViewVendorVectorStores } from "$lib/server/auth/authorization"
+import { HTTPError } from "$lib/server/middleware/http-error"
+import { httpRequestMiddleware } from "$lib/server/middleware/http-request"
+import type { GetVendorVectorStoreFilesResponse } from "$lib/types/api-responses"
+import type { MiddlewareNextFunction } from "$lib/types/middleware/http-request"
 import type { VendorId } from "$lib/types/vendor-ids"
 
-export const GET: RequestHandler = async ({ params }) => {
-	const vendorId = params.vendorId as VendorId
-	if (!vendorId) {
-		return json({ error: "vendorId is required" }, { status: 400 })
+const getVendorVectorStoreFiles: MiddlewareNextFunction = async ({ requestEvent, user }) => {
+	if (!canViewVendorVectorStores(user)) {
+		throw new HTTPError(403, `User ${user.userId} is not authorized to view vendor vector stores`)
 	}
-	const vectorstoreId = params.vectorstoreId
-	if (!vectorstoreId) {
-		return json({ error: "vectorstoreId is required" }, { status: 400 })
+	const { vendorId, vectorstoreId } = requestEvent.params
+	if (!vendorId || !vectorstoreId) {
+		throw new HTTPError(400, "vendorId and vectorstoreId are required")
 	}
-	// Sjekk om har tilgang (noe middleware)
 
-	const vendor = createVendor(vendorId)
-	// Hent en vector store og list opp filer
+	const vendor = createVendor(vendorId as VendorId)
 	const vectorStoreFiles = await vendor.getVectorStoreFiles(vectorstoreId)
 
-	return json(vectorStoreFiles)
+	return {
+		response: json(vectorStoreFiles as GetVendorVectorStoreFilesResponse),
+		isAuthorized: true
+	}
+}
+
+export const GET: RequestHandler = async (requestEvent) => {
+	return httpRequestMiddleware(requestEvent, getVendorVectorStoreFiles)
 }

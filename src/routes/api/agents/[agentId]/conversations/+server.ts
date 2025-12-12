@@ -1,40 +1,81 @@
 import { json, type RequestHandler } from "@sveltejs/kit"
+import { logger } from "@vestfoldfylke/loglady"
 import { createAgent, getDBAgent } from "$lib/server/agents/agents.js"
-import { deleteDBConversation, getDBConversations, insertDBConversation, updateDBConversation } from "$lib/server/agents/conversations.js"
+import { deleteDBConversation, getDBAgentUserConversations, insertDBConversation, updateDBConversation } from "$lib/server/agents/conversations.js"
+import { getUserInputTextFromPrompt } from "$lib/server/agents/message"
+import { canPromptAgent, canViewConversation } from "$lib/server/auth/authorization"
+import { HTTPError } from "$lib/server/middleware/http-error"
+import { httpRequestMiddleware } from "$lib/server/middleware/http-request"
 import { responseStream } from "$lib/streaming"
+import type { GetAgentConversationsResponse } from "$lib/types/api-responses"
+import type { MiddlewareNextFunction } from "$lib/types/middleware/http-request"
 import { ConversationRequest } from "$lib/types/requests"
 
-// OBS OBS Kan hende vi bare skal ha dette endepunktet - og dersom man ikke sender med en conversationId så oppretter vi en ny conversation, hvis ikke fortsetter vi den eksisterende (ja, kan fortsatt kanskje hende det)
-
-export const GET: RequestHandler = async ({ params }): Promise<Response> => {
-	// Da spør vi DB om å hente conversations som påkaller har tilgang på i denne assistenten
-	if (!params.agentId) {
-		throw new Error("agentId is required")
+const getAgentUserConversations: MiddlewareNextFunction = async ({ requestEvent, user }) => {
+	if (!requestEvent.params.agentId) {
+		throw new HTTPError(400, "agentId is required")
 	}
-	console.log(`Fetching conversations for agent ${params.agentId}`)
-	const conversations = await getDBConversations(params.agentId)
+	if (!user.userId) {
+		throw new HTTPError(400, "userId is required")
+	}
+	const agentUserConversations = await getDBAgentUserConversations(requestEvent.params.agentId, user.userId)
 
-	return json({ conversations })
+	const authorizedConversations = agentUserConversations.filter((conversation) => canViewConversation(user, conversation))
+	const unauthorizedConversations = agentUserConversations.filter((conversation) => !canViewConversation(user, conversation))
+	if (unauthorizedConversations.length > 0) {
+		// This should not happen as getDBAgents filters based on user access
+		logger.warn(
+			"User: {userId} got {count} conversations they are not authorized to view from db query. Filtered them out, but take a look at _ids {@ids}",
+			user.userId,
+			unauthorizedConversations.length,
+			unauthorizedConversations.map((c) => c._id)
+		)
+	}
+
+	return {
+		response: json({ conversations: authorizedConversations } as GetAgentConversationsResponse),
+		isAuthorized: true
+	}
 }
 
-export const POST: RequestHandler = async ({ request, params }) => {
-	const { agentId } = params
-	if (!agentId) {
-		return json({ error: "agentId is required" }, { status: 400 })
+export const GET: RequestHandler = async (requestEvent): Promise<Response> => {
+	// Da spør vi DB om å hente conversations som påkaller har tilgang på i denne assistenten
+	return httpRequestMiddleware(requestEvent, getAgentUserConversations)
+}
+
+const createAgentConversation: MiddlewareNextFunction = async ({ requestEvent, user }) => {
+	if (!requestEvent.params.agentId) {
+		throw new HTTPError(400, "agentId is required")
+	}
+	if (!user.userId) {
+		throw new HTTPError(400, "userId is required")
+	}
+	const dbAgent = await getDBAgent(requestEvent.params.agentId)
+
+	// Check if user can prompt this agent
+	const authorized = canPromptAgent(user, dbAgent)
+	if (!authorized) {
+		return {
+			response: new Response("Forbidden", { status: 403 }),
+			isAuthorized: false
+		}
 	}
 
-	const body = await request.json()
-	// Validate request body
+	const body = await requestEvent.request.json()
 	const { prompt, stream } = ConversationRequest.parse(body)
 
-	const dbAgent = await getDBAgent(agentId)
-
 	const agent = createAgent(dbAgent)
+	const promptText = getUserInputTextFromPrompt(prompt)
 
-	// Oppretter en conversation i egen db
-	const dbConversation = await insertDBConversation(agentId, {
-		name: "New Conversation",
+	const dbConversation = await insertDBConversation(requestEvent.params.agentId, {
+		name: promptText ? promptText.substring(0, 20) : "New Conversation",
 		vendorId: dbAgent.vendorId,
+		createdAt: new Date().toISOString(),
+		updatedAt: new Date().toISOString(),
+		owner: {
+			objectId: user.userId,
+			name: user.name
+		},
 		description: "Conversation started via API",
 		vendorConversationId: "",
 		vectorStoreId: null
@@ -43,21 +84,26 @@ export const POST: RequestHandler = async ({ request, params }) => {
 	try {
 		const { vendorConversationId, response, vectorStoreId } = await agent.createConversation(dbConversation, prompt, stream)
 
-		// Oppdaterer vår conversation med riktig relatedConversationId og vectorStoreId
-		updateDBConversation(dbConversation._id, {
+		// Updates our conversation with the correct vendorConversationId and vectorStoreId
+		await updateDBConversation(dbConversation._id, {
 			vendorConversationId,
 			vectorStoreId
 		})
 
 		if (stream) {
-			return responseStream(response)
+			return {
+				response: responseStream(response),
+				isAuthorized: true
+			}
 		}
-
-		throw new Error("Non-streaming create conversation not implemented yet")
+		throw new HTTPError(500, "Non-streaming create conversation not implemented yet")
 	} catch (error) {
-		console.error("Error creating conversation:", error)
 		// delete the conversation we just created in db
 		await deleteDBConversation(dbConversation._id)
 		throw error
 	}
+}
+
+export const POST: RequestHandler = async (requestEvent) => {
+	return httpRequestMiddleware(requestEvent, createAgentConversation)
 }

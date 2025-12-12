@@ -1,7 +1,7 @@
 import { parseSse } from "$lib/streaming.js"
 import type { AgentState } from "$lib/types/agent-state"
+import { GetVendorVectorStoreFilesResponse } from "$lib/types/api-responses"
 import type { VectorStoreFile, VectorStoreFileStatus } from "$lib/types/vector-store"
-import { IVendorResults } from "$lib/types/vendors"
 
 const _addConversationVectorStoreFileToState = (agentState: AgentState, file: VectorStoreFile): void => {
 	const alreadyExists = agentState.currentConversation.value.vectorStoreFiles.some((f) => f.id === file.id)
@@ -32,9 +32,8 @@ export const _getConversationVectorStoreFiles = async (agentState: AgentState): 
 		if (!filesResponse.ok) {
 			throw new Error(`HTTP error! status: ${filesResponse.status}`)
 		}
-		const getVectorStoreFilesResult: IVendorResults["GetVectorStoreFilesResult"] = await filesResponse.json()
-
-		IVendorResults.GetVectorStoreFilesResult.parse(getVectorStoreFilesResult) // Validate response
+		// Get json and validate
+		const getVectorStoreFilesResult = GetVendorVectorStoreFilesResponse.parse(await filesResponse.json())
 
 		for (const file of getVectorStoreFilesResult.files) {
 			_addConversationVectorStoreFileToState(agentState, file)

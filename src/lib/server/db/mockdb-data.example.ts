@@ -3,6 +3,15 @@
 import type { DBAgent } from "$lib/types/agents.ts"
 import type { DBConversation } from "$lib/types/conversation"
 
+const createdBy = {
+	objectId: "00000000-0000-0000-0000-000000000001",
+	name: "Mock User"
+}
+const updatedBy = {
+	objectId: "00000000-0000-0000-0000-000000000001",
+	name: "Mock User"
+}
+
 export const agents: DBAgent[] = [
 	{
 		_id: "mistral",
@@ -12,7 +21,12 @@ export const agents: DBAgent[] = [
 		config: {
 			type: "mistral-agent",
 			agentId: "en id til en agent i mistral"
-		}
+		},
+		authorizedGroupIds: "all",
+		createdAt: new Date().toISOString(),
+		updatedAt: new Date().toISOString(),
+		createdBy,
+		updatedBy
 	},
 	{
 		_id: "mistral-conversation",
@@ -26,7 +40,12 @@ export const agents: DBAgent[] = [
 			vectorStoreEnabled: true,
 			webSearchEnabled: false,
 			documentLibraryIds: ["preconfigured-library-id-from-mistral"]
-		}
+		},
+		authorizedGroupIds: "all",
+		createdAt: new Date().toISOString(),
+		updatedAt: new Date().toISOString(),
+		createdBy,
+		updatedBy
 	},
 	{
 		_id: "openai_prompt",
@@ -39,7 +58,12 @@ export const agents: DBAgent[] = [
 				id: "a prompt id from OpenAI here",
 				version: "optional version string"
 			}
-		}
+		},
+		authorizedGroupIds: "all",
+		createdAt: new Date().toISOString(),
+		updatedAt: new Date().toISOString(),
+		createdBy,
+		updatedBy
 	},
 	{
 		_id: "openai_response_4o",
@@ -52,7 +76,12 @@ export const agents: DBAgent[] = [
 			instructions: "You are a helpful assistant that answers in Norwegian.",
 			vectorStoreEnabled: true,
 			webSearchEnabled: false
-		}
+		},
+		authorizedGroupIds: "all",
+		createdAt: new Date().toISOString(),
+		updatedAt: new Date().toISOString(),
+		createdBy,
+		updatedBy
 	}
 ]
 
