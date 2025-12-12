@@ -5,12 +5,12 @@ import { createSse } from "$lib/streaming.js"
 import type { AgentConfig, DBAgent, IAgent, IAgentResults } from "$lib/types/agents"
 import type { DBConversation } from "$lib/types/conversation"
 import type { AgentPrompt } from "$lib/types/message"
+import { wrapTextInPdf } from "$lib/util/pdf-util"
 import { updateDBConversation } from "../agents/conversations"
 import { OpenAIVendor, openai } from "./openai"
 import { createMessageFromOpenAIMessage } from "./openai-message"
 import { OPEN_AI_SUPPORTED_MESSAGE_FILE_MIME_TYPES, OPEN_AI_SUPPORTED_MESSAGE_IMAGE_MIME_TYPES, OPEN_AI_SUPPORTED_VECTOR_STORE_FILE_MIME_TYPES } from "./openai-supported-filetypes"
 import { uploadFilesToOpenAIVectorStore } from "./vector-store"
-import { ImageType, wrapImageInPdf, wrapTextInPdf } from "$lib/util/pdf-util"
 
 const openAIVendor = new OpenAIVendor()
 
@@ -54,37 +54,38 @@ const createOpenAIPromptFromAgentPrompt = async (initialPrompt: AgentPrompt): Pr
 		return initialPrompt
 	}
 
-	return await Promise.all(initialPrompt.map(async (item) => {		
-		const content = await Promise.all(item.input.map(async (inputPart) => {
-				switch (inputPart.type) {
-					case "text":
-						return { type: "input_text", text: inputPart.text } as ResponseInputContent
-					case "image":
-						return { type: "input_image", image_url: inputPart.imageUrl } as ResponseInputContent
-					case "file": {
-						if(inputPart.fileUrl.startsWith('data:text/plain;base64') || 
-							 inputPart.fileUrl.startsWith('data:text/csv;base64') ||
-							 inputPart.fileUrl.startsWith('data:application/json;base64')) {
+	return await Promise.all(
+		initialPrompt.map(async (item) => {
+			const content = await Promise.all(
+				item.input.map(async (inputPart) => {
+					switch (inputPart.type) {
+						case "text":
+							return { type: "input_text", text: inputPart.text } as ResponseInputContent
+						case "image":
+							return { type: "input_image", image_url: inputPart.imageUrl } as ResponseInputContent
+						case "file": {
+							if (inputPart.fileUrl.startsWith("data:text/plain;base64") || inputPart.fileUrl.startsWith("data:text/csv;base64") || inputPart.fileUrl.startsWith("data:application/json;base64")) {
+								const pdfBytes = await wrapTextInPdf(inputPart.fileUrl)
+								return { type: "input_file", file_data: pdfBytes, filename: inputPart.fileName } as ResponseInputContent
+							}
 
-							const pdfBytes = await wrapTextInPdf(inputPart.fileUrl)
-							return { type: "input_file", file_data: pdfBytes, filename: inputPart.fileName } as ResponseInputContent
+							return { type: "input_file", file_data: inputPart.fileUrl, filename: inputPart.fileName } as ResponseInputContent
 						}
-
-						return { type: "input_file", file_data: inputPart.fileUrl, filename: inputPart.fileName } as ResponseInputContent
+						default:
+							throw new Error(`Unsupported input type in advanced prompt for OpenAI...`)
 					}
-					default:
-						throw new Error(`Unsupported input type in advanced prompt for OpenAI...`)
-				}
-			}))
+				})
+			)
 
-		const inputItem: ResponseInputItem = {
-			role: item.role === "agent" ? "assistant" : item.role,
-			type: "message",
-			content: content
-		}
+			const inputItem: ResponseInputItem = {
+				role: item.role === "agent" ? "assistant" : item.role,
+				type: "message",
+				content: content
+			}
 
-		return inputItem
-	}))
+			return inputItem
+		})
+	)
 }
 
 const createOpenAIResponseConfig = async (agentConfig: AgentConfig, openAIConversationId: string, inputPrompt: AgentPrompt, userVectorStoreId: string | null): Promise<OpenAIResponseConfigResult> => {
