@@ -1,8 +1,9 @@
-import { ObjectId } from "mongodb"
+import { MongoClient, ObjectId } from "mongodb"
 import { env } from "$env/dynamic/private"
 import type { DBConversation } from "$lib/types/conversation"
 import type { Message } from "$lib/types/message"
 import type { VendorId } from "$lib/types/vendor-ids"
+import { getMongoClient } from "../db/mongodb"
 
 let mockDbData = null
 
@@ -17,6 +18,14 @@ export const getDBConversations = async (agentId: string): Promise<DBConversatio
 		const foundConversations = mockDbData.conversations.filter((conversation) => conversation.agentId === agentId)
 		return foundConversations
 	}
+
+	const mongoClient: MongoClient = await getMongoClient()
+	const response = await mongoClient.db(env.MONGO_DB).collection('conversations')
+	.find().sort({ 'name': 1 }) /*.skip(pageSize * page).limit(pageSize)*/
+
+	const documents = await response.toArray() as unknown as DBConversation[];
+	return documents
+
 	throw new Error("Not implemented - please set MOCK_DB to true in env")
 	// Implement real DB fetch here
 }
@@ -53,8 +62,15 @@ export const insertDBConversation = async (agentId: string, conversationData: Co
 		mockDbData.conversations.push(coversationToInsert)
 		return coversationToInsert
 	}
-	throw new Error("Not implemented - please set MOCK_DB to true in env")
+	//throw new Error("Not implemented - please set MOCK_DB to true in env")
 	// Implement real DB insert here
+	const mongoClient: MongoClient = await getMongoClient()
+	const doc:any = await mongoClient.db(env.MONGO_DB).collection('conversations').findOne({ _id: agentId as any})
+	if (!doc){
+		throw new Error("Conversation not found")
+	}
+	return doc as DBConversation
+
 }
 
 export const updateDBConversation = async (conversationId: string, updateData: Partial<ConversationData>): Promise<DBConversation> => {

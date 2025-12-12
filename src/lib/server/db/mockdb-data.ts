@@ -74,7 +74,19 @@ export const agents: DBAgent[] = [
 			model: "gemma3",
 			instructions: "Svar veldig generelt på spessifike spørsmål"
 		}
-	}
+	},
+	{
+		_id: "mistral-conversation-vector",
+		vendorId: "mistral",
+		name: "Mistral vectorlock",
+		description: "Mistral agent som går rett på en model og conversation",
+		config: {
+			type: "mistral-conversation",
+			model: "mistral-medium-latest",
+			instructions: "Dersom spørsmålet mitt kan relateres til innhold i biblioteket (f.eks. bilder, dokumenter, eller beskrivelser), skal du alltid søke i biblioteket først for å se om det finnes relevant informasjon. Hvis du finner noe, skal du inkludere dette i svaret ditt uten at jeg trenger å be om det eksplisitt. Hvis det ikke finnes relevant innhold, kan du svare som normalt.",
+			vectorStoreEnabled: true,
+		}
+	},
 ]
 
 export const conversations: DBConversation[] = []

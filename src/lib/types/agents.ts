@@ -73,12 +73,16 @@ export type Prettify<T> = { [K in keyof T]: T[K] } & {}
 export type AgentConfig = z.infer<typeof AgentConfig>
 
 // DB AGENT AND CONVERSATION TYPES
-export const DBAgent = z.object({
-	_id: z.string(),
+export const DBAgentInput = z.object({
 	vendorId: SupportedVendorIds,
 	name: z.string(),
 	description: z.string().nullable().optional(),
 	config: AgentConfig
+})
+export type DBAgentInput = z.infer<typeof DBAgentInput>
+
+export const DBAgent = DBAgentInput.extend({
+	_id: z.string(),
 })
 
 export type DBAgent = z.infer<typeof DBAgent>

@@ -1,5 +1,6 @@
 import { json, type RequestHandler } from "@sveltejs/kit"
-import { getDBAgents } from "$lib/server/agents/agents.js"
+import { createDBAgent, getDBAgents } from "$lib/server/agents/agents.js"
+import type { DBAgentInput } from "$lib/types/agents"
 
 /**
  *
@@ -15,7 +16,11 @@ export const GET: RequestHandler = async () => {
  *
  * @type {import("@sveltejs/kit").RequestHandler}
  */
-export const POST: RequestHandler = async () => {
+export const POST: RequestHandler = async ({ request, params }) => {
 	// Da lager vi en ny agent og redirecter til dens side når det er gjort
-	throw new Error("Not implemented yet")
+	const input:DBAgentInput = await request.json()
+	const createdAgent = await createDBAgent(input)
+	return json( createdAgent)
+	//throw new Error("Not implemented yet")
 }
+
