@@ -65,7 +65,15 @@ Create a `.env` file in the project root with the following variables:
 ```bash
 MISTRAL_API_KEY="your-mistral-api-key"
 OPENAI_API_KEY="your-openai-api-key"
-MOCK_DB="true"
+MOCK_DB="true" # If you want in-memory db
+MOCK_AUTH="true" # If you are running locally
+MOCK_AUTH_ROLES="Employee,Admin" # Comma-separated list of role-values you want to mock the current user to have (corresponds to the values in APP_ROLE_X env variables)
+MOCK_AUTH_GROUPS="a23d4ddd-8e3a-40ca-b4ce-a32e87508094" # Comma-separated list of groupIds you want to mock the current user to be a member of
+DEFAULT_AGENT_ID="mistral-conversation"
+APP_ROLE_EMPLOYEE="Employee"
+APP_ROLE_STUDENT="Student"
+APP_ROLE_ADMIN="Admin"
+APP_ROLE_AGENT_MAINTAINER="AgentMaintainer"
 ```
 
 > **Note:** `MOCK_DB` is currently required as database integration is in development.

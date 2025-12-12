@@ -51,7 +51,7 @@ const _mockClaims: MSPrincipalClaims = {
 		},
 		{
 			typ: "groups",
-			val: "ObjectId-of-a-group-if-any" // Group Object ID if groups are included in the token
+			val: "a23d4ddd-8e3a-40ca-b4ce-a32e87508094" // Group Object ID if groups are included in the token (in this case, only one group, random UUID genereated for mock)
 		},
 		{
 			typ: "name",
@@ -63,7 +63,7 @@ const _mockClaims: MSPrincipalClaims = {
 		},
 		{
 			typ: "http://schemas.microsoft.com/identity/claims/objectidentifier",
-			val: "12345-4378493-fjdiofjd" // The immutable identifier for an object, in this case, a user account. This ID uniquely identifies the user across applications
+			val: "c0585101-3bd0-484b-9dad-a82dcbc6bd56" // The immutable identifier for an object, in this case, a random UUID genereated for mocking a user. This ID uniquely identifies the user across applications.
 		},
 		{
 			typ: "preferred_username",

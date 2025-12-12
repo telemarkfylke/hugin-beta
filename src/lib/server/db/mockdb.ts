@@ -1,3 +1,4 @@
+import { env } from "$env/dynamic/private"
 import type { DBAgent } from "$lib/types/agents.js"
 import type { DBConversation } from "$lib/types/conversation.js"
 
@@ -13,10 +14,22 @@ export const getMockDb = async (): Promise<{ agents: DBAgent[]; conversations: D
 			instructions: "You are a mock AI agent that provides streaming mock responses for testing purposes.",
 			vectorStoreEnabled: true,
 			webSearchEnabled: false
+		},
+		authorizedGroupIds: "all",
+		createdAt: new Date().toISOString(),
+		updatedAt: new Date().toISOString(),
+		createdBy: {
+			objectId: "00000000-0000-0000-0000-000000000001",
+			name: "Mock User"
+		},
+		updatedBy: {
+			objectId: "00000000-0000-0000-0000-000000000001",
+			name: "Mock User"
 		}
 	}
 	try {
-		const { agents, conversations } = await import("./mockdb-data.js")
+		const mockDbDataFile = env.TEST_MODE === "true" ? "./mockdb-test-data.js" : "./mockdb-data.js"
+		const { agents, conversations } = await import(mockDbDataFile)
 		console.log("./db/mockdb-data.js exists, loaded mockdb, returning mock collections")
 		return { agents: [mockAgent, ...agents], conversations }
 	} catch (error) {
