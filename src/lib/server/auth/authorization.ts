@@ -7,7 +7,7 @@ export const canCreateAgent = (user: AuthenticatedUser): boolean => {
 	return user.roles.includes(env.APP_ROLE_ADMIN) || user.roles.includes(env.APP_ROLE_AGENT_MAINTAINER)
 }
 
-export const canEditAgent = (user: AuthenticatedUser): boolean => {
+export const canEditAgent = (user: AuthenticatedUser, _agent: DBAgent): boolean => {
 	return canCreateAgent(user) // Same for now
 }
 

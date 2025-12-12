@@ -40,6 +40,13 @@ export const DBAgentInput = z.object({
 
 export type DBAgentInput = z.infer<typeof DBAgentInput>
 
+export const DBAgentUpdateInput = DBAgentInput.omit({ vendorId: true }).extend({
+	// All fields optional for update
+	config: z.discriminatedUnion("type", [PredefinedConfig.partial().extend({ type: "predefined" }), ManualConfig.partial().extend({ type: "manual" })]).optional(),
+}).partial()
+
+export type DBAgentUpdateInput = z.infer<typeof DBAgentUpdateInput>
+
 export const DBAgent = DBAgentInput.extend({
 	_id: z.string(),
 	createdAt: z.iso.datetime(),

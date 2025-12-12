@@ -1,5 +1,5 @@
 import { env } from "$env/dynamic/private"
-import type { DBAgent, DBAgentInput, IAgent } from "$lib/types/agents.ts"
+import type { DBAgent, DBAgentInput, DBAgentUpdateInput, IAgent } from "$lib/types/agents.ts"
 import type { AuthenticatedUser } from "$lib/types/authentication.js"
 import { canViewAllAgents } from "../auth/authorization.js"
 import { HTTPError } from "../middleware/http-error.js"
@@ -59,7 +59,7 @@ export const createDBAgent = async (user: AuthenticatedUser, agentInput: DBAgent
 			name: user.name
 		}
 	}
-	
+
 	if (mockDbData) {
 		const newMockAgent = { _id: crypto.randomUUID(), ...newAgent }
 		mockDbData.agents.push(newMockAgent)
@@ -68,6 +68,22 @@ export const createDBAgent = async (user: AuthenticatedUser, agentInput: DBAgent
 
 	throw new Error("Not implemented - please set MOCK_DB to true in env")
 	// Implement real DB here
+}
+
+export const updateDBAgent = async (agentId: string, agentUpdateInput: DBAgentUpdateInput): Promise<DBAgent> => {
+	if (mockDbData) {
+		const agentToUpdate = mockDbData.agents.find((agent) => agent._id === agentId)
+		if (!agentToUpdate) {
+			throw new HTTPError(404, `Agent ${agentId} not found`)
+		}
+		for (const [key, value] of Object.entries(agentUpdateInput)) {
+			// @ts-expect-error DETTE ER BARE MOCK
+			agentToUpdate[key] = value
+		}
+		return JSON.parse(JSON.stringify(agentToUpdate)) // Return a deep copy for not reference issues
+	}
+	throw new Error("Not implemented - please set MOCK_DB to true in env")
+	// Implement real DB update here
 }
 
 export const createAgent = (dbAgent: DBAgent): IAgent => {
