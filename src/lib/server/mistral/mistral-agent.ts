@@ -9,15 +9,9 @@ import type { AgentPrompt } from "$lib/types/message"
 import { MistralVendor, mistral } from "./mistral"
 import { createMessageFromMistralMessage } from "./mistral-message"
 import { MISTRAL_SUPPORTED_MESSAGE_FILE_MIME_TYPES, MISTRAL_SUPPORTED_MESSAGE_IMAGE_MIME_TYPES, MISTRAL_SUPPORTED_VECTOR_STORE_FILE_MIME_TYPES } from "./mistral-supported-filetypes"
-import { env } from "$env/dynamic/private"
-
-if (!env.SUPPORTED_MODELS_VENDOR_MISTRAL || env.SUPPORTED_MODELS_VENDOR_MISTRAL.trim() === "") {
-	throw new Error("SUPPORTED_MODELS_VENDOR_MISTRAL is not set in environment variables")
-}
-const MISTRAL_SUPPORTED_MODELS = env.SUPPORTED_MODELS_VENDOR_MISTRAL.split(",").map((model) => model.trim())
-const MISTRAL_DEFAULT_MODEL = MISTRAL_SUPPORTED_MODELS[0] as string
 
 const mistralVendor = new MistralVendor()
+const vendorInfo = mistralVendor.getVendorInfo()
 
 const handleMistralStream = (stream: EventStream<ConversationEvents>, dbConversationId?: string, userLibraryId?: string | null): ReadableStream<Uint8Array> => {
 	return new ReadableStream({
@@ -121,7 +115,7 @@ const createMistralConversationConfig = async (agentConfig: AgentConfig, initial
 	// If we fileSearchEnabled, we need to create a library for the user to upload files to
 
 	const mistralConversationConfig: ConversationRequest = {
-		model: MISTRAL_SUPPORTED_MODELS.includes(agentConfig.model) ? agentConfig.model : MISTRAL_DEFAULT_MODEL,
+		model: vendorInfo.models.supported.includes(agentConfig.model) ? agentConfig.model : vendorInfo.models.default,
 		inputs: mistralPrompt,
 		instructions: agentConfig.instructions.join(". ")
 	}
@@ -169,10 +163,6 @@ export class MistralAgent implements IAgent {
 				messageFiles: this.dbAgent.config.messageFilesEnabled ? MISTRAL_SUPPORTED_MESSAGE_FILE_MIME_TYPES : [],
 				messageImages: this.dbAgent.config.messageFilesEnabled ? MISTRAL_SUPPORTED_MESSAGE_IMAGE_MIME_TYPES : [],
 				vectorStoreFiles: this.dbAgent.config.vectorStoreEnabled ? MISTRAL_SUPPORTED_VECTOR_STORE_FILE_MIME_TYPES : []
-			},
-			models: {
-				supported: MISTRAL_SUPPORTED_MODELS,
-				default: MISTRAL_DEFAULT_MODEL
 			}
 		}
 	}

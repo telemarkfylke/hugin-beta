@@ -11,15 +11,9 @@ import { OpenAIVendor, openai } from "./openai"
 import { createMessageFromOpenAIMessage } from "./openai-message"
 import { OPEN_AI_SUPPORTED_MESSAGE_FILE_MIME_TYPES, OPEN_AI_SUPPORTED_MESSAGE_IMAGE_MIME_TYPES, OPEN_AI_SUPPORTED_VECTOR_STORE_FILE_MIME_TYPES } from "./openai-supported-filetypes"
 import { uploadFilesToOpenAIVectorStore } from "./vector-store"
-import { env } from "$env/dynamic/private"
 
 const openAIVendor = new OpenAIVendor()
-
-if (!env.SUPPORTED_MODELS_VENDOR_OPENAI || env.SUPPORTED_MODELS_VENDOR_OPENAI.trim() === "") {
-	throw new Error("SUPPORTED_MODELS_VENDOR_OPENAI is not set in environment variables")
-}
-const OPEN_AI_SUPPORTED_MODELS = env.SUPPORTED_MODELS_VENDOR_OPENAI.split(",").map((model) => model.trim())
-const OPEN_AI_DEFAULT_MODEL = OPEN_AI_SUPPORTED_MODELS[0] as string
+const vendorInfo = openAIVendor.getVendorInfo()
 
 export const handleOpenAIStream = (stream: Stream<ResponseStreamEvent>, conversationId?: string): ReadableStream => {
 	return new ReadableStream({
@@ -112,7 +106,7 @@ const createOpenAIResponseConfig = async (agentConfig: AgentConfig, openAIConver
 	}
 	// SJekk om modellen er lov, hvis ikke default til en som er lov på det RIKTIGE stedet
 	const openAIResponseConfig: ResponseCreateParamsBase = {
-		model: OPEN_AI_SUPPORTED_MODELS.includes(agentConfig.model) ? agentConfig.model : OPEN_AI_DEFAULT_MODEL,
+		model: vendorInfo.models.supported.includes(agentConfig.model) ? agentConfig.model : vendorInfo.models.default,
 		conversation: openAIConversationId,
 		input: await createOpenAIPromptFromAgentPrompt(inputPrompt),
 		instructions: agentConfig.instructions.join(". ")
@@ -148,10 +142,6 @@ export class OpenAIAgent implements IAgent {
 				messageFiles:  this.dbAgent.config.messageFilesEnabled ? OPEN_AI_SUPPORTED_MESSAGE_FILE_MIME_TYPES : [],
 				messageImages: this.dbAgent.config.messageFilesEnabled ? OPEN_AI_SUPPORTED_MESSAGE_IMAGE_MIME_TYPES : [],
 				vectorStoreFiles: this.dbAgent.config.vectorStoreEnabled ? OPEN_AI_SUPPORTED_VECTOR_STORE_FILE_MIME_TYPES : []
-			},
-			models: {
-				supported: OPEN_AI_SUPPORTED_MODELS,
-				default: OPEN_AI_DEFAULT_MODEL
 			}
 		}
 	}

@@ -66,10 +66,6 @@ export const Agent = DBAgent.extend({
 		messageImages: z.array(MimeType),
 		messageFiles: z.array(MimeType),
 		vectorStoreFiles: z.array(MimeType)
-	}),
-	models: z.object({
-		supported: z.array(z.string()),
-		default: z.string()
 	})
 })
 

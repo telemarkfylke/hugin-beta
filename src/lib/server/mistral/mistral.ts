@@ -4,6 +4,12 @@ import type { VendorConversation } from "$lib/types/conversation"
 import type { IVendor, IVendorResults } from "$lib/types/vendors"
 import { getDocumentsInMistralLibrary, getMistralLibraries, getMistralLibrary, uploadFilesToMistralLibrary } from "./document-library"
 
+if (!env.SUPPORTED_MODELS_VENDOR_MISTRAL || env.SUPPORTED_MODELS_VENDOR_MISTRAL.trim() === "") {
+	throw new Error("SUPPORTED_MODELS_VENDOR_MISTRAL is not set in environment variables")
+}
+const MISTRAL_SUPPORTED_MODELS = env.SUPPORTED_MODELS_VENDOR_MISTRAL.split(",").map((model) => model.trim())
+const MISTRAL_DEFAULT_MODEL = MISTRAL_SUPPORTED_MODELS[0] as string
+
 export const mistral = new Mistral({
 	apiKey: env.MISTRAL_API_KEY || "bare-en-tulle-key"
 })
@@ -13,7 +19,11 @@ export class MistralVendor implements IVendor {
 		return {
 			id: "mistral",
 			name: "Mistral AI",
-			description: "Mistral AI - cutting-edge language models and AI solutions."
+			description: "Mistral AI - cutting-edge language models and AI solutions.",
+			models: {
+				supported: MISTRAL_SUPPORTED_MODELS,
+				default: MISTRAL_DEFAULT_MODEL
+			}
 		}
 	}
 

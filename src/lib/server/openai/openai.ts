@@ -3,13 +3,27 @@ import { env } from "$env/dynamic/private"
 import type { IVendor, IVendorResults, Vendor } from "$lib/types/vendors"
 import { getOpenAIVectorStore, getOpenAIVectorStoreFiles, getOpenAIVectorStores, uploadFilesToOpenAIVectorStore } from "./vector-store"
 
+if (!env.SUPPORTED_MODELS_VENDOR_OPENAI || env.SUPPORTED_MODELS_VENDOR_OPENAI.trim() === "") {
+	throw new Error("SUPPORTED_MODELS_VENDOR_OPENAI is not set in environment variables")
+}
+const OPEN_AI_SUPPORTED_MODELS = env.SUPPORTED_MODELS_VENDOR_OPENAI.split(",").map((model) => model.trim())
+const OPEN_AI_DEFAULT_MODEL = OPEN_AI_SUPPORTED_MODELS[0] as string
+
 export const openai = new OpenAI({
 	apiKey: env.OPENAI_API_KEY || "bare-en-tulle-key"
 })
 
 export class OpenAIVendor implements IVendor {
 	public getVendorInfo(): Vendor {
-		throw new Error("Method not implemented.")
+		return {
+			id: "openai",
+			name: "OpenAI",
+			description: "OpenAI - pioneers in artificial intelligence research and deployment.",
+			models: {
+				supported: OPEN_AI_SUPPORTED_MODELS,
+				default: OPEN_AI_DEFAULT_MODEL
+			}
+		}
 	}
 	public async listConversations(): Promise<IVendorResults["ListConversationsResult"]> {
 		// SDK støtter ikke conversations for OpenAI per nå, må hentes i dashboard inntil videre...

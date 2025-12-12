@@ -3,14 +3,8 @@ import { createSse } from "$lib/streaming.js"
 import type { AgentConfig, DBAgent, IAgent, IAgentResults } from "$lib/types/agents"
 import type { DBConversation } from "$lib/types/conversation"
 import type { AgentPrompt, Message } from "$lib/types/message"
-import { ollama } from "./ollama"
-import { env } from "$env/dynamic/private"
+import { ollama, OllamaVendor } from "./ollama"
 
-if (!env.SUPPORTED_MODELS_VENDOR_OLLAMA || env.SUPPORTED_MODELS_VENDOR_OLLAMA.trim() === "") {
-	throw new Error("SUPPORTED_MODELS_VENDOR_OLLAMA is not set in environment variables")
-}
-const OLLAMA_SUPPORTED_MODELS = env.SUPPORTED_MODELS_VENDOR_OLLAMA.split(",").map((model) => model.trim())
-const OLLAMA_DEFAULT_MODEL = OLLAMA_SUPPORTED_MODELS[0] as string
 
 type OllamaResponse = ChatResponse | AbortableAsyncIterator<ChatResponse>
 
@@ -19,6 +13,9 @@ export type OllamaCreateResponse = {
 	response: OllamaResponse
 	messages: Message[]
 }
+
+const ollamaVendor = new OllamaVendor()
+const vendorInfo = ollamaVendor.getVendorInfo()
 
 export const handleOllamaStream = (conversation: DBConversation, stream: AbortableAsyncIterator<ChatResponse>): ReadableStream => {
 	const readableStream = new ReadableStream({
@@ -80,12 +77,12 @@ const makeOllamaInstance = async (ollamaResponseConfig: AgentConfig, messages: O
 
 	const response = streamResponse
 		? await ollama.chat({
-				model: OLLAMA_SUPPORTED_MODELS.includes(ollamaResponseConfig.model) ? ollamaResponseConfig.model : OLLAMA_DEFAULT_MODEL,
+				model: vendorInfo.models.supported.includes(ollamaResponseConfig.model) ? ollamaResponseConfig.model : vendorInfo.models.default,
 				messages: messages,
 				stream: true
 			})
 		: await ollama.chat({
-				model: OLLAMA_SUPPORTED_MODELS.includes(ollamaResponseConfig.model) ? ollamaResponseConfig.model : OLLAMA_DEFAULT_MODEL,
+				model: vendorInfo.models.supported.includes(ollamaResponseConfig.model) ? ollamaResponseConfig.model : vendorInfo.models.default,
 				messages: messages,
 				stream: false
 			})

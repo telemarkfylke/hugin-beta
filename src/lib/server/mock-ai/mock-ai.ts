@@ -1,14 +1,25 @@
+import { env } from "$env/dynamic/private"
 import type { VendorConversation } from "$lib/types/conversation"
 import type { VectorStoreFile } from "$lib/types/vector-store"
 import type { IVendor, IVendorResults } from "$lib/types/vendors"
 import { uploadFilesToMockAI } from "./mock-ai-files"
+
+if (!env.SUPPORTED_MODELS_VENDOR_MOCKAI || env.SUPPORTED_MODELS_VENDOR_MOCKAI.trim() === "") {
+	throw new Error("SUPPORTED_MODELS_VENDOR_MOCKAI is not set in environment variables")
+}
+const MOCKAI_SUPPORTED_MODELS = env.SUPPORTED_MODELS_VENDOR_MOCKAI.split(",").map((model) => model.trim())
+const MOCKAI_DEFAULT_MODEL = MOCKAI_SUPPORTED_MODELS[0] as string
 
 export class MockAIVendor implements IVendor {
 	public getVendorInfo(): IVendorResults["GetVendorInfoResult"] {
 		return {
 			id: "mock-ai",
 			name: "Mock AI",
-			description: "Mock AI - bare drit og møkk"
+			description: "Mock AI - bare drit og møkk",
+			models: {
+				supported: MOCKAI_SUPPORTED_MODELS,
+				default: MOCKAI_DEFAULT_MODEL
+			}
 		}
 	}
 
