@@ -14,70 +14,52 @@ const updatedBy = {
 
 export const agents: DBAgent[] = [
 	{
-		_id: "mistral",
-		vendorId: "mistral",
-		name: "Mistral demo agent",
-		description: "Mistral agent based on an agent in mistral - connected to a mistral agent id",
-		config: {
-			type: "mistral-agent",
-			agentId: "en id til en agent i mistral"
-		},
-		authorizedGroupIds: "all",
-		createdAt: new Date().toISOString(),
-		updatedAt: new Date().toISOString(),
-		createdBy,
-		updatedBy
-	},
-	{
 		_id: "mistral-conversation",
 		vendorId: "mistral",
-		name: "Mistral rett på conversation",
+		name: "Mistral",
 		description: "Mistral agent som går rett på en model og conversation",
 		config: {
-			type: "mistral-conversation",
+			type: "manual",
 			model: "mistral-medium-latest",
-			instructions: "You are a helpful assistant that answers in Norwegian. Always search document libraries before answering user questions.",
+			instructions: ["You are a helpful assistant that answers in Norwegian."],
 			vectorStoreEnabled: true,
-			webSearchEnabled: false,
-			documentLibraryIds: ["preconfigured-library-id-from-mistral"]
-		},
-		authorizedGroupIds: "all",
-		createdAt: new Date().toISOString(),
-		updatedAt: new Date().toISOString(),
-		createdBy,
-		updatedBy
-	},
-	{
-		_id: "openai_prompt",
-		vendorId: "openai",
-		name: "Open AI prompt demo agent",
-		description: "An agent that uses an OpenAI prompt-id as its configuration (saved prompt in OpenAI)",
-		config: {
-			type: "openai-prompt",
-			prompt: {
-				id: "a prompt id from OpenAI here",
-				version: "optional version string"
-			}
-		},
-		authorizedGroupIds: "all",
-		createdAt: new Date().toISOString(),
-		updatedAt: new Date().toISOString(),
-		createdBy,
-		updatedBy
-	},
-	{
-		_id: "openai_response_4o",
-		vendorId: "openai",
-		name: "Open AI demo agent",
-		description: "An agent that uses an OpenAI response configuration with gpt-4o model",
-		config: {
-			type: "openai-response",
-			model: "gpt-4o",
-			instructions: "You are a helpful assistant that answers in Norwegian.",
-			vectorStoreEnabled: true,
+			messageFilesEnabled: true,
 			webSearchEnabled: false
 		},
 		authorizedGroupIds: "all",
+		createdAt: new Date().toISOString(),
+		updatedAt: new Date().toISOString(),
+		createdBy,
+		updatedBy
+	},
+	{
+		_id: "opeanai-drit",
+		vendorId: "openai",
+		name: "OpenAI Drit",
+		description: "OpenAI agent som er kul",
+		config: {
+			type: "manual",
+			model: "gpt-4o",
+			instructions: ["You are a helpful assistant that answers in Swedish."],
+		},
+		authorizedGroupIds: ["dfjklsdf"],
+		createdAt: new Date().toISOString(),
+		updatedAt: new Date().toISOString(),
+		createdBy,
+		updatedBy
+	},
+	{
+		_id: "opeanai-predefined",
+		vendorId: "openai",
+		name: "OpenAI Predefinert",
+		description: "OpenAI agent som er kul igjen",
+		config: {
+			type: "predefined",
+			vendorAgent: {
+				id: "pmpt_68ca8d43f1108197b5c81bd32014f34e04d1daa9ea89d5a0"
+			}
+		},
+		authorizedGroupIds: ["dfjklsdf"],
 		createdAt: new Date().toISOString(),
 		updatedAt: new Date().toISOString(),
 		createdBy,

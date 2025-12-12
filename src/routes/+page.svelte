@@ -9,7 +9,8 @@
 			const resData = await res.json()
 			throw new Error(resData.message || "Failed to fetch agents")
 		}
-		const data = GetAgentsResponse.parse(await res.json())
+    const jsonRes = await res.json()
+		const data = GetAgentsResponse.parse(jsonRes)
 		return data.agents
 	}
 </script>
@@ -36,7 +37,7 @@
     <a href="/vectorstores">Go to Vector Stores</a>
   </div>
   <div class="right-content">
-    <AgentComponent agentId={"mistral-conversation"} />
+    <AgentComponent agentId={"mistral-conversation"} conversationId={null} />
   </div>
 </div>
 

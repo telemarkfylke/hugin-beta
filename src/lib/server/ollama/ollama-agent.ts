@@ -1,9 +1,16 @@
 import type { AbortableAsyncIterator, ChatResponse } from "ollama"
 import { createSse } from "$lib/streaming.js"
-import type { DBAgent, IAgent, IAgentResults, OllamaAIResponseConfig } from "$lib/types/agents"
+import type { AgentConfig, DBAgent, IAgent, IAgentResults } from "$lib/types/agents"
 import type { DBConversation } from "$lib/types/conversation"
 import type { AgentPrompt, Message } from "$lib/types/message"
 import { ollama } from "./ollama"
+import { env } from "$env/dynamic/private"
+
+if (!env.SUPPORTED_MODELS_VENDOR_OLLAMA || env.SUPPORTED_MODELS_VENDOR_OLLAMA.trim() === "") {
+	throw new Error("SUPPORTED_MODELS_VENDOR_OLLAMA is not set in environment variables")
+}
+const OLLAMA_SUPPORTED_MODELS = env.SUPPORTED_MODELS_VENDOR_OLLAMA.split(",").map((model) => model.trim())
+const OLLAMA_DEFAULT_MODEL = OLLAMA_SUPPORTED_MODELS[0] as string
 
 type OllamaResponse = ChatResponse | AbortableAsyncIterator<ChatResponse>
 
@@ -62,19 +69,23 @@ const addMessage = (prompt: AgentPrompt, messages: Message[], originator: "user"
 	messages.push(msg)
 }
 
-const makeOllamaInstance = async (ollamaResponseConfig: OllamaAIResponseConfig, messages: OllamaMessage[], streamResponse: boolean): Promise<OllamaResponse> => {
+const makeOllamaInstance = async (ollamaResponseConfig: AgentConfig, messages: OllamaMessage[], streamResponse: boolean): Promise<OllamaResponse> => {
 	/*
    Dette er snedig, istedenfor multiple response verdier har de haller laget hardkodede versjoner av 
    chat for stream er enten true eller false, men det er ikke en boolean
   */
+	if (ollamaResponseConfig.type === "predefined") {
+		throw new Error("Predefined Ollama agents are not supported")
+	}
+
 	const response = streamResponse
 		? await ollama.chat({
-				model: ollamaResponseConfig.model,
+				model: OLLAMA_SUPPORTED_MODELS.includes(ollamaResponseConfig.model) ? ollamaResponseConfig.model : OLLAMA_DEFAULT_MODEL,
 				messages: messages,
 				stream: true
 			})
 		: await ollama.chat({
-				model: ollamaResponseConfig.model,
+				model: OLLAMA_SUPPORTED_MODELS.includes(ollamaResponseConfig.model) ? ollamaResponseConfig.model : OLLAMA_DEFAULT_MODEL,
 				messages: messages,
 				stream: false
 			})
@@ -103,7 +114,7 @@ export class OllamaAgent implements IAgent {
 
 	public async createConversation(conversation: DBConversation, initialPrompt: AgentPrompt, streamResponse: boolean): Promise<IAgentResults["CreateConversationResult"]> {
 		addMessage(initialPrompt, conversation.messages, "user", "text")
-		const ollamaResponse = await makeOllamaInstance(this.dbAgent.config as OllamaAIResponseConfig, convertToOllamaMessages(conversation.messages), streamResponse)
+		const ollamaResponse = await makeOllamaInstance(this.dbAgent.config, convertToOllamaMessages(conversation.messages), streamResponse)
 		if (streamResponse) {
 			return {
 				vendorConversationId: crypto.randomUUID(),
@@ -116,7 +127,7 @@ export class OllamaAgent implements IAgent {
 
 	public async appendMessageToConversation(conversation: DBConversation, prompt: AgentPrompt, streamResponse: boolean): Promise<IAgentResults["AppendToConversationResult"]> {
 		addMessage(prompt, conversation.messages, "user", "text")
-		const ollamaResponse = await makeOllamaInstance(this.dbAgent.config as OllamaAIResponseConfig, convertToOllamaMessages(conversation.messages), streamResponse)
+		const ollamaResponse = await makeOllamaInstance(this.dbAgent.config, convertToOllamaMessages(conversation.messages), streamResponse)
 		if (streamResponse) {
 			return {
 				response: handleOllamaStream(conversation, ollamaResponse as AbortableAsyncIterator<ChatResponse>)

@@ -9,6 +9,13 @@ import type { AgentPrompt } from "$lib/types/message"
 import { MistralVendor, mistral } from "./mistral"
 import { createMessageFromMistralMessage } from "./mistral-message"
 import { MISTRAL_SUPPORTED_MESSAGE_FILE_MIME_TYPES, MISTRAL_SUPPORTED_MESSAGE_IMAGE_MIME_TYPES, MISTRAL_SUPPORTED_VECTOR_STORE_FILE_MIME_TYPES } from "./mistral-supported-filetypes"
+import { env } from "$env/dynamic/private"
+
+if (!env.SUPPORTED_MODELS_VENDOR_MISTRAL || env.SUPPORTED_MODELS_VENDOR_MISTRAL.trim() === "") {
+	throw new Error("SUPPORTED_MODELS_VENDOR_MISTRAL is not set in environment variables")
+}
+const MISTRAL_SUPPORTED_MODELS = env.SUPPORTED_MODELS_VENDOR_MISTRAL.split(",").map((model) => model.trim())
+const MISTRAL_DEFAULT_MODEL = MISTRAL_SUPPORTED_MODELS[0] as string
 
 const mistralVendor = new MistralVendor()
 
@@ -91,18 +98,18 @@ type MistralConversationConfigResult = {
 	}
 }
 const createMistralConversationConfig = async (agentConfig: AgentConfig, initialPrompt: AgentPrompt): Promise<MistralConversationConfigResult> => {
-	if (agentConfig.type !== "mistral-conversation" && agentConfig.type !== "mistral-agent") {
-		throw new Error(`Invalid agent config type for Mistral conversation: ${agentConfig.type}`)
+	if (agentConfig.type !== "predefined" && agentConfig.type !== "manual") {
+		throw new Error(`Invalid agent config type for Mistral conversation`)
 	}
 
 	// Map initialPrompt to Mistral ConversationInputs
 	const mistralPrompt: ConversationInputs = createMistralPromptFromAgentPrompt(initialPrompt)
 
 	// If simple agentId, use that and return
-	if (agentConfig.type === "mistral-agent") {
+	if (agentConfig.type === "predefined") {
 		return {
 			requestConfig: {
-				agentId: agentConfig.agentId,
+				agentId: agentConfig.vendorAgent.id,
 				inputs: mistralPrompt
 			},
 			data: {
@@ -114,9 +121,9 @@ const createMistralConversationConfig = async (agentConfig: AgentConfig, initial
 	// If we fileSearchEnabled, we need to create a library for the user to upload files to
 
 	const mistralConversationConfig: ConversationRequest = {
-		model: agentConfig.model,
+		model: MISTRAL_SUPPORTED_MODELS.includes(agentConfig.model) ? agentConfig.model : MISTRAL_DEFAULT_MODEL,
 		inputs: mistralPrompt,
-		instructions: agentConfig.instructions || ""
+		instructions: agentConfig.instructions.join(". ")
 	}
 	// Tool if needed
 	const documentLibraryTool: DocumentLibraryTool & { type: "document_library" } = {
@@ -132,8 +139,8 @@ const createMistralConversationConfig = async (agentConfig: AgentConfig, initial
 		documentLibraryTool.libraryIds.push(userLibrary.id)
 	}
 	// If preconfigured document libraries, add them as well
-	if (agentConfig.documentLibraryIds && agentConfig.documentLibraryIds.length > 0) {
-		documentLibraryTool.libraryIds.push(...agentConfig.documentLibraryIds)
+	if (agentConfig.vectorStoreIds && agentConfig.vectorStoreIds.length > 0) {
+		documentLibraryTool.libraryIds.push(...agentConfig.vectorStoreIds)
 	}
 	// Add documentLibraryTool only if we have library ids
 	if (documentLibraryTool.libraryIds.length > 0) {
@@ -162,6 +169,10 @@ export class MistralAgent implements IAgent {
 				messageFiles: this.dbAgent.config.messageFilesEnabled ? MISTRAL_SUPPORTED_MESSAGE_FILE_MIME_TYPES : [],
 				messageImages: this.dbAgent.config.messageFilesEnabled ? MISTRAL_SUPPORTED_MESSAGE_IMAGE_MIME_TYPES : [],
 				vectorStoreFiles: this.dbAgent.config.vectorStoreEnabled ? MISTRAL_SUPPORTED_VECTOR_STORE_FILE_MIME_TYPES : []
+			},
+			models: {
+				supported: MISTRAL_SUPPORTED_MODELS,
+				default: MISTRAL_DEFAULT_MODEL
 			}
 		}
 	}

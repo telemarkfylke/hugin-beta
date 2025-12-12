@@ -11,8 +11,15 @@ import { OpenAIVendor, openai } from "./openai"
 import { createMessageFromOpenAIMessage } from "./openai-message"
 import { OPEN_AI_SUPPORTED_MESSAGE_FILE_MIME_TYPES, OPEN_AI_SUPPORTED_MESSAGE_IMAGE_MIME_TYPES, OPEN_AI_SUPPORTED_VECTOR_STORE_FILE_MIME_TYPES } from "./openai-supported-filetypes"
 import { uploadFilesToOpenAIVectorStore } from "./vector-store"
+import { env } from "$env/dynamic/private"
 
 const openAIVendor = new OpenAIVendor()
+
+if (!env.SUPPORTED_MODELS_VENDOR_OPENAI || env.SUPPORTED_MODELS_VENDOR_OPENAI.trim() === "") {
+	throw new Error("SUPPORTED_MODELS_VENDOR_OPENAI is not set in environment variables")
+}
+const OPEN_AI_SUPPORTED_MODELS = env.SUPPORTED_MODELS_VENDOR_OPENAI.split(",").map((model) => model.trim())
+const OPEN_AI_DEFAULT_MODEL = OPEN_AI_SUPPORTED_MODELS[0] as string
 
 export const handleOpenAIStream = (stream: Stream<ResponseStreamEvent>, conversationId?: string): ReadableStream => {
 	return new ReadableStream({
@@ -89,26 +96,26 @@ const createOpenAIPromptFromAgentPrompt = async (initialPrompt: AgentPrompt): Pr
 }
 
 const createOpenAIResponseConfig = async (agentConfig: AgentConfig, openAIConversationId: string, inputPrompt: AgentPrompt, userVectorStoreId: string | null): Promise<OpenAIResponseConfigResult> => {
-	if (agentConfig.type !== "openai-response" && agentConfig.type !== "openai-prompt") {
+	if (agentConfig.type !== "manual" && agentConfig.type !== "predefined") {
 		throw new Error("Invalid agent config type for OpenAI response configuration")
 	}
-	if (agentConfig.type === "openai-prompt") {
+	if (agentConfig.type === "predefined") {
 		return {
 			requestConfig: {
 				input: await createOpenAIPromptFromAgentPrompt(inputPrompt),
 				prompt: {
-					id: agentConfig.prompt.id
+					id: agentConfig.vendorAgent.id
 				},
 				conversation: openAIConversationId
 			}
 		}
 	}
-	// Now we know it's type 'openai-response'
+	// SJekk om modellen er lov, hvis ikke default til en som er lov på det RIKTIGE stedet
 	const openAIResponseConfig: ResponseCreateParamsBase = {
-		model: agentConfig.model,
+		model: OPEN_AI_SUPPORTED_MODELS.includes(agentConfig.model) ? agentConfig.model : OPEN_AI_DEFAULT_MODEL,
 		conversation: openAIConversationId,
 		input: await createOpenAIPromptFromAgentPrompt(inputPrompt),
-		instructions: agentConfig.instructions || null
+		instructions: agentConfig.instructions.join(". ")
 	}
 	const fileSearchTool: Tool = {
 		type: "file_search",
@@ -138,9 +145,13 @@ export class OpenAIAgent implements IAgent {
 		return {
 			...this.dbAgent,
 			allowedMimeTypes: {
-				messageFiles: this.dbAgent.config.messageFilesEnabled ? OPEN_AI_SUPPORTED_MESSAGE_FILE_MIME_TYPES : [],
+				messageFiles:  this.dbAgent.config.messageFilesEnabled ? OPEN_AI_SUPPORTED_MESSAGE_FILE_MIME_TYPES : [],
 				messageImages: this.dbAgent.config.messageFilesEnabled ? OPEN_AI_SUPPORTED_MESSAGE_IMAGE_MIME_TYPES : [],
 				vectorStoreFiles: this.dbAgent.config.vectorStoreEnabled ? OPEN_AI_SUPPORTED_VECTOR_STORE_FILE_MIME_TYPES : []
+			},
+			models: {
+				supported: OPEN_AI_SUPPORTED_MODELS,
+				default: OPEN_AI_DEFAULT_MODEL
 			}
 		}
 	}

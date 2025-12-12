@@ -46,16 +46,16 @@ export const getDBAgents = async (user: AuthenticatedUser): Promise<DBAgent[]> =
 }
 
 export const createAgent = (dbAgent: DBAgent): IAgent => {
-	if (dbAgent.config.type === "mock-agent") {
+	if (dbAgent.vendorId === "mock-ai") {
 		return new MockAIAgent()
 	}
-	if (dbAgent.config.type === "mistral-conversation" || dbAgent.config.type === "mistral-agent") {
+	if (dbAgent.vendorId === "mistral") {
 		return new MistralAgent(dbAgent)
 	}
-	if (dbAgent.config.type === "openai-response" || dbAgent.config.type === "openai-prompt") {
+	if (dbAgent.vendorId === "openai") {
 		return new OpenAIAgent(dbAgent)
 	}
-	if (dbAgent.config.type === "ollama-response") {
+	if (dbAgent.vendorId === "ollama") {
 		return new OllamaAgent(dbAgent)
 	}
 	throw new Error(`Unsupported agent: ${dbAgent.name}`)
