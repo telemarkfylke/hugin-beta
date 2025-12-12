@@ -37,7 +37,6 @@ const notSupportedModelAgentInput: DBAgentInput = {
 	authorizedGroupIds: "all"
 }
 
-
 // This only tests mock data, so not actually a useful test in itself, just an example
 describe("server route GET api/agents/[agentId]/+server", () => {
 	it("returns 400 when agentInput is malformed", async () => {
