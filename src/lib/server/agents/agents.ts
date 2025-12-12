@@ -45,6 +45,31 @@ export const getDBAgents = async (user: AuthenticatedUser): Promise<DBAgent[]> =
 	// Implement real DB fetch here
 }
 
+export const createDBAgent = async (user: AuthenticatedUser, agentInput: DBAgentInput): Promise<DBAgent> => {
+	const newAgent: Omit<DBAgent, "_id"> = {
+		...agentInput,
+		createdAt: new Date().toISOString(),
+		updatedAt: new Date().toISOString(),
+		createdBy: {
+			objectId: user.userId,
+			name: user.name
+		},
+		updatedBy: {
+			objectId: user.userId,
+			name: user.name
+		}
+	}
+	
+	if (mockDbData) {
+		const newMockAgent = { _id: crypto.randomUUID(), ...newAgent }
+		mockDbData.agents.push(newMockAgent)
+		return newMockAgent
+	}
+
+	throw new Error("Not implemented - please set MOCK_DB to true in env")
+	// Implement real DB here
+}
+
 export const createAgent = (dbAgent: DBAgent): IAgent => {
 	if (dbAgent.vendorId === "mock-ai") {
 		return new MockAIAgent()
