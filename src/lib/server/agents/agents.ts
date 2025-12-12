@@ -1,5 +1,5 @@
 import { env } from "$env/dynamic/private"
-import type { DBAgent, IAgent } from "$lib/types/agents.ts"
+import type { DBAgent, DBAgentInput, IAgent } from "$lib/types/agents.ts"
 import type { AuthenticatedUser } from "$lib/types/authentication.js"
 import { canViewAllAgents } from "../auth/authorization.js"
 import { HTTPError } from "../middleware/http-error.js"

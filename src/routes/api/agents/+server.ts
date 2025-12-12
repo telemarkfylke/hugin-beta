@@ -7,6 +7,7 @@ import type { GetAgentsResponse, PostAgentResponse } from "$lib/types/api-respon
 import type { MiddlewareNextFunction } from "$lib/types/middleware/http-request"
 import { DBAgentInput } from "$lib/types/agents"
 import { HTTPError } from "$lib/server/middleware/http-error"
+import { createVendor } from "$lib/server/agents/vendors"
 
 const getAgents: MiddlewareNextFunction = async ({ user }) => {
 	const agents = await getDBAgents(user)
@@ -46,6 +47,12 @@ const createNewAgent: MiddlewareNextFunction = async ({ requestEvent, user }) =>
 		agentInput = DBAgentInput.parse(requestBody)
 	} catch (zodError) {
 		throw new HTTPError(400, "invalid agent input, please check the data you are sending", zodError)
+	}
+	if (agentInput.config.type === 'manual') {
+		const vendorInfo = createVendor(agentInput.vendorId).getVendorInfo()
+		if (!vendorInfo.models.supported.includes(agentInput.config.model)) {
+			throw new HTTPError(400, `Model ${agentInput.config.model} is not supported by vendor ${vendorInfo.name}`)
+		}
 	}
 	const newAgent = await createDBAgent(user, agentInput)
 	return {
