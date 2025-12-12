@@ -72,7 +72,7 @@
     <ul>
       {#each conversations.value as conversation}
         <li id="conversation-{conversation.vendorId}-{conversation._id}">
-          <a id="conversation-link-{conversation.vendorId}-{conversation._id}" href="/conversations/{conversation.vendorId}/{conversation._id}">{conversation.name} {conversation.vendorId} - {conversation.createdAt}</a>
+          <a id="conversation-link-{conversation.vendorId}-{conversation._id}" href="/agents/{conversation.agentId}?conversationId={conversation._id}">{conversation.name} {conversation.vendorId} - {conversation.createdAt}</a>
           <button id="conversation-delete-{conversation.vendorId}-{conversation._id}" onclick={(event: Event) => deleteConversation(event, conversation.vendorId, conversation._id)}>Delete</button>
         </li>
       {/each}

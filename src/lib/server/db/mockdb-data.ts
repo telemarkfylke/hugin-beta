@@ -42,7 +42,7 @@ export const agents: DBAgent[] = [
 			model: "mistral-medium-latest",
 			instructions: "You are a helpful assistant that answers in Swedish."
 		},
-		authorizedGroupIds: "all",
+		authorizedGroupIds: ["dfjklsdf"],
 		createdAt: new Date().toISOString(),
 		updatedAt: new Date().toISOString(),
 		createdBy,

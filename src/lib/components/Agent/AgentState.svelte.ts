@@ -77,7 +77,7 @@ export const createAgentState = (): AgentStateHandler => {
 			return agentState as ReadonlyAgentState // Should only be mutated via the handler methods
 		},
 		promptAgent: (userPrompt: AgentPrompt) => _promptAgent(agentState, userPrompt),
-		changeAgent: (newAgentId: string): void => {
+		loadAgent: (newAgentId: string, conversationId: string | null): void => {
 			if (!newAgentId) {
 				throw new Error("newAgentId is required to change agent")
 			}
@@ -87,7 +87,11 @@ export const createAgentState = (): AgentStateHandler => {
 			}
 			// Set new agent ID, clear current conversation, and fetch new agent info and conversations
 			agentState.agentId = newAgentId
-			_clearCurrentConversation(agentState)
+			if (conversationId) {
+				_getAgentConversation(agentState, conversationId)
+			} else {
+				_clearCurrentConversation(agentState)
+			}
 			_getAgentInfo(agentState)
 			_getAgentConversations(agentState)
 		},

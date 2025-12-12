@@ -42,7 +42,7 @@ export type AgentStateHandler = {
 	readonly agentState: ReadonlyAgentState
 	promptAgent: (userPrompt: AgentPrompt) => void
 	clearCurrentConversation: () => void
-	changeAgent: (newAgentId: string) => void
+	loadAgent: (newAgentId: string, conversationId: string | null) => void
 	getAgentInfo: () => void
 	getAgentConversation: (conversationId: string) => void
 	addConversationVectorStoreFiles: (files: FileList) => void

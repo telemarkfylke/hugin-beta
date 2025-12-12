@@ -6,15 +6,19 @@
 	import AgentInfo from "./AgentInfo.svelte"
 	import { createAgentState } from "./AgentState.svelte.ts"
 
+	type Props = {
+		agentId: string
+		conversationId: string | null
+	}
 	// Input props
-	let { agentId } = $props()
+	let { agentId, conversationId }: Props = $props()
 
 	// State
 	const agentStateHandler = createAgentState()
 	$effect(() => {
 		// Initialize or change agent when agentId prop changes
 		// It is not reccommended to change state in effect, but this is ONLY dependent on prop change, so it might be acceptable.
-		agentStateHandler.changeAgent(agentId) // This resets, as we need to load new agent data, should probs set loading state here as well
+		agentStateHandler.loadAgent(agentId, conversationId) // This resets, as we need to load new agent data, should probs set loading state here as well
 	})
 
 	let menuOpen = $state(false)
