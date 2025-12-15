@@ -9,7 +9,7 @@
 			const resData = await res.json()
 			throw new Error(resData.message || "Failed to fetch agents")
 		}
-    const jsonRes = await res.json()
+		const jsonRes = await res.json()
 		const data = GetAgentsResponse.parse(jsonRes)
 		return data.agents
 	}

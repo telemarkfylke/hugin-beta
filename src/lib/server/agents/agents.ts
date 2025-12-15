@@ -1,5 +1,5 @@
 import { env } from "$env/dynamic/private"
-import type { DBAgent, DBAgentInput, DBAgentUpdateInput, IAgent } from "$lib/types/agents.ts"
+import { DBAgent, type DBAgentInput, type DBAgentPatchInput, type DBAgentPutInput, type IAgent } from "$lib/types/agents.ts"
 import type { AuthenticatedUser } from "$lib/types/authentication.js"
 import { canViewAllAgents } from "../auth/authorization.js"
 import { HTTPError } from "../middleware/http-error.js"
@@ -70,7 +70,7 @@ export const createDBAgent = async (user: AuthenticatedUser, agentInput: DBAgent
 	// Implement real DB here
 }
 
-export const updateDBAgent = async (agentId: string, agentUpdateInput: DBAgentUpdateInput): Promise<DBAgent> => {
+export const patchDBAgent = async (agentId: string, agentUpdateInput: DBAgentPatchInput): Promise<DBAgent> => {
 	if (mockDbData) {
 		const agentToUpdate = mockDbData.agents.find((agent) => agent._id === agentId)
 		if (!agentToUpdate) {
@@ -84,6 +84,39 @@ export const updateDBAgent = async (agentId: string, agentUpdateInput: DBAgentUp
 	}
 	throw new Error("Not implemented - please set MOCK_DB to true in env")
 	// Implement real DB update here
+}
+
+export const putDBAgent = async (user: AuthenticatedUser, agentInput: DBAgentPutInput, agentToReplace: DBAgent): Promise<DBAgent> => {
+	const newAgent: DBAgent = {
+		_id: agentToReplace._id,
+		...agentInput,
+		vendorId: agentToReplace.vendorId,
+		createdAt: agentToReplace.createdAt,
+		updatedAt: new Date().toISOString(),
+		createdBy: agentToReplace.createdBy,
+		updatedBy: {
+			objectId: user.userId,
+			name: user.name
+		}
+	}
+
+	try {
+		DBAgent.parse(newAgent)
+	} catch (zodError) {
+		throw new HTTPError(400, "New DBAgent is invalid", zodError)
+	}
+
+	if (mockDbData) {
+		const existingAgent = mockDbData.agents.find((agent) => agent._id === agentToReplace._id)
+		if (!existingAgent) {
+			throw new HTTPError(404, `Agent ${agentToReplace._id} not found`)
+		}
+		Object.assign(existingAgent, newAgent)
+		return existingAgent
+	}
+
+	throw new Error("Not implemented - please set MOCK_DB to true in env")
+	// Implement real DB here
 }
 
 export const createAgent = (dbAgent: DBAgent): IAgent => {

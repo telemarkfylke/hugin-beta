@@ -1,13 +1,13 @@
 import { json, type RequestHandler } from "@sveltejs/kit"
 import { logger } from "@vestfoldfylke/loglady"
 import { createDBAgent, getDBAgents } from "$lib/server/agents/agents.js"
+import { createVendor } from "$lib/server/agents/vendors"
 import { canCreateAgent, canPromptAgent } from "$lib/server/auth/authorization"
+import { HTTPError } from "$lib/server/middleware/http-error"
 import { httpRequestMiddleware } from "$lib/server/middleware/http-request"
+import { DBAgentInput } from "$lib/types/agents"
 import type { GetAgentsResponse, PostAgentResponse } from "$lib/types/api-responses"
 import type { MiddlewareNextFunction } from "$lib/types/middleware/http-request"
-import { DBAgentInput } from "$lib/types/agents"
-import { HTTPError } from "$lib/server/middleware/http-error"
-import { createVendor } from "$lib/server/agents/vendors"
 
 const getAgents: MiddlewareNextFunction = async ({ user }) => {
 	const agents = await getDBAgents(user)
@@ -48,7 +48,7 @@ const createNewAgent: MiddlewareNextFunction = async ({ requestEvent, user }) =>
 	} catch (zodError) {
 		throw new HTTPError(400, "invalid agent input, please check the data you are sending", zodError)
 	}
-	if (agentInput.config.type === 'manual') {
+	if (agentInput.config.type === "manual") {
 		const vendorInfo = createVendor(agentInput.vendorId).getVendorInfo()
 		if (!vendorInfo.models.supported.includes(agentInput.config.model)) {
 			throw new HTTPError(400, `Model ${agentInput.config.model} is not supported by vendor ${vendorInfo.name}`)

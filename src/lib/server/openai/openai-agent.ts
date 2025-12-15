@@ -139,7 +139,7 @@ export class OpenAIAgent implements IAgent {
 		return {
 			...this.dbAgent,
 			allowedMimeTypes: {
-				messageFiles:  this.dbAgent.config.messageFilesEnabled ? OPEN_AI_SUPPORTED_MESSAGE_FILE_MIME_TYPES : [],
+				messageFiles: this.dbAgent.config.messageFilesEnabled ? OPEN_AI_SUPPORTED_MESSAGE_FILE_MIME_TYPES : [],
 				messageImages: this.dbAgent.config.messageFilesEnabled ? OPEN_AI_SUPPORTED_MESSAGE_IMAGE_MIME_TYPES : [],
 				vectorStoreFiles: this.dbAgent.config.vectorStoreEnabled ? OPEN_AI_SUPPORTED_VECTOR_STORE_FILE_MIME_TYPES : []
 			}

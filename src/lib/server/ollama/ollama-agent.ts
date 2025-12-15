@@ -3,8 +3,7 @@ import { createSse } from "$lib/streaming.js"
 import type { AgentConfig, DBAgent, IAgent, IAgentResults } from "$lib/types/agents"
 import type { DBConversation } from "$lib/types/conversation"
 import type { AgentPrompt, Message } from "$lib/types/message"
-import { ollama, OllamaVendor } from "./ollama"
-
+import { OllamaVendor, ollama } from "./ollama"
 
 type OllamaResponse = ChatResponse | AbortableAsyncIterator<ChatResponse>
 

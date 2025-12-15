@@ -1,9 +1,9 @@
 import type { RequestEvent } from "@sveltejs/kit"
 import { describe, expect, it } from "vitest"
 import { MS_AUTH_PRINCIPAL_CLAIMS_HEADER } from "$lib/server/auth/auth-constants"
+import type { DBAgentInput } from "$lib/types/agents"
 import { POST } from "../../../src/routes/api/agents/+server"
 import { TEST_USER_MS_HEADERS, type TestRequestEvent } from "./test-requests-data"
-import type { DBAgentInput } from "$lib/types/agents"
 
 const validAgentInput: DBAgentInput = {
 	name: "Test Agent",

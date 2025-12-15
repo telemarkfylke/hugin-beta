@@ -64,7 +64,7 @@ export const agents: DBAgent[] = [
 		config: {
 			type: "manual",
 			model: "gpt-4o",
-			instructions: ["You are a helpful assistant that answers in Swedish."],
+			instructions: ["You are a helpful assistant that answers in Swedish."]
 		},
 		authorizedGroupIds: ["dfjklsdf"],
 		createdAt: new Date().toISOString(),

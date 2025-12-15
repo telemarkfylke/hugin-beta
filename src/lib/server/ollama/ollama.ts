@@ -1,7 +1,6 @@
 import { Ollama } from "ollama"
-
-import type { IVendor, IVendorResults, Vendor } from "$lib/types/vendors"
 import { env } from "$env/dynamic/private"
+import type { IVendor, IVendorResults, Vendor } from "$lib/types/vendors"
 
 if (!env.SUPPORTED_MODELS_VENDOR_OLLAMA || env.SUPPORTED_MODELS_VENDOR_OLLAMA.trim() === "") {
 	throw new Error("SUPPORTED_MODELS_VENDOR_OLLAMA is not set in environment variables")
