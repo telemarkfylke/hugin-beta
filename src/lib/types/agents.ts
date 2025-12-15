@@ -12,7 +12,8 @@ const BaseConfig = z.object({
 
 const PredefinedConfig = BaseConfig.extend({
 	type: z.literal("predefined"), // discriminator
-	vendorAgent: z.object({ // Enten en forhåndsdefinert agent eller prompt
+	vendorAgent: z.object({
+		// Enten en forhåndsdefinert agent eller prompt
 		id: z.string(),
 		version: z.string().optional()
 	})
@@ -40,12 +41,18 @@ export const DBAgentInput = z.object({
 
 export type DBAgentInput = z.infer<typeof DBAgentInput>
 
-export const DBAgentUpdateInput = DBAgentInput.omit({ vendorId: true }).extend({
-	// All fields optional for update
-	config: z.discriminatedUnion("type", [PredefinedConfig.partial().extend({ type: "predefined" }), ManualConfig.partial().extend({ type: "manual" })]).optional(),
-}).partial()
+export const DBAgentPatchInput = DBAgentInput.omit({ vendorId: true })
+	.extend({
+		// All fields optional for update
+		config: z.discriminatedUnion("type", [PredefinedConfig.partial().extend({ type: z.literal("predefined") }), ManualConfig.partial().extend({ type: z.literal("manual") })]).optional()
+	})
+	.partial()
 
-export type DBAgentUpdateInput = z.infer<typeof DBAgentUpdateInput>
+export type DBAgentPatchInput = z.infer<typeof DBAgentPatchInput>
+
+export const DBAgentPutInput = DBAgentInput.omit({ vendorId: true })
+
+export type DBAgentPutInput = z.infer<typeof DBAgentPutInput>
 
 export const DBAgent = DBAgentInput.extend({
 	_id: z.string(),
