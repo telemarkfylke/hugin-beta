@@ -11,6 +11,12 @@ export const GetAgentsResponse = z.object({
 
 export type GetAgentsResponse = z.infer<typeof GetAgentsResponse>
 
+export const PostAgentResponse = z.object({
+	agent: DBAgent
+})
+
+export type PostAgentResponse = z.infer<typeof PostAgentResponse>
+
 // api/agents/[agentId]
 export const GetAgentResponse = z.object({
 	agent: Agent

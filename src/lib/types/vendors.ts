@@ -6,18 +6,18 @@ import { SupportedVendorIds } from "./vendor-ids"
 export const Vendor = z.object({
 	id: SupportedVendorIds,
 	name: z.string(),
-	description: z.string()
+	description: z.string(),
+	models: z.object({
+		supported: z.array(z.string()),
+		default: z.string()
+	})
 })
 
 export type Vendor = z.infer<typeof Vendor>
 
 // RESULT TYPES
 export const IVendorResults = {
-	Vendor: z.object({
-		id: SupportedVendorIds,
-		name: z.string(),
-		description: z.string()
-	}),
+	GetVendorInfoResult: Vendor,
 	ListConversationsResult: z.object({
 		vendorConversations: z.array(VendorConversation)
 	}),
@@ -37,7 +37,7 @@ export const IVendorResults = {
 }
 
 export type IVendorResults = {
-	GetVendorInfoResult: Vendor
+	GetVendorInfoResult: z.infer<typeof IVendorResults.GetVendorInfoResult>
 	ListConversationsResult: z.infer<typeof IVendorResults.ListConversationsResult>
 	ListVectorStoresResult: z.infer<typeof IVendorResults.ListVectorStoresResult>
 	GetVectorStoreResult: z.infer<typeof IVendorResults.GetVectorStoreResult>

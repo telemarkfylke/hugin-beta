@@ -1,5 +1,5 @@
 import { env } from "$env/dynamic/private"
-import type { DBAgent, IAgent } from "$lib/types/agents.ts"
+import { DBAgent, type DBAgentPatchInput, type DBAgentPostInput, type DBAgentPutInput, type IAgent } from "$lib/types/agents.ts"
 import type { AuthenticatedUser } from "$lib/types/authentication.js"
 import { canViewAllAgents } from "../auth/authorization.js"
 import { HTTPError } from "../middleware/http-error.js"
@@ -45,17 +45,91 @@ export const getDBAgents = async (user: AuthenticatedUser): Promise<DBAgent[]> =
 	// Implement real DB fetch here
 }
 
+export const createDBAgent = async (user: AuthenticatedUser, agentInput: DBAgentPostInput): Promise<DBAgent> => {
+	const newAgent: Omit<DBAgent, "_id"> = {
+		...agentInput,
+		createdAt: new Date().toISOString(),
+		updatedAt: new Date().toISOString(),
+		createdBy: {
+			objectId: user.userId,
+			name: user.name
+		},
+		updatedBy: {
+			objectId: user.userId,
+			name: user.name
+		}
+	}
+
+	if (mockDbData) {
+		const newMockAgent = { _id: crypto.randomUUID(), ...newAgent }
+		mockDbData.agents.push(newMockAgent)
+		return newMockAgent
+	}
+
+	throw new Error("Not implemented - please set MOCK_DB to true in env")
+	// Implement real DB here
+}
+
+export const patchDBAgent = async (agentId: string, agentUpdateInput: DBAgentPatchInput): Promise<DBAgent> => {
+	if (mockDbData) {
+		const agentToUpdate = mockDbData.agents.find((agent) => agent._id === agentId)
+		if (!agentToUpdate) {
+			throw new HTTPError(404, `Agent ${agentId} not found`)
+		}
+		for (const [key, value] of Object.entries(agentUpdateInput)) {
+			// @ts-expect-error DETTE ER BARE MOCK
+			agentToUpdate[key] = value
+		}
+		return JSON.parse(JSON.stringify(agentToUpdate)) // Return a deep copy for not reference issues
+	}
+	throw new Error("Not implemented - please set MOCK_DB to true in env")
+	// Implement real DB update here
+}
+
+export const putDBAgent = async (user: AuthenticatedUser, agentInput: DBAgentPutInput, agentToReplace: DBAgent): Promise<DBAgent> => {
+	const newAgent: DBAgent = {
+		_id: agentToReplace._id,
+		...agentInput,
+		vendorId: agentToReplace.vendorId,
+		createdAt: agentToReplace.createdAt,
+		updatedAt: new Date().toISOString(),
+		createdBy: agentToReplace.createdBy,
+		updatedBy: {
+			objectId: user.userId,
+			name: user.name
+		}
+	}
+
+	try {
+		DBAgent.parse(newAgent)
+	} catch (zodError) {
+		throw new HTTPError(400, "New DBAgent is invalid", zodError)
+	}
+
+	if (mockDbData) {
+		const existingAgent = mockDbData.agents.find((agent) => agent._id === agentToReplace._id)
+		if (!existingAgent) {
+			throw new HTTPError(404, `Agent ${agentToReplace._id} not found`)
+		}
+		Object.assign(existingAgent, newAgent)
+		return existingAgent
+	}
+
+	throw new Error("Not implemented - please set MOCK_DB to true in env")
+	// Implement real DB here
+}
+
 export const createAgent = (dbAgent: DBAgent): IAgent => {
-	if (dbAgent.config.type === "mock-agent") {
+	if (dbAgent.vendorId === "mock-ai") {
 		return new MockAIAgent()
 	}
-	if (dbAgent.config.type === "mistral-conversation" || dbAgent.config.type === "mistral-agent") {
+	if (dbAgent.vendorId === "mistral") {
 		return new MistralAgent(dbAgent)
 	}
-	if (dbAgent.config.type === "openai-response" || dbAgent.config.type === "openai-prompt") {
+	if (dbAgent.vendorId === "openai") {
 		return new OpenAIAgent(dbAgent)
 	}
-	if (dbAgent.config.type === "ollama-response") {
+	if (dbAgent.vendorId === "ollama") {
 		return new OllamaAgent(dbAgent)
 	}
 	throw new Error(`Unsupported agent: ${dbAgent.name}`)

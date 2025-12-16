@@ -14,14 +14,38 @@ const updatedBy = {
 
 export const agents: DBAgent[] = [
 	{
+		_id: "mock-agent",
+		name: "Mock AI Agent",
+		vendorId: "mock-ai",
+		description: "Mock AI agent, which responds with streaming mock data (no real AI or cost)",
+		config: {
+			type: "manual",
+			model: "mock-model-v1",
+			instructions: ["You are a mock AI agent that provides streaming mock responses for testing purposes."],
+			vectorStoreEnabled: true,
+			webSearchEnabled: false
+		},
+		authorizedGroupIds: "all",
+		createdAt: new Date().toISOString(),
+		updatedAt: new Date().toISOString(),
+		createdBy: {
+			objectId: "00000000-0000-0000-0000-000000000001",
+			name: "Mock User"
+		},
+		updatedBy: {
+			objectId: "00000000-0000-0000-0000-000000000001",
+			name: "Mock User"
+		}
+	},
+	{
 		_id: "mistral-conversation",
 		vendorId: "mistral",
 		name: "Mistral",
 		description: "Mistral agent som går rett på en model og conversation",
 		config: {
-			type: "mistral-conversation",
+			type: "manual",
 			model: "mistral-medium-latest",
-			instructions: "You are a helpful assistant that answers in Norwegian.",
+			instructions: ["You are a helpful assistant that answers in Norwegian."],
 			vectorStoreEnabled: true,
 			messageFilesEnabled: true,
 			webSearchEnabled: false
@@ -33,14 +57,14 @@ export const agents: DBAgent[] = [
 		updatedBy
 	},
 	{
-		_id: "mistral-conversation-swedish",
-		vendorId: "mistral",
-		name: "Mistral på svensk",
-		description: "Mistral agent som går rett på en model og conversation",
+		_id: "openai-drit",
+		vendorId: "openai",
+		name: "OpenAI Drit",
+		description: "OpenAI agent som er kul",
 		config: {
-			type: "mistral-conversation",
-			model: "mistral-medium-latest",
-			instructions: "You are a helpful assistant that answers in Swedish."
+			type: "manual",
+			model: "gpt-4o",
+			instructions: ["You are a helpful assistant that answers in Swedish."]
 		},
 		authorizedGroupIds: ["dfjklsdf"],
 		createdAt: new Date().toISOString(),
@@ -49,66 +73,17 @@ export const agents: DBAgent[] = [
 		updatedBy
 	},
 	{
-		_id: "openai_response_4o",
+		_id: "opeanai-predefined",
 		vendorId: "openai",
-		name: "Open AI demo agent",
-		description: "An agent that uses an OpenAI response configuration with gpt-4o model",
+		name: "OpenAI Predefinert",
+		description: "OpenAI agent som er kul igjen",
 		config: {
-			type: "openai-response",
-			model: "gpt-4o",
-			instructions: null,
-			vectorStoreEnabled: true,
-			messageFilesEnabled: true
+			type: "predefined",
+			vendorAgent: {
+				id: "pmpt_68ca8d43f1108197b5c81bd32014f34e04d1daa9ea89d5a0"
+			}
 		},
-		authorizedGroupIds: "all",
-		createdAt: new Date().toISOString(),
-		updatedAt: new Date().toISOString(),
-		createdBy,
-		updatedBy
-	},
-	{
-		_id: "openai_response_4o_2",
-		vendorId: "openai",
-		name: "Sarkastisk",
-		description: "An agent that uses an OpenAI response configuration with gpt-4o model",
-		config: {
-			type: "openai-response",
-			model: "gpt-4o",
-			instructions: "Svar sarkastisk og kort på alt"
-		},
-		authorizedGroupIds: "all",
-		createdAt: new Date().toISOString(),
-		updatedAt: new Date().toISOString(),
-		createdBy,
-		updatedBy
-	},
-	{
-		_id: "openai_response_4o_TROLL",
-		vendorId: "openai",
-		name: "Nettroll",
-		description: "An agent that uses an OpenAI response configuration with gpt-4o model",
-		config: {
-			type: "openai-response",
-			model: "gpt-4o",
-			instructions: "Svar som et nettroll i et kommentarfelt på en luguber nettside"
-		},
-		authorizedGroupIds: "all",
-		createdAt: new Date().toISOString(),
-		updatedAt: new Date().toISOString(),
-		createdBy,
-		updatedBy
-	},
-	{
-		_id: "ollama_basic",
-		vendorId: "ollama",
-		name: "Ollama basic orakel",
-		description: "A basic ollama bot",
-		config: {
-			type: "ollama-response",
-			model: "gemma3",
-			instructions: "Svar veldig generelt på spessifike spørsmål"
-		},
-		authorizedGroupIds: "all",
+		authorizedGroupIds: ["dfjklsdf"],
 		createdAt: new Date().toISOString(),
 		updatedAt: new Date().toISOString(),
 		createdBy,

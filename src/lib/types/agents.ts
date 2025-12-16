@@ -10,72 +10,52 @@ const BaseConfig = z.object({
 	webSearchEnabled: z.boolean().default(false).optional()
 })
 
-const MockAgentConfig = BaseConfig.extend({
-	type: z.literal("mock-agent"), // discriminator
-	instructions: z.string().nullable(),
-	vectorStoreIds: z.array(z.string()).nullable().optional()
-})
-
-// MISTRAL
-const MistralConversationConfig = BaseConfig.extend({
-	type: z.literal("mistral-conversation"), // discriminator
-	model: z.enum(["mistral-small-latest", "mistral-medium-latest", "mistral-large-latest", "pixtral-large-2411", "mistral-large-2512"]), // add models we want to support here
-	instructions: z.string().nullable(),
-	documentLibraryIds: z.array(z.string()).nullable().optional()
-})
-
-const MistralAgentConfig = BaseConfig.extend({
-	type: z.literal("mistral-agent"), // discriminator
-	agentId: z.string()
-})
-
-// OLLAMA
-export const OllamaAIResponseConfig = BaseConfig.extend({
-	type: z.literal("ollama-response"), // discriminator
-	model: z.enum(["gemma3"]), // add models we want to support here
-	instructions: z.string().nullable(),
-	vectorStoreIds: z.array(z.string()).nullable().optional()
-})
-
-export type OllamaAIResponseConfig = z.infer<typeof OllamaAIResponseConfig>
-
-/**
- * OpenAI Response Config
- * Used for agents that respond directly using OpenAI models
- */
-const OpenAIAResponseConfig = BaseConfig.extend({
-	type: z.literal("openai-response"), // discriminator
-	model: z.enum(["gpt-4o"]), // add models we want to support here
-	instructions: z.string().nullable(),
-	vectorStoreIds: z.array(z.string()).nullable().optional()
-})
-
-/**
- * OpenAI Prompt Config
- * Used for agents that use predefined prompts/templates
- */
-const OpenAIPromptConfig = BaseConfig.extend({
-	type: z.literal("openai-prompt"), // discriminator
-	prompt: z.object({
+const PredefinedConfig = BaseConfig.extend({
+	type: z.literal("predefined"), // discriminator
+	vendorAgent: z.object({
+		// Enten en forhåndsdefinert agent eller prompt
 		id: z.string(),
 		version: z.string().optional()
 	})
 })
 
-// AGENT UNION TYPE
-export const AgentConfig = z.discriminatedUnion("type", [MockAgentConfig, MistralConversationConfig, MistralAgentConfig, OpenAIAResponseConfig, OpenAIPromptConfig, OllamaAIResponseConfig])
+const ManualConfig = BaseConfig.extend({
+	type: z.literal("manual"), // discriminator
+	model: z.string(),
+	instructions: z.array(z.string()),
+	vectorStoreIds: z.array(z.string()).nullable().optional()
+})
 
-export type Prettify<T> = { [K in keyof T]: T[K] } & {}
+export const AgentConfig = z.discriminatedUnion("type", [PredefinedConfig, ManualConfig])
 
 export type AgentConfig = z.infer<typeof AgentConfig>
 
 // DB AGENT AND CONVERSATION TYPES
-export const DBAgent = z.object({
-	_id: z.string(),
+export const DBAgentPostInput = z.object({
 	vendorId: SupportedVendorIds,
 	name: z.string(),
 	description: z.string().nullable().optional(),
 	config: AgentConfig,
+	authorizedGroupIds: z.literal("all").or(z.array(z.string())) // list of groupIds that have access to this agent or "all" for everyone
+})
+
+export type DBAgentPostInput = z.infer<typeof DBAgentPostInput>
+
+export const DBAgentPatchInput = DBAgentPostInput.omit({ vendorId: true })
+	.extend({
+		// All fields optional for update
+		config: z.discriminatedUnion("type", [PredefinedConfig.partial().extend({ type: z.literal("predefined") }), ManualConfig.partial().extend({ type: z.literal("manual") })]).optional()
+	})
+	.partial()
+
+export type DBAgentPatchInput = z.infer<typeof DBAgentPatchInput>
+
+export const DBAgentPutInput = DBAgentPostInput.omit({ vendorId: true })
+
+export type DBAgentPutInput = z.infer<typeof DBAgentPutInput>
+
+export const DBAgent = DBAgentPostInput.extend({
+	_id: z.string(),
 	createdAt: z.iso.datetime(),
 	createdBy: z.object({
 		/** ObjectId in EntraID that created the agent */
@@ -87,8 +67,7 @@ export const DBAgent = z.object({
 		/** ObjectId in EntraID that updated the agent */
 		objectId: z.string(),
 		name: z.string()
-	}),
-	authorizedGroupIds: z.literal("all").or(z.array(z.string())) // list of groupIds that have access to this agent or "all" for everyone
+	})
 })
 
 export type DBAgent = z.infer<typeof DBAgent>

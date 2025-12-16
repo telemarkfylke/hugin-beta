@@ -18,9 +18,9 @@ export const agents: DBAgent[] = [
 		name: "Mistral",
 		description: "Mistral agent som går rett på en model og conversation",
 		config: {
-			type: "mistral-conversation",
+			type: "manual",
 			model: "mistral-medium-latest",
-			instructions: "You are a helpful assistant that answers in Norwegian.",
+			instructions: ["You are a helpful assistant that answers in Norwegian."],
 			vectorStoreEnabled: true,
 			messageFilesEnabled: true,
 			webSearchEnabled: false
@@ -37,9 +37,9 @@ export const agents: DBAgent[] = [
 		name: "Mistral på svensk",
 		description: "Mistral agent som går rett på en model og conversation",
 		config: {
-			type: "mistral-conversation",
+			type: "manual",
 			model: "mistral-medium-latest",
-			instructions: "You are a helpful assistant that answers in Swedish."
+			instructions: ["You are a helpful assistant that answers in Swedish."]
 		},
 		authorizedGroupIds: ["test-agent-2-group"],
 		createdAt: new Date().toISOString(),
@@ -53,9 +53,9 @@ export const agents: DBAgent[] = [
 		name: "Open AI demo agent",
 		description: "An agent that uses an OpenAI response configuration with gpt-4o model",
 		config: {
-			type: "openai-response",
+			type: "manual",
 			model: "gpt-4o",
-			instructions: null,
+			instructions: ["halla"],
 			vectorStoreEnabled: true,
 			messageFilesEnabled: true
 		},
@@ -71,9 +71,9 @@ export const agents: DBAgent[] = [
 		name: "Open AI demo agent",
 		description: "An agent that uses an OpenAI response configuration with gpt-4o model",
 		config: {
-			type: "openai-response",
+			type: "manual",
 			model: "gpt-4o",
-			instructions: null,
+			instructions: ["halla"],
 			vectorStoreEnabled: true,
 			messageFilesEnabled: true
 		},

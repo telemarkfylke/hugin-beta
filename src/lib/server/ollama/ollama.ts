@@ -1,6 +1,12 @@
 import { Ollama } from "ollama"
-
+import { env } from "$env/dynamic/private"
 import type { IVendor, IVendorResults, Vendor } from "$lib/types/vendors"
+
+if (!env.SUPPORTED_MODELS_VENDOR_OLLAMA || env.SUPPORTED_MODELS_VENDOR_OLLAMA.trim() === "") {
+	throw new Error("SUPPORTED_MODELS_VENDOR_OLLAMA is not set in environment variables")
+}
+const OLLAMA_SUPPORTED_MODELS = env.SUPPORTED_MODELS_VENDOR_OLLAMA.split(",").map((model) => model.trim())
+const OLLAMA_DEFAULT_MODEL = OLLAMA_SUPPORTED_MODELS[0] as string
 
 export const ollama = new Ollama({ host: "http://127.0.0.1:11434" })
 
@@ -9,7 +15,11 @@ export class OllamaVendor implements IVendor {
 		return {
 			id: "ollama",
 			name: "Ollama",
-			description: "Ollama - run large language models locally on your machine/server."
+			description: "Ollama - run large language models locally on your machine/server.",
+			models: {
+				supported: OLLAMA_SUPPORTED_MODELS,
+				default: OLLAMA_DEFAULT_MODEL
+			}
 		}
 	}
 	public async listConversations(): Promise<IVendorResults["ListConversationsResult"]> {

@@ -1,9 +1,12 @@
 import { json, type RequestHandler } from "@sveltejs/kit"
 import { logger } from "@vestfoldfylke/loglady"
-import { getDBAgents } from "$lib/server/agents/agents.js"
-import { canPromptAgent } from "$lib/server/auth/authorization"
+import { createDBAgent, getDBAgents } from "$lib/server/agents/agents.js"
+import { createVendor } from "$lib/server/agents/vendors"
+import { canCreateAgent, canPromptAgent } from "$lib/server/auth/authorization"
+import { HTTPError } from "$lib/server/middleware/http-error"
 import { httpRequestMiddleware } from "$lib/server/middleware/http-request"
-import type { GetAgentsResponse } from "$lib/types/api-responses"
+import { DBAgentPostInput } from "$lib/types/agents"
+import type { GetAgentsResponse, PostAgentResponse } from "$lib/types/api-responses"
 import type { MiddlewareNextFunction } from "$lib/types/middleware/http-request"
 
 const getAgents: MiddlewareNextFunction = async ({ user }) => {
@@ -27,19 +30,38 @@ const getAgents: MiddlewareNextFunction = async ({ user }) => {
 	}
 }
 
-/**
- *
- * @type {import("@sveltejs/kit").RequestHandler}
- */
 export const GET: RequestHandler = async (requestEvent) => {
 	return httpRequestMiddleware(requestEvent, getAgents)
 }
 
-/**
- *
- * @type {import("@sveltejs/kit").RequestHandler}
- */
-export const POST: RequestHandler = async () => {
+const createNewAgent: MiddlewareNextFunction = async ({ requestEvent, user }) => {
 	// Da lager vi en ny agent og redirecter til dens side når det er gjort eller noe fett
-	throw new Error("Not implemented yet")
+	if (!canCreateAgent(user)) {
+		throw new HTTPError(403, "User is not authorized to create agents")
+	}
+	const requestBody = await requestEvent.request.json()
+	// Sjekk at model støttes basert på valgt vendorId
+
+	let agentInput: DBAgentPostInput
+	try {
+		agentInput = DBAgentPostInput.parse(requestBody)
+	} catch (zodError) {
+		throw new HTTPError(400, "invalid agent input, please check the data you are sending", zodError)
+	}
+	if (agentInput.config.type === "manual") {
+		const vendorInfo = createVendor(agentInput.vendorId).getVendorInfo()
+		if (!vendorInfo.models.supported.includes(agentInput.config.model)) {
+			throw new HTTPError(400, `Model ${agentInput.config.model} is not supported by vendor ${vendorInfo.name}`)
+		}
+	}
+	const newAgent = await createDBAgent(user, agentInput)
+	return {
+		response: json({ agent: newAgent } as PostAgentResponse, { status: 201 }),
+		isAuthorized: true
+	}
+}
+
+export const POST: RequestHandler = async (requestEvent) => {
+	// Da lager vi en ny agent og redirecter til dens side når det er gjort eller noe fett
+	return httpRequestMiddleware(requestEvent, createNewAgent)
 }

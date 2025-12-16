@@ -11,6 +11,7 @@ import { createMessageFromMistralMessage } from "./mistral-message"
 import { MISTRAL_SUPPORTED_MESSAGE_FILE_MIME_TYPES, MISTRAL_SUPPORTED_MESSAGE_IMAGE_MIME_TYPES, MISTRAL_SUPPORTED_VECTOR_STORE_FILE_MIME_TYPES } from "./mistral-supported-filetypes"
 
 const mistralVendor = new MistralVendor()
+const vendorInfo = mistralVendor.getVendorInfo()
 
 const handleMistralStream = (stream: EventStream<ConversationEvents>, dbConversationId?: string, userLibraryId?: string | null): ReadableStream<Uint8Array> => {
 	return new ReadableStream({
@@ -91,18 +92,18 @@ type MistralConversationConfigResult = {
 	}
 }
 const createMistralConversationConfig = async (agentConfig: AgentConfig, initialPrompt: AgentPrompt): Promise<MistralConversationConfigResult> => {
-	if (agentConfig.type !== "mistral-conversation" && agentConfig.type !== "mistral-agent") {
-		throw new Error(`Invalid agent config type for Mistral conversation: ${agentConfig.type}`)
+	if (agentConfig.type !== "predefined" && agentConfig.type !== "manual") {
+		throw new Error(`Invalid agent config type for Mistral conversation`)
 	}
 
 	// Map initialPrompt to Mistral ConversationInputs
 	const mistralPrompt: ConversationInputs = createMistralPromptFromAgentPrompt(initialPrompt)
 
 	// If simple agentId, use that and return
-	if (agentConfig.type === "mistral-agent") {
+	if (agentConfig.type === "predefined") {
 		return {
 			requestConfig: {
-				agentId: agentConfig.agentId,
+				agentId: agentConfig.vendorAgent.id,
 				inputs: mistralPrompt
 			},
 			data: {
@@ -114,9 +115,9 @@ const createMistralConversationConfig = async (agentConfig: AgentConfig, initial
 	// If we fileSearchEnabled, we need to create a library for the user to upload files to
 
 	const mistralConversationConfig: ConversationRequest = {
-		model: agentConfig.model,
+		model: vendorInfo.models.supported.includes(agentConfig.model) ? agentConfig.model : vendorInfo.models.default,
 		inputs: mistralPrompt,
-		instructions: agentConfig.instructions || ""
+		instructions: agentConfig.instructions.join(". ")
 	}
 	// Tool if needed
 	const documentLibraryTool: DocumentLibraryTool & { type: "document_library" } = {
@@ -132,8 +133,8 @@ const createMistralConversationConfig = async (agentConfig: AgentConfig, initial
 		documentLibraryTool.libraryIds.push(userLibrary.id)
 	}
 	// If preconfigured document libraries, add them as well
-	if (agentConfig.documentLibraryIds && agentConfig.documentLibraryIds.length > 0) {
-		documentLibraryTool.libraryIds.push(...agentConfig.documentLibraryIds)
+	if (agentConfig.vectorStoreIds && agentConfig.vectorStoreIds.length > 0) {
+		documentLibraryTool.libraryIds.push(...agentConfig.vectorStoreIds)
 	}
 	// Add documentLibraryTool only if we have library ids
 	if (documentLibraryTool.libraryIds.length > 0) {
