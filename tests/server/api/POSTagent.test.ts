@@ -1,11 +1,11 @@
 import type { RequestEvent } from "@sveltejs/kit"
 import { describe, expect, it } from "vitest"
 import { MS_AUTH_PRINCIPAL_CLAIMS_HEADER } from "$lib/server/auth/auth-constants"
-import type { DBAgentInput } from "$lib/types/agents"
+import type { DBAgentPostInput } from "$lib/types/agents"
 import { POST } from "../../../src/routes/api/agents/+server"
 import { TEST_USER_MS_HEADERS, type TestRequestEvent } from "./test-requests-data"
 
-const validAgentInput: DBAgentInput = {
+const validAgentInput: DBAgentPostInput = {
 	name: "Test Agent",
 	vendorId: "openai",
 	description: "This is a test agent",
@@ -21,7 +21,7 @@ const validAgentInput: DBAgentInput = {
 	authorizedGroupIds: "all"
 }
 
-const notSupportedModelAgentInput: DBAgentInput = {
+const notSupportedModelAgentInput: DBAgentPostInput = {
 	name: "Test Agent",
 	vendorId: "openai",
 	description: "This is a test agent",

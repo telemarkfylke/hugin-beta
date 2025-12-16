@@ -1,5 +1,5 @@
 import { env } from "$env/dynamic/private"
-import { DBAgent, type DBAgentInput, type DBAgentPatchInput, type DBAgentPutInput, type IAgent } from "$lib/types/agents.ts"
+import { DBAgent, type DBAgentPatchInput, type DBAgentPostInput, type DBAgentPutInput, type IAgent } from "$lib/types/agents.ts"
 import type { AuthenticatedUser } from "$lib/types/authentication.js"
 import { canViewAllAgents } from "../auth/authorization.js"
 import { HTTPError } from "../middleware/http-error.js"
@@ -45,7 +45,7 @@ export const getDBAgents = async (user: AuthenticatedUser): Promise<DBAgent[]> =
 	// Implement real DB fetch here
 }
 
-export const createDBAgent = async (user: AuthenticatedUser, agentInput: DBAgentInput): Promise<DBAgent> => {
+export const createDBAgent = async (user: AuthenticatedUser, agentInput: DBAgentPostInput): Promise<DBAgent> => {
 	const newAgent: Omit<DBAgent, "_id"> = {
 		...agentInput,
 		createdAt: new Date().toISOString(),

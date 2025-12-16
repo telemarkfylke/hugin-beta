@@ -31,7 +31,7 @@ export const AgentConfig = z.discriminatedUnion("type", [PredefinedConfig, Manua
 export type AgentConfig = z.infer<typeof AgentConfig>
 
 // DB AGENT AND CONVERSATION TYPES
-export const DBAgentInput = z.object({
+export const DBAgentPostInput = z.object({
 	vendorId: SupportedVendorIds,
 	name: z.string(),
 	description: z.string().nullable().optional(),
@@ -39,9 +39,9 @@ export const DBAgentInput = z.object({
 	authorizedGroupIds: z.literal("all").or(z.array(z.string())) // list of groupIds that have access to this agent or "all" for everyone
 })
 
-export type DBAgentInput = z.infer<typeof DBAgentInput>
+export type DBAgentPostInput = z.infer<typeof DBAgentPostInput>
 
-export const DBAgentPatchInput = DBAgentInput.omit({ vendorId: true })
+export const DBAgentPatchInput = DBAgentPostInput.omit({ vendorId: true })
 	.extend({
 		// All fields optional for update
 		config: z.discriminatedUnion("type", [PredefinedConfig.partial().extend({ type: z.literal("predefined") }), ManualConfig.partial().extend({ type: z.literal("manual") })]).optional()
@@ -50,11 +50,11 @@ export const DBAgentPatchInput = DBAgentInput.omit({ vendorId: true })
 
 export type DBAgentPatchInput = z.infer<typeof DBAgentPatchInput>
 
-export const DBAgentPutInput = DBAgentInput.omit({ vendorId: true })
+export const DBAgentPutInput = DBAgentPostInput.omit({ vendorId: true })
 
 export type DBAgentPutInput = z.infer<typeof DBAgentPutInput>
 
-export const DBAgent = DBAgentInput.extend({
+export const DBAgent = DBAgentPostInput.extend({
 	_id: z.string(),
 	createdAt: z.iso.datetime(),
 	createdBy: z.object({

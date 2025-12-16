@@ -5,7 +5,7 @@ import { createVendor } from "$lib/server/agents/vendors"
 import { canCreateAgent, canPromptAgent } from "$lib/server/auth/authorization"
 import { HTTPError } from "$lib/server/middleware/http-error"
 import { httpRequestMiddleware } from "$lib/server/middleware/http-request"
-import { DBAgentInput } from "$lib/types/agents"
+import { DBAgentPostInput } from "$lib/types/agents"
 import type { GetAgentsResponse, PostAgentResponse } from "$lib/types/api-responses"
 import type { MiddlewareNextFunction } from "$lib/types/middleware/http-request"
 
@@ -42,9 +42,9 @@ const createNewAgent: MiddlewareNextFunction = async ({ requestEvent, user }) =>
 	const requestBody = await requestEvent.request.json()
 	// Sjekk at model støttes basert på valgt vendorId
 
-	let agentInput: DBAgentInput
+	let agentInput: DBAgentPostInput
 	try {
-		agentInput = DBAgentInput.parse(requestBody)
+		agentInput = DBAgentPostInput.parse(requestBody)
 	} catch (zodError) {
 		throw new HTTPError(400, "invalid agent input, please check the data you are sending", zodError)
 	}
