@@ -43,7 +43,7 @@ type OllamaMessage = {
 	content: string
 }
 
-const addMessage = (prompt: AgentPrompt, messages: Message[], originator: "user" | "agent", contentType: "text") => {
+const addMessage = (prompt: AgentPrompt, messages: Message[], originator: "user" | "agent" | "system", contentType: "text") => {
 	if (!messages) {
 		messages = []
 	}
@@ -109,6 +109,12 @@ export class OllamaAgent implements IAgent {
 	}
 
 	public async createConversation(conversation: DBConversation, initialPrompt: AgentPrompt, streamResponse: boolean): Promise<IAgentResults["CreateConversationResult"]> {
+		if (this.dbAgent.config.type === "predefined") {
+			throw new Error("Predefined Ollama agents are not supported")
+		}
+
+		const instructions = this.dbAgent.config.instructions.join("\n")
+		addMessage(instructions, conversation.messages, "system", "text")
 		addMessage(initialPrompt, conversation.messages, "user", "text")
 		const ollamaResponse = await makeOllamaInstance(this.dbAgent.config, convertToOllamaMessages(conversation.messages), streamResponse)
 		if (streamResponse) {

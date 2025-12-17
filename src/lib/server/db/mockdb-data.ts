@@ -88,6 +88,22 @@ export const agents: DBAgent[] = [
 		updatedAt: new Date().toISOString(),
 		createdBy,
 		updatedBy
+	},
+	{
+		_id: "ollama fotballsupporter",
+		vendorId: "openai",
+		name: "Ollama fotballsupporter",
+		description: "Ollama basert fotball supporter",
+		config: {
+			type: "manual",
+			model: "gemma3",
+			instructions: ["Svar som en ihuga Arsenal supporter som stadig svarer på spørsmål med en innskutt fotball referanse eller metafor"]
+		},
+		authorizedGroupIds: [],
+		createdAt: new Date().toISOString(),
+		updatedAt: new Date().toISOString(),
+		createdBy,
+		updatedBy
 	}
 ]
 
