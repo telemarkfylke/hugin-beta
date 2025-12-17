@@ -90,10 +90,10 @@ export const agents: DBAgent[] = [
 		updatedBy
 	},
 	{
-		_id: "ollama fotballsupperter",
+		_id: "ollama fotballsupporter",
 		vendorId: "openai",
-		name: "Ollama fotballsuppoerter",
-		description: "Ollama basert fotball suppoerter",
+		name: "Ollama fotballsupporter",
+		description: "Ollama basert fotball supporter",
 		config: {
 			type: "manual",
 			model: "gemma3",
