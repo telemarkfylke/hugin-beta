@@ -38,7 +38,12 @@ export class OllamaVendor implements IVendor {
 		throw new Error("Method not implemented.")
 	}
 	public async addVectorStore(_name: string, _description: string): Promise<IVendorResults["AddVectorStoreResult"]> {
-		throw new Error("Method not implemented.")
+		return {
+			id: crypto.randomUUID(),
+			vendorId: "ollama"
+		}
+		
+		//throw new Error("Method not implemented.")
 	}
 	public async deleteVectorStore(_vendorVectorStoreId: string): Promise<void> {
 		throw new Error("Method not implemented.")

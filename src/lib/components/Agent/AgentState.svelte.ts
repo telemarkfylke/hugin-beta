@@ -4,6 +4,7 @@ import { GetAgentResponse } from "$lib/types/api-responses.js"
 import type { AgentPrompt } from "$lib/types/message.js"
 import { _getAgentConversation, _getAgentConversations } from "./AgentConversations.svelte.js"
 import { _addConversationVectorStoreFiles, _deleteConversationVectorStoreFile } from "./AgentConversationVectorStoreFiles.svelte.js"
+import { _addVectorStoreFiles } from "./AgentVectorStoreFiles.svelte.js"
 import { _promptAgent } from "./PromptAgent.svelte.js"
 
 const initialAgentState: AgentState = {
@@ -13,6 +14,7 @@ const initialAgentState: AgentState = {
 		error: null,
 		value: null
 	},
+	vectorStoreFiles: [],
 	currentConversation: {
 		isLoading: false,
 		error: null,
@@ -101,6 +103,7 @@ export const createAgentState = (): AgentStateHandler => {
 			_getAgentConversation(agentState, conversationId)
 		},
 		addConversationVectorStoreFiles: (files: FileList) => _addConversationVectorStoreFiles(agentState, files),
+		addVectorStoreFiles: (files: FileList) => _addVectorStoreFiles(agentState, files),
 		deleteConversationVectorStoreFile: (fileId: string) => _deleteConversationVectorStoreFile(agentState, fileId)
 	}
 }

@@ -2,6 +2,7 @@
 
 import type { DBAgent } from "$lib/types/agents.ts"
 import type { DBConversation } from "$lib/types/conversation"
+import type { VectorChunk } from "$lib/types/vector"
 
 const createdBy = {
 	objectId: "00000000-0000-0000-0000-000000000001",
@@ -91,13 +92,32 @@ export const agents: DBAgent[] = [
 	},
 	{
 		_id: "ollama fotballsupporter",
-		vendorId: "openai",
+		vendorId: "ollama",
 		name: "Ollama fotballsupporter",
 		description: "Ollama basert fotball supporter",
 		config: {
 			type: "manual",
 			model: "gemma3",
-			instructions: ["Svar som en ihuga Arsenal supporter som stadig svarer på spørsmål med en innskutt fotball referanse eller metafor"]
+			instructions: ["Svar som en ihuga Arsenal supporter som stadig svarer på spørsmål med en innskutt fotball referanse eller metafor"],
+		},
+		authorizedGroupIds: [],
+		createdAt: new Date().toISOString(),
+		updatedAt: new Date().toISOString(),
+		createdBy,
+		updatedBy
+	},
+	{
+		_id: "ollama vectorEnabeled",
+		vendorId: "ollama",
+		name: "Ollama vectorEnabeled",
+		description: "Ollama med vector store",
+		config: {
+			type: "manual",
+			model: "gemma3",
+			instructions: ["Du skal primært svare på det som ligger lagret i dine embedded vector data.  Har du ikke noe der skal du gi beskjed om dette'"],
+			vectorStoreEnabled: true,
+			messageFilesEnabled: true,
+			webSearchEnabled: false
 		},
 		authorizedGroupIds: [],
 		createdAt: new Date().toISOString(),
@@ -108,3 +128,5 @@ export const agents: DBAgent[] = [
 ]
 
 export const conversations: DBConversation[] = []
+
+export const vectors: Record<string, VectorChunk[]> = {}

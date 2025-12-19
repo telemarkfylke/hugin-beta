@@ -1,6 +1,7 @@
 // simply in-memory mock database used when runnning tests
 import type { DBAgent } from "$lib/types/agents.ts"
 import type { DBConversation } from "$lib/types/conversation"
+import type { VectorChunk } from "$lib/types/vector"
 
 const createdBy = {
 	objectId: "00000000-0000-0000-0000-000000000001",
@@ -86,3 +87,5 @@ export const agents: DBAgent[] = [
 ]
 
 export const conversations: DBConversation[] = []
+
+export const vectors: Record<string, VectorChunk[]> = {}
