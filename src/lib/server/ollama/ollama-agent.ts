@@ -1,18 +1,21 @@
-import type { AbortableAsyncIterator, ChatRequest, ChatResponse, EmbedRequest } from "ollama"
+import type { AbortableAsyncIterator, ChatResponse, EmbedRequest } from "ollama"
 import { createSse } from "$lib/streaming.js"
 import type { AgentConfig, DBAgent, IAgent, IAgentResults } from "$lib/types/agents"
 import type { DBConversation } from "$lib/types/conversation"
 import type { AgentPrompt, Message } from "$lib/types/message"
-import { OllamaVendor, ollama } from "./ollama"
+import { OllamaVendor, getVectorStore, ollama } from "./ollama"
 import { OLLAMA_SUPPORTED_MESSAGE_FILE_MIME_TYPES, OLLAMA_SUPPORTED_MESSAGE_IMAGE_MIME_TYPES, OLLAMA_SUPPORTED_VECTOR_STORE_FILE_MIME_TYPES } from "./ollama-supported-filetypes"
 import { env } from "$env/dynamic/private"
-import type { VectorChunk } from "$lib/types/vector"
-import { cosineSimilarity, filesToChunks, filterChunks, filterChunksHigest, splitToChuncks } from "$lib/util/vectorUtil"
-import { MockVectorStore } from "../db/vectorstore/mock_vectorstore"
+import type { VectorContext } from "$lib/server/db/vectorstore/types"
+import { fileToChunks, filterChunksHigest } from "$lib/server/db/vectorstore/vectorUtil"
 import type { IVectorStore } from "../db/vectorstore/interface"
-import { MongoDbVectorStore } from "../db/vectorstore/mongodb_vectorstore"
+import type { IEmbedder } from "../embeddings/interface"
+import { OllamaEmbedder } from "../embeddings/ollama_embedder"
+import type { VectorStoreFile } from "$lib/types/vector-store"
+import { updateDBConversation } from "../agents/conversations"
+import { combineVectorStores } from "../agents/agents"
 
-let mockDbData: { agents: DBAgent[]; conversations: DBConversation[]; vectors: Record<string, VectorChunk[]> }
+let mockDbData: { agents: DBAgent[]; conversations: DBConversation[]; }
 if (env.MOCK_DB === "true") {
 	const { getMockDb } = await import("$lib/server/db/mockdb.js")
 	mockDbData = await getMockDb()
@@ -125,7 +128,7 @@ const convertToOllamaMessages = (messages: Message[], instructions: string[], co
 const findRelevantVectors = async (vectorContexts: string[], prompt: string): Promise<string[]> => {
 	const vectorStore: IVectorStore = await getVectorStore()
 	const vectorChunks = await vectorStore.getVectorChunks(vectorContexts)
-	if (!vectorChunks || vectorChunks.length === 0)	return []
+	if (!vectorChunks || vectorChunks.length === 0) return []
 
 	const req: EmbedRequest = {
 		model: 'embeddinggemma',
@@ -136,14 +139,6 @@ const findRelevantVectors = async (vectorContexts: string[], prompt: string): Pr
 	const promptVector = res.embeddings[0] || [];
 
 	return filterChunksHigest(promptVector, vectorChunks)
-}
-
-const getVectorStore = async (): Promise<IVectorStore> => {
-	if (env.MOCK_DB) {
-		return new MockVectorStore()
-	}
-
-	return new MongoDbVectorStore()
 }
 
 export class OllamaAgent implements IAgent {
@@ -172,7 +167,10 @@ export class OllamaAgent implements IAgent {
 		//addMessage(instructions, conversation.messages, "system", "text")
 
 		addMessage(initialPrompt, conversation.messages, "user", "text")
-		const vectorContexts = [`${this.dbAgent._id}:${conversation._id}`,`${this.dbAgent._id}:context` ]
+
+		// We add this :context thing as a temporary hack.....
+		const vectorContexts: string[] = [...combineVectorStores(this.dbAgent.config, conversation), this.dbAgent._id+':context']
+
 		const vectors = (typeof initialPrompt === "string") ? await findRelevantVectors(vectorContexts, initialPrompt) : []
 
 		const ollamaResponse = await makeOllamaInstance(this.dbAgent.config, convertToOllamaMessages(conversation.messages, this.dbAgent.config.instructions, vectors), streamResponse)
@@ -192,7 +190,9 @@ export class OllamaAgent implements IAgent {
 		}
 
 		addMessage(prompt, conversation.messages, "user", "text")
-		const vectorContexts = [`${this.dbAgent._id}:${conversation._id}`,`${this.dbAgent._id}:context` ]
+
+		// We add this :context thing as a temporary hack.....
+		const vectorContexts: string[] = [...combineVectorStores(this.dbAgent.config, conversation), this.dbAgent._id+':context']
 		const vectors = (typeof prompt === "string") ? await findRelevantVectors(vectorContexts, prompt) : []
 
 		const ollamaResponse = await makeOllamaInstance(this.dbAgent.config, convertToOllamaMessages(conversation.messages, this.dbAgent.config.instructions, vectors), streamResponse)
@@ -209,51 +209,64 @@ export class OllamaAgent implements IAgent {
 			throw new Error("Predefined Ollama agents are not supported")
 		}
 
-		const vectorStrings: string[] = await filesToChunks(files)
-		const req: EmbedRequest = {
-			model: 'embeddinggemma',
-			input: vectorStrings,
-			truncate: false
-		}
-
 		const vectorStore: IVectorStore = await getVectorStore()
-		const vectorContext = `${this.dbAgent._id}:context`
-		const res = await ollama.embed(req)
-		vectorStore.addVectorData(vectorContext, vectorStrings, res.embeddings)
 
+		// Dette er midlertidig hack for å mocke agentVectorstores. siden vi ikke har noe måte å fikse det på pr nå
+		const vectorContext = `${this.dbAgent._id}:context`
+		const context = await vectorStore.getContext(vectorContext)
+		if (!context) {
+			vectorStore.createContext(vectorContext)
+		}
+		// slutt på hack
+
+
+		const embedder: IEmbedder = new OllamaEmbedder()
+
+		for (const file of files) {
+			const vectorStrings: string[] = await fileToChunks(file)
+			const embeddings = await embedder.embed(vectorStrings)
+			const vectorFile = await vectorStore.makeFile(vectorContext, file.name, file.size)
+			vectorStore.addVectorData(vectorContext, vectorFile.id, vectorStrings, embeddings)
+		}
 		const readableStream = new ReadableStream({
 			async start(controller) {
 				for (const file of files) {
 					controller.enqueue(createSse({ event: "agent.vectorstore.file.processed", data: { fileId: crypto.randomUUID(), fileName: file.name } }))
 				}
 			}
-		}
-		)
+		})
 
 		return { response: readableStream }
 	}
 
 	public async addConversationVectorStoreFiles(conversation: DBConversation, files: File[], _streamResponse: boolean): Promise<IAgentResults["AddConversationVectorStoreFilesResult"]> {
+		const vectorStore: IVectorStore = await getVectorStore()
+
+		let contextId = conversation.vectorStoreId
+		if (!contextId) {
+			const vectorContext: VectorContext = await vectorStore.createContext()
+			contextId = vectorContext.contextId
+			updateDBConversation(conversation._id, { vectorStoreId: contextId })
+		}
+
 		if (this.dbAgent.config.type === "predefined") {
 			throw new Error("Predefined Ollama agents are not supported")
 		}
 
-		const vectorStrings: string[] = await filesToChunks(files)
-		const req: EmbedRequest = {
-			model: 'embeddinggemma', //vendorInfo.models.supported.includes(this.dbAgent.config.model) ? this.dbAgent.config.model : vendorInfo.models.default,
-			input: vectorStrings,
-			truncate: false
+		const embedder: IEmbedder = new OllamaEmbedder()
+		const resultFiles: VectorStoreFile[] = []
+
+		for (const file of files) {
+			const vectorStrings: string[] = await fileToChunks(file)
+			const embeddings = await embedder.embed(vectorStrings)
+			const vectorFile = await vectorStore.makeFile(contextId, file.name, file.size)
+			resultFiles.push(vectorFile)
+			vectorStore.addVectorData(contextId, vectorFile.id, vectorStrings, embeddings)
 		}
-
-		const vectorStore: IVectorStore = await getVectorStore()
-		const vectorContext = `${this.dbAgent._id}:${conversation._id}`
-		const res = await ollama.embed(req)
-		vectorStore.addVectorData(vectorContext, vectorStrings, res.embeddings)
-
 		const readableStream = new ReadableStream({
 			async start(controller) {
-				for (const file of files) {
-					controller.enqueue(createSse({ event: "conversation.vectorstore.files.processed", data: { vectorStoreId: vectorContext, files: [{ fileId: crypto.randomUUID()}] }}))
+				for (const file of resultFiles) {
+					controller.enqueue(createSse({ event: "conversation.vectorstore.files.processed", data: { vectorStoreId: contextId, files: [{ fileId: file.id }] } }))
 				}
 			}
 		}

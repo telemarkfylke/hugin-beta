@@ -1,4 +1,4 @@
-import { VectorChunk } from "$lib/types/vector";
+import { VectorChunk } from "$lib/server/db/vectorstore/types";
 
 export function cosineSimilarity(a: number[], b: number[]): number {
   if (a.length !== b.length) {
@@ -32,6 +32,13 @@ export async function filesToChunks(files: File[], result?: string[]): Promise<s
 		const text = await file.text()
 		result.push(...splitToChuncks(text))
 	}
+	return result
+}
+
+export async function fileToChunks(file: File, result?: string[]): Promise<string[]> {
+	if(!result) result = []
+	const text = await file.text()
+	result.push(...splitToChuncks(text))
 	return result
 }
 

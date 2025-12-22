@@ -1,7 +1,13 @@
-import type { VectorChunk } from "$lib/types/vector"
+import type { VectorChunk, VectorContext } from "$lib/server/db/vectorstore/types"
+import type { VectorStoreFile } from "$lib/types/vector-store"
 
 export interface IVectorStore {
-	addVectorMatrix(context:string, text: string, matrix: number[]): void
+	getContext(id:string): Promise<VectorContext | null>
+	createContext(id?:string): Promise<VectorContext>
+	addVectorMatrix(context:string, fileId: string, text: string, matrix: number[]): void
 	getVectorChunks(vectorContexts: string[]): Promise<VectorChunk[]>
-	addVectorData(context: string, texts: string[], matrixes: number[][]): void 
+	addVectorData(context: string, fileId: string, texts: string[], matrixes: number[][]): void
+	makeFile(context: string, filename: string, bytes:number): Promise<VectorStoreFile>
+	getFiles(context:string) : Promise<VectorStoreFile[]>
+	removeFile(context: string, fileId:string) : Promise<number>	
 }
