@@ -1,45 +1,58 @@
-import type { VectorChunk, VectorContext } from "$lib/server/db/vectorstore/types";
+import type { CreateContextConfig, VectorChunk, VectorContext } from "$lib/server/db/vectorstore/types";
 import type { VectorStoreFile } from "$lib/types/vector-store";
-import type { IVectorStore } from "./interface";
+import type { IVectorStoreDb } from "./interface";
 
+enum FilterType { Highest, Treshold }
 
-export class MockVectorStore implements IVectorStore {
+export class MockVectorStoreDb implements IVectorStoreDb {
 
 	static contexts: Record<string, VectorContext> = {}
 
-	constructor() {
+	private filterType: FilterType
 
+	constructor(filterType?: FilterType) {
+		this.filterType = filterType || FilterType.Highest
 	}
 
-	private getContexts(): Record<string, VectorContext> {
-		if (!MockVectorStore.contexts) {
-			MockVectorStore.contexts = {}
+	private getContextsDictionary(): Record<string, VectorContext> {
+
+		if (!MockVectorStoreDb.contexts) {
+			MockVectorStoreDb.contexts = {}
 		}
 
-		return MockVectorStore.contexts
+		return MockVectorStoreDb.contexts
 	}
 
-
 	//__________________________________________________________________
+
+	public async getContexts(): Promise<VectorContext[]> {
+		const dictionary = this.getContextsDictionary()
+		const contexts = Object.entries(dictionary).map((entry) => { return entry[1] })
+		return contexts
+	}
+
 	public async getContext(contextId: string): Promise<VectorContext | null> {
-		const contextDictionary = this.getContexts()
+		const contextDictionary = this.getContextsDictionary()
 		if (!contextDictionary[contextId]) {
 			return null
 		}
 		return contextDictionary[contextId]
 	}
 
-	public async createContext(id?: string): Promise<VectorContext> {
+	public async createContext(config: CreateContextConfig): Promise<VectorContext> {
+		// temporary hack. in the end we don't want to have userdefined id's I think.
+		let id = config.id
 		if (!id)
 			id = crypto.randomUUID()
 
-		const contextDictionary = this.getContexts()
+		const contextDictionary = this.getContextsDictionary()
 		if (contextDictionary[id]) {
 			return contextDictionary[id] as VectorContext
 		}
 
-		const reply: VectorContext = { contextId: id, vectors: [], files: {} }
-		contextDictionary[reply.contextId] = { contextId: id, vectors: [], files: {} }
+		const timestamp = new Date().toISOString()
+		const reply: VectorContext = { contextId: id, vectors: [], files: {}, name: config.name || 'vectorStore_' + Date.now().toString(), createdAt: timestamp }
+		contextDictionary[reply.contextId] = reply
 		return reply
 	}
 
@@ -113,4 +126,47 @@ export class MockVectorStore implements IVectorStore {
 		vectorContext.vectors = filteredVectors
 		return total
 	}
+
+	public async search(vectorContexts: string[], promptVector: number[]): Promise<VectorChunk[]> {
+		const vectorChunks = await this.getVectorChunks(vectorContexts)
+		if (!vectorChunks || vectorChunks.length === 0) return []
+		return this.filterType === FilterType.Highest ? filterChunksHigest(promptVector, vectorChunks) : filterChunksTreshold(promptVector, vectorChunks)
+	}
+}
+
+//-------------------
+function filterChunksTreshold(promptVector: number[], vectorChunks: VectorChunk[], treshold: number = 0.5): VectorChunk[] {
+	return vectorChunks.filter((chunk: VectorChunk) => {
+		return cosineSimilarity(promptVector, chunk.vectorMatrix) >= treshold
+	})
+}
+
+function filterChunksHigest(promptVector: number[], vectorChunks: VectorChunk[], cutoff: number = 2): VectorChunk[] {
+	const tmp = vectorChunks.map((chunk: VectorChunk) => {
+		return { score: cosineSimilarity(promptVector, chunk.vectorMatrix), chunk: chunk }
+	}).sort((a, b) => {
+		return b.score - a.score
+	})
+	return tmp.map((wrapper) => wrapper.chunk).slice(0, cutoff)
+}
+
+function cosineSimilarity(a: number[], b: number[]): number {
+	if (a.length !== b.length) {
+		throw new Error("Vektorene må ha samme lengde!");
+	}
+	let dotProduct = 0;
+	let normA = 0;
+	let normB = 0;
+	for (let i = 0; i < a.length; i++) {
+		const bn = b[i] || 0
+		const an = a[i] || 0
+
+		dotProduct += an * bn;
+		normA += an * an;
+		normB += bn * bn;
+	}
+	if (normA === 0 || normB === 0) {
+		return 0; // Unngå divisjon på null
+	}
+	return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
 }

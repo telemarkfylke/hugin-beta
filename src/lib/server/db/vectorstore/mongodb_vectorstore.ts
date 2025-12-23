@@ -1,8 +1,8 @@
-import type { VectorChunk, VectorContext } from "$lib/server/db/vectorstore/types";
+import type { CreateContextConfig, VectorChunk, VectorContext } from "$lib/server/db/vectorstore/types";
 import type { VectorStoreFile } from "$lib/types/vector-store";
-import type { IVectorStore } from "./interface";
+import type { IVectorStoreDb } from "./interface";
 
-export class MongoDbVectorStore implements IVectorStore {
+export class MongoVectorStoreDb implements IVectorStoreDb {
 
 	static contexts: Record<string, VectorContext> = {}
 	static vectors: Record<string, VectorChunk[]> = {}
@@ -10,13 +10,20 @@ export class MongoDbVectorStore implements IVectorStore {
 
 	constructor() {
 	}
-	getContext(id: string): Promise<VectorContext | null> {
+
+	getContexts(): Promise<VectorContext[]> {
 		throw new Error("Method not implemented.");
 	}
-	createContext(id?:string): Promise<VectorContext> {
+
+	getContext(_id: string): Promise<VectorContext | null> {
 		throw new Error("Method not implemented.");
 	}
-	makeFile(_context: string, _filename: string, _bytes:number): Promise<VectorStoreFile> {
+
+	createContext(_config: CreateContextConfig): Promise<VectorContext> {
+		throw new Error("Method not implemented.");
+	}
+
+	makeFile(_context: string, _filename: string, _bytes: number): Promise<VectorStoreFile> {
 		throw new Error("Method not implemented.");
 	}
 
@@ -26,7 +33,7 @@ export class MongoDbVectorStore implements IVectorStore {
 	removeFile(_context: string, _fileId: string): Promise<number> {
 		throw new Error("Method not implemented.");
 	}
-	
+
 	addVectorMatrix(_context: string, _fileId: string, _text: string, _matrix: number[]): void {
 		throw new Error("Method not implemented.");
 	}
@@ -36,6 +43,10 @@ export class MongoDbVectorStore implements IVectorStore {
 	}
 
 	addVectorData(_context: string, _fileId: string, _texts: string[], _matrixes: number[][]): void {
+		throw new Error("Method not implemented.");
+	}
+
+	search(_vectorContexts: string[], _queryVector: number[]): Promise<VectorChunk[]> {
 		throw new Error("Method not implemented.");
 	}
 }

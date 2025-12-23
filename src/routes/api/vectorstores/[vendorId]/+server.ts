@@ -7,24 +7,24 @@ import type { GetVectorStoresResponse } from "$lib/types/api-responses"
 import type { MiddlewareNextFunction } from "$lib/types/middleware/http-request"
 import OpenAI from "openai"
 import { OpenAIVendor } from "$lib/server/openai/openai"
+import type { VendorId } from "$lib/types/vendor-ids"
+import { createVendor } from "$lib/server/agents/vendors"
 
-const getVendorVectorStores: MiddlewareNextFunction = async ({ user }) => {
+const getVendorVectorStores: MiddlewareNextFunction = async ({ requestEvent, user }) => {
 	if (!canViewVendorVectorStores(user)) {
 		throw new HTTPError(403, `User ${user.userId} is not authorized to view vendor vector stores`)
 	}
-	// Kanskje greiest å bare implemenetere per leverandør statisk her først?
-	const mistralVendor = new MistralVendor()
-	const mistralVectorStores = await mistralVendor.listVectorStores()
 
-	const openAiVendor = new OpenAIVendor()
-	const openAiVectorStores = await openAiVendor.listVectorStores()	
-	const response: GetVectorStoresResponse = { vectorstores: [...openAiVectorStores.vectorstores, ...mistralVectorStores.vectorstores] }
-
+	const { vendorId } = requestEvent.params
+	if (!vendorId) {
+		throw new HTTPError(400, "vendorId are required")
+	}
+	const vendor = createVendor(vendorId as VendorId)
+	const vectorStores = await vendor.listVectorStores()
 	return {
-		response: json(response),
+		response: json(vectorStores  as GetVectorStoresResponse),
 		isAuthorized: true
 	}
-
 }
 
 export const GET: RequestHandler = async (requestEvent) => {
