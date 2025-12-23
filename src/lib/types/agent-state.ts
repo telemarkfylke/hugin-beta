@@ -27,6 +27,7 @@ export type AgentInfo = {
 export type AgentState = {
 	agentId: string | null
 	agentInfo: AgentInfo
+	vectorStoreFiles: VectorStoreFile[]
 	currentConversation: CurrentAgentConversation
 	conversations: {
 		isLoading: boolean
@@ -46,5 +47,6 @@ export type AgentStateHandler = {
 	getAgentInfo: () => void
 	getAgentConversation: (conversationId: string) => void
 	addConversationVectorStoreFiles: (files: FileList) => void
+	addVectorStoreFiles: (files: FileList) => void
 	deleteConversationVectorStoreFile: (fileId: string) => void
 }

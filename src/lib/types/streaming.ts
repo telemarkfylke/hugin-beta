@@ -43,6 +43,14 @@ const ConversationVectorStoreCreated = z.object({
 	})
 })
 
+const AgentFileProcessed = z.object({
+	event: z.literal("agent.vectorstore.file.processed"),
+	data: z.object({
+		fileId: z.string(),
+		fileName: z.string()
+	})
+})
+
 const ConversationFileUploaded = z.object({
 	event: z.literal("conversation.vectorstore.file.uploaded"),
 	data: z.object({
@@ -67,7 +75,8 @@ export const MuginSse = z.discriminatedUnion("event", [
 	ErrorEvent,
 	ConversationVectorStoreCreated,
 	ConversationFileUploaded,
-	ConversationFilesProcessed
+	ConversationFilesProcessed,
+	AgentFileProcessed
 ])
 
 export type MuginSse = z.infer<typeof MuginSse>

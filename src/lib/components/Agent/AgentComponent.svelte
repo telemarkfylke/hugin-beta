@@ -3,6 +3,7 @@
 	import AgentConversationMessage from "./AgentConversationMessage.svelte"
 	import AgentConversations from "./AgentConversations.svelte"
 	import AgentConversationVectorStoreFiles from "./AgentConversationVectorStoreFiles.svelte"
+	import AgentVectorStoreFiles from "./AgentVectorStoreFiles.svelte"
 	import AgentInfo from "./AgentInfo.svelte"
 	import { createAgentState } from "./AgentState.svelte.ts"
 
@@ -46,6 +47,7 @@
     <p>Yada yada yada skriv instruksjoner eller no drit hvis det er tilgjengelig på agenten</p>
     <h3>Kunnskap</h3>
     <AgentConversationVectorStoreFiles {agentStateHandler} />
+		<AgentVectorStoreFiles {agentStateHandler} />
     <h3>Lagre som ny agent?</h3>
     <p>Skal det være lov?</p>
     <h3>Samtale-logg (agent-spesifikt)</h3>

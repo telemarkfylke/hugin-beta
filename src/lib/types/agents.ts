@@ -97,6 +97,7 @@ export type IAgentResults = {
 		response: ReadableStream<Uint8Array>
 	}
 	AddConversationVectorStoreFilesResult: IVendorResults["AddVectorStoreFilesResult"]
+	AddVectorStoreFilesResult: IVendorResults["AddVectorStoreFilesResult"]
 	GetConversationVectorStoreFilesResult: IVendorResults["GetVectorStoreFilesResult"]
 	GetConversationVectorStoreFileContentResult: {
 		redirectUrl?: string
@@ -117,4 +118,5 @@ export interface IAgent {
 	getConversationVectorStoreFileContent(conversation: DBConversation, fileId: string): Promise<IAgentResults["GetConversationVectorStoreFileContentResult"]>
 	deleteConversationVectorStoreFile(conversation: DBConversation, fileId: string): Promise<void>
 	getConversationMessages(conversation: DBConversation): Promise<IAgentResults["GetConversationMessagesResult"]>
+	appendVectorStoreFiles(files: File[], streamResponse: boolean): Promise<IAgentResults["AddVectorStoreFilesResult"]>
 }
