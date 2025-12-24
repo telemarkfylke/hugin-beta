@@ -91,7 +91,11 @@ export const updateDBConversation = async (conversationId: string, updateData: P
 
 export const deleteDBConversation = async (conversationId: string): Promise<void> => {
 	if (mockDbData) {
-		mockDbData.conversations = mockDbData.conversations.filter((conversation) => conversation._id !== conversationId)
+		const index = mockDbData.conversations.findIndex((conversation) => conversation._id === conversationId)
+		if (index === -1) {
+			throw new Error(`Conversation ${conversationId} not found`)
+		}
+		mockDbData.conversations.splice(index, 1)
 		return
 	}
 	throw new Error("Not implemented - please set MOCK_DB to true in env")

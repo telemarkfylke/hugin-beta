@@ -58,6 +58,22 @@ const ConversationFilesProcessed = z.object({
 		vectorStoreId: z.string()
 	})
 })
+// Eventer som har har med funksjonskall å gjøre
+const ConversationFunctionCalling = z.object({
+	event: z.literal("conversation.function.calling"),
+	data: z.object({
+		functionName: z.string(),
+		arguments: z.string()
+	})
+})
+
+const ConversationFunctionResult = z.object({
+	event: z.literal("conversation.function.result"),
+	data: z.object({
+		functionName: z.string(),
+		result: z.string()
+	})
+})
 
 export const MuginSse = z.discriminatedUnion("event", [
 	ConversationStarted,
@@ -67,7 +83,8 @@ export const MuginSse = z.discriminatedUnion("event", [
 	ErrorEvent,
 	ConversationVectorStoreCreated,
 	ConversationFileUploaded,
-	ConversationFilesProcessed
+	ConversationFunctionCalling,
+	ConversationFunctionResult
 ])
 
 export type MuginSse = z.infer<typeof MuginSse>

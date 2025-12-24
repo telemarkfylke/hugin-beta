@@ -9,13 +9,19 @@ import type { AgentPrompt } from "$lib/types/message"
 import { MistralVendor, mistral } from "./mistral"
 import { createMessageFromMistralMessage } from "./mistral-message"
 import { MISTRAL_SUPPORTED_MESSAGE_FILE_MIME_TYPES, MISTRAL_SUPPORTED_MESSAGE_IMAGE_MIME_TYPES, MISTRAL_SUPPORTED_VECTOR_STORE_FILE_MIME_TYPES } from "./mistral-supported-filetypes"
+import { mistralFunctionTools, executeMistralfunksjon } from "./mistral-functions" // Funksjonskallgreier
 
 const mistralVendor = new MistralVendor()
 const vendorInfo = mistralVendor.getVendorInfo()
 
-const handleMistralStream = (stream: EventStream<ConversationEvents>, dbConversationId?: string, userLibraryId?: string | null): ReadableStream<Uint8Array> => {
+const handleMistralStream = (stream: EventStream<ConversationEvents>, dbConversationId?: string, userLibraryId?: string | null, conversationId?: string): ReadableStream<Uint8Array> => {
 	return new ReadableStream({
 		async start(controller) {
+			// Samler opp funksjonskall som kommer i chunks fra Mistral
+			// Map med toolCallId som nøkkel, slik at vi kan bygge opp komplette funksjonskall fra flere chunks
+			const pendingFunctionCalls = new Map<string, { name: string; arguments: string; toolCallId: string }>() // Buffer for navn og argumenter
+			let mistralConversationId: string | undefined = conversationId
+
 			if (dbConversationId) {
 				controller.enqueue(createSse({ event: "conversation.started", data: { conversationId: dbConversationId } }))
 			}
@@ -24,12 +30,15 @@ const handleMistralStream = (stream: EventStream<ConversationEvents>, dbConversa
 			}
 			for await (const chunk of stream) {
 				if (!["conversation.response.started", "message.output.delta"].includes(chunk.event)) {
-					console.log("Mistral stream chunk event:", chunk.event, chunk.data)
+					console.log("Mistral stream chunk event:", chunk.event, "data:", chunk.data)
 				}
 				// Types are not connected to the event in mistral... so we use type instead
 				switch (chunk.data.type) {
 					case "conversation.response.started":
-						// controller.enqueue(createSse('conversation.started', { MistralConversationId: chunk.data.conversationId }));
+						// Capture the Mistral conversation ID for later use
+						if (!mistralConversationId) {
+							mistralConversationId = chunk.data.conversationId
+						}
 						break
 					case "message.output.delta":
 						controller.enqueue(
@@ -40,10 +49,134 @@ const handleMistralStream = (stream: EventStream<ConversationEvents>, dbConversa
 						)
 						break
 					case "conversation.response.done":
-						controller.enqueue(createSse({ event: "conversation.message.ended", data: { totalTokens: chunk.data.usage.totalTokens || 0 } }))
+						// Når streamen er ferdig, kjør alle funksjonskall vi har samlet opp
+						console.log(`Response done - kjører ${pendingFunctionCalls.size} funksjonskall`)
+
+						if (pendingFunctionCalls.size > 0) {
+							const functionResults: Array<{ toolCallId: string; result: string; type: "function.result" }> = []
+
+							// Kjør alle funksjonskallene vi har bufret
+							for (const funksjon of pendingFunctionCalls.values()) {
+								try {
+									console.log(`Kjører funksjon: ${funksjon.name} med argumenter:`, funksjon.arguments)
+
+									// Parse argumentene (er nå komplette siden vi har mottatt alle chunks)
+									const args = JSON.parse(funksjon.arguments || "{}")
+
+									// Kjør funksjonen
+									const result = await executeMistralfunksjon(funksjon.name, args)
+									console.log("Funksjonsresultat:", result)
+
+									// Send resultat til frontend
+									controller.enqueue(
+										createSse({
+											event: "conversation.function.result",
+											data: {
+												functionName: funksjon.name,
+												result: String(result)
+											}
+										})
+									)
+
+									// Samle resultat for å sende tilbake til Mistral
+									functionResults.push({
+										toolCallId: funksjon.toolCallId,
+										result: String(result),
+										type: "function.result"
+									})
+								} catch (error) {
+									console.error(`Feil ved kjøring av funksjon ${funksjon.name}:`, error)
+									controller.enqueue(
+										createSse({
+											event: "error",
+											data: {
+												message: `Funksjonsutføring feilet: ${error instanceof Error ? error.message : "Ukjent feil"}`
+											}
+										})
+									)
+								}
+							}
+
+							// Tøm bufret funksjoner
+							pendingFunctionCalls.clear()
+
+							// Send funksjonsresultatene tilbake til Mistral og få endelig svar
+							if (functionResults.length > 0 && mistralConversationId) {
+								console.log("Sender funksjonsresultater tilbake til Mistral:", functionResults)
+								const followUpStream = await mistral.beta.conversations.appendStream({
+									conversationId: mistralConversationId,
+									conversationAppendStreamRequest: {
+										inputs: functionResults
+									}
+								})
+
+								// Stream Mistrals endelige svar (etter bruk av funksjonsresultatene)
+								for await (const followUpChunk of followUpStream) {
+									if (!["conversation.response.started", "message.output.delta"].includes(followUpChunk.event)) {
+										console.log("Mistral follow-up stream chunk event:", followUpChunk.event, "data:", followUpChunk.data)
+									}
+
+									switch (followUpChunk.data.type) {
+										case "message.output.delta":
+											controller.enqueue(
+												createSse({
+													event: "conversation.message.delta",
+													data: {
+														messageId: followUpChunk.data.id,
+														content: typeof followUpChunk.data.content === "string" ? followUpChunk.data.content : ""
+													}
+												})
+											)
+											break
+										case "conversation.response.done":
+											controller.enqueue(createSse({ event: "conversation.message.ended", data: { totalTokens: followUpChunk.data.usage.totalTokens || 0 } }))
+											break
+										case "conversation.response.error":
+											controller.enqueue(createSse({ event: "error", data: { message: followUpChunk.data.message } }))
+											break
+									}
+								}
+							} else {
+								// Ingen funksjonsresultater eller mangler conversation ID
+								controller.enqueue(createSse({ event: "conversation.message.ended", data: { totalTokens: chunk.data.usage.totalTokens || 0 } }))
+							}
+						} else {
+							// Ingen funksjonskall, avslutter meldingen normalt
+							controller.enqueue(createSse({ event: "conversation.message.ended", data: { totalTokens: chunk.data.usage.totalTokens || 0 } }))
+						}
 						break
 					case "conversation.response.error":
 						controller.enqueue(createSse({ event: "error", data: { message: chunk.data.message } }))
+						break
+					case "function.call.delta":
+						// Håndter funksjonskall som kommer i chunks
+						// Mistral sender funksjonskall i flere deler, så vi må samle de opp
+						const toolCallId = chunk.data.toolCallId
+						const existingCall = pendingFunctionCalls.get(toolCallId)
+
+						if (existingCall) {
+							// Legg til flere argumenter til eksisterende funksjonskall
+							existingCall.arguments += chunk.data.arguments || ""
+						} else {
+							// Første chunk for dette funksjonskallet - opprett ny entry
+							pendingFunctionCalls.set(toolCallId, {
+								name: chunk.data.name,
+								arguments: chunk.data.arguments || "",
+								toolCallId: toolCallId
+							})
+							console.log(`Funksjonskall startet: ${chunk.data.name}`)
+
+							// Varsle frontend om at funksjon blir kalt
+							controller.enqueue(
+								createSse({
+									event: "conversation.function.calling",
+									data: {
+										functionName: chunk.data.name,
+										arguments: ""
+									}
+								})
+							)
+						}
 						break
 					// Ta hensyn til flere event typer her etter behov
 					default:
@@ -144,6 +277,21 @@ const createMistralConversationConfig = async (agentConfig: AgentConfig, initial
 	if (agentConfig.webSearchEnabled) {
 		throw new Error("Web search tool is not yet implemented for Mistral agents")
 	}
+	// Sjekkker om funksjonskall er aktivert og legger til tools-array om nødvendig
+	if (agentConfig.functionsEnabled) {
+		console.log("Legger til funksjoner:", mistralFunctionTools)
+		if(!mistralConversationConfig.tools) {
+			mistralConversationConfig.tools = []
+		}
+		// Dytter inn tools for hver funksjon vi har definert
+		for (const tool of mistralFunctionTools) {
+			mistralConversationConfig.tools.push({
+				...tool, // Funksjonsbeskrivelsen fra mistral-functions.ts
+				type: "function"
+			})
+		}
+		console.log("La til liste med funksjoner for Mistral agent: ", mistralFunctionTools.map(f => f.function.parameters))
+	}
 	return {
 		requestConfig: mistralConversationConfig,
 		data: {
@@ -204,7 +352,7 @@ export class MistralAgent implements IAgent {
 					inputs: createMistralPromptFromAgentPrompt(prompt)
 				}
 			})
-			const readableStream = handleMistralStream(stream)
+			const readableStream = handleMistralStream(stream, undefined, undefined, conversation.vendorConversationId)
 			return { response: readableStream }
 		}
 		throw new Error("Non-streaming Mistral conversation append is not yet implemented")

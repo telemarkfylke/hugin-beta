@@ -7,7 +7,8 @@ import type { IVendorResults } from "./vendors"
 const BaseConfig = z.object({
 	vectorStoreEnabled: z.boolean().default(false).optional(),
 	messageFilesEnabled: z.boolean().default(false).optional(),
-	webSearchEnabled: z.boolean().default(false).optional()
+	webSearchEnabled: z.boolean().default(false).optional(),
+	functionsEnabled: z.boolean().default(false).optional()
 })
 
 const PredefinedConfig = BaseConfig.extend({
@@ -117,4 +118,5 @@ export interface IAgent {
 	getConversationVectorStoreFileContent(conversation: DBConversation, fileId: string): Promise<IAgentResults["GetConversationVectorStoreFileContentResult"]>
 	deleteConversationVectorStoreFile(conversation: DBConversation, fileId: string): Promise<void>
 	getConversationMessages(conversation: DBConversation): Promise<IAgentResults["GetConversationMessagesResult"]>
+	// Legge til getFunctionResults eller noe slikt her senere hvis nødvendig?
 }

@@ -104,7 +104,27 @@ export const agents: DBAgent[] = [
 		updatedAt: new Date().toISOString(),
 		createdBy,
 		updatedBy
-	}
+	},
+	{
+		_id: "mistral-med-functions",
+		vendorId: "mistral",
+		name: "Mistral med function calls",
+		description: "Mistral agent som bruker funksjonskall hvis man skal legge sammen to tall",
+		config: {
+			type: "manual",
+			model: "mistral-medium-latest",
+			instructions: ["You are a helpful assistant that answers in Norwegian. If the user asks you to add two numbers, use the function to do so."],
+			vectorStoreEnabled: true,
+			messageFilesEnabled: true,
+			webSearchEnabled: false,
+			functionsEnabled: true
+		},
+		authorizedGroupIds: "all",
+		createdAt: new Date().toISOString(),
+		updatedAt: new Date().toISOString(),
+		createdBy,
+		updatedBy
+	},
 ]
 
 export const conversations: DBConversation[] = []
