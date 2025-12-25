@@ -59,6 +59,14 @@ const ConversationFilesProcessed = z.object({
 	})
 })
 // Eventer som har har med funksjonskall å gjøre
+const ConversationFunctionDelta = z.object({
+	event: z.literal("conversation.function.delta"),
+	data: z.object({
+		melding: z.string(),
+		arguments: z.string().optional()
+	})
+})
+
 const ConversationFunctionCalling = z.object({
 	event: z.literal("conversation.function.calling"),
 	data: z.object({
@@ -83,6 +91,7 @@ export const MuginSse = z.discriminatedUnion("event", [
 	ErrorEvent,
 	ConversationVectorStoreCreated,
 	ConversationFileUploaded,
+	ConversationFunctionDelta,
 	ConversationFunctionCalling,
 	ConversationFunctionResult
 ])
