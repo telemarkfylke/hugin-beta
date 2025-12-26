@@ -110,6 +110,11 @@ export const _promptAgent = async (agentState: AgentState, userPrompt: AgentProm
 						console.log("Conversation message ended. Total tokens used:", chatResult.data.totalTokens)
 						break
 					}
+					case "conversation.function.delta": {
+						// TODO: Display function call information in the UI
+						console.log("Function call in progress:", chatResult.data)
+						break
+					}
 					default: {
 						console.warn("Unhandled chat result event:", chatResult.event)
 						break

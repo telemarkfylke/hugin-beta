@@ -75,14 +75,6 @@ const ConversationFunctionCalling = z.object({
 	})
 })
 
-const ConversationFunctionResult = z.object({
-	event: z.literal("conversation.function.result"),
-	data: z.object({
-		functionName: z.string(),
-		result: z.string()
-	})
-})
-
 export const MuginSse = z.discriminatedUnion("event", [
 	ConversationStarted,
 	ConversationMessageDelta,
@@ -91,9 +83,9 @@ export const MuginSse = z.discriminatedUnion("event", [
 	ErrorEvent,
 	ConversationVectorStoreCreated,
 	ConversationFileUploaded,
+	ConversationFilesProcessed,
 	ConversationFunctionDelta,
-	ConversationFunctionCalling,
-	ConversationFunctionResult
+	ConversationFunctionCalling
 ])
 
 export type MuginSse = z.infer<typeof MuginSse>

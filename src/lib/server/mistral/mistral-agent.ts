@@ -14,6 +14,9 @@ import { mistralFunctionTools, executeMistralfunksjon } from "./mistral-function
 const mistralVendor = new MistralVendor()
 const vendorInfo = mistralVendor.getVendorInfo()
 
+// Lagrer informasjon om funksjonskall i samtalen. Kunne brukt objekt men Map har bedre metoder for dette usecaset
+const pendingFunctionCalls = new Map<string, { conversationId: string; toolCallId: string; name: string; arguments: string }>()
+
 const handleMistralStream = (stream: EventStream<ConversationEvents>, dbConversationId?: string, userLibraryId?: string | null): ReadableStream<Uint8Array> => {
 	return new ReadableStream({
 		async start(controller) {
@@ -43,15 +46,105 @@ const handleMistralStream = (stream: EventStream<ConversationEvents>, dbConversa
 						break
 					case "function.call.delta":
 						console.log("Mistral function call event received:", chunk.data)
+						// Lagrer informasjon om pågående funksjonskall
+						const existing = pendingFunctionCalls.get(chunk.data.toolCallId)
+						pendingFunctionCalls.set(chunk.data.toolCallId, {
+							conversationId: dbConversationId || "",
+							toolCallId: chunk.data.toolCallId,
+							name: chunk.data.name,
+							arguments: existing ? existing.arguments + chunk.data.arguments : chunk.data.arguments
+						})
+						console.log("Pending function calls:", Array.from(pendingFunctionCalls.values()))
 						controller.enqueue(
 							createSse({
 								event: "conversation.function.delta",
-								data: { melding: "Implementer senere" }
+								data: { melding: `Funksjon ${chunk.data.name} behandles....` }
 							})
 						)
 						break
 					case "conversation.response.done":
-						controller.enqueue(createSse({ event: "conversation.message.ended", data: { totalTokens: chunk.data.usage.totalTokens || 0 } }))
+						// Kjør funksjonskall hvis vi har noen
+						const functionResults: Array<{ toolCallId: string; result: string }> = []
+
+						for (const [toolCallId, callInfo] of pendingFunctionCalls) {
+							try {
+								console.log(`Executing function ${callInfo.name} with accumulated arguments:`, callInfo.arguments)
+								// Argumentene må parses fra string til objekt
+								const args = JSON.parse(callInfo.arguments)
+
+								// Kjøer custom-funksjonen
+								const result = await executeMistralfunksjon(callInfo.name, args)
+
+								// Lagrer resultatet fra funksjonskallet
+								functionResults.push({
+									toolCallId: toolCallId,
+									result: String(result) // Må typecastes til string (LeggSammenToTall reurnerer number f.eks)
+								})
+
+								console.log(`Function ${callInfo.name} executed successfully with result:`, result)
+							} catch (error) {
+								console.error(`Error executing function ${callInfo.name}:`, error)
+								functionResults.push({
+									toolCallId: toolCallId,
+									result: `Error: ${error instanceof Error ? error.message : String(error)}`
+								})
+							}
+						}
+
+						// Clear pending calls
+						pendingFunctionCalls.clear()
+
+						// Håndtering av funksjonsresultater
+						if (functionResults.length > 0) {
+							console.log("Submitting function results back to Mistral:", functionResults)
+
+							// Lager riktig input format for funksjonsresultater
+							const inputs: InputEntries[] = functionResults.map(fr => ({
+								type: "function.result" as const,
+								toolCallId: fr.toolCallId,
+								result: fr.result
+							}))
+
+							// Dytter resultatene tilbake til Mistral for å fortsette samtalen
+							// Her lages det en ny stream før den opprinnelige er ferdig.
+							// Jeg føler det blir litt rotete. Finnes det en bedre måte?
+							const continuationStream = await mistral.beta.conversations.appendStream({
+								conversationId: dbConversationId || "",
+								conversationAppendStreamRequest: {
+									inputs: inputs
+								}
+							})
+
+							// Streamer svar fra Mistral etter funksjonskall (Er det noen bedre måte å gjøre dette på?)
+							for await (const continuationChunk of continuationStream) {
+								if (!["conversation.response.started", "message.output.delta"].includes(continuationChunk.event)) {
+									console.log("Mistral continuation stream event:", continuationChunk.event, continuationChunk.data)
+								}
+
+								switch (continuationChunk.data.type) {
+									case "message.output.delta":
+										controller.enqueue(
+											createSse({
+												event: "conversation.message.delta",
+												data: { messageId: continuationChunk.data.id, content: typeof continuationChunk.data.content === "string" ? continuationChunk.data.content : "" }
+											})
+										)
+										break
+									case "conversation.response.done":
+										controller.enqueue(createSse({ event: "conversation.message.ended", data: { totalTokens: continuationChunk.data.usage.totalTokens || 0 } }))
+										break
+									case "conversation.response.error":
+										controller.enqueue(createSse({ event: "error", data: { message: continuationChunk.data.message } }))
+										break
+									// TODO: Handle recursive function calls if needed
+									default:
+										console.warn("Unhandled continuation stream event:", continuationChunk.data.type)
+								}
+							}
+						} else {
+							// No function results, just end the message
+							controller.enqueue(createSse({ event: "conversation.message.ended", data: { totalTokens: chunk.data.usage.totalTokens || 0 } }))
+						}
 						break
 					case "conversation.response.error":
 						controller.enqueue(createSse({ event: "error", data: { message: chunk.data.message } }))
