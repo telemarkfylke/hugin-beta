@@ -1,3 +1,4 @@
+/*
 import { json, type RequestHandler } from "@sveltejs/kit"
 import { httpRequestMiddleware } from "$lib/server/middleware/http-request"
 import type { MiddlewareNextFunction } from "$lib/types/middleware/http-request"
@@ -6,7 +7,6 @@ import { canPromptAgent } from "$lib/server/auth/authorization"
 import { HTTPError } from "$lib/server/middleware/http-error"
 import type { Agent } from "$lib/types/agents"
 import { responseStream } from "$lib/streaming"
-
 
 const uploadDataFiles: MiddlewareNextFunction = async ({ requestEvent, user }) => {
 	if (!requestEvent.params.agentId) {
@@ -65,3 +65,4 @@ const uploadDataFiles: MiddlewareNextFunction = async ({ requestEvent, user }) =
 export const POST: RequestHandler = async (requestEvent) => {
 	return httpRequestMiddleware(requestEvent, uploadDataFiles)
 }
+*/

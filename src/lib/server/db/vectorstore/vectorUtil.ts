@@ -22,14 +22,12 @@ export async function fileToChunks(file: File, result?: string[]): Promise<strin
 	return result
 }
 
-
 export const mapVectorContextToVectorStore = (context: VectorContext, vendor: "ollama" | "mock-ai"): VectorStore => {
 	return {
 		id: context.contextId,
 		vendorId: vendor,
 		name: context.name,
-		// @ts-expect-error SDK mangler description på typene sine, jeg vil se om den er der
-		description: openAIVectorStore.description || "",
+		description: "",
 		generatedDescription: "",
 		createdAt: new Date(context.createdAt).toISOString(),
 		numberOfFiles: Object.values(context.files).length,

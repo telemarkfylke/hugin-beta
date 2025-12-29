@@ -211,9 +211,10 @@ export class MistralAgent implements IAgent {
 		throw new Error("Non-streaming Mistral conversation append is not yet implemented")
 	}
 
+	/*
 	appendVectorStoreFiles(_files: File[], _streamResponse: boolean): Promise<IAgentResults["AddVectorStoreFilesResult"]> {
 		throw new Error("Method not implemented.")
-	}
+	}*/
 
 
 	public async addConversationVectorStoreFiles(conversation: DBConversation, files: File[], streamResponse: boolean): Promise<IAgentResults["AddConversationVectorStoreFilesResult"]> {

@@ -194,6 +194,7 @@ export class OllamaAgent implements IAgent {
 		throw new Error("Non-streaming Ollama conversation creation is not yet implemented")
 	}
 
+	/*
 	public async appendVectorStoreFiles(files: File[], _streamResponse: boolean): Promise<IAgentResults["AddVectorStoreFilesResult"]> {
 		if (this.dbAgent.config.type === "predefined") {
 			throw new Error("Predefined Ollama agents are not supported")
@@ -224,6 +225,7 @@ export class OllamaAgent implements IAgent {
 
 		return { response: readableStream }
 	}
+	*/
 
 	public async addConversationVectorStoreFiles(conversation: DBConversation, files: File[], _streamResponse: boolean): Promise<IAgentResults["AddConversationVectorStoreFilesResult"]> {
 

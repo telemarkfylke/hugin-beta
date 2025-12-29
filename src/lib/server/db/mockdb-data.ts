@@ -117,7 +117,8 @@ export const agents: DBAgent[] = [
 			instructions: ["Du skal primært svare på det som ligger lagret i dine embedded vector data.  Har du ikke noe der skal du gi beskjed om dette'"],
 			vectorStoreEnabled: true,
 			messageFilesEnabled: true,
-			webSearchEnabled: false
+			webSearchEnabled: false,
+			vectorStoreIds:['d5073ad2-a2df-439d-b229-3e098aae327c'] // This is one of the predefined stores in vectorstore mock
 		},
 		authorizedGroupIds: [],
 		createdAt: new Date().toISOString(),

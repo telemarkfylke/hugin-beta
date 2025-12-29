@@ -9,6 +9,9 @@
 		value: VectorStore[]
 	}
 
+	let canAddVectorStore = page.params.vendorId === 'ollama'
+	let newVectorStoreName = $state('')
+
 	let vectorstores: FrontendVectorStores = $state({
 		isLoading: false,
 		error: null,
@@ -31,6 +34,25 @@
 			vectorstores.error = error instanceof Error ? error.message : String(error)
 		}
 		vectorstores.isLoading = false
+	}
+
+	const addVectorStore = async (name: string) => {
+		vectorstores.isLoading = true
+		vectorstores.error = null
+		vectorstores.value = []		
+		const body = { name: name, description:''}
+		try {
+			const res = await fetch( `/api/vectorstores/${page.params.vendorId}`,{
+				method:'post',
+				body: JSON.stringify(body)
+			})
+			if (!res.ok) {
+				throw new Error(`Failed to fetch vector stores: ${res.statusText}`)
+			}
+			getVectorStores()
+		} catch (error) {
+			vectorstores.error = error instanceof Error ? error.message : String(error)
+		}
 	}
 
 	const deleteVectorStore = async (event: Event, vendorId: string, vectorstoreId: string) => {
@@ -67,6 +89,11 @@
 {:else if vectorstores.error}
   <p style="color: red;">Error: {vectorstores.error}</p>
 {:else}
+	{#if canAddVectorStore}
+  	<input bind:value={newVectorStoreName} id="newvectorstorename"  />
+		<button type="button" onclick={() => {addVectorStore(newVectorStoreName); newVectorStoreName=''}}>Legg til</button>
+	{/if}
+
   {#if vectorstores.value.length === 0}
     <p>No vector stores found.</p>
   {:else}
