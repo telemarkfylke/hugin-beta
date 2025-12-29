@@ -1,8 +1,8 @@
 // simply in-memory mock database corresponding to collections in mongodb
 
+import type { VectorChunk } from "$lib/server/db/vectorstore/types"
 import type { DBAgent } from "$lib/types/agents.ts"
 import type { DBConversation } from "$lib/types/conversation"
-import type { VectorChunk } from "$lib/server/db/vectorstore/types"
 
 const createdBy = {
 	objectId: "00000000-0000-0000-0000-000000000001",
@@ -98,7 +98,7 @@ export const agents: DBAgent[] = [
 		config: {
 			type: "manual",
 			model: "gemma3",
-			instructions: ["Svar som en ihuga Arsenal supporter som stadig svarer på spørsmål med en innskutt fotball referanse eller metafor"],
+			instructions: ["Svar som en ihuga Arsenal supporter som stadig svarer på spørsmål med en innskutt fotball referanse eller metafor"]
 		},
 		authorizedGroupIds: [],
 		createdAt: new Date().toISOString(),
@@ -118,7 +118,7 @@ export const agents: DBAgent[] = [
 			vectorStoreEnabled: true,
 			messageFilesEnabled: true,
 			webSearchEnabled: false,
-			vectorStoreIds:['d5073ad2-a2df-439d-b229-3e098aae327c'] // This is one of the predefined stores in vectorstore mock
+			vectorStoreIds: ["d5073ad2-a2df-439d-b229-3e098aae327c"] // This is one of the predefined stores in vectorstore mock
 		},
 		authorizedGroupIds: [],
 		createdAt: new Date().toISOString(),

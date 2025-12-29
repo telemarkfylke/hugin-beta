@@ -27,7 +27,6 @@ export type AgentInfo = {
 export type AgentState = {
 	agentId: string | null
 	agentInfo: AgentInfo
-	vectorStoreFiles: VectorStoreFile[]
 	currentConversation: CurrentAgentConversation
 	conversations: {
 		isLoading: boolean

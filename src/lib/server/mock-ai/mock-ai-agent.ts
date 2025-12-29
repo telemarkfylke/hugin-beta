@@ -37,7 +37,6 @@ export const handleMockAiStream = (conversationId?: string): ReadableStream => {
 }
 
 export class MockAIAgent implements IAgent {
-
 	public getAgentInfo(): Agent {
 		throw new Error("Method not implemented in MockAIAgent")
 	}
@@ -71,12 +70,6 @@ export class MockAIAgent implements IAgent {
 		}
 		throw new Error("Non-streaming add files not implemented in MockAIAgent")
 	}
-
-	/*
-	appendVectorStoreFiles(_files: File[], _streamResponse: boolean): Promise<IAgentResults["AddVectorStoreFilesResult"]> {
-		throw new Error("Method not implemented.")
-	}
-		*/
 
 	public async getConversationVectorStoreFiles(_conversation: DBConversation): Promise<IAgentResults["GetConversationVectorStoreFilesResult"]> {
 		throw new Error("Method not implemented in MockAIAgent")

@@ -171,11 +171,7 @@ export class OpenAIAgent implements IAgent {
 		}
 		throw new Error("Non-streaming append message not implemented yet")
 	}
-/*
-	appendVectorStoreFiles(_files: File[], _streamResponse: boolean): Promise<IAgentResults["AddVectorStoreFilesResult"]> {
-		throw new Error("Method not implemented.")
-	}
-*/
+
 	public async addConversationVectorStoreFiles(conversation: DBConversation, files: File[], streamResponse: boolean): Promise<IAgentResults["AddConversationVectorStoreFilesResult"]> {
 		let vectorStoreId = conversation.vectorStoreId
 		if (!vectorStoreId) {

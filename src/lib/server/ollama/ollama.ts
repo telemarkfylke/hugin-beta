@@ -1,14 +1,14 @@
 import { Ollama } from "ollama"
 import { env } from "$env/dynamic/private"
+import { createSse } from "$lib/streaming"
 import type { IVendor, IVendorResults, Vendor } from "$lib/types/vendors"
+import type { IVectorStoreDb } from "../db/vectorstore/interface"
 import { MockVectorStoreDb } from "../db/vectorstore/mock_vectorstore"
 import { MongoVectorStoreDb } from "../db/vectorstore/mongodb_vectorstore"
-import type { IVectorStoreDb } from "../db/vectorstore/interface"
 import type { VectorContext } from "../db/vectorstore/types"
 import { fileToChunks, mapVectorContextToVectorStore } from "../db/vectorstore/vectorUtil"
 import type { IEmbedder } from "../embeddings/interface"
 import { OllamaEmbedder } from "../embeddings/ollama_embedder"
-import { createSse } from "$lib/streaming"
 
 if (!env.SUPPORTED_MODELS_VENDOR_OLLAMA || env.SUPPORTED_MODELS_VENDOR_OLLAMA.trim() === "") {
 	throw new Error("SUPPORTED_MODELS_VENDOR_OLLAMA is not set in environment variables")
@@ -25,9 +25,7 @@ export const getVectorStore = (): IVectorStoreDb => {
 	return new MongoVectorStoreDb()
 }
 
-
 export class OllamaVendor implements IVendor {
-
 	private vectorStore: IVectorStoreDb
 	private embedder: IEmbedder
 
@@ -47,7 +45,7 @@ export class OllamaVendor implements IVendor {
 			}
 		}
 	}
-	
+
 	public async listConversations(): Promise<IVendorResults["ListConversationsResult"]> {
 		throw new Error("Method not implemented.")
 	}
@@ -59,7 +57,7 @@ export class OllamaVendor implements IVendor {
 	public async listVectorStores(): Promise<IVendorResults["ListVectorStoresResult"]> {
 		this.vectorStore.getContexts()
 		const contexts = await this.vectorStore.getContexts()
-		return { vectorstores: contexts.map((context) => mapVectorContextToVectorStore(context, 'ollama')) }
+		return { vectorstores: contexts.map((context) => mapVectorContextToVectorStore(context, "ollama")) }
 	}
 
 	public async getVectorStore(vendorVectorStoreId: string): Promise<IVendorResults["GetVectorStoreResult"]> {
@@ -111,7 +109,7 @@ export class OllamaVendor implements IVendor {
 			const readableStream = new ReadableStream({
 				async start(controller) {
 					for (const file of files) {
-						controller.enqueue(createSse({ event: "agent.vectorstore.file.processed", data: { fileId: crypto.randomUUID(), fileName: file.name } }))
+						controller.enqueue(createSse({ event: "vendor.vectorstore.file.processed", data: { fileId: crypto.randomUUID(), fileName: file.name } }))
 					}
 				}
 			})

@@ -1,5 +1,5 @@
 import { env } from "$env/dynamic/private"
-import { AgentConfig, DBAgent, type DBAgentPatchInput, type DBAgentPostInput, type DBAgentPutInput, type IAgent } from "$lib/types/agents.ts"
+import { type AgentConfig, DBAgent, type DBAgentPatchInput, type DBAgentPostInput, type DBAgentPutInput, type IAgent } from "$lib/types/agents.ts"
 import type { AuthenticatedUser } from "$lib/types/authentication.js"
 import type { DBConversation } from "$lib/types/conversation.js"
 import { canViewAllAgents } from "../auth/authorization.js"
@@ -136,13 +136,11 @@ export const createAgent = (dbAgent: DBAgent): IAgent => {
 	throw new Error(`Unsupported agent: ${dbAgent.name}`)
 }
 
-export const combineVectorStores = (config: AgentConfig, conversation: DBConversation | null): string[] =>{
-	const vectorContexts:string[] = []
-	if(conversation && conversation.vectorStoreId) 
-		vectorContexts.push(conversation.vectorStoreId)	
+export const combineVectorStores = (config: AgentConfig, conversation: DBConversation | null): string[] => {
+	const vectorContexts: string[] = []
+	if (conversation?.vectorStoreId) vectorContexts.push(conversation.vectorStoreId)
 
-	if(config.type ==='manual' && config.vectorStoreIds) 
-		vectorContexts.push(...config.vectorStoreIds)
-	
+	if (config.type === "manual" && config.vectorStoreIds) vectorContexts.push(...config.vectorStoreIds)
+
 	return vectorContexts
 }

@@ -1,9 +1,16 @@
-import { VectorChunk, type VectorContext } from "$lib/server/db/vectorstore/types";
-import type { VectorStore } from "$lib/types/vector-store";
+import type { VectorContext } from "$lib/server/db/vectorstore/types"
+import type { VectorStore } from "$lib/types/vector-store"
 
 // Dette er en måte å splitte på, vi bør eksprimentere litt med forskjellig chunking
 export function splitToChuncks(text: string): string[] {
-	return text.split('#').filter((part: string) => { return part != '' }).map((text: string) => { return text.toLowerCase() /*.replaceAll('\r\n','. ')*/ })
+	return text
+		.split("#")
+		.filter((part: string) => {
+			return part !== ""
+		})
+		.map((text: string) => {
+			return text.toLowerCase() /*.replaceAll('\r\n','. ')*/
+		})
 }
 
 export async function filesToChunks(files: File[], result?: string[]): Promise<string[]> {

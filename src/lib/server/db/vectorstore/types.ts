@@ -1,5 +1,5 @@
-import type { VectorStoreFile } from "$lib/types/vector-store"
 import z from "zod"
+import type { VectorStoreFile } from "$lib/types/vector-store"
 
 export const VectorChunk = z.object({
 	text: z.string(),
@@ -18,7 +18,7 @@ export type VectorContext = {
 }
 
 export type CreateContextConfig = {
-	id?: string,
-	name?: string,
+	id?: string
+	name?: string
 	description?: string
 }

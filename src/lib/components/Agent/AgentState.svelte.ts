@@ -13,7 +13,6 @@ const initialAgentState: AgentState = {
 		error: null,
 		value: null
 	},
-	vectorStoreFiles: [],
 	currentConversation: {
 		isLoading: false,
 		error: null,

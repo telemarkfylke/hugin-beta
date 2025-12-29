@@ -3,10 +3,10 @@ import { createVendor } from "$lib/server/agents/vendors"
 import { canManageVendorVectorStores, canViewVendorVectorStores } from "$lib/server/auth/authorization"
 import { HTTPError } from "$lib/server/middleware/http-error"
 import { httpRequestMiddleware } from "$lib/server/middleware/http-request"
+import { responseStream } from "$lib/streaming"
 import type { GetVendorVectorStoreFilesResponse } from "$lib/types/api-responses"
 import type { MiddlewareNextFunction } from "$lib/types/middleware/http-request"
 import type { VendorId } from "$lib/types/vendor-ids"
-import { responseStream } from "$lib/streaming"
 
 const getVendorVectorStoreFiles: MiddlewareNextFunction = async ({ requestEvent, user }) => {
 	if (!canViewVendorVectorStores(user)) {
@@ -35,7 +35,7 @@ const uploadVectorStoreFiles: MiddlewareNextFunction = async ({ requestEvent, us
 	 Det er mulig vi trenger et lokalt datalag med mapping her også for å styre hvem som har rettigheter til hvilke vectorstores, men jeg vet ikke.
 	 Det er mulig det bare holder med admin rettigheter for å kunne håndtere alle
 	*/
-	
+
 	if (!canManageVendorVectorStores(user)) {
 		throw new HTTPError(403, `User ${user.userId} is not authorized to view vendor vector stores`)
 	}
@@ -60,16 +60,15 @@ const uploadVectorStoreFiles: MiddlewareNextFunction = async ({ requestEvent, us
 	const vendor = createVendor(vendorId as VendorId)
 	const { response } = await vendor.addVectorStoreFiles(vectorstoreId, files, stream)
 
-	
 	// Validate each file
 	if (!files.every((file) => file instanceof File)) {
 		throw new HTTPError(400, "One or more files are not valid File instances")
 	}
 	if (!files.every((file) => file.type)) {
 		throw new HTTPError(400, "One or more files have empty file type")
-	}	
-	
-	// We don't have a agent here. maybee the mimetypes have to be on vendorlevel ? 
+	}
+
+	// We don't have a agent here. maybee the mimetypes have to be on vendorlevel ?
 	/*	
 	if (!files.every((file) => vendor.allowedMimeTypes.vectorStoreFiles.includes(file.type))) {
 		throw new HTTPError(400, "One or more files have invalid file type") // Add valid types message senere

@@ -2,8 +2,7 @@ import { env } from "$env/dynamic/private"
 import type { DBAgent } from "$lib/types/agents.js"
 import type { DBConversation } from "$lib/types/conversation.js"
 
-
-export const getMockDb = async (): Promise<{ agents: DBAgent[]; conversations: DBConversation[];}> => {
+export const getMockDb = async (): Promise<{ agents: DBAgent[]; conversations: DBConversation[] }> => {
 	const mockDbData = await import("./mockdb-data.js")
 	const mockTestDbData = await import("./mockdb-test-data.js")
 

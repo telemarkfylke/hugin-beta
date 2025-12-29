@@ -1,19 +1,18 @@
 import { json, type RequestEvent, type RequestHandler } from "@sveltejs/kit"
+import { createVendor } from "$lib/server/agents/vendors"
 import { canManageVendorVectorStores, canViewVendorVectorStores } from "$lib/server/auth/authorization"
 import { HTTPError } from "$lib/server/middleware/http-error"
 import { httpRequestMiddleware } from "$lib/server/middleware/http-request"
 import type { GetVectorStoresResponse } from "$lib/types/api-responses"
 import type { MiddlewareNextFunction } from "$lib/types/middleware/http-request"
 import type { VendorId } from "$lib/types/vendor-ids"
-import { createVendor } from "$lib/server/agents/vendors"
-import { VectorStore } from "$lib/types/vector-store"
 
 type VectorStoreInput = {
-	name: string,
+	name: string
 	description: string
 }
 
-const extractVendor = (requestEvent:RequestEvent) => {
+const extractVendor = (requestEvent: RequestEvent) => {
 	const { vendorId } = requestEvent.params
 	if (!vendorId) {
 		throw new HTTPError(400, "vendorId are required")
@@ -25,10 +24,10 @@ const getVendorVectorStores: MiddlewareNextFunction = async ({ requestEvent, use
 	if (!canViewVendorVectorStores(user)) {
 		throw new HTTPError(403, `User ${user.userId} is not authorized to view vendor vector stores`)
 	}
-	const vendor =  extractVendor(requestEvent)
+	const vendor = extractVendor(requestEvent)
 	const vectorStores = await vendor.listVectorStores()
 	return {
-		response: json(vectorStores  as GetVectorStoresResponse),
+		response: json(vectorStores as GetVectorStoresResponse),
 		isAuthorized: true
 	}
 }
@@ -38,7 +37,7 @@ const postVectorStore: MiddlewareNextFunction = async ({ requestEvent, user }) =
 		throw new HTTPError(403, `User ${user.userId} is not authorized to manage vendor vector stores`)
 	}
 	const vendor = extractVendor(requestEvent)
-	const input:VectorStoreInput = await requestEvent.request.json()
+	const input: VectorStoreInput = await requestEvent.request.json()
 
 	const reply = vendor.addVectorStore(input.name, input.description)
 	return {

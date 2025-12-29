@@ -154,7 +154,6 @@ const createMistralConversationConfig = async (agentConfig: AgentConfig, initial
 
 export class MistralAgent implements IAgent {
 	constructor(private dbAgent: DBAgent) {}
-	
 
 	public getAgentInfo(): IAgentResults["GetAgentInfoResult"] {
 		// In the future, we might want to change types based on model as well.
@@ -210,12 +209,6 @@ export class MistralAgent implements IAgent {
 		}
 		throw new Error("Non-streaming Mistral conversation append is not yet implemented")
 	}
-
-	/*
-	appendVectorStoreFiles(_files: File[], _streamResponse: boolean): Promise<IAgentResults["AddVectorStoreFilesResult"]> {
-		throw new Error("Method not implemented.")
-	}*/
-
 
 	public async addConversationVectorStoreFiles(conversation: DBConversation, files: File[], streamResponse: boolean): Promise<IAgentResults["AddConversationVectorStoreFilesResult"]> {
 		if (!conversation.vectorStoreId) {

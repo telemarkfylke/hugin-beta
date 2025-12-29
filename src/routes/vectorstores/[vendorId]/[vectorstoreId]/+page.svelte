@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { page } from "$app/state"
-    import { parseSse } from "$lib/streaming";
+	import { parseSse } from "$lib/streaming"
 	import { GetVendorVectorStoreFilesResponse, GetVendorVectorStoreResponse } from "$lib/types/api-responses"
 	import type { VectorStoreFile } from "$lib/types/vector-store"
 
@@ -15,10 +15,10 @@
 		files: []
 	})
 
-	const vendorId:string = $state(page.params.vendorId) as string
-	const vectorstoreId:string = $state(page.params.vectorstoreId) as string
+	const vendorId: string = $state(page.params.vendorId) as string
+	const vectorstoreId: string = $state(page.params.vectorstoreId) as string
 
-	if(!page.params.vendorId || !page.params.vectorstoreId){
+	if (!page.params.vendorId || !page.params.vectorstoreId) {
 		throw new Error()
 	}
 
@@ -56,10 +56,10 @@
 		} catch (error) {
 			vectorstoreFiles.error = error instanceof Error ? error.message : String(error)
 		}
-		vectorstoreFiles.isLoading = false	
+		vectorstoreFiles.isLoading = false
 	}
 
-	const uploadVendorVectorStoreFiles = async (vendorId: string, vectorStoreId:string, files: FileList): Promise<void> => {
+	const uploadVendorVectorStoreFiles = async (vendorId: string, vectorStoreId: string, files: FileList): Promise<void> => {
 		if (!files || files.length === 0) {
 			throw new Error("No files provided for upload")
 		}
@@ -88,7 +88,7 @@
 				const uploadResponse = parseSse(chatResponseText)
 				for (const uploadResult of uploadResponse) {
 					switch (uploadResult.event) {
-						case "agent.vectorstore.file.processed": {
+						case "vendor.vectorstore.file.processed": {
 							const { fileId, fileName } = uploadResult.data
 							console.log(`File uploaded: ${fileName} (ID: ${fileId})`)
 							getVectorStoreFiles()

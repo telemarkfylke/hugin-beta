@@ -1,5 +1,5 @@
 <script lang="ts">
-		import { page } from "$app/state"
+	import { page } from "$app/state"
 	import { GetVectorStoresResponse } from "$lib/types/api-responses"
 	import type { VectorStore } from "$lib/types/vector-store"
 
@@ -9,8 +9,8 @@
 		value: VectorStore[]
 	}
 
-	let canAddVectorStore = page.params.vendorId === 'ollama'
-	let newVectorStoreName = $state('')
+	let canAddVectorStore = page.params.vendorId === "ollama"
+	let newVectorStoreName = $state("")
 
 	let vectorstores: FrontendVectorStores = $state({
 		isLoading: false,
@@ -39,11 +39,11 @@
 	const addVectorStore = async (name: string) => {
 		vectorstores.isLoading = true
 		vectorstores.error = null
-		vectorstores.value = []		
-		const body = { name: name, description:''}
+		vectorstores.value = []
+		const body = { name: name, description: "" }
 		try {
-			const res = await fetch( `/api/vectorstores/${page.params.vendorId}`,{
-				method:'post',
+			const res = await fetch(`/api/vectorstores/${page.params.vendorId}`, {
+				method: "post",
 				body: JSON.stringify(body)
 			})
 			if (!res.ok) {
