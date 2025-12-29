@@ -34,7 +34,9 @@
     <h2>Conversations</h2>
     <a href="/conversations">Go to Conversations</a>
     <h2>Vector stores</h2>
-    <a href="/vectorstores">Go to Vector Stores</a>
+    <a href="/vectorstores/mistral">Go to Mistral Vector Stores</a><br/>
+		<a href="/vectorstores/openai">Go to OpenAi Vector Stores</a><br/>
+		<a href="/vectorstores/ollama">Go to Ollama Vector Stores</a><br/>
   </div>
   <div class="right-content">
     <AgentComponent agentId={"mistral-conversation"} conversationId={null} />

@@ -60,6 +60,10 @@ export const GetVectorStoresResponse = z.object({
 
 export type GetVectorStoresResponse = z.infer<typeof GetVectorStoresResponse>
 
+export const PostVectorStoresResponse = z.object(VectorStore)
+
+export type PostVectorStoresResponse = z.infer<typeof PostVectorStoresResponse>
+
 // api/vectorstores/[vendorId]/[vectorstoreId]
 export const GetVendorVectorStoreResponse = z.object({
 	vectorStore: VectorStore
