@@ -21,7 +21,7 @@ export type OllamaCreateResponse = {
 	messages: Message[]
 }
 
-const ollamaVendor = new OllamaVendor(null, null)
+const ollamaVendor = new OllamaVendor()
 const vendorInfo = ollamaVendor.getVendorInfo()
 
 export const handleOllamaStream = (conversation: DBConversation, stream: AbortableAsyncIterator<ChatResponse>): ReadableStream => {
@@ -150,10 +150,7 @@ export class OllamaAgent implements IAgent {
 		}
 
 		addMessage(initialPrompt, conversation.messages, "user", "text")
-
-		// We add this :context thing as a temporary hack.....
 		const vectorContexts: string[] = combineVectorStores(this.dbAgent.config, conversation)
-
 		const vectors = typeof initialPrompt === "string" ? await this.findRelevantVectors(vectorContexts, initialPrompt) : []
 
 		const ollamaResponse = await makeOllamaInstance(this.dbAgent.config, convertToOllamaMessages(conversation.messages, this.dbAgent.config.instructions, vectors), streamResponse)
@@ -173,7 +170,6 @@ export class OllamaAgent implements IAgent {
 		}
 
 		addMessage(prompt, conversation.messages, "user", "text")
-
 		const vectorContexts: string[] = combineVectorStores(this.dbAgent.config, conversation)
 		const vectors = typeof prompt === "string" ? await this.findRelevantVectors(vectorContexts, prompt) : []
 
@@ -189,8 +185,8 @@ export class OllamaAgent implements IAgent {
 	public async addConversationVectorStoreFiles(conversation: DBConversation, files: File[], _streamResponse: boolean): Promise<IAgentResults["AddConversationVectorStoreFilesResult"]> {
 		let contextId = conversation.vectorStoreId
 		if (!contextId) {
-			const newVectorStore = ollamaVendor.addVectorStore(`Conversation ${conversation._id} Vector Store`, `Vector store for conversation ${conversation._id}`)
-			contextId = (await newVectorStore).id
+			const newVectorStore = await ollamaVendor.addVectorStore(`Conversation ${conversation._id} Vector Store`, `Vector store for conversation ${conversation._id}`)
+			contextId = newVectorStore.id
 			updateDBConversation(conversation._id, { vectorStoreId: contextId })
 		}
 
@@ -198,33 +194,32 @@ export class OllamaAgent implements IAgent {
 			throw new Error("Predefined Ollama agents are not supported")
 		}
 
+		const { embedder, vectorStore } = this
 		const resultFiles: VectorStoreFile[] = []
-
-		for (const file of files) {
-			const vectorStrings: string[] = await fileToChunks(file)
-			const embeddings = await this.embedder.embedMultiple(vectorStrings)
-			const vectorFile = await this.vectorStore.makeFile(contextId, file.name, file.size)
-			resultFiles.push(vectorFile)
-			this.vectorStore.addVectorData(contextId, vectorFile.id, vectorStrings, embeddings)
-		}
 		const readableStream = new ReadableStream({
 			async start(controller) {
-				for (const file of resultFiles) {
-					controller.enqueue(createSse({ event: "conversation.vectorstore.files.processed", data: { vectorStoreId: contextId, files: [{ fileId: file.id }] } }))
+				for (const file of files) {
+					const vectorStrings: string[] = await fileToChunks(file)
+					const embeddings = await embedder.embedMultiple(vectorStrings)
+					const vectorFile = await vectorStore.makeFile(contextId, file.name, file.size)
+					resultFiles.push(vectorFile)
+					controller.enqueue(createSse({ event: "conversation.vectorstore.file.uploaded", data: { fileId: vectorFile.id, fileName: vectorFile.name } }))
+					vectorStore.addVectorData(contextId, vectorFile.id, vectorStrings, embeddings)
+					controller.enqueue(createSse({ event: "conversation.vectorstore.files.processed", data: { vectorStoreId: contextId, files: [{ fileId: vectorFile.id }] } }))
 				}
 			}
 		})
-
 		return { response: readableStream }
 	}
+
 	public async getConversationVectorStoreFiles(_conversation: DBConversation): Promise<IAgentResults["GetConversationVectorStoreFilesResult"]> {
-		throw new Error("Method not implemented in MockAIAgent")
+		throw new Error("Method not implemented in OllamaAgent")
 	}
 	public async getConversationVectorStoreFileContent(_conversation: DBConversation, _fileId: string): Promise<IAgentResults["GetConversationVectorStoreFileContentResult"]> {
-		throw new Error("Method not implemented in MockAIAgent")
+		throw new Error("Method not implemented in OllamaAgent")
 	}
 	public async deleteConversationVectorStoreFile(_conversation: DBConversation, _fileId: string): Promise<void> {
-		throw new Error("Method not implemented in MockAIAgent")
+		throw new Error("Method not implemented in OllamaAgent")
 	}
 	public async getConversationMessages(conversation: DBConversation): Promise<IAgentResults["GetConversationMessagesResult"]> {
 		return {
