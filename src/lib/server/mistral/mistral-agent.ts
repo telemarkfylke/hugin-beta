@@ -308,7 +308,7 @@ export class MistralAgent implements IAgent {
 				const { value, done } = await reader.read()
 				if (value?.data.type === "conversation.response.started") {
 					reader.cancel() // Vi trenger ikke lese mer her, vi har det vi trenger
-					const readableStream = handleMistralStream(actualStream as EventStream<ConversationEvents>, { newDbConversationId: conversation._id, newUserLibraryId: mistralConversationConfig.data.userLibraryId })
+					const readableStream = handleMistralStream(actualStream as EventStream<ConversationEvents>, { newDbConversationId: conversation._id, newUserLibraryId: mistralConversationConfig.data.userLibraryId, vendorConversationId: value.data.conversationId })
 
 					return { vendorConversationId: value.data.conversationId, vectorStoreId: mistralConversationConfig.data.userLibraryId, response: readableStream }
 				}
