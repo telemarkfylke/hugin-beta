@@ -134,6 +134,7 @@ const createOpenAIResponseConfig = async (agentConfig: AgentConfig, openAIConver
 
 export class OpenAIAgent implements IAgent {
 	constructor(private dbAgent: DBAgent) {}
+
 	public getAgentInfo(): IAgentResults["GetAgentInfoResult"] {
 		// In the future, we might want to change types based on model as well.
 		return {

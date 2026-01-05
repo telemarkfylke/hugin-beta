@@ -1,5 +1,6 @@
 // simply in-memory mock database corresponding to collections in mongodb
 
+import type { VectorChunk } from "$lib/server/db/vectorstore/types"
 import type { DBAgent } from "$lib/types/agents.ts"
 import type { DBConversation } from "$lib/types/conversation"
 
@@ -91,7 +92,7 @@ export const agents: DBAgent[] = [
 	},
 	{
 		_id: "ollama fotballsupporter",
-		vendorId: "openai",
+		vendorId: "ollama",
 		name: "Ollama fotballsupporter",
 		description: "Ollama basert fotball supporter",
 		config: {
@@ -104,7 +105,29 @@ export const agents: DBAgent[] = [
 		updatedAt: new Date().toISOString(),
 		createdBy,
 		updatedBy
+	},
+	{
+		_id: "ollama vectorEnabeled",
+		vendorId: "ollama",
+		name: "Ollama vectorEnabeled",
+		description: "Ollama med vector store",
+		config: {
+			type: "manual",
+			model: "gemma3",
+			instructions: ["Du skal primært svare på det som ligger lagret i dine embedded vector data.  Har du ikke noe der skal du gi beskjed om dette'"],
+			vectorStoreEnabled: true,
+			messageFilesEnabled: true,
+			webSearchEnabled: false,
+			vectorStoreIds: ["d5073ad2-a2df-439d-b229-3e098aae327c"] // This is one of the predefined stores in vectorstore mock
+		},
+		authorizedGroupIds: [],
+		createdAt: new Date().toISOString(),
+		updatedAt: new Date().toISOString(),
+		createdBy,
+		updatedBy
 	}
 ]
 
 export const conversations: DBConversation[] = []
+
+export const vectors: Record<string, VectorChunk[]> = {}
