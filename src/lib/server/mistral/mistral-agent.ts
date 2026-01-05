@@ -15,8 +15,8 @@ const mistralVendor = new MistralVendor()
 const vendorInfo = mistralVendor.getVendorInfo()
 
 type handleMistralStreamParams = {
-	dbConversationId?: string
-	userLibraryId?: string | null
+	newDbConversationId?: string
+	newUserLibraryId?: string | null
 	vendorConversationId?: string
 }
 
@@ -27,11 +27,11 @@ const pendingFunctionCalls = new Map<string, { conversationId: string; toolCallI
 const handleMistralStream = (stream: EventStream<ConversationEvents>, params: handleMistralStreamParams): ReadableStream<Uint8Array> => {
 	return new ReadableStream({
 		async start(controller) {
-			if (params.dbConversationId) {
-				controller.enqueue(createSse({ event: "conversation.started", data: { conversationId: params.dbConversationId } }))
+			if (params.newDbConversationId) {
+				controller.enqueue(createSse({ event: "conversation.started", data: { conversationId: params.newDbConversationId } }))
 			}
-			if (params.userLibraryId) {
-				controller.enqueue(createSse({ event: "conversation.vectorstore.created", data: { vectorStoreId: params.userLibraryId } }))
+			if (params.newUserLibraryId) {
+				controller.enqueue(createSse({ event: "conversation.vectorstore.created", data: { vectorStoreId: params.newUserLibraryId } }))
 			}
 			for await (const chunk of stream) {
 				// Check for function call events
@@ -308,7 +308,7 @@ export class MistralAgent implements IAgent {
 				const { value, done } = await reader.read()
 				if (value?.data.type === "conversation.response.started") {
 					reader.cancel() // Vi trenger ikke lese mer her, vi har det vi trenger
-					const readableStream = handleMistralStream(actualStream as EventStream<ConversationEvents>, { dbConversationId: conversation._id, userLibraryId: mistralConversationConfig.data.userLibraryId })
+					const readableStream = handleMistralStream(actualStream as EventStream<ConversationEvents>, { newDbConversationId: conversation._id, newUserLibraryId: mistralConversationConfig.data.userLibraryId })
 
 					return { vendorConversationId: value.data.conversationId, vectorStoreId: mistralConversationConfig.data.userLibraryId, response: readableStream }
 				}
