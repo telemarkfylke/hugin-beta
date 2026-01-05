@@ -14,17 +14,24 @@ import { mistralFunctionTools, executeMistralfunksjon } from "./mistral-function
 const mistralVendor = new MistralVendor()
 const vendorInfo = mistralVendor.getVendorInfo()
 
+type handleMistralStreamParams = {
+	dbConversationId?: string
+	userLibraryId?: string | null
+	vendorConversationId?: string
+}
+
+
 // Lagrer informasjon om funksjonskall i samtalen. Kunne brukt objekt men Map har bedre metoder for dette usecaset
 const pendingFunctionCalls = new Map<string, { conversationId: string; toolCallId: string; name: string; arguments: string }>()
 
-const handleMistralStream = (stream: EventStream<ConversationEvents>, dbConversationId?: string, userLibraryId?: string | null): ReadableStream<Uint8Array> => {
+const handleMistralStream = (stream: EventStream<ConversationEvents>, params: handleMistralStreamParams): ReadableStream<Uint8Array> => {
 	return new ReadableStream({
 		async start(controller) {
-			if (dbConversationId) {
-				controller.enqueue(createSse({ event: "conversation.started", data: { conversationId: dbConversationId } }))
+			if (params.dbConversationId) {
+				controller.enqueue(createSse({ event: "conversation.started", data: { conversationId: params.dbConversationId } }))
 			}
-			if (userLibraryId) {
-				controller.enqueue(createSse({ event: "conversation.vectorstore.created", data: { vectorStoreId: userLibraryId } }))
+			if (params.userLibraryId) {
+				controller.enqueue(createSse({ event: "conversation.vectorstore.created", data: { vectorStoreId: params.userLibraryId } }))
 			}
 			for await (const chunk of stream) {
 				// Check for function call events
@@ -49,7 +56,7 @@ const handleMistralStream = (stream: EventStream<ConversationEvents>, dbConversa
 						// Lagrer informasjon om pågående funksjonskall
 						const existing = pendingFunctionCalls.get(chunk.data.toolCallId)
 						pendingFunctionCalls.set(chunk.data.toolCallId, {
-							conversationId: dbConversationId || "",
+							conversationId: params.vendorConversationId || "",
 							toolCallId: chunk.data.toolCallId,
 							name: chunk.data.name,
 							arguments: existing ? existing.arguments + chunk.data.arguments : chunk.data.arguments
@@ -109,7 +116,7 @@ const handleMistralStream = (stream: EventStream<ConversationEvents>, dbConversa
 							// Her lages det en ny stream før den opprinnelige er ferdig.
 							// Jeg føler det blir litt rotete. Finnes det en bedre måte?
 							const continuationStream = await mistral.beta.conversations.appendStream({
-								conversationId: dbConversationId || "",
+								conversationId: params.vendorConversationId || "",
 								conversationAppendStreamRequest: {
 									inputs: inputs
 								}
@@ -301,7 +308,7 @@ export class MistralAgent implements IAgent {
 				const { value, done } = await reader.read()
 				if (value?.data.type === "conversation.response.started") {
 					reader.cancel() // Vi trenger ikke lese mer her, vi har det vi trenger
-					const readableStream = handleMistralStream(actualStream as EventStream<ConversationEvents>, conversation._id, mistralConversationConfig.data.userLibraryId)
+					const readableStream = handleMistralStream(actualStream as EventStream<ConversationEvents>, { dbConversationId: conversation._id, userLibraryId: mistralConversationConfig.data.userLibraryId })
 
 					return { vendorConversationId: value.data.conversationId, vectorStoreId: mistralConversationConfig.data.userLibraryId, response: readableStream }
 				}
@@ -323,7 +330,8 @@ export class MistralAgent implements IAgent {
 					inputs: createMistralPromptFromAgentPrompt(prompt)
 				}
 			})
-			const readableStream = handleMistralStream(stream, conversation.vendorConversationId)
+			//const readableStream = handleMistralStream(stream, conversation.vendorConversationId)
+			const readableStream = handleMistralStream(stream, { vendorConversationId: conversation.vendorConversationId })
 			return { response: readableStream }
 		}
 		throw new Error("Non-streaming Mistral conversation append is not yet implemented")
