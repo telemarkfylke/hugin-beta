@@ -4,7 +4,7 @@ import { OpenAIVendor } from "../openai/openai-vendor"
 
 export const OPENAI_VENDOR_ID = "openai"
 
-let openAIVendor : IAIVendor | null = null
+let openAIVendor: IAIVendor | null = null
 
 if (env.OPENAI_API_KEY) {
 	openAIVendor = new OpenAIVendor()
@@ -22,4 +22,3 @@ export const getVendor = (vendorId: string): IAIVendor => {
 	}
 	throw new Error(`Unsupported vendor: ${vendorId}`)
 }
-

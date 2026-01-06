@@ -1,10 +1,10 @@
 import { json, type RequestHandler } from "@sveltejs/kit"
+import { getVendor } from "$lib/server/agents/ai-vendors"
 import { HTTPError } from "$lib/server/middleware/http-error"
 import { httpRequestMiddleware } from "$lib/server/middleware/http-request"
 import { responseStream } from "$lib/streaming"
-import type { MiddlewareNextFunction } from "$lib/types/middleware/http-request"
 import type { ChatConfig } from "$lib/types/chat"
-import { getVendor } from "$lib/server/agents/ai-vendors"
+import type { MiddlewareNextFunction } from "$lib/types/middleware/http-request"
 
 const getChatConfig = (body: unknown): ChatConfig => {
 	if (typeof body !== "object" || body === null) {
@@ -44,7 +44,7 @@ const getChatConfig = (body: unknown): ChatConfig => {
 	const manualChatConfig: ChatConfig = {
 		vendorId: expectedChatConfig.vendorId,
 		inputs: expectedChatConfig.inputs,
-		model: expectedChatConfig.model,
+		model: expectedChatConfig.model
 	}
 	if (expectedChatConfig.instructions) {
 		if (typeof expectedChatConfig.instructions !== "string") {
@@ -71,24 +71,6 @@ const getChatConfig = (body: unknown): ChatConfig => {
 		manualChatConfig.tools = expectedChatConfig.tools
 	}
 	return manualChatConfig
-}
-
-
-const chatConfig: ChatConfig = {
-	vendorId: "openai",
-	model: "gpt-4o",
-	inputs: [
-	 {
-		type: "message",
-		role: "user",
-		content: [
-			{
-				type: "input_text",
-				text: "Tell me a joke about programming"
-			}
-		]
-	 }
-	]
 }
 
 const supahChat: MiddlewareNextFunction = async ({ requestEvent, user }) => {

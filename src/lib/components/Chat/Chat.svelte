@@ -1,10 +1,10 @@
 <script lang="ts">
-  import type { ChatItems, ConfigurableChatConfig } from "./types";
-  import type { ChatConfig, ChatInputMessage } from "$lib/types/chat";
-  import { postChatMessage } from "./PostChatMessage.svelte";
+	import type { ChatConfig, ChatInputMessage } from "$lib/types/chat"
+	import { postChatMessage } from "./PostChatMessage.svelte"
+	import type { ChatItems, ConfigurableChatConfig } from "./types"
 
 	type Props = {
-		initialChatConfig: ConfigurableChatConfig,
+		initialChatConfig: ConfigurableChatConfig
 	}
 
 	let { initialChatConfig }: Props = $props()
@@ -24,7 +24,7 @@
 
 	// Populate some config fields if not set to make them configurable
 	if (!configState.instructions) {
-		configState.instructions = ''
+		configState.instructions = ""
 	}
 	if (!configState.tools) {
 		configState.tools = []
@@ -33,31 +33,31 @@
 		configState.stream = false
 	}
 	if (!configState.conversationId) {
-		configState.conversationId = ''
+		configState.conversationId = ""
 	}
 
 	const chatItems: ChatItems = $state({})
 
-	let chatInputText = $state('')
+	let chatInputText = $state("")
 
 	const sendMessage = async () => {
 		const userMessage: ChatInputMessage = {
-			type: 'message',
-			role: 'user',
+			type: "message",
+			role: "user",
 			content: [
-				{ 
-					type: 'input_text',
+				{
+					type: "input_text",
 					text: chatInputText
 				}
 			],
-			status: 'completed'
+			status: "completed"
 		}
 		const chatConfig: ChatConfig = {
 			...configState,
 			inputs: [...Object.values(chatItems), userMessage]
 		}
 		chatItems[`input_${Date.now()}`] = userMessage
-		chatInputText = ''
+		chatInputText = ""
 
 		console.log("Sending chat with config:", chatConfig)
 		await postChatMessage(chatConfig, chatItems)
