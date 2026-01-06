@@ -24,35 +24,30 @@ export class MockVectorStoreDb implements IVectorStoreDb {
 				"7ae6deb1-5f45-4770-9699-fa84e3793b72": {
 					contextId: "7ae6deb1-5f45-4770-9699-fa84e3793b72",
 					name: "Mockstore 1",
-					//vectors: [],
 					files: {},
 					createdAt: new Date().toISOString()
 				},
 				"5e183876-8c00-47b3-a3ca-fbd2f063f399": {
 					contextId: "5e183876-8c00-47b3-a3ca-fbd2f063f399",
 					name: "Mockstore 2",
-					//vectors: [],
 					files: {},
 					createdAt: new Date().toISOString()
 				},
 				"18b5c940-bfde-4bce-96e1-d486670da2b7": {
 					contextId: "18b5c940-bfde-4bce-96e1-d486670da2b7",
 					name: "Mockstore 3",
-					//vectors: [],
 					files: {},
 					createdAt: new Date().toISOString()
 				},
 				"aa507f64-fa85-40d7-9884-16dd57e277b0": {
 					contextId: "aa507f64-fa85-40d7-9884-16dd57e277b0",
 					name: "Mockstore 4",
-					//vectors: [],
 					files: {},
 					createdAt: new Date().toISOString()
 				},
 				"c6e45cfa-27d7-4d65-8b49-4eafe0691916": {
 					contextId: "c6e45cfa-27d7-4d65-8b49-4eafe0691916",
 					name: "Mockstore 5",
-					//vectors: [],
 					files: {},
 					createdAt: new Date().toISOString()
 				}
