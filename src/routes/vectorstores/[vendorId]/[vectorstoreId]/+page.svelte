@@ -31,6 +31,17 @@
 		}
 	}
 
+	const deleteFile = async (fileId:string) => {
+		const res = await fetch(`/api/vectorstores/${page.params.vendorId}/${page.params.vectorstoreId}/vectorstorefiles/${fileId}`, {
+			method:'DELETE'
+		})
+			if (!res.ok) {
+				throw new Error(`Failed to delete vector store file: ${fileId}`)
+			}
+
+		await getVectorStoreFiles()
+	}
+
 	const getVectorStore = async () => {
 		const res = await fetch(`/api/vectorstores/${page.params.vendorId}/${page.params.vectorstoreId}`)
 		if (!res.ok) {
@@ -137,7 +148,7 @@
 {:else}
   <ul>
     {#each vectorstoreFiles.files as file}
-      <li>{file.name} - {file.bytes} bytes</li>
+      <li>{file.name} - {file.bytes} bytes <button type="button" onclick={() => deleteFile(file.id)}>Delete</button></li> 
     {/each}
   </ul>
 {/if}
