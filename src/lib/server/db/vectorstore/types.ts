@@ -12,7 +12,6 @@ export type VectorChunk = z.infer<typeof VectorChunk>
 export type VectorContext = {
 	contextId: string
 	name: string
-	vectors: VectorChunk[]
 	files: Record<string, VectorStoreFile>
 	createdAt: string
 }

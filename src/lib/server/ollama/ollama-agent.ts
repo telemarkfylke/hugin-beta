@@ -230,6 +230,6 @@ export class OllamaAgent implements IAgent {
 	private async findRelevantVectors(vectorContexts: string[], prompt: string): Promise<string[]> {
 		const promptVector = await this.embedder.embedSingle(prompt.toLowerCase())
 		const result = await this.vectorStore.search(vectorContexts, promptVector)
-		return result.map((chunk) => chunk.text)
+		return result
 	}
 }

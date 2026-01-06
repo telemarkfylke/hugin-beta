@@ -19,6 +19,8 @@ const OLLAMA_DEFAULT_MODEL = OLLAMA_SUPPORTED_MODELS[0] as string
 export const ollama = new Ollama({ host: "http://127.0.0.1:11434" })
 
 export const getVectorStore = (): IVectorStoreDb => {
+	return new MongoVectorStoreDb()
+
 	if (env.MOCK_DB) {
 		return new MockVectorStoreDb()
 	}

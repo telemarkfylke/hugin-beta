@@ -9,6 +9,7 @@ enum FilterType {
 
 export class MockVectorStoreDb implements IVectorStoreDb {
 	static contexts: Record<string, VectorContext>
+	static chunks: Record<string, VectorChunk[]> = {}
 
 	private filterType: FilterType
 
@@ -20,38 +21,38 @@ export class MockVectorStoreDb implements IVectorStoreDb {
 		if (!MockVectorStoreDb.contexts) {
 			// Just make some premade placeholder stores so that we can have agents configured to a vectorstore
 			MockVectorStoreDb.contexts = {
-				"d5073ad2-a2df-439d-b229-3e098aae327c": {
-					contextId: "d5073ad2-a2df-439d-b229-3e098aae327c",
+				"7ae6deb1-5f45-4770-9699-fa84e3793b72": {
+					contextId: "7ae6deb1-5f45-4770-9699-fa84e3793b72",
 					name: "Mockstore 1",
-					vectors: [],
+					//vectors: [],
 					files: {},
 					createdAt: new Date().toISOString()
 				},
 				"5e183876-8c00-47b3-a3ca-fbd2f063f399": {
 					contextId: "5e183876-8c00-47b3-a3ca-fbd2f063f399",
 					name: "Mockstore 2",
-					vectors: [],
+					//vectors: [],
 					files: {},
 					createdAt: new Date().toISOString()
 				},
 				"18b5c940-bfde-4bce-96e1-d486670da2b7": {
 					contextId: "18b5c940-bfde-4bce-96e1-d486670da2b7",
 					name: "Mockstore 3",
-					vectors: [],
+					//vectors: [],
 					files: {},
 					createdAt: new Date().toISOString()
 				},
 				"aa507f64-fa85-40d7-9884-16dd57e277b0": {
 					contextId: "aa507f64-fa85-40d7-9884-16dd57e277b0",
 					name: "Mockstore 4",
-					vectors: [],
+					//vectors: [],
 					files: {},
 					createdAt: new Date().toISOString()
 				},
 				"c6e45cfa-27d7-4d65-8b49-4eafe0691916": {
 					contextId: "c6e45cfa-27d7-4d65-8b49-4eafe0691916",
 					name: "Mockstore 5",
-					vectors: [],
+					//vectors: [],
 					files: {},
 					createdAt: new Date().toISOString()
 				}
@@ -59,6 +60,36 @@ export class MockVectorStoreDb implements IVectorStoreDb {
 		}
 
 		return MockVectorStoreDb.contexts
+	}
+
+	private getChunkList(contextId: string): VectorChunk[]{
+		if(!MockVectorStoreDb.chunks[contextId])
+			return []
+		return MockVectorStoreDb.chunks[contextId]
+	}
+
+	private ensureChunkList(contextId: string): VectorChunk[]{
+		if(!MockVectorStoreDb.chunks[contextId]){
+			MockVectorStoreDb.chunks[contextId] = []
+		}
+		return MockVectorStoreDb.chunks[contextId]		
+	}
+
+
+	private async addVectorMatrix(contextId: string, fileId: string, text: string, matrix: number[]) {
+		const chunks = this.ensureChunkList(contextId)
+		if (chunks) chunks.push({ text: text, vectorMatrix: matrix, fileId: fileId })
+	}
+
+	private async getVectorChunks(vectorContexts: string[]): Promise<VectorChunk[]> {
+		const vectorChunks: VectorChunk[] = []
+		for (const contextId of vectorContexts) {
+			const chunks = this.getChunkList(contextId)
+			if (chunks) {
+				vectorChunks.push(...chunks)
+			}
+		}
+		return vectorChunks
 	}
 
 	//__________________________________________________________________
@@ -90,21 +121,16 @@ export class MockVectorStoreDb implements IVectorStoreDb {
 		}
 
 		const timestamp = new Date().toISOString()
-		const reply: VectorContext = { contextId: id, vectors: [], files: {}, name: config.name || `vectorStore_${Date.now().toString()}`, createdAt: timestamp }
+		const reply: VectorContext = { contextId: id, files: {}, name: config.name || `vectorStore_${Date.now().toString()}`, createdAt: timestamp }
 		contextDictionary[reply.contextId] = reply
 		return reply
 	}
 
-	public async addVectorMatrix(contextId: string, fileId: string, text: string, matrix: number[]) {
-		const vectorContext = await this.getContext(contextId)
-		if (vectorContext) vectorContext.vectors.push({ text: text, vectorMatrix: matrix, fileId: fileId })
-	}
-
 	public async addVectorChunks(context: string, chunks: VectorChunk[]) {
-		const vectorContext = await this.getContext(context)
-		if (vectorContext) {
+		const chunkList = this.ensureChunkList(context)
+		if (chunkList) {
 			chunks.forEach((chunk) => {
-				vectorContext.vectors.push(chunk)
+				chunkList.push(chunk)
 			})
 		}
 	}
@@ -115,20 +141,8 @@ export class MockVectorStoreDb implements IVectorStoreDb {
 		}
 
 		for (let i = 0; i < texts.length; i++) {
-			// Burde være unødvendig å caste her. Det skal ikke kunne være undefined her, men.. kompilatoren har liten bart
 			this.addVectorMatrix(context, fileId, texts[i] as string, matrixes[i] as number[])
 		}
-	}
-
-	public async getVectorChunks(vectorContexts: string[]): Promise<VectorChunk[]> {
-		const vectorChunks: VectorChunk[] = []
-		for (const contextId of vectorContexts) {
-			const vectorContext = await this.getContext(contextId)
-			if (vectorContext) {
-				vectorChunks.push(...vectorContext.vectors)
-			}
-		}
-		return vectorChunks
 	}
 
 	public async makeFile(context: string, filename: string, bytes: number): Promise<VectorStoreFile> {
@@ -152,18 +166,19 @@ export class MockVectorStoreDb implements IVectorStoreDb {
 	public async removeFile(context: string, fileId: string): Promise<number> {
 		const vectorContext = await this.getContext(context)
 		if (!vectorContext) throw new Error("Context does not exist")
-		const filteredVectors = vectorContext.vectors.filter((chunk) => {
+		const chunkList = this.getChunkList(context)
+		const filteredVectors = chunkList.filter((chunk) => {
 			return chunk.fileId !== fileId
 		})
-		const total = vectorContext.vectors.length - filteredVectors.length // number of chunkcs we have removed
-		vectorContext.vectors = filteredVectors
+		const total = chunkList.length - filteredVectors.length // number of chunkcs we have removed
+		MockVectorStoreDb.chunks[context] = filteredVectors
 		return total
 	}
 
-	public async search(vectorContexts: string[], promptVector: number[]): Promise<VectorChunk[]> {
+	public async search(vectorContexts: string[], promptVector: number[]): Promise<string[]> {
 		const vectorChunks = await this.getVectorChunks(vectorContexts)
 		if (!vectorChunks || vectorChunks.length === 0) return []
-		return this.filterType === FilterType.Highest ? filterChunksHigest(promptVector, vectorChunks) : filterChunksTreshold(promptVector, vectorChunks)
+		return (this.filterType === FilterType.Highest ? filterChunksHigest(promptVector, vectorChunks) : filterChunksTreshold(promptVector, vectorChunks)).map((val) => val.text)
 	}
 }
 

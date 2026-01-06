@@ -118,7 +118,7 @@ export const agents: DBAgent[] = [
 			vectorStoreEnabled: true,
 			messageFilesEnabled: true,
 			webSearchEnabled: false,
-			vectorStoreIds: ["d5073ad2-a2df-439d-b229-3e098aae327c"] // This is one of the predefined stores in vectorstore mock
+			vectorStoreIds: ["7ae6deb1-5f45-4770-9699-fa84e3793b72"] // This is one of the predefined stores in vectorstore mock
 		},
 		authorizedGroupIds: [],
 		createdAt: new Date().toISOString(),
