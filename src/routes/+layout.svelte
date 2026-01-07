@@ -29,8 +29,6 @@
 </main>
 <footer>
 	<span>Footer</span>
-	<img src="https://arngren.net/JUL-2009-5.gif" alt="funny gif" />
-	<img src="https://arngren.net/JUL-2009-6.gif" alt="funny gif" />
 </footer>
 
 <style>
