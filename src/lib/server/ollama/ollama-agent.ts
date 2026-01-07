@@ -9,7 +9,7 @@ import { combineVectorStores } from "../agents/agents"
 import { updateDBConversation } from "../agents/conversations"
 import type { IVectorStoreDb } from "../db/vectorstore/interface"
 import type { IEmbedder } from "../embeddings/interface"
-import { getIocContainer } from "../ioc/container"
+import { getIocContainer, type IocContainer } from "../ioc/container"
 import { OllamaVendor, ollama } from "./ollama"
 import { OLLAMA_SUPPORTED_MESSAGE_FILE_MIME_TYPES, OLLAMA_SUPPORTED_MESSAGE_IMAGE_MIME_TYPES, OLLAMA_SUPPORTED_VECTOR_STORE_FILE_MIME_TYPES } from "./ollama-supported-filetypes"
 
@@ -125,12 +125,14 @@ export class OllamaAgent implements IAgent {
 
 	constructor(
 		private dbAgent: DBAgent,
-		embedder?: IEmbedder | null,
-		vectorStore?: IVectorStoreDb | null
+		iocContainer?: IocContainer
 	) {
-		const iocContainer = getIocContainer()
-		this.embedder = embedder || iocContainer.embedder
-		this.vectorStore = vectorStore || iocContainer.vectorStore
+		if (!iocContainer) {
+			iocContainer = getIocContainer()
+		}
+
+		this.embedder = iocContainer.embedder
+		this.vectorStore = iocContainer.vectorStore
 	}
 
 	public getAgentInfo(): IAgentResults["GetAgentInfoResult"] {
