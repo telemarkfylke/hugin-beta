@@ -1,7 +1,9 @@
 <script lang="ts">
-	import type { ChatConfig, ChatInputMessage } from "$lib/types/chat"
+	import type { ChatConfig, ChatInputMessage, ChatResponseObject } from "$lib/types/chat"
+  import ChatInput from "./ChatInput.svelte";
+    import ChatMessage from "./ChatMessage.svelte";
 	import { postChatMessage } from "./PostChatMessage.svelte"
-	import type { ChatItems, ConfigurableChatConfig } from "./types"
+	import type { ChatMessages, ConfigurableChatConfig } from "./types"
 
 	type Props = {
 		initialChatConfig: ConfigurableChatConfig
@@ -23,6 +25,9 @@
 	const configState: ConfigurableChatConfig = $state(initialChatConfig)
 
 	// Populate some config fields if not set to make them configurable
+	if (!configState.name) {
+		configState.name = configState.model || "Chat-agent"
+	}
 	if (!configState.instructions) {
 		configState.instructions = ""
 	}
@@ -36,67 +41,106 @@
 		configState.conversationId = ""
 	}
 
-	const chatItems: ChatItems = $state({})
+	const chatMessages: ChatMessages = $state([])
 
-	let chatInputText = $state("")
-
-	const sendMessage = async () => {
+	const sendMessage = async (inputText: string, _inputFiles: FileList) => {
+		// Må finne en måte å håndtere reactivity bedre (den skjønner ikke)
 		const userMessage: ChatInputMessage = {
 			type: "message",
 			role: "user",
 			content: [
 				{
 					type: "input_text",
-					text: chatInputText
+					text: inputText
 				}
 			],
 			status: "completed"
 		}
+		
+		const chatInput = chatMessages.flatMap(message => {
+			if (message.type === "chat_response") {
+				return message.outputs.find(output => output.type !== "unknown")
+			}
+			return message
+		}).filter(message => message !== undefined)
+
 		const chatConfig: ChatConfig = {
 			...configState,
-			inputs: [...Object.values(chatItems), userMessage]
+			inputs: [...chatInput, userMessage]
 		}
-		chatItems[`input_${Date.now()}`] = userMessage
-		chatInputText = ""
 
-		console.log("Sending chat with config:", chatConfig)
-		await postChatMessage(chatConfig, chatItems)
-		console.log("Chat items after response:", chatItems)
+		chatMessages.push(userMessage)
+
+		const newChatResponseObject: ChatResponseObject = {
+			id: `temp_id_${Date.now()}`,
+			type: "chat_response",
+			vendorId: chatConfig.vendorId,
+			createdAt: new Date().toISOString(),
+			outputs: [],
+			status: "queued",
+			usage: {
+				inputTokens: 0,
+				outputTokens: 0,
+				totalTokens: 0
+			}
+		}
+
+		chatMessages.push(newChatResponseObject)
+		const reactiveChatResponseObject: ChatResponseObject = chatMessages[chatMessages.length - 1] as ChatResponseObject // The one we just pushed as it is first reactive after adding to state array
+
+		await postChatMessage(chatConfig, reactiveChatResponseObject)
 	}
 </script>
 
-<div>
-	{JSON.stringify(configState, null, 2)}
-	
-	<br />
-	<select bind:value={configState.vendorId}>
-		<option value="openai">OpenAI</option>
-	</select>
-	<br />
-	{#if configState.vendorAgent}
-		<p>Agent-id: {configState.vendorAgent.id}</p>
-	{:else}
-		<span>Model:</span>
-		<select bind:value={configState.model}>
-			<option value="gpt-4o">GPT-4o</option>
-			<option value="gpt-4">GPT-4</option>
+<div class="chat-container">
+	<div class="chat-config">
+		<h3>{configState.name || configState.model || 'Chat-agent'}</h3>
+		{JSON.stringify(configState, null, 2)}
+		<br />
+		<select bind:value={configState.vendorId}>
+			<option value="openai">OpenAI</option>
 		</select>
 		<br />
-		<span>instructions:</span>
-		<input type="text" bind:value={configState.instructions} />
-		<br />
-		<span>streaming</span>
-		<input type="checkbox" bind:checked={configState.stream} /> Stream
-		<br />
-	{/if}
-
-	<input type="text" bind:value={chatInputText} placeholder="Type your message..." />
-	<button onclick={sendMessage}>Send</button>
-	<div>
-		{#each Object.values(chatItems) as chatItem}
-			<div>
-				<strong>{chatItem.type}:</strong> {JSON.stringify(chatItem)}
-			</div>
+		{#if configState.vendorAgent}
+			<p>Agent-id: {configState.vendorAgent.id}</p>
+		{:else}
+			<span>Model:</span>
+			<select bind:value={configState.model}>
+				<option value="gpt-4o">GPT-4o</option>
+				<option value="gpt-4">GPT-4</option>
+			</select>
+			<br />
+			<span>instructions:</span>
+			<input type="text" bind:value={configState.instructions} />
+			<br />
+			<input type="checkbox" bind:checked={configState.stream} /> Stream
+			<br />
+		{/if}
+	</div>
+	<div class="chat-items">
+		{#each chatMessages as chatMessage}
+			<ChatMessage {chatMessage} chatConfigName={configState.name as string} />
 		{/each}
 	</div>
+
+	<ChatInput allowedFileMimeTypes={[]} {sendMessage} />
 </div>
+
+<style>
+	.chat-container {
+    box-sizing: border-box; /* Include padding and border in total size, to avoid overflow */
+    display: flex;
+    flex-direction: column;
+    max-width: 1280px;
+    margin: 0 auto;
+    height: 100%;
+  }
+	.chat-items {
+    flex: 1;
+    padding: 0.3rem;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+</style>
