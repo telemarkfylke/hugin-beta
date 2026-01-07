@@ -1,99 +1,44 @@
-import { ObjectId } from "mongodb"
-import { env } from "$env/dynamic/private"
 import type { DBConversation } from "$lib/types/conversation"
+import type { ConversationData } from "../db/conversations/interface"
+import { getIocContainer } from "../ioc/container"
 
-let mockDbData = null
+const conversationStore = getIocContainer().conversationStore
 
-if (env.MOCK_DB === "true") {
-	const { getMockDb } = await import("$lib/server/db/mockdb.js")
-	mockDbData = await getMockDb()
-}
+/*
+	Nå ble jo disse veldig tynne, vi må nesten se om det kommer business logikk 
+	eller rettighetsjekker o.l seinere som ikke har noe med direkte lagringsteknoligi å gjøre.
+	I såfall ville hatt gitt mening å putte inn her, men hvis ikke kan vi vurdere 
+	å droppe hele dette laget og bruke IOC containeren direkte.
+*/
 
 export const getDBConversations = async (): Promise<DBConversation[]> => {
-	if (mockDbData) {
-		return mockDbData.conversations
-	}
-	throw new Error("Not implemented - please set MOCK_DB to true in env")
-	// Implement real DB fetch here
+	return conversationStore.getConversations()
 }
 
 export const getDBUserConversations = async (userId: string): Promise<DBConversation[]> => {
-	if (mockDbData) {
-		const foundConversations = mockDbData.conversations.filter((conversation) => conversation.owner.objectId === userId)
-		return foundConversations
-	}
-	throw new Error("Not implemented - please set MOCK_DB to true in env")
-	// Implement real DB fetch here
+	return conversationStore.getUserConversations(userId)
 }
 
 export const getDBAgentConversations = async (agentId: string): Promise<DBConversation[]> => {
-	if (mockDbData) {
-		const foundConversations = mockDbData.conversations.filter((conversation) => conversation.agentId === agentId)
-		return foundConversations
-	}
-	throw new Error("Not implemented - please set MOCK_DB to true in env")
-	// Implement real DB fetch here
+	return conversationStore.getAgentConversations(agentId)
 }
 
 export const getDBAgentUserConversations = async (agentId: string, userId: string): Promise<DBConversation[]> => {
-	if (mockDbData) {
-		const foundConversations = mockDbData.conversations.filter((conversation) => conversation.agentId === agentId && conversation.owner.objectId === userId)
-		return foundConversations
-	}
-	throw new Error("Not implemented - please set MOCK_DB to true in env")
-	// Implement real DB fetch here
+	return conversationStore.getAgentUserConversations(agentId, userId)
 }
 
 export const getDBConversation = async (conversationId: string): Promise<DBConversation> => {
-	if (mockDbData) {
-		const foundConversation = mockDbData.conversations.find((conversation) => conversation._id === conversationId)
-		if (!foundConversation) {
-			throw new Error("Conversation not found")
-		}
-		return foundConversation
-	}
-	throw new Error("Not implemented - please set MOCK_DB to true in env")
-	// Implement real DB fetch here
+	return conversationStore.getConversation(conversationId)
 }
 
-type ConversationData = Omit<DBConversation, "agentId" | "_id" | "messages"> // messages optional on insert
-
 export const insertDBConversation = async (agentId: string, conversationData: ConversationData): Promise<DBConversation> => {
-	if (mockDbData) {
-		const coversationToInsert = {
-			_id: new ObjectId().toString(),
-			agentId,
-			messages: [],
-			...conversationData
-		}
-		mockDbData.conversations.push(coversationToInsert)
-		return coversationToInsert
-	}
-	throw new Error("Not implemented - please set MOCK_DB to true in env")
-	// Implement real DB insert here
+	return conversationStore.insertConversation(agentId, conversationData)
 }
 
 export const updateDBConversation = async (conversationId: string, updateData: Partial<ConversationData>): Promise<DBConversation> => {
-	if (mockDbData) {
-		const foundConversation = mockDbData.conversations.find((conversation) => conversation._id === conversationId)
-		if (!foundConversation) {
-			throw new Error("Conversation not found")
-		}
-		for (const key in updateData) {
-			// @ts-expect-error JUST MOCK DATA ANYWAYS
-			foundConversation[key] = updateData[key]
-		}
-		return foundConversation
-	}
-	throw new Error("Not implemented - please set MOCK_DB to true in env")
-	// Implement real DB update here
+	return conversationStore.updateConversation(conversationId, updateData)
 }
 
 export const deleteDBConversation = async (conversationId: string): Promise<void> => {
-	if (mockDbData) {
-		mockDbData.conversations = mockDbData.conversations.filter((conversation) => conversation._id !== conversationId)
-		return
-	}
-	throw new Error("Not implemented - please set MOCK_DB to true in env")
-	// Implement real DB delete here
+	return conversationStore.deleteConversation(conversationId)
 }
