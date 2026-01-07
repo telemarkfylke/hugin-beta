@@ -4,10 +4,9 @@
 
 	const defaultChatConfig: ConfigurableChatConfig = {
 		vendorId: "openai",
-		model: "gpt-4o"
+		model: "gpt-4o",
+		stream: true
 	}
 </script>
 
-<div>
-	<Chat initialChatConfig={defaultChatConfig} />
-</div>
+<Chat initialChatConfig={defaultChatConfig} />

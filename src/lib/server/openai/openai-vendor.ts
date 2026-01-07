@@ -3,8 +3,8 @@ import type { Response } from "openai/resources/responses/responses.js"
 import type { ResponseCreateParamsBase } from "openai/resources/responses/responses.mjs"
 import { env } from "$env/dynamic/private"
 import type { AIVendor, IAIVendor } from "$lib/types/AIVendor"
-import type { ChatConfig, ChatResponseObject, ChatResponseStream } from "$lib/types/chat"
-import { handleOpenAIStream } from "./openai-agent"
+import type { ChatConfig, ChatOutput, ChatResponseObject, ChatResponseStream } from "$lib/types/chat"
+import { handleOpenAIResponseStream } from "./openai-stream"
 
 if (!env.SUPPORTED_MODELS_VENDOR_OPENAI || env.SUPPORTED_MODELS_VENDOR_OPENAI.trim() === "") {
 	throw new Error("SUPPORTED_MODELS_VENDOR_OPENAI is not set in environment variables")
@@ -47,11 +47,21 @@ const openAiConfig = (config: ChatConfig): ResponseCreateParamsBase => {
 }
 
 const openAiResponseToChatResponseObject = (response: Response): ChatResponseObject => {
-	return {
+	const outputs: ChatOutput[] = response.output.map(output => {
+    if (output.type === "message") {
+      return output
+    }
+    return {
+      type: "unknown",
+      data: output
+    }
+  })
+  return {
 		id: response.id,
+    type: "chat_response",
 		vendorId: "openai",
 		createdAt: new Date(response.created_at).toISOString(),
-		outputs: response.output,
+		outputs,
 		status: response.status || "incomplete",
 		usage: {
 			inputTokens: response.usage?.input_tokens || 0,
@@ -87,6 +97,6 @@ export class OpenAIVendor implements IAIVendor {
 			...openAiConfig(config),
 			stream: true
 		})
-		return handleOpenAIStream(responseStream)
+		return handleOpenAIResponseStream(responseStream)
 	}
 }

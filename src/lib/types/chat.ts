@@ -1,4 +1,4 @@
-import type { ResponseInputItem, ResponseOutputItem, ResponseOutputMessage, Tool } from "openai/resources/responses/responses.mjs"
+import type { ResponseInputItem, ResponseOutputMessage, Tool } from "openai/resources/responses/responses.mjs"
 
 // Steal from OpenAI types (don't want to reinvent the wheel)
 export type ChatInputMessage = ResponseInputItem.Message
@@ -8,18 +8,21 @@ export type ChatTool = Tool
 
 // Done stealing for now
 
-export type UnknownChatInput = {
+export type UnknownChatItem = {
 	type: "unknown"
 	data: unknown
 }
 
-export type ChatInput = ChatInputMessage | ChatOutputMessage | UnknownChatInput
+export type ChatInput = ChatInputMessage | ChatOutputMessage | UnknownChatItem
 
 export type VendorAgent = {
 	id: string
 }
 
 export type ChatConfig = {
+  id?: string
+  name?: string
+  description?: string
 	vendorId: string
 	inputs: ChatInput[]
 	stream?: boolean
@@ -38,11 +41,11 @@ export type UsageInfo = {
 	totalTokens: number
 }
 
-// We use the same input type as OpenAI (don't want to reinvent the wheel here)
-export type ChatOutput = ResponseOutputItem
+export type ChatOutput = ChatOutputMessage | UnknownChatItem
 
 export type ChatResponseObject = {
 	id: string
+  type: "chat_response"
 	vendorId: string
 	createdAt: string
 	outputs: ChatOutput[]

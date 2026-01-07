@@ -1,5 +1,54 @@
 import z from "zod"
 
+// New and better
+const ResponseStarted = z.object({
+	event: z.literal("response.started"),
+	data: z.object({
+		responseId: z.string()
+	})
+})
+
+const ResponseDone = z.object({
+	event: z.literal("response.done"),
+	data: z.object({
+		usage: z.object({
+			inputTokens: z.number(),
+			outputTokens: z.number(),
+			totalTokens: z.number()
+		})
+	})
+})
+
+const ResponseError = z.object({
+	event: z.literal("response.error"),
+	data: z.object({
+		code: z.string(),
+		message: z.string()
+	})
+})
+
+const ResponseOutputTextDelta = z.object({
+	event: z.literal("response.output_text.delta"),
+	data: z.object({
+		// Hva brukes content part til egt?
+		itemId: z.string(),
+		content: z.string()
+	})
+})
+
+const ConversationCreated = z.object({
+	event: z.literal("conversation.created"),
+	data: z.object({
+		conversationId: z.string()
+	})
+})
+
+const UnknownEvent = z.object({
+	event: z.literal("unknown"),
+	data: z.unknown()
+})
+
+// Old and shitty?
 const ConversationStarted = z.object({
 	event: z.literal("conversation.started"),
 	data: z.object({
@@ -68,6 +117,14 @@ const ConversationFilesProcessed = z.object({
 })
 
 export const MuginSse = z.discriminatedUnion("event", [
+	// New events
+	ResponseStarted,
+	ResponseDone,
+	ResponseError,
+	ResponseOutputTextDelta,
+	ConversationCreated,
+	UnknownEvent,
+	// Old events
 	ConversationStarted,
 	ConversationMessageDelta,
 	ConversationMessageEnded,
