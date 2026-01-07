@@ -20,9 +20,9 @@ export type VendorAgent = {
 }
 
 export type ChatConfig = {
-  id?: string
-  name?: string
-  description?: string
+	id?: string
+	name?: string
+	description?: string
 	vendorId: string
 	inputs: ChatInput[]
 	stream?: boolean
@@ -45,7 +45,7 @@ export type ChatOutput = ChatOutputMessage | UnknownChatItem
 
 export type ChatResponseObject = {
 	id: string
-  type: "chat_response"
+	type: "chat_response"
 	vendorId: string
 	createdAt: string
 	outputs: ChatOutput[]

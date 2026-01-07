@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { ChatConfig, ChatInputMessage, ChatResponseObject } from "$lib/types/chat"
-  import ChatInput from "./ChatInput.svelte";
-    import ChatMessage from "./ChatMessage.svelte";
+	import ChatInput from "./ChatInput.svelte"
+	import ChatMessage from "./ChatMessage.svelte"
 	import { postChatMessage } from "./PostChatMessage.svelte"
 	import type { ChatMessages, ConfigurableChatConfig } from "./types"
 
@@ -56,13 +56,15 @@
 			],
 			status: "completed"
 		}
-		
-		const chatInput = chatMessages.flatMap(message => {
-			if (message.type === "chat_response") {
-				return message.outputs.find(output => output.type !== "unknown")
-			}
-			return message
-		}).filter(message => message !== undefined)
+
+		const chatInput = chatMessages
+			.flatMap((message) => {
+				if (message.type === "chat_response") {
+					return message.outputs.find((output) => output.type !== "unknown")
+				}
+				return message
+			})
+			.filter((message) => message !== undefined)
 
 		const chatConfig: ChatConfig = {
 			...configState,

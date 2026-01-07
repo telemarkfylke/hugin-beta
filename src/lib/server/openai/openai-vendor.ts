@@ -47,18 +47,18 @@ const openAiConfig = (config: ChatConfig): ResponseCreateParamsBase => {
 }
 
 const openAiResponseToChatResponseObject = (response: Response): ChatResponseObject => {
-	const outputs: ChatOutput[] = response.output.map(output => {
-    if (output.type === "message") {
-      return output
-    }
-    return {
-      type: "unknown",
-      data: output
-    }
-  })
-  return {
+	const outputs: ChatOutput[] = response.output.map((output) => {
+		if (output.type === "message") {
+			return output
+		}
+		return {
+			type: "unknown",
+			data: output
+		}
+	})
+	return {
 		id: response.id,
-    type: "chat_response",
+		type: "chat_response",
 		vendorId: "openai",
 		createdAt: new Date(response.created_at).toISOString(),
 		outputs,

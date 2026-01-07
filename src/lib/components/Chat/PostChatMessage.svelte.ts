@@ -11,28 +11,28 @@ export const addMessageDeltaToChatItem = (chatResponseObject: ChatResponseObject
 	if (!messageDelta) {
 		throw new Error("No message delta content provided")
 	}
-  let outputMessage = chatResponseObject.outputs.find(output => output.type === "message" && output.id === itemId) as ChatOutputMessage | undefined
-  if (!outputMessage) {
-    outputMessage = {
-      id: itemId,
-      type: "message",
-      role: "assistant",
-      status: "in_progress", // Hvordan håndtere status her egentlig?
-      content: [
-        {
-          type: "output_text",
-          text: "",
-          annotations: []
-        }
-      ]
-    }
-    chatResponseObject.outputs.push(outputMessage)
-  }
+	let outputMessage = chatResponseObject.outputs.find((output) => output.type === "message" && output.id === itemId) as ChatOutputMessage | undefined
+	if (!outputMessage) {
+		outputMessage = {
+			id: itemId,
+			type: "message",
+			role: "assistant",
+			status: "in_progress", // Hvordan håndtere status her egentlig?
+			content: [
+				{
+					type: "output_text",
+					text: "",
+					annotations: []
+				}
+			]
+		}
+		chatResponseObject.outputs.push(outputMessage)
+	}
 	const messageContent = outputMessage.content[0] // Since we create it ourselves above, it's the first one (for now at least...)
 	if (!messageContent || messageContent.type !== "output_text") {
 		throw new Error("Agent message content is not of type output_text - what? Devs messed up")
 	}
-  // console.log("Adding message delta to output message ID:", itemId, "Delta:", messageDelta)
+	// console.log("Adding message delta to output message ID:", itemId, "Delta:", messageDelta)
 	messageContent.text += messageDelta
 	return outputMessage
 }
@@ -68,40 +68,40 @@ export const postChatMessage = async (chatConfig: ChatConfig, chatResponseObject
 					const chatResponse = parseSse(chatResponseText)
 					for (const chatResult of chatResponse) {
 						switch (chatResult.event) {
-              case "conversation.created": {
-                console.log("Conversation created with ID:", chatResult.data.conversationId)
-                chatConfig.conversationId = chatResult.data.conversationId // Trolig ikke greit i følge svelte... siden vi endrer state i en annet scope enn den som eier staten
-                break
-              }
+							case "conversation.created": {
+								console.log("Conversation created with ID:", chatResult.data.conversationId)
+								chatConfig.conversationId = chatResult.data.conversationId // Trolig ikke greit i følge svelte... siden vi endrer state i en annet scope enn den som eier staten
+								break
+							}
 							case "response.started": {
 								const { responseId } = chatResult.data
 								console.log("Response started with ID:", chatResult.data.responseId)
-                chatResponseObject.id = responseId
-                chatResponseObject.status = "in_progress"
+								chatResponseObject.id = responseId
+								chatResponseObject.status = "in_progress"
 								break
 							}
 							case "response.output_text.delta": {
-                console.log("Received message delta for item ID:", chatResult.data.content)
+								console.log("Received message delta for item ID:", chatResult.data.content)
 								addMessageDeltaToChatItem(chatResponseObject, chatResult.data.itemId, chatResult.data.content)
 								break
 							}
 							case "response.done": {
 								console.log("Response done. Total tokens used:", chatResult.data.usage.totalTokens)
 								chatResponseObject.status = "completed"
-                chatResponseObject.outputs.forEach(output => {
-                  if (output.type === "message") {
-                    output.status = "completed"
-                  }
-                })
-                chatResponseObject.usage = chatResult.data.usage
-                break
-              }
-              case "response.error": {
-                console.error("Response error:", chatResult.data.code, chatResult.data.message)
-                addMessageDeltaToChatItem(chatResponseObject, `error_${Date.now()}`, `\n\n[Error: ${chatResult.data.message}]`)
-                chatResponseObject.status = "failed"
-                break
-              }
+								chatResponseObject.outputs.forEach((output) => {
+									if (output.type === "message") {
+										output.status = "completed"
+									}
+								})
+								chatResponseObject.usage = chatResult.data.usage
+								break
+							}
+							case "response.error": {
+								console.error("Response error:", chatResult.data.code, chatResult.data.message)
+								addMessageDeltaToChatItem(chatResponseObject, `error_${Date.now()}`, `\n\n[Error: ${chatResult.data.message}]`)
+								chatResponseObject.status = "failed"
+								break
+							}
 							default: {
 								console.warn("Unhandled chat result event:", chatResult.event)
 								break
@@ -119,7 +119,7 @@ export const postChatMessage = async (chatConfig: ChatConfig, chatResponseObject
 		}
 		// Handle non-streaming response
 		const responseData: ChatResponseObject = await response.json()
-    Object.assign(chatResponseObject, responseData)
+		Object.assign(chatResponseObject, responseData)
 		return
 	} catch (error) {
 		console.error("Error in postChatMessage:", error)

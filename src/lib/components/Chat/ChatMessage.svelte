@@ -1,13 +1,12 @@
 <script lang="ts">
-  import type { ChatInputMessage, ChatResponseObject } from "$lib/types/chat";
-  import ChatMessageItem from "./ChatMessageItem.svelte";
+	import type { ChatInputMessage, ChatResponseObject } from "$lib/types/chat"
+	import ChatMessageItem from "./ChatMessageItem.svelte"
 
 	type Props = {
-    chatConfigName: string
+		chatConfigName: string
 		chatMessage: ChatInputMessage | ChatResponseObject
 	}
 	let { chatMessage, chatConfigName }: Props = $props()
-
 </script>
 
 {#if chatMessage.type === 'message'}

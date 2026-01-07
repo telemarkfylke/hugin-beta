@@ -49,7 +49,12 @@ export const handleOpenAIResponseStream = (stream: Stream<ResponseStreamEvent>, 
 						controller.enqueue(createSse({ event: "response.output_text.delta", data: { itemId: chunk.item_id, content: chunk.delta } }))
 						break
 					case "response.completed":
-						controller.enqueue(createSse({ event: "response.done", data: { usage: { inputTokens: chunk.response.usage?.input_tokens || 0, outputTokens: chunk.response.usage?.output_tokens || 0, totalTokens: chunk.response.usage?.total_tokens || 0 } } }))
+						controller.enqueue(
+							createSse({
+								event: "response.done",
+								data: { usage: { inputTokens: chunk.response.usage?.input_tokens || 0, outputTokens: chunk.response.usage?.output_tokens || 0, totalTokens: chunk.response.usage?.total_tokens || 0 } }
+							})
+						)
 						break
 					case "response.failed":
 						controller.enqueue(createSse({ event: "response.error", data: { code: chunk.response.error?.code || "unknown", message: chunk.response.error?.message || "Unknown error" } }))
