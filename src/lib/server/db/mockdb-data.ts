@@ -1,6 +1,4 @@
 // simply in-memory mock database corresponding to collections in mongodb
-
-import type { VectorChunk } from "$lib/server/db/vectorstore/types"
 import type { DBAgent } from "$lib/types/agents.ts"
 import type { DBConversation } from "$lib/types/conversation"
 
@@ -118,7 +116,7 @@ export const agents: DBAgent[] = [
 			vectorStoreEnabled: true,
 			messageFilesEnabled: true,
 			webSearchEnabled: false,
-			vectorStoreIds: ["d5073ad2-a2df-439d-b229-3e098aae327c"] // This is one of the predefined stores in vectorstore mock
+			vectorStoreIds: ["7ae6deb1-5f45-4770-9699-fa84e3793b72"] // This is one of the predefined stores in vectorstore mock
 		},
 		authorizedGroupIds: [],
 		createdAt: new Date().toISOString(),
@@ -129,5 +127,3 @@ export const agents: DBAgent[] = [
 ]
 
 export const conversations: DBConversation[] = []
-
-export const vectors: Record<string, VectorChunk[]> = {}
