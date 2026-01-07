@@ -124,8 +124,7 @@ export class MongoVectorStoreDb implements IVectorStoreDb {
 	}
 
 	public async search(vectorContexts: string[], queryVector: number[]): Promise<string[]> {
-		
-		if(!MongoVectorStoreDb.vectorIndexName) {
+		if (!MongoVectorStoreDb.vectorIndexName) {
 			throw new Error("Vector index name must be defined")
 		}
 

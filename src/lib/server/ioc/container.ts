@@ -16,8 +16,8 @@ let iocContainer: IocContainer
 export function getIocContainer() {
 	if (!iocContainer) {
 		iocContainer = {
-			vectorStore: env.MOCK_VECTORSTORE==="true" ? new MockVectorStoreDb() : new MongoVectorStoreDb(),
-			embedder: env.MOCK_EMBEDDER==="true" ? new MockEmbedder() : new OllamaEmbedder()
+			vectorStore: env.MOCK_VECTORSTORE === "true" ? new MockVectorStoreDb() : new MongoVectorStoreDb(),
+			embedder: env.MOCK_EMBEDDER === "true" ? new MockEmbedder() : new OllamaEmbedder()
 		}
 	}
 
