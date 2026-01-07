@@ -18,6 +18,7 @@ type MongoContext = VectorContext & MongoDocument
 
 export class MongoVectorStoreDb implements IVectorStoreDb {
 	static dbName: string = env.MONGO_DB
+	static vectorIndexName: string = env.MONGO_VECTORINDEX
 	static chunckCollection: string = "vectorchunks"
 	static contextCollection: string = "vectorcontexts"
 
@@ -123,12 +124,17 @@ export class MongoVectorStoreDb implements IVectorStoreDb {
 	}
 
 	public async search(vectorContexts: string[], queryVector: number[]): Promise<string[]> {
+		
+		if(!MongoVectorStoreDb.vectorIndexName) {
+			throw new Error("Vector index name must be defined")
+		}
+
 		const client = await getMongoClient()
 
 		const pipeline = [
 			{
 				$vectorSearch: {
-					index: "hugin2_vector_index",
+					index: MongoVectorStoreDb.vectorIndexName,
 					path: "vectorMatrix",
 					queryVector: queryVector,
 					numCandidates: 100,
