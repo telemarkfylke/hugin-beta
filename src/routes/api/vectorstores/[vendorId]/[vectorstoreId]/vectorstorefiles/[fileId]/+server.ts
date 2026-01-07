@@ -1,4 +1,4 @@
-import { type RequestHandler } from "@sveltejs/kit"
+import type { RequestHandler } from "@sveltejs/kit"
 import { createVendor } from "$lib/server/agents/vendors"
 import { canViewVendorVectorStores } from "$lib/server/auth/authorization"
 import { HTTPError } from "$lib/server/middleware/http-error"

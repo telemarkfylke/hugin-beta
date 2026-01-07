@@ -3,12 +3,10 @@ import { env } from "$env/dynamic/private"
 import { createSse } from "$lib/streaming"
 import type { IVendor, IVendorResults, Vendor } from "$lib/types/vendors"
 import type { IVectorStoreDb } from "../db/vectorstore/interface"
-import { MockVectorStoreDb } from "../db/vectorstore/mock_vectorstore"
-import { MongoVectorStoreDb } from "../db/vectorstore/mongodb_vectorstore"
 import type { VectorContext } from "../db/vectorstore/types"
 import { fileToChunks, mapVectorContextToVectorStore } from "../db/vectorstore/vectorUtil"
 import type { IEmbedder } from "../embeddings/interface"
-import { OllamaEmbedder } from "../embeddings/ollama_embedder"
+import { getIocContainer } from "../ioc/container"
 
 if (!env.SUPPORTED_MODELS_VENDOR_OLLAMA || env.SUPPORTED_MODELS_VENDOR_OLLAMA.trim() === "") {
 	throw new Error("SUPPORTED_MODELS_VENDOR_OLLAMA is not set in environment variables")
@@ -18,22 +16,14 @@ const OLLAMA_DEFAULT_MODEL = OLLAMA_SUPPORTED_MODELS[0] as string
 
 export const ollama = new Ollama({ host: "http://127.0.0.1:11434" })
 
-export const getVectorStore = (): IVectorStoreDb => {
-	return new MongoVectorStoreDb()
-
-	if (env.MOCK_DB) {
-		return new MockVectorStoreDb()
-	}
-	return new MongoVectorStoreDb()
-}
-
 export class OllamaVendor implements IVendor {
 	private vectorStore: IVectorStoreDb
 	private embedder: IEmbedder
 
 	constructor(embedder?: IEmbedder | null, vectorStore?: IVectorStoreDb | null) {
-		this.embedder = embedder || new OllamaEmbedder()
-		this.vectorStore = vectorStore || getVectorStore()
+		const iocContainer = getIocContainer()
+		this.embedder = embedder || iocContainer.embedder
+		this.vectorStore = vectorStore || iocContainer.vectorStore
 	}
 
 	public getVendorInfo(): Vendor {

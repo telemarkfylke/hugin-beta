@@ -57,19 +57,19 @@ export class MockVectorStoreDb implements IVectorStoreDb {
 		return MockVectorStoreDb.contexts
 	}
 
-	private getChunkList(contextId: string): VectorChunk[]{
-		if(!MockVectorStoreDb.chunks[contextId])
+	private getChunkList(contextId: string): VectorChunk[] {
+		if (!MockVectorStoreDb.chunks[contextId]) {
 			return []
+		}
 		return MockVectorStoreDb.chunks[contextId]
 	}
 
-	private ensureChunkList(contextId: string): VectorChunk[]{
-		if(!MockVectorStoreDb.chunks[contextId]){
+	private ensureChunkList(contextId: string): VectorChunk[] {
+		if (!MockVectorStoreDb.chunks[contextId]) {
 			MockVectorStoreDb.chunks[contextId] = []
 		}
-		return MockVectorStoreDb.chunks[contextId]		
+		return MockVectorStoreDb.chunks[contextId]
 	}
-
 
 	private async addVectorMatrix(contextId: string, fileId: string, text: string, matrix: number[]) {
 		const chunks = this.ensureChunkList(contextId)

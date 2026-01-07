@@ -9,6 +9,7 @@
 		error: string | null
 		files: VectorStoreFile[]
 	}
+
 	let vectorstoreFiles: FrontendVectorStoreFiles = $state({
 		isLoading: true,
 		error: null,
@@ -31,13 +32,13 @@
 		}
 	}
 
-	const deleteFile = async (fileId:string) => {
+	const deleteFile = async (fileId: string) => {
 		const res = await fetch(`/api/vectorstores/${page.params.vendorId}/${page.params.vectorstoreId}/vectorstorefiles/${fileId}`, {
-			method:'DELETE'
+			method: "DELETE"
 		})
-			if (!res.ok) {
-				throw new Error(`Failed to delete vector store file: ${fileId}`)
-			}
+		if (!res.ok) {
+			throw new Error(`Failed to delete vector store file: ${fileId}`)
+		}
 
 		await getVectorStoreFiles()
 	}
@@ -122,34 +123,40 @@
 
 <h1>Vectorstore/ID Page</h1>
 {#await getVectorStore()}
-  <p>Loading vector store...</p>
+	<p>Loading vector store...</p>
 {:then vectorstore}
-  <div>
-    <h2>{vectorstore.name}</h2>
-    <p>Vendor ID: {vectorstore.vendorId}</p>
-    <p>Vector Store ID: {vectorstore.id}</p>
-    <p>Description: {vectorstore.description}</p>
-  </div>
+	<div>
+		<h2>{vectorstore.name}</h2>
+		<p>Vendor ID: {vectorstore.vendorId}</p>
+		<p>Vector Store ID: {vectorstore.id}</p>
+		<p>Description: {vectorstore.description}</p>
+	</div>
 {:catch error}
-  <p style="color: red;">Error: {error.stack || error.message}</p>
+	<p style="color: red;">Error: {error.stack || error.message}</p>
 {/await}
 <h2>Vector Store Files</h2>
 
-<input bind:files={uploadVectorStoreFiles} type="file" id="vector-store-file-upload" />
+<input
+	bind:files={uploadVectorStoreFiles}
+	type="file"
+	id="vector-store-file-upload"
+/>
 <button type="button" onclick={submitFiles}>Last opp</button>
 
-
 {#if vectorstoreFiles.isLoading}
-  <p>Loading vector store files...</p>
+	<p>Loading vector store files...</p>
 {:else if vectorstoreFiles.error}
-  <p style="color: red;">Error: {vectorstoreFiles.error}</p>
+	<p style="color: red;">Error: {vectorstoreFiles.error}</p>
 {:else if vectorstoreFiles.files.length === 0}
-  <p>No files found in this vector store.</p>
+	<p>No files found in this vector store.</p>
 {:else}
-  <ul>
-    {#each vectorstoreFiles.files as file}
-      <li>{file.name} - {file.bytes} bytes <button type="button" onclick={() => deleteFile(file.id)}>Delete</button></li> 
-    {/each}
-  </ul>
+	<ul>
+		{#each vectorstoreFiles.files as file}
+			<li>
+				{file.name} - {file.bytes} bytes
+				<button type="button" onclick={() => deleteFile(file.id)}>Delete</button
+				>
+			</li>
+		{/each}
+	</ul>
 {/if}
-
