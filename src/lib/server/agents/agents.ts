@@ -55,7 +55,6 @@ export const patchDBAgent = async (agentId: string, agentUpdateInput: DBAgentPat
 	return await agentStore.updateAgent(agentId, agentUpdateInput)
 }
 
-// Jeg skjønner fremdeles ikke hvorfor vi trenger en PUT her når vi har patch. vbirker som dobbelt upkeep
 export const putDBAgent = async (user: AuthenticatedUser, agentInput: DBAgentPutInput, agentToReplace: DBAgent): Promise<DBAgent> => {
 	const newAgent: DBAgent = {
 		_id: agentToReplace._id,
