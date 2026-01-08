@@ -1,56 +1,64 @@
-import type { ResponseInputItem, ResponseOutputMessage, Tool } from "openai/resources/responses/responses.mjs"
-
-// Steal from OpenAI types (don't want to reinvent the wheel)
-export type ChatInputMessage = ResponseInputItem.Message
-export type ChatOutputMessage = ResponseOutputMessage
-
-export type ChatTool = Tool
-
-// Done stealing for now
-
-export type UnknownChatItem = {
-	type: "unknown"
-	data: unknown
-}
-
-export type ChatInput = ChatInputMessage | ChatOutputMessage | UnknownChatItem
+import type { ChatInputItem, ChatOutputItem } from "./chat-item"
 
 export type VendorAgent = {
 	id: string
 }
 
+export type ChatTool = {
+	type: "tools_not_implemented_yet"
+}
+
 export type ChatConfig = {
-	id?: string
-	name?: string
-	description?: string
+	id: string
+	name: string
+	description: string
 	vendorId: string
-	inputs: ChatInput[]
-	stream?: boolean
-	vendorAgent?: VendorAgent
-	model?: string
-	instructions?: string
-	conversationId?: string
+	vendorAgent?: VendorAgent | undefined
+	model?: string | undefined
+	instructions?: string | undefined
+	conversationId?: string | undefined
 	tools?: ChatTool[]
+}
+
+export type ChatRequest = {
+	config: ChatConfig
+	inputs: ChatInputItem[]
+	store?: boolean
+	stream?: boolean
 }
 
 export type ChatResponseStream = ReadableStream<Uint8Array>
 
-export type UsageInfo = {
+export type ChatResponseUsage = {
 	inputTokens: number
 	outputTokens: number
 	totalTokens: number
 }
 
-export type ChatOutput = ChatOutputMessage | UnknownChatItem
-
 export type ChatResponseObject = {
 	id: string
 	type: "chat_response"
-	vendorId: string
+	config: ChatConfig
 	createdAt: string
-	outputs: ChatOutput[]
+	outputs: ChatOutputItem[]
 	status: "completed" | "failed" | "in_progress" | "cancelled" | "queued" | "incomplete"
-	usage: UsageInfo
+	usage: ChatResponseUsage
 }
 
 export type ChatResponse = ChatResponseStream | ChatResponseObject
+
+export type ChatHistoryItem = ChatInputItem | ChatResponseObject
+
+export type ChatHistory = ChatHistoryItem[]
+
+export type Chat = {
+	id: string
+	config: ChatConfig
+	history: ChatHistory
+	createdAt: string
+	updatedAt: string
+	owner: {
+		id: string
+		name?: string
+	}
+}

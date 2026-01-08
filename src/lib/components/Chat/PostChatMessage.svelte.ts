@@ -1,5 +1,6 @@
 import { parseSse } from "$lib/streaming"
-import type { ChatConfig, ChatOutputMessage, ChatResponseObject } from "$lib/types/chat"
+import type { Chat, ChatRequest, ChatResponseObject } from "$lib/types/chat"
+import type { ChatOutputMessage } from "$lib/types/chat-item"
 
 export const addMessageDeltaToChatItem = (chatResponseObject: ChatResponseObject, itemId: string, messageDelta: string): ChatOutputMessage => {
 	if (!chatResponseObject || !chatResponseObject.outputs || !Array.isArray(chatResponseObject.outputs)) {
@@ -11,18 +12,16 @@ export const addMessageDeltaToChatItem = (chatResponseObject: ChatResponseObject
 	if (!messageDelta) {
 		throw new Error("No message delta content provided")
 	}
-	let outputMessage = chatResponseObject.outputs.find((output) => output.type === "message" && output.id === itemId) as ChatOutputMessage | undefined
+	let outputMessage = chatResponseObject.outputs.find((output) => output.type === "message.output" && output.id === itemId) as ChatOutputMessage | undefined
 	if (!outputMessage) {
 		outputMessage = {
 			id: itemId,
-			type: "message",
+			type: "message.output",
 			role: "assistant",
-			status: "in_progress", // Hvordan håndtere status her egentlig?
 			content: [
 				{
 					type: "output_text",
-					text: "",
-					annotations: []
+					text: ""
 				}
 			]
 		}
@@ -37,14 +36,14 @@ export const addMessageDeltaToChatItem = (chatResponseObject: ChatResponseObject
 	return outputMessage
 }
 
-export const postChatMessage = async (chatConfig: ChatConfig, chatResponseObject: ChatResponseObject) => {
+export const postChatMessage = async (chatRequest: ChatRequest, chatResponseObject: ChatResponseObject, chat: Chat) => {
 	try {
 		const response = await fetch("/api/chat", {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json"
 			},
-			body: JSON.stringify(chatConfig)
+			body: JSON.stringify(chatRequest)
 		})
 		if (!response.ok) {
 			console.error(`Error posting chat message: ${response.statusText}`)
@@ -52,7 +51,7 @@ export const postChatMessage = async (chatConfig: ChatConfig, chatResponseObject
 			console.error("Error details:", errorData)
 			throw new Error(`Error posting chat message: ${response.statusText}`) // For now, just throw an error
 		}
-		if (chatConfig.stream) {
+		if (chatRequest.stream) {
 			if (!response.body) {
 				throw new Error("Failed to get a response body from agent prompt")
 			}
@@ -70,7 +69,7 @@ export const postChatMessage = async (chatConfig: ChatConfig, chatResponseObject
 						switch (chatResult.event) {
 							case "conversation.created": {
 								console.log("Conversation created with ID:", chatResult.data.conversationId)
-								chatConfig.conversationId = chatResult.data.conversationId // Trolig ikke greit i følge svelte... siden vi endrer state i en annet scope enn den som eier staten
+								chat.config.conversationId = chatResult.data.conversationId // Trolig ikke greit i følge svelte... siden vi endrer state i en annet scope enn den som eier staten
 								break
 							}
 							case "response.started": {
@@ -88,11 +87,6 @@ export const postChatMessage = async (chatConfig: ChatConfig, chatResponseObject
 							case "response.done": {
 								console.log("Response done. Total tokens used:", chatResult.data.usage.totalTokens)
 								chatResponseObject.status = "completed"
-								chatResponseObject.outputs.forEach((output) => {
-									if (output.type === "message") {
-										output.status = "completed"
-									}
-								})
 								chatResponseObject.usage = chatResult.data.usage
 								break
 							}

@@ -1,4 +1,4 @@
-import type { ChatConfig, ChatResponseObject, ChatResponseStream } from "./chat"
+import type { ChatRequest, ChatResponseObject, ChatResponseStream } from "./chat"
 
 export type AIVendor = {
 	id: string
@@ -15,6 +15,9 @@ export interface IAIVendor {
 	/** Returns some static info about the AI Vendor */
 	getInfo(): AIVendor
 	/** Creates a chat response based on the given prompt request */
-	createChatResponse(config: ChatConfig): Promise<ChatResponseObject>
-	createChatResponseStream(config: ChatConfig): Promise<ChatResponseStream>
+	createChatResponse(chatRequest: ChatRequest): Promise<ChatResponseObject>
+	createChatResponseStream(chatRequest: ChatRequest): Promise<ChatResponseStream>
 }
+
+// VENDOR HANDLE STREAM INTERFACE
+export type IAIVendorStreamHandler<T> = (chatRequest: ChatRequest, stream: T) => ChatResponseStream

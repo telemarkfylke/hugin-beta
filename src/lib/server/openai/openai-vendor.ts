@@ -1,10 +1,10 @@
 import OpenAI from "openai"
-import type { Response } from "openai/resources/responses/responses.js"
 import type { ResponseCreateParamsBase } from "openai/resources/responses/responses.mjs"
 import { env } from "$env/dynamic/private"
 import type { AIVendor, IAIVendor } from "$lib/types/AIVendor"
-import type { ChatConfig, ChatOutput, ChatResponseObject, ChatResponseStream } from "$lib/types/chat"
+import type { ChatRequest, ChatResponseObject, ChatResponseStream } from "$lib/types/chat"
 import { handleOpenAIResponseStream } from "./openai-stream"
+import { chatInputToOpenAIInput, openAiResponseToChatResponseObject } from "./openai-mapping"
 
 if (!env.SUPPORTED_MODELS_VENDOR_OPENAI || env.SUPPORTED_MODELS_VENDOR_OPENAI.trim() === "") {
 	throw new Error("SUPPORTED_MODELS_VENDOR_OPENAI is not set in environment variables")
@@ -16,58 +16,32 @@ export const openai = new OpenAI({
 	apiKey: env.OPENAI_API_KEY || "bare-en-tulle-key"
 })
 
-const openAiConfig = (config: ChatConfig): ResponseCreateParamsBase => {
+const openAiRequest = (chatRequest: ChatRequest): ResponseCreateParamsBase => {
 	const baseConfig: ResponseCreateParamsBase = {
-		input: config.inputs.filter((input) => input.type !== "unknown"),
+		input: chatRequest.inputs.map(chatInputToOpenAIInput),
 		store: false
 	}
-	if (config.vendorAgent) {
-		if (!config.vendorAgent.id) {
+	if (chatRequest.config.vendorAgent) {
+		if (!chatRequest.config.vendorAgent.id) {
 			throw new Error("vendorAgent with valid id is required for predefined agent chat config")
 		}
 		return {
 			prompt: {
-				id: config.vendorAgent.id
+				id: chatRequest.config.vendorAgent.id
 			},
 			...baseConfig
 		}
 	}
-	if (!config.model) {
+	if (!chatRequest.config.model) {
 		throw new Error("Model is required for manual chat config")
 	}
-	if (!OPEN_AI_SUPPORTED_MODELS.includes(config.model)) {
-		throw new Error(`Model ${config.model} is not supported by OpenAI vendor`)
+	if (!OPEN_AI_SUPPORTED_MODELS.includes(chatRequest.config.model)) {
+		throw new Error(`Model ${chatRequest.config.model} is not supported by OpenAI vendor`)
 	}
 	return {
-		model: config.model,
-		instructions: config.instructions || "",
-		tools: config.tools || [],
+		model: chatRequest.config.model,
+		instructions: chatRequest.config.instructions || "",
 		...baseConfig
-	}
-}
-
-const openAiResponseToChatResponseObject = (response: Response): ChatResponseObject => {
-	const outputs: ChatOutput[] = response.output.map((output) => {
-		if (output.type === "message") {
-			return output
-		}
-		return {
-			type: "unknown",
-			data: output
-		}
-	})
-	return {
-		id: response.id,
-		type: "chat_response",
-		vendorId: "openai",
-		createdAt: new Date(response.created_at).toISOString(),
-		outputs,
-		status: response.status || "incomplete",
-		usage: {
-			inputTokens: response.usage?.input_tokens || 0,
-			outputTokens: response.usage?.output_tokens || 0,
-			totalTokens: response.usage?.total_tokens || 0
-		}
 	}
 }
 
@@ -84,19 +58,19 @@ export class OpenAIVendor implements IAIVendor {
 		}
 	}
 
-	public async createChatResponse(config: ChatConfig): Promise<ChatResponseObject> {
+	public async createChatResponse(chatRequest: ChatRequest): Promise<ChatResponseObject> {
 		const response = await openai.responses.create({
-			...openAiConfig(config),
+			...openAiRequest(chatRequest),
 			stream: false
 		})
-		return openAiResponseToChatResponseObject(response)
+		return openAiResponseToChatResponseObject(chatRequest.config, response)
 	}
 
-	public async createChatResponseStream(config: ChatConfig): Promise<ChatResponseStream> {
+	public async createChatResponseStream(chatRequest: ChatRequest): Promise<ChatResponseStream> {
 		const responseStream = await openai.responses.create({
-			...openAiConfig(config),
+			...openAiRequest(chatRequest),
 			stream: true
 		})
-		return handleOpenAIResponseStream(responseStream)
+		return handleOpenAIResponseStream(chatRequest, responseStream)
 	}
 }

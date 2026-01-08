@@ -1,9 +1,9 @@
 <script lang="ts">
 	import { markdownFormatter } from "$lib/formatting/markdown-formatter.js"
-	import type { ChatInput } from "$lib/types/chat"
+  import type { ChatItem } from "$lib/types/chat-item";
 
 	type Props = {
-		chatItem: ChatInput
+		chatItem: ChatItem
 	}
 	let { chatItem }: Props = $props()
 
@@ -22,48 +22,36 @@
 		"data:image/png;base64,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"
 </script>
 
-{#if chatItem.type === 'message'}
-  {#if chatItem.role === 'user'}
-    <div class="user-message">
-      {#each chatItem.content as contentPart}
-        <div class="user-message-part-{contentPart.type}">
-          {#if contentPart.type === 'input_text'}
-            {contentPart.text}
-          {:else if contentPart.type === 'input_image'}
-            {#if contentPart.image_url}
-              <img src="{getImage(contentPart.image_url)}" alt="Opplastet bilde" style="max-width: 100px; max-height: 100px;" />
-            {:else}
-              <span>Ingen bilde-URL oppgitt</span>
-              {JSON.stringify(contentPart)}
-            {/if}
-          {:else if contentPart.type === 'input_file' }
-            <img src="{fileplaceholderImage}" alt="Bilde av en fil" style="max-width: 100px; max-height: 100px;" />
-            <br />
-            {contentPart.filename}
-          {/if}
-        </div>
-      {/each}
-    </div>
-  {:else if chatItem.role === "assistant"}
-    <div class="assistant-message">
-      {#each chatItem.content as contentPart}
-        <div class="assistant-message-part-{contentPart.type}">
-          {#if contentPart.type === 'output_text'}
-            {@html markdownFormatter(contentPart.text)}
-          {:else if contentPart.type === 'refusal'}
-            <em>Assistant refused to answer: {contentPart.refusal}</em>
-          {:else}
-            <span>Unknown content part type</span>
-            {JSON.stringify(contentPart)}
-          {/if}
-        </div>
-      {/each}
-    </div>
-  {/if}
-{:else if chatItem.type === 'unknown'}
-  <div class="unknown-message">
-    <em>Unknown message type</em>
-    {JSON.stringify(chatItem)}
+{#if chatItem.type === 'message.input'}
+  <div class="user-message">
+    {#each chatItem.content as contentPart}
+      <div class="user-message-part-{contentPart.type}">
+        {#if contentPart.type === 'input_text'}
+          {contentPart.text}
+        {:else if contentPart.type === 'input_image'}
+          <img src="{getImage(contentPart.imageUrl)}" alt="Opplastet bilde" style="max-width: 100px; max-height: 100px;" />
+        {:else if contentPart.type === 'input_file' }
+          <img src="{fileplaceholderImage}" alt="Bilde av en fil" style="max-width: 100px; max-height: 100px;" />
+          <br />
+          {contentPart.fileName}
+        {/if}
+      </div>
+    {/each}
+  </div>
+{:else if chatItem.type === 'message.output'}
+  <div class="assistant-message">
+    {#each chatItem.content as contentPart}
+      <div class="assistant-message-part-{contentPart.type}">
+        {#if contentPart.type === 'output_text'}
+          {@html markdownFormatter(contentPart.text)}
+        {:else if contentPart.type === 'output_refusal'}
+          <em>Assistant refused to answer: {contentPart.reason}</em>
+        {:else}
+          <span>Unknown content part type</span>
+          {JSON.stringify(contentPart)}
+        {/if}
+      </div>
+    {/each}
   </div>
 {/if}
 
