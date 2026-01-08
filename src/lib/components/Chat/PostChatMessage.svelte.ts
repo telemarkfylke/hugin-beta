@@ -80,7 +80,6 @@ export const postChatMessage = async (chatRequest: ChatRequest, chatResponseObje
 								break
 							}
 							case "response.output_text.delta": {
-								console.log("Received message delta for item ID:", chatResult.data.content)
 								addMessageDeltaToChatItem(chatResponseObject, chatResult.data.itemId, chatResult.data.content)
 								break
 							}

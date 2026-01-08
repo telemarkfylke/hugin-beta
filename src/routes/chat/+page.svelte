@@ -1,6 +1,6 @@
 <script lang="ts">
   import ChatComponent from "$lib/components/Chat/Chat.svelte";
-  import { ChatState } from "$lib/components/Chat/ChatState.svelte";
+  import { ChatState } from "$lib/components/Chat/ChatState.svelte.js";
 	import type { Chat } from "$lib/types/chat"
 
 	const defaultChat: Chat = {
@@ -27,3 +27,5 @@
 </script>
 
 <ChatComponent {chatState} />
+
+<!--<button onclick={() => chatState.loadChat('hahah')}>Load chat 'hahah'</button>-->

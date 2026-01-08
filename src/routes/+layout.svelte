@@ -16,8 +16,6 @@
 	<h1>Hugin Beta</h1>
 	<menu>
 		{data.authenticatedUser.name}
-		<li><a href="/">Home</a></li>
-		<li><a href="/agents">Agents</a></li>
 	</menu>
 </header>
 <main>
