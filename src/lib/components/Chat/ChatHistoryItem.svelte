@@ -4,7 +4,6 @@
 	import ChatItem from "./ChatItems/MessageItem.svelte"
 
 	type Props = {
-		chatConfigName: string
 		chatHistoryItem: ChatHistoryItem
 	}
 	let { chatHistoryItem }: Props = $props()
