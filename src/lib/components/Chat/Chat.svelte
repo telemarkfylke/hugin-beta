@@ -38,7 +38,7 @@
 	</div>
 	<div class="chat-items">
 		{#each chatState.chat.history as chatHistoryItem}
-			<ChatHistoryItem {chatHistoryItem} chatConfigName={chatState.chat.config.name} />
+			<ChatHistoryItem {chatHistoryItem} />
 		{/each}
 	</div>
 

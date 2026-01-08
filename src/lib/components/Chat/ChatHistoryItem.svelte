@@ -7,7 +7,7 @@
 		chatConfigName: string
 		chatHistoryItem: ChatHistoryItem
 	}
-	let { chatHistoryItem, chatConfigName }: Props = $props()
+	let { chatHistoryItem }: Props = $props()
 </script>
 
 {#if chatHistoryItem.type === 'message.input'}
@@ -15,7 +15,7 @@
 {/if}
 {#if chatHistoryItem.type === 'chat_response'}
   <div class="chat-response">
-    <h4>{chatConfigName} ({chatHistoryItem.status})</h4>
+    <h4>{chatHistoryItem.config.name}</h4>
     {#if chatHistoryItem.status === "queued" || chatHistoryItem.status === "in_progress" && chatHistoryItem.outputs.length === 0}
       <TypingDots />
     {:else}
