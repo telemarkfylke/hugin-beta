@@ -5,9 +5,10 @@ import type { ChatConfig } from "./chat"
  *
  * @link https://github.com/colinhacks/zod/issues/372#issuecomment-826380330
  */
-// biome-ignore lint: Unexpected any
+
 const schemaForType =
 	<T>() =>
+	// biome-ignore lint: Unexpected any
 	<S extends z.ZodType<T, any>>(arg: S) => {
 		return arg
 	}
