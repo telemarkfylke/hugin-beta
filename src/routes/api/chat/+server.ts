@@ -13,28 +13,45 @@ const validFileType = (fileUrl: string, supportedMimeTypes: string[]): boolean =
 }
 
 const validateFileInputs = (chatRequest: ChatRequest) => {
-	const fileInputs = chatRequest.inputs.flatMap(inputItem => {
-		if (inputItem.type === "message.input") {
-			return inputItem.content.filter(contentItem => contentItem.type === "input_file" || contentItem.type === "input_image")
-		}
-		return []
-	})
-	if (fileInputs.length === 0) {
-		return
+	const lastMessage = chatRequest.inputs[chatRequest.inputs.length - 1]
+	if (!lastMessage || lastMessage.type !== "message.input") {
+		throw new HTTPError(400, "Last input must be a message.input to validate file inputs")
 	}
-	const vendorSupportedMimeTypes = VENDOR_SUPPORTED_MESSAGE_MIME_TYPES[`${chatRequest.config.vendorId}-${chatRequest.config.model}`]
-	if (!vendorSupportedMimeTypes) {
-		throw new HTTPError(400, `File uploads are not supported for vendor/model: ${chatRequest.config.vendorId}-${chatRequest.config.model}`)
+
+	const vendorSupportedMimeTypes = VENDOR_SUPPORTED_MESSAGE_MIME_TYPES[`${chatRequest.config.vendorId}-${chatRequest.config.model}`] || {
+		file: [],
+		image: []
 	}
+
 	const supportedMimeTypes = [
 		...vendorSupportedMimeTypes.file,
 		...vendorSupportedMimeTypes.image
 	]
 
-	for (const fileInput of fileInputs) {
+	const fileInputs = lastMessage.content.filter(contentItem => contentItem.type === "input_file" || contentItem.type === "input_image")
+	for (const fileInput of fileInputs.slice(-1)) {
 		if (!validFileType(fileInput.type === "input_file" ? fileInput.fileUrl : fileInput.imageUrl, supportedMimeTypes)) {
 			throw new HTTPError(400, `File type of uploaded file is not supported for vendor/model: ${chatRequest.config.vendorId}-${chatRequest.config.model}`)
 		}
+	}
+
+	// Filter out all previous file inputs of not valid mimetype (in case someone changed model/vendor mid-conversation)
+	for (const [index, inputItem] of chatRequest.inputs.entries()) {
+		if (index === chatRequest.inputs.length - 1) {
+			continue // Skip last message, already validated
+		}
+		if (inputItem.type !== "message.input") {
+			continue
+		}
+		inputItem.content = inputItem.content.filter(contentItem => {
+			if (contentItem.type === "input_file") {
+				return validFileType(contentItem.fileUrl, supportedMimeTypes)
+			}
+			if (contentItem.type === "input_image") {
+				return validFileType(contentItem.imageUrl, supportedMimeTypes)
+			}
+			return true
+		})
 	}
 }
 
