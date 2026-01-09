@@ -9,6 +9,13 @@ A SvelteKit-based application leveraging AI capabilities through Mistral and Ope
 - We want built-in privacy for our users, and to keep them effective and happy.
 
 ## Architecture
+- /api/chat
+  - Ligner på responses api - man sender inn ALT som trengs for å få en chat-response
+
+- Det vi trenger til første omgang er en chat med mulighet for fil-input, og kunne bruke flere leverandører/modeller. Ferdig. Med moderne design.
+
+
+## old? Architecture
 - We want to build an API-first solution, where everything you can do in the frontend, is also available throug API in the backend
 - SvelteKit App, with both frontend and backend in the same project.
 
@@ -123,3 +130,6 @@ npm run preview
 Deployment requires installing an appropriate [SvelteKit adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
 
 Built with ❤️ by the Mugin Team.
+
+
+

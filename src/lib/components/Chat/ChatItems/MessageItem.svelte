@@ -1,0 +1,68 @@
+<script lang="ts">
+	import { markdownFormatter } from "$lib/formatting/markdown-formatter.js"
+	import type { ChatItem } from "$lib/types/chat-item"
+
+	type Props = {
+		chatItem: ChatItem
+	}
+	let { chatItem }: Props = $props()
+
+	// Helper
+	const getImage = (imageUrl: string): string => {
+		if (imageUrl.startsWith("data:")) {
+			// Better validation please
+			return imageUrl
+		} else {
+			// Bare et placeholder-bilde for nå
+			return `data:image/png;base64,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`
+		}
+	}
+
+	const fileplaceholderImage =
+		"data:image/png;base64,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"
+</script>
+
+{#if chatItem.type === 'message.input'}
+  <div class="user-message">
+    {#each chatItem.content as contentPart}
+      <div class="user-message-part-{contentPart.type}">
+        {#if contentPart.type === 'input_text'}
+          {contentPart.text}
+        {:else if contentPart.type === 'input_image'}
+          <img src="{getImage(contentPart.imageUrl)}" alt="Opplastet bilde" style="max-width: 100px; max-height: 100px;" />
+        {:else if contentPart.type === 'input_file' }
+          <img src="{fileplaceholderImage}" alt="Bilde av en fil" style="max-width: 100px; max-height: 100px;" />
+          <br />
+          {contentPart.fileName}
+        {/if}
+      </div>
+    {/each}
+  </div>
+{:else if chatItem.type === 'message.output'}
+  <div class="assistant-message">
+    {#each chatItem.content as contentPart}
+      <div class="assistant-message-part-{contentPart.type}">
+        {#if contentPart.type === 'output_text'}
+          {@html markdownFormatter(contentPart.text)}
+        {:else if contentPart.type === 'output_refusal'}
+          <em>Assistant refused to answer: {contentPart.reason}</em>
+        {:else}
+          <span>Unknown content part type</span>
+          {JSON.stringify(contentPart)}
+        {/if}
+      </div>
+    {/each}
+  </div>
+{/if}
+
+<style>
+  .user-message {
+    align-self: flex-end;
+    background-color: #daf1da;
+    padding: 0.5rem;
+    border-radius: 8px;
+    max-width: 20rem;
+    overflow-wrap: break-word;
+  }
+</style>
+

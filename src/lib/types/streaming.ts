@@ -1,82 +1,87 @@
 import z from "zod"
+import type { ChatConfig } from "./chat"
 
-const ConversationStarted = z.object({
-	event: z.literal("conversation.started"),
+/**
+ *
+ * @link https://github.com/colinhacks/zod/issues/372#issuecomment-826380330
+ */
+
+const schemaForType =
+	<T>() =>
+	// biome-ignore lint: Unexpected any
+	<S extends z.ZodType<T, any>>(arg: S) => {
+		return arg
+	}
+
+// New and better
+const ChatConfigSchema = schemaForType<ChatConfig>()(
+	z.object({
+		id: z.string(),
+		name: z.string(),
+		description: z.string(),
+		vendorId: z.string(),
+		vendorAgent: z.object({ id: z.string() }).optional(),
+		model: z.string().optional(),
+		instructions: z.string().optional(),
+		conversationId: z.string().optional()
+	})
+)
+
+const ResponseConfig = z.object({
+	event: z.literal("response.config"),
+	data: ChatConfigSchema
+})
+
+const ResponseStarted = z.object({
+	event: z.literal("response.started"),
 	data: z.object({
-		conversationId: z.string()
+		responseId: z.string()
 	})
 })
 
-const ConversationMessageDelta = z.object({
-	event: z.literal("conversation.message.delta"),
+const ResponseDone = z.object({
+	event: z.literal("response.done"),
 	data: z.object({
-		messageId: z.string(),
-		content: z.string()
+		usage: z.object({
+			inputTokens: z.number(),
+			outputTokens: z.number(),
+			totalTokens: z.number()
+		})
 	})
 })
 
-const ConversationMessageEnded = z.object({
-	event: z.literal("conversation.message.ended"),
+const ResponseError = z.object({
+	event: z.literal("response.error"),
 	data: z.object({
-		totalTokens: z.number()
-	})
-})
-
-const ConversationEnded = z.object({
-	event: z.literal("conversation.ended"),
-	data: z.object({
-		conversationId: z.string()
-	})
-})
-
-const ErrorEvent = z.object({
-	event: z.literal("error"),
-	data: z.object({
+		code: z.string(),
 		message: z.string()
 	})
 })
 
-const ConversationVectorStoreCreated = z.object({
-	event: z.literal("conversation.vectorstore.created"),
+const ResponseOutputTextDelta = z.object({
+	event: z.literal("response.output_text.delta"),
 	data: z.object({
-		vectorStoreId: z.string()
+		// Hva brukes content part til egt?
+		itemId: z.string(),
+		content: z.string()
 	})
 })
 
-const VendorFileProcessed = z.object({
-	event: z.literal("vendor.vectorstore.file.processed"),
+const ConversationCreated = z.object({
+	event: z.literal("conversation.created"),
 	data: z.object({
-		fileId: z.string(),
-		fileName: z.string()
-	})
-})
-
-const ConversationFileUploaded = z.object({
-	event: z.literal("conversation.vectorstore.file.uploaded"),
-	data: z.object({
-		fileId: z.string(),
-		fileName: z.string()
-	})
-})
-
-const ConversationFilesProcessed = z.object({
-	event: z.literal("conversation.vectorstore.files.processed"),
-	data: z.object({
-		files: z.array(z.object({ fileId: z.string() })),
-		vectorStoreId: z.string()
+		conversationId: z.string()
 	})
 })
 
 export const MuginSse = z.discriminatedUnion("event", [
-	ConversationStarted,
-	ConversationMessageDelta,
-	ConversationMessageEnded,
-	ConversationEnded,
-	ErrorEvent,
-	ConversationVectorStoreCreated,
-	ConversationFileUploaded,
-	ConversationFilesProcessed,
-	VendorFileProcessed
+	// New events
+	ResponseConfig,
+	ResponseStarted,
+	ResponseDone,
+	ResponseError,
+	ResponseOutputTextDelta,
+	ConversationCreated
 ])
 
 export type MuginSse = z.infer<typeof MuginSse>
