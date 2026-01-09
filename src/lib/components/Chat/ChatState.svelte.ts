@@ -155,8 +155,6 @@ export class ChatState {
 	}
 
 	public promptChat = async (inputText: string, inputFiles: FileList) => {
-		
-		
 		const userMessage: ChatInputItem = {
 			type: "message.input",
 			role: "user",
@@ -181,12 +179,14 @@ export class ChatState {
 			text: inputText
 		})
 
-		const chatInput = this.chat.history.flatMap(chatItem => {
-			if (chatItem.type === "chat_response") {
-				return chatItem.outputs
-			}
-			return chatItem
-		}).filter((message) => message !== undefined)
+		const chatInput = this.chat.history
+			.flatMap((chatItem) => {
+				if (chatItem.type === "chat_response") {
+					return chatItem.outputs
+				}
+				return chatItem
+			})
+			.filter((message) => message !== undefined)
 
 		const chatRequest: ChatRequest = {
 			config: this.chat.config,

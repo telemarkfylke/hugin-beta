@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { ChatHistoryItem } from "$lib/types/chat"
-  import TypingDots from "../TypingDots.svelte";
+	import TypingDots from "../TypingDots.svelte"
 	import ChatItem from "./ChatItems/MessageItem.svelte"
 
 	type Props = {

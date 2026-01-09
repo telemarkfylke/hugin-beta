@@ -1,4 +1,4 @@
-import type { InputText, InputFile, InputImage, OutputRefusal, OutputText } from "./chat-item-content"
+import type { InputFile, InputImage, InputText, OutputRefusal, OutputText } from "./chat-item-content"
 
 export type ChatInputMessageContent = InputText | InputFile | InputImage
 

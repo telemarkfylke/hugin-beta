@@ -1,12 +1,11 @@
 import { Mistral } from "@mistralai/mistralai"
-import { env } from "$env/dynamic/private"
 import type { ConversationRequest } from "@mistralai/mistralai/models/components"
-import type { ChatRequest, ChatResponseObject, ChatResponseStream } from "$lib/types/chat"
+import { env } from "$env/dynamic/private"
 import type { AIVendor, IAIVendor } from "$lib/types/AIVendor"
+import type { ChatRequest, ChatResponseObject, ChatResponseStream } from "$lib/types/chat"
 import { MISTRAL_VENDOR_ID } from "$lib/vendor-constants"
 import { chatInputToMistralInput, mistralResponseToChatResponseObject } from "./mistral-mapping"
 import { handleMistralResponseStream } from "./mistral-stream"
-
 
 if (!env.SUPPORTED_MODELS_VENDOR_MISTRAL || env.SUPPORTED_MODELS_VENDOR_MISTRAL.trim() === "") {
 	throw new Error("SUPPORTED_MODELS_VENDOR_MISTRAL is not set in environment variables")

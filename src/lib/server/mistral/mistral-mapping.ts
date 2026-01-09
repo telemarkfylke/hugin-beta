@@ -1,7 +1,7 @@
+import type { ConversationResponse, InputEntries, MessageInputEntry, MessageOutputEntry } from "@mistralai/mistralai/models/components"
+import { logger } from "@vestfoldfylke/loglady"
 import type { ChatConfig, ChatResponseObject } from "$lib/types/chat"
 import type { ChatInputItem, ChatInputMessage, ChatOutputItem, ChatOutputMessage } from "$lib/types/chat-item"
-import { logger } from "@vestfoldfylke/loglady"
-import type { ConversationResponse, InputEntries, MessageInputEntry, MessageOutputEntry } from "@mistralai/mistralai/models/components"
 
 const chatInputMessageToMistralInputMessage = (inputItem: ChatInputMessage): MessageInputEntry => {
 	const mistralItem: MessageInputEntry = {
@@ -9,7 +9,7 @@ const chatInputMessageToMistralInputMessage = (inputItem: ChatInputMessage): Mes
 		role: "user",
 		content: []
 	}
-	if (typeof mistralItem.content === 'string') {
+	if (typeof mistralItem.content === "string") {
 		throw new Error("Mistral message input content should not be a string")
 	}
 	for (const contentItem of inputItem.content) {
@@ -17,7 +17,7 @@ const chatInputMessageToMistralInputMessage = (inputItem: ChatInputMessage): Mes
 			case "input_text": {
 				mistralItem.content.push({
 					type: "text",
-					text: contentItem.text	
+					text: contentItem.text
 				})
 				break
 			}
@@ -48,7 +48,7 @@ const chatOutputMessageToMistralOutputMessage = (outputItem: ChatOutputMessage):
 		role: outputItem.role,
 		content: []
 	}
-	if (typeof mistralItem.content === 'string') {
+	if (typeof mistralItem.content === "string") {
 		throw new Error("Mistral message output content should not be a string")
 	}
 	for (const contentItem of outputItem.content) {
@@ -81,7 +81,7 @@ export const chatInputToMistralInput = (inputItem: ChatInputItem): InputEntries 
 			return chatOutputMessageToMistralOutputMessage(inputItem)
 		}
 		default: {
-			throw new Error(`Unsupported ChatInputItem: ${(JSON.stringify(inputItem))}`)
+			throw new Error(`Unsupported ChatInputItem: ${JSON.stringify(inputItem)}`)
 		}
 	}
 }
@@ -93,8 +93,8 @@ const mistralOutputMessageToChatOutputMessage = (outputItem: MessageOutputEntry)
 		role: "assistant",
 		content: []
 	}
-	console.log('Mistral Output Item:', outputItem)
-	if (typeof outputItem.content === 'string') {
+	console.log("Mistral Output Item:", outputItem)
+	if (typeof outputItem.content === "string") {
 		chatOutputItem.content.push({
 			type: "output_text",
 			text: outputItem.content
@@ -111,7 +111,7 @@ const mistralOutputMessageToChatOutputMessage = (outputItem: MessageOutputEntry)
 				break
 			}
 			default: {
-				logger.warn('Unsupported OpenAI OutputItem Content: {@contentItem}', contentItem)
+				logger.warn("Unsupported OpenAI OutputItem Content: {@contentItem}", contentItem)
 			}
 		}
 	}
@@ -124,7 +124,7 @@ const MistralOutputToChatOutput = (outputItem: ConversationResponse["outputs"][n
 			return mistralOutputMessageToChatOutputMessage(outputItem)
 		}
 		default: {
-			logger.warn('Unsupported OpenAI OutputItem: {@outputItem}', outputItem)
+			logger.warn("Unsupported OpenAI OutputItem: {@outputItem}", outputItem)
 			return {
 				id: `unsupported_output_${Date.now()}`,
 				type: "message.output",

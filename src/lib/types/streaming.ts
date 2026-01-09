@@ -1,14 +1,16 @@
 import z from "zod"
-import type { ChatConfig } from "./chat";
+import type { ChatConfig } from "./chat"
 
 /**
- * 
+ *
  * @link https://github.com/colinhacks/zod/issues/372#issuecomment-826380330
  */
 // biome-ignore lint: Unexpected any
-const schemaForType = <T>() => <S extends z.ZodType<T, any>>(arg: S) => {
-  return arg;
-};
+const schemaForType =
+	<T>() =>
+	<S extends z.ZodType<T, any>>(arg: S) => {
+		return arg
+	}
 
 // New and better
 const ChatConfigSchema = schemaForType<ChatConfig>()(
@@ -20,7 +22,7 @@ const ChatConfigSchema = schemaForType<ChatConfig>()(
 		vendorAgent: z.object({ id: z.string() }).optional(),
 		model: z.string().optional(),
 		instructions: z.string().optional(),
-		conversationId: z.string().optional(),
+		conversationId: z.string().optional()
 	})
 )
 

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { markdownFormatter } from "$lib/formatting/markdown-formatter.js"
-  import type { ChatItem } from "$lib/types/chat-item";
+	import type { ChatItem } from "$lib/types/chat-item"
 
 	type Props = {
 		chatItem: ChatItem

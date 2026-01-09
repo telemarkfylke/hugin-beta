@@ -4,7 +4,6 @@ import { MISTRAL_VENDOR_ID, OPEN_AI_VENDOR_ID } from "$lib/vendor-constants"
 import { MistralVendor } from "./mistral/mistral-vendor"
 import { OpenAIVendor } from "./openai/openai-vendor"
 
-
 let openAIVendor: IAIVendor | null = null
 let mistralVendor: IAIVendor | null = null
 

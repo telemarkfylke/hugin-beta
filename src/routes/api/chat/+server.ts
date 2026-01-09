@@ -23,12 +23,9 @@ const validateFileInputs = (chatRequest: ChatRequest) => {
 		image: []
 	}
 
-	const supportedMimeTypes = [
-		...vendorSupportedMimeTypes.file,
-		...vendorSupportedMimeTypes.image
-	]
+	const supportedMimeTypes = [...vendorSupportedMimeTypes.file, ...vendorSupportedMimeTypes.image]
 
-	const fileInputs = lastMessage.content.filter(contentItem => contentItem.type === "input_file" || contentItem.type === "input_image")
+	const fileInputs = lastMessage.content.filter((contentItem) => contentItem.type === "input_file" || contentItem.type === "input_image")
 	for (const fileInput of fileInputs.slice(-1)) {
 		if (!validFileType(fileInput.type === "input_file" ? fileInput.fileUrl : fileInput.imageUrl, supportedMimeTypes)) {
 			throw new HTTPError(400, `File type of uploaded file is not supported for vendor/model: ${chatRequest.config.vendorId}-${chatRequest.config.model}`)
@@ -43,7 +40,7 @@ const validateFileInputs = (chatRequest: ChatRequest) => {
 		if (inputItem.type !== "message.input") {
 			continue
 		}
-		inputItem.content = inputItem.content.filter(contentItem => {
+		inputItem.content = inputItem.content.filter((contentItem) => {
 			if (contentItem.type === "input_file") {
 				return validFileType(contentItem.fileUrl, supportedMimeTypes)
 			}
@@ -141,7 +138,7 @@ const parseChatRequest = (body: unknown): ChatRequest => {
 		}
 		manualChatConfig.tools = config.tools
 	}
-	
+
 	const manualChatRequest: ChatRequest = {
 		config: manualChatConfig,
 		inputs: incomingChatRequest.inputs,

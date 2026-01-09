@@ -1,26 +1,26 @@
 export type InputText = {
-	type: "input_text",
+	type: "input_text"
 	text: string
 }
 
 export type InputFile = {
-	type: "input_file",
-	fileName: string,
+	type: "input_file"
+	fileName: string
 	fileUrl: string
 }
 
 export type InputImage = {
-	type: "input_image",
+	type: "input_image"
 	imageUrl: string
 }
 
 export type OutputText = {
-	type: "output_text",
+	type: "output_text"
 	text: string
 }
 
 export type OutputRefusal = {
-	type: "output_refusal",
+	type: "output_refusal"
 	reason: string
 }
 

@@ -1,9 +1,8 @@
+import { logger } from "@vestfoldfylke/loglady"
 import type { Response } from "openai/resources/responses/responses.js"
 import type { ResponseInputItem, ResponseOutputItem, ResponseOutputMessage } from "openai/resources/responses/responses.mjs"
 import type { ChatConfig, ChatResponseObject } from "$lib/types/chat"
 import type { ChatInputItem, ChatInputMessage, ChatOutputItem, ChatOutputMessage } from "$lib/types/chat-item"
-import { logger } from "@vestfoldfylke/loglady"
-
 
 const chatInputMessageToOpenAIInputMessage = (inputItem: ChatInputMessage): ResponseInputItem.Message => {
 	const openAIItem: ResponseInputItem.Message = {
@@ -77,7 +76,7 @@ export const chatInputToOpenAIInput = (inputItem: ChatInputItem): ResponseInputI
 			return chatOutputMessageToOpenAIOutputMessage(inputItem)
 		}
 		default: {
-			throw new Error(`Unsupported ChatInputItem: ${(JSON.stringify(inputItem))}`)
+			throw new Error(`Unsupported ChatInputItem: ${JSON.stringify(inputItem)}`)
 		}
 	}
 }
@@ -106,7 +105,7 @@ const openAIChatOutputMessageToChatOutputMessage = (outputItem: ResponseOutputMe
 				break
 			}
 			default: {
-				logger.warn('Unsupported OpenAI OutputItem Content: {@contentItem}', contentItem)
+				logger.warn("Unsupported OpenAI OutputItem Content: {@contentItem}", contentItem)
 			}
 		}
 	}
@@ -119,7 +118,7 @@ const openAIOutputToChatOutput = (outputItem: ResponseOutputItem): ChatOutputIte
 			return openAIChatOutputMessageToChatOutputMessage(outputItem)
 		}
 		default: {
-			logger.warn('Unsupported OpenAI OutputItem: {@outputItem}', outputItem)
+			logger.warn("Unsupported OpenAI OutputItem: {@outputItem}", outputItem)
 			return {
 				id: `unsupported_output_${Date.now()}`,
 				type: "message.output",

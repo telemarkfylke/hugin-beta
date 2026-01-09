@@ -1,6 +1,6 @@
 <script lang="ts">
-  import ChatComponent from "$lib/components/Chat/Chat.svelte";
-  import { ChatState } from "$lib/components/Chat/ChatState.svelte.js";
+	import ChatComponent from "$lib/components/Chat/Chat.svelte"
+	import { ChatState } from "$lib/components/Chat/ChatState.svelte.js"
 	import type { Chat } from "$lib/types/chat"
 
 	const defaultChat: Chat = {
@@ -17,13 +17,12 @@
 			description: "A default chat configuration",
 			vendorId: "mistral",
 			model: "mistral-medium-latest",
-			instructions: "Answer in Norwegian.",
+			instructions: "Answer in Norwegian."
 		},
 		history: []
 	}
 
-	const chatState = new ChatState(defaultChat);
-
+	const chatState = new ChatState(defaultChat)
 </script>
 
 <ChatComponent {chatState} />

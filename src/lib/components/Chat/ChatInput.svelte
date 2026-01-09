@@ -1,22 +1,22 @@
 <script lang="ts">
-  import type { ChatConfig } from "$lib/types/chat";
+	import type { ChatConfig } from "$lib/types/chat"
+	import { VENDOR_SUPPORTED_MESSAGE_MIME_TYPES } from "$lib/vendor-constants"
 	import FileDropZone from "../FileDropZone.svelte"
-  import { VENDOR_SUPPORTED_MESSAGE_MIME_TYPES } from "$lib/vendor-constants";
 
 	type Props = {
-    chatConfig: ChatConfig
+		chatConfig: ChatConfig
 		sendMessage: (inputText: string, inputFiles: FileList) => Promise<void>
 	}
 	let { chatConfig, sendMessage }: Props = $props()
 
-  // Determine allowed file mime types based on model/vendor
-  let allowedMessageMimeTypes = $derived.by(() => {
-    const supportedTypes = VENDOR_SUPPORTED_MESSAGE_MIME_TYPES[`${chatConfig.vendorId}-${chatConfig.model}`]
-    if (!supportedTypes) {
-      return []
-    }
-    return [...supportedTypes.file, ...supportedTypes.image]
-  })
+	// Determine allowed file mime types based on model/vendor
+	let allowedMessageMimeTypes = $derived.by(() => {
+		const supportedTypes = VENDOR_SUPPORTED_MESSAGE_MIME_TYPES[`${chatConfig.vendorId}-${chatConfig.model}`]
+		if (!supportedTypes) {
+			return []
+		}
+		return [...supportedTypes.file, ...supportedTypes.image]
+	})
 
 	// Internal state for this component
 	let inputText: string = $state("")

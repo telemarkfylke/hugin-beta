@@ -1,8 +1,8 @@
 <script lang="ts">
-	import ChatInput from "./ChatInput.svelte"
+	import { tick } from "svelte"
 	import ChatHistoryItem from "./ChatHistoryItem.svelte"
-  import type { ChatState } from "./ChatState.svelte";
-    import { tick } from "svelte";
+	import ChatInput from "./ChatInput.svelte"
+	import type { ChatState } from "./ChatState.svelte"
 
 	type Props = {
 		chatState: ChatState
@@ -16,13 +16,13 @@
 
 	$effect(() => {
 		const lastChat = chatState.chat.history[chatState.chat.history.length - 1]
-		if (lastChat?.type === 'chat_response') {
+		if (lastChat?.type === "chat_response") {
 			const lastItem = lastChat.outputs[lastChat.outputs.length - 1]
-			if (lastItem?.type === 'message.output') {
+			if (lastItem?.type === "message.output") {
 				const lastContent = lastItem.content[lastItem.content.length - 1]
-				if (lastContent?.type === 'output_text') {
+				if (lastContent?.type === "output_text") {
 					lastContent.text
-				} else if (lastContent?.type === 'output_refusal') {
+				} else if (lastContent?.type === "output_refusal") {
 					lastContent.reason
 				}
 			}
@@ -31,7 +31,6 @@
 			lastChatItem.scrollIntoView({ behavior: "smooth" })
 		})
 	})
-	
 </script>
 
 <div class="chat-container">

@@ -1,5 +1,5 @@
-import type { ConversationEvents } from "@mistralai/mistralai/models/components/conversationevents"
 import type { EventStream } from "@mistralai/mistralai/lib/event-streams"
+import type { ConversationEvents } from "@mistralai/mistralai/models/components/conversationevents"
 import { createSse } from "$lib/streaming.js"
 import type { IAIVendorStreamHandler } from "$lib/types/AIVendor"
 
@@ -14,7 +14,12 @@ export const handleMistralResponseStream: IAIVendorStreamHandler<EventStream<Con
 						controller.enqueue(createSse({ event: "response.started", data: { responseId: chunk.data.conversationId } }))
 						break
 					case "message.output.delta":
-						controller.enqueue(createSse({ event: "response.output_text.delta", data: { itemId: chunk.data.id, content: typeof chunk.data.content === "string" ? chunk.data.content : JSON.stringify(chunk.data.content) } }))
+						controller.enqueue(
+							createSse({
+								event: "response.output_text.delta",
+								data: { itemId: chunk.data.id, content: typeof chunk.data.content === "string" ? chunk.data.content : JSON.stringify(chunk.data.content) }
+							})
+						)
 						break
 					case "conversation.response.done":
 						controller.enqueue(

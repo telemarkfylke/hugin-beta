@@ -4,7 +4,7 @@ export type VendorSupportedMessageMimeTypes = {
 	file: string[]
 	image: string[]
 }
-export type VendorSupportedMessageMimeTypesMap = Record<string, { file: string[], image: string[] }>
+export type VendorSupportedMessageMimeTypesMap = Record<string, { file: string[]; image: string[] }>
 
 export type AIVendor = {
 	id: string
