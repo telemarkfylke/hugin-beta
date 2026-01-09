@@ -5,7 +5,8 @@ import type { AIVendor, IAIVendor } from "$lib/types/AIVendor"
 import type { ChatRequest, ChatResponseObject, ChatResponseStream } from "$lib/types/chat"
 import { handleOpenAIResponseStream } from "./openai-stream"
 import { chatInputToOpenAIInput, openAiResponseToChatResponseObject } from "./openai-mapping"
-import { OPENAI_VENDOR_ID } from "../agents/ai-vendors"
+import { OPEN_AI_VENDOR_ID } from "$lib/vendor-constants"
+
 
 if (!env.SUPPORTED_MODELS_VENDOR_OPENAI || env.SUPPORTED_MODELS_VENDOR_OPENAI.trim() === "") {
 	throw new Error("SUPPORTED_MODELS_VENDOR_OPENAI is not set in environment variables")
@@ -50,7 +51,7 @@ const openAiRequest = (chatRequest: ChatRequest): ResponseCreateParamsBase => {
 export class OpenAIVendor implements IAIVendor {
 	public getInfo(): AIVendor {
 		return {
-			id: OPENAI_VENDOR_ID,
+			id: OPEN_AI_VENDOR_ID,
 			name: "OpenAI",
 			description: "OpenAI - jauda",
 			models: {
