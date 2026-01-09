@@ -23,7 +23,6 @@ const openAiRequest = (chatRequest: ChatRequest): ResponseCreateParamsBase => {
 		input: chatRequest.inputs.map(chatInputToOpenAIInput),
 		store: false
 	}
-	console.log("chatRequest.config:", JSON.stringify(baseConfig.input), null, 2)
 	if (chatRequest.config.vendorAgent) {
 		if (!chatRequest.config.vendorAgent.id) {
 			throw new Error("vendorAgent with valid id is required for predefined agent chat config")

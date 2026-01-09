@@ -22,10 +22,8 @@
 				const lastContent = lastItem.content[lastItem.content.length - 1]
 				if (lastContent?.type === 'output_text') {
 					lastContent.text
-					$inspect(lastContent.text)
 				} else if (lastContent?.type === 'output_refusal') {
 					lastContent.reason
-					$inspect(lastContent.reason)
 				}
 			}
 		}
@@ -51,6 +49,7 @@
 			<span>Vendor:</span>
 			<select bind:value={chatState.chat.config.vendorId}>
 				<option value="openai">OpenAI</option>
+				<option value="mistral">Mistral</option>
 			</select>
 			<br />
 			{#if chatState.chat.config.vendorAgent}
@@ -58,8 +57,13 @@
 			{:else}
 				<span>Model:</span>
 				<select bind:value={chatState.chat.config.model}>
-					<option value="gpt-4o">GPT-4o</option>
-					<option value="gpt-4">GPT-4</option>
+					{#if chatState.chat.config.vendorId === "openai"}
+						<option value="gpt-4o">GPT-4o</option>
+						<option value="gpt-4">GPT-4</option>
+					{:else if chatState.chat.config.vendorId === "mistral"}
+						<option value="mistral-medium-latest">Mistral Medium</option>
+						<option value="mistral-large-latest">Mistral Large</option>
+					{/if}
 				</select>
 				<br />
 				<span>instructions:</span>

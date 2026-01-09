@@ -71,11 +71,6 @@ const ConversationCreated = z.object({
 	})
 })
 
-const UnknownEvent = z.object({
-	event: z.literal("unknown"),
-	data: z.unknown()
-})
-
 export const MuginSse = z.discriminatedUnion("event", [
 	// New events
 	ResponseConfig,
@@ -83,8 +78,7 @@ export const MuginSse = z.discriminatedUnion("event", [
 	ResponseDone,
 	ResponseError,
 	ResponseOutputTextDelta,
-	ConversationCreated,
-	UnknownEvent
+	ConversationCreated
 ])
 
 export type MuginSse = z.infer<typeof MuginSse>

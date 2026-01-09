@@ -30,7 +30,7 @@ export const handleOpenAIResponseStream: IAIVendorStreamHandler<Stream<ResponseS
 						break
 					default:
 						console.warn("Unhandled OpenAI response stream event type:", chunk.type)
-						controller.enqueue(createSse({ event: "unknown", data: chunk }))
+						createSse({ event: "response.output_text.delta", data: { itemId: 'unknown_open_ai_sse', content: JSON.stringify(chunk) } })
 						break
 					// Ta hensyn til flere event typer her etter behov
 				}

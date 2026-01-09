@@ -13,10 +13,10 @@
 		},
 		config: {
 			id: "config-1",
-			name: "Default Chat",
+			name: "Mistralos",
 			description: "A default chat configuration",
-			vendorId: "openai",
-			model: "gpt-4o",
+			vendorId: "mistral",
+			model: "mistral-medium-latest",
 			instructions: "Answer in Norwegian.",
 		},
 		history: []
