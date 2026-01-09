@@ -1,11 +1,22 @@
 <script lang="ts">
+  import type { ChatConfig } from "$lib/types/chat";
 	import FileDropZone from "../FileDropZone.svelte"
+  import { VENDOR_SUPPORTED_MESSAGE_MIME_TYPES } from "$lib/vendor-constants";
 
 	type Props = {
-		allowedFileMimeTypes: string[]
+    chatConfig: ChatConfig
 		sendMessage: (inputText: string, inputFiles: FileList) => Promise<void>
 	}
-	let { allowedFileMimeTypes, sendMessage }: Props = $props()
+	let { chatConfig, sendMessage }: Props = $props()
+
+  // Determine allowed file mime types based on model/vendor
+  let allowedMessageMimeTypes = $derived.by(() => {
+    const supportedTypes = VENDOR_SUPPORTED_MESSAGE_MIME_TYPES[`${chatConfig.vendorId}-${chatConfig.model}`]
+    if (!supportedTypes) {
+      return []
+    }
+    return [...supportedTypes.file, ...supportedTypes.image]
+  })
 
 	// Internal state for this component
 	let inputText: string = $state("")
@@ -52,15 +63,16 @@
     <div id="actions">
       <div id="actions-left">
         <div id="chat-file-upload-container">
-					{#if allowedFileMimeTypes.length === 0}
+					{#if allowedMessageMimeTypes.length === 0}
 						<span>Filopplasting er ikke mulig her</span>
 					{:else}
 						<span>Last opp filer til chat:</span>
-          	<input bind:files={inputFiles} type="file" id="chat-file-upload" multiple accept={allowedFileMimeTypes.join(",")} />
+          	<input bind:files={inputFiles} type="file" id="chat-file-upload" multiple accept={allowedMessageMimeTypes.join(",")} />
 						{#if inputFiles.length > 0}
           		<button type="reset" onclick={() => { inputFiles = new DataTransfer().files; }}>Clear Files ({inputFiles.length})</button>
 						{/if}
 					{/if}
+          {JSON.stringify(allowedMessageMimeTypes)}
         </div>
       </div>
       <div id="actions-right">

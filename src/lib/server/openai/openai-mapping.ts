@@ -18,7 +18,11 @@ const chatInputMessageToOpenAIInputMessage = (inputItem: ChatInputMessage): Resp
 				break
 			}
 			case "input_file": {
-				openAIItem.content.push(contentItem)
+				openAIItem.content.push({
+					type: "input_file",
+					file_data: contentItem.fileUrl,
+					filename: contentItem.fileName
+				})
 				break
 			}
 			case "input_image": {

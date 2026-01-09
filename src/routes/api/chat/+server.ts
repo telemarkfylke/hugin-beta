@@ -5,6 +5,38 @@ import { httpRequestMiddleware } from "$lib/server/middleware/http-request"
 import { responseStream } from "$lib/streaming"
 import type { ChatConfig, ChatRequest } from "$lib/types/chat"
 import type { MiddlewareNextFunction } from "$lib/types/middleware/http-request"
+import { VENDOR_SUPPORTED_MESSAGE_MIME_TYPES } from "$lib/vendor-constants"
+
+const validFileType = (fileUrl: string, supportedMimeTypes: string[]): boolean => {
+	const mimeType = fileUrl.substring(fileUrl.indexOf(":") + 1, fileUrl.indexOf(";base64")) // data:<mime-type>;base64,<data>
+	return supportedMimeTypes.includes(mimeType)
+}
+
+const validateFileInputs = (chatRequest: ChatRequest) => {
+	const fileInputs = chatRequest.inputs.flatMap(inputItem => {
+		if (inputItem.type === "message.input") {
+			return inputItem.content.filter(contentItem => contentItem.type === "input_file" || contentItem.type === "input_image")
+		}
+		return []
+	})
+	if (fileInputs.length === 0) {
+		return
+	}
+	const vendorSupportedMimeTypes = VENDOR_SUPPORTED_MESSAGE_MIME_TYPES[`${chatRequest.config.vendorId}-${chatRequest.config.model}`]
+	if (!vendorSupportedMimeTypes) {
+		throw new HTTPError(400, `File uploads are not supported for vendor/model: ${chatRequest.config.vendorId}-${chatRequest.config.model}`)
+	}
+	const supportedMimeTypes = [
+		...vendorSupportedMimeTypes.file,
+		...vendorSupportedMimeTypes.image
+	]
+
+	for (const fileInput of fileInputs) {
+		if (!validFileType(fileInput.type === "input_file" ? fileInput.fileUrl : fileInput.imageUrl, supportedMimeTypes)) {
+			throw new HTTPError(400, `File type of uploaded file is not supported for vendor/model: ${chatRequest.config.vendorId}-${chatRequest.config.model}`)
+		}
+	}
+}
 
 const parseChatRequest = (body: unknown): ChatRequest => {
 	if (typeof body !== "object" || body === null) {
@@ -92,11 +124,16 @@ const parseChatRequest = (body: unknown): ChatRequest => {
 		}
 		manualChatConfig.tools = config.tools
 	}
-	return {
+	
+	const manualChatRequest: ChatRequest = {
 		config: manualChatConfig,
 		inputs: incomingChatRequest.inputs,
 		stream: Boolean(incomingChatRequest.stream)
 	}
+
+	validateFileInputs(manualChatRequest)
+
+	return manualChatRequest
 }
 
 const supahChat: MiddlewareNextFunction = async ({ requestEvent, user }) => {

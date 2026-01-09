@@ -70,14 +70,14 @@
 			{/if}
 		</div>
 	{/if}
-	<div class="chat-items" bind:this={chatHistoryDiv}>
+	<div class="chat-items">
 		{#each chatState.chat.history as chatHistoryItem}
 			<ChatHistoryItem {chatHistoryItem} />
 		{/each}
 		<div bind:this={lastChatItem}>sist</div>
 	</div>
 
-	<ChatInput allowedFileMimeTypes={[]} sendMessage={chatState.promptChat} />
+	<ChatInput chatConfig={chatState.chat.config} sendMessage={chatState.promptChat} />
 </div>
 
 <style>
