@@ -1,7 +1,7 @@
 // https://learn.microsoft.com/en-us/azure/app-service/configure-authentication-user-identities
 
 import { logger } from "@vestfoldfylke/loglady"
-import { type AuthenticatedPrincipal, type MSPrincipalClaims } from "$lib/types/authentication"
+import type { AuthenticatedPrincipal, MSPrincipalClaims } from "$lib/types/authentication"
 import { MS_AUTH_PRINCIPAL_CLAIMS_HEADER, MS_PRINCIPAL_CLAIM_TYPS } from "./auth-constants"
 import { injectMockAuthenticatedUserHeaders, MOCK_AUTH } from "./mock-authenticated-user"
 
@@ -33,7 +33,7 @@ export const getPrincipalClaims = (base64EncodedHeaderValue: string): MSPrincipa
 			logger.warn("Unknown claim type found in principal claims: {claimType}", claim.typ)
 		}
 	}
-	
+
 	return principalClaims as MSPrincipalClaims
 }
 

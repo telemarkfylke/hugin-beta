@@ -5,17 +5,38 @@ import z from "zod"
  * https://learn.microsoft.com/en-us/azure/app-service/configure-authentication-user-identities
  * https://learn.microsoft.com/en-us/entra/identity-platform/id-token-claims-reference#payload-claims
  */
-export type MSPrincipalClaimTyp = "aud" | "iss" | "iat" | "nbf" | "exp" | "aio" | "c_hash" | "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress" | "groups" | "name" | "nonce" | "http://schemas.microsoft.com/identity/claims/objectidentifier" | "preferred_username" | "rh" | "sid" | "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier" | "http://schemas.microsoft.com/identity/claims/tenantid" | "uti" | "ver" | "roles" | "cc"
+export type MSPrincipalClaimTyp =
+	| "aud"
+	| "iss"
+	| "iat"
+	| "nbf"
+	| "exp"
+	| "aio"
+	| "c_hash"
+	| "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress"
+	| "groups"
+	| "name"
+	| "nonce"
+	| "http://schemas.microsoft.com/identity/claims/objectidentifier"
+	| "preferred_username"
+	| "rh"
+	| "sid"
+	| "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier"
+	| "http://schemas.microsoft.com/identity/claims/tenantid"
+	| "uti"
+	| "ver"
+	| "roles"
+	| "cc"
 
 export type MSPrincipalClaim = {
-	typ: MSPrincipalClaimTyp,
+	typ: MSPrincipalClaimTyp
 	val: string
 }
 
 export type MSPrincipalClaims = {
-	auth_typ: string,
-	claims: MSPrincipalClaim[],
-	name_typ: string,
+	auth_typ: string
+	claims: MSPrincipalClaim[]
+	name_typ: string
 	role_typ: string
 }
 
