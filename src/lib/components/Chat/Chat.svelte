@@ -14,6 +14,7 @@
 
 	let lastChatItem: HTMLDivElement
 
+	// Scroll-shit
 	$effect(() => {
 		const lastChat = chatState.chat.history[chatState.chat.history.length - 1]
 		if (lastChat?.type === "chat_response") {
@@ -34,9 +35,8 @@
 </script>
 
 <div class="chat-container">
-	<button onclick={() => { lastChatItem.scrollIntoView({ behavior: "smooth" }) }}>LScroll</button>
 	<div class="chat-header">
-		<h2>Chat ID: {chatState.chat.config.name}</h2>
+		<h2>{chatState.chat.config.name}</h2>
 		<button onclick={() => showConfig = !showConfig}>
 			{#if showConfig} Hide Config {:else} Show Config {/if}
 		</button>
