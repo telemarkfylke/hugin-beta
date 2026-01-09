@@ -1,5 +1,5 @@
 import { json, type RequestHandler } from "@sveltejs/kit"
-import { getVendor } from "$lib/server/agents/ai-vendors"
+import { getVendor } from "$lib/server/ai-vendors"
 import { HTTPError } from "$lib/server/middleware/http-error"
 import { httpRequestMiddleware } from "$lib/server/middleware/http-request"
 import { responseStream } from "$lib/streaming"
