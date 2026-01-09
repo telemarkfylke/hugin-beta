@@ -1,63 +1,31 @@
 <script lang="ts">
-	import AgentComponent from "$lib/components/Agent/AgentComponent.svelte"
-	import { GetAgentsResponse } from "$lib/types/api-responses"
-	import type { DBAgent } from "../lib/types/agents"
+  import ChatComponent from "$lib/components/Chat/Chat.svelte";
+  import { ChatState } from "$lib/components/Chat/ChatState.svelte.js";
+	import type { Chat } from "$lib/types/chat"
 
-	const getAgents = async (): Promise<DBAgent[]> => {
-		const res = await fetch("/api/agents")
-		if (!res.ok) {
-			const resData = await res.json()
-			throw new Error(resData.message || "Failed to fetch agents")
-		}
-		const jsonRes = await res.json()
-		const data = GetAgentsResponse.parse(jsonRes)
-		return data.agents
+	const defaultChat: Chat = {
+		id: "chat-1",
+		createdAt: new Date().toISOString(),
+		updatedAt: new Date().toISOString(),
+		owner: {
+			id: "user-1",
+			name: "Test User"
+		},
+		config: {
+			id: "config-1",
+			name: "Default Chat",
+			description: "A default chat configuration",
+			vendorId: "openai",
+			model: "gpt-4o",
+			instructions: "Answer in Norwegian.",
+		},
+		history: []
 	}
-</script>
-<div class="page-content">
-  <div class="left-menu">
-    {#await getAgents()}
-      <p>Loading agents...</p>
-    {:then agents}
-      <h2>Agents</h2>
-      {#if agents.length === 0}
-        <p>No agents found. Go play with yourself (or create a new agent)</p>
-      {/if}
-      {#each agents as agent}
-        <div>
-          <a href="/agents/{agent._id}">{agent.name}</a>
-        </div>
-      {/each}
-    {:catch error}
-      <p style="color: red;">Error: {error.stack || error.message}</p>
-    {/await}
-    <h2>Conversations</h2>
-    <a href="/conversations">Go to Conversations</a>
-    <h2>Vector stores</h2>
-    <a href="/vectorstores/mistral">Go to Mistral Vector Stores</a><br/>
-		<a href="/vectorstores/openai">Go to OpenAi Vector Stores</a><br/>
-		<a href="/vectorstores/ollama">Go to Ollama Vector Stores</a><br/>
-  </div>
-  <div class="right-content">
-    <AgentComponent agentId={"mistral-conversation"} conversationId={null} />
-  </div>
-</div>
 
-<style>
-  .page-content {
-    display: flex;
-    gap: 2rem;
-    height: 100%;
-  }
-  .left-menu {
-    max-width: 250px;
-    height: 100%;
-    box-sizing: border-box;
-    overflow-y: auto;
-    overflow-x: hidden;
-  }
-  .right-content {
-    flex: 1;
-    padding-left: 20px;
-  }
-</style>
+	const chatState = new ChatState(defaultChat);
+
+</script>
+
+<ChatComponent {chatState} />
+
+<!--<button onclick={() => chatState.loadChat('hahah')}>Load chat 'hahah'</button>-->
