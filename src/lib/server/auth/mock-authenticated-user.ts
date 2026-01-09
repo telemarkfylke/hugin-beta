@@ -1,7 +1,7 @@
 // https://learn.microsoft.com/en-us/azure/app-service/configure-authentication-user-identities
 
 import { env } from "$env/dynamic/private"
-import type { MSPrincipalClaims, MSUserClaim } from "$lib/types/authentication"
+import type { MSPrincipalClaims, MSPrincipalClaim } from "$lib/types/authentication"
 import { MS_AUTH_PRINCIPAL_CLAIMS_HEADER } from "./auth-constants"
 
 export const MOCK_AUTH = env.MOCK_AUTH === "true"
@@ -14,7 +14,7 @@ if (MOCK_AUTH) {
 
 // Claims are based on a real authentication from this web app via EasyAuth / EntraID
 // https://learn.microsoft.com/en-us/entra/identity-platform/id-token-claims-reference#payload-claims
-const _mockClaims: MSPrincipalClaims = {
+const mockClaims: MSPrincipalClaims = {
 	auth_typ: "aad",
 	claims: [
 		{
@@ -96,12 +96,12 @@ const _mockClaims: MSPrincipalClaims = {
 		...(MOCK_AUTH_ROLES.map((role) => ({
 			typ: "roles",
 			val: role
-		})) as MSUserClaim[])
+		})) as MSPrincipalClaim[])
 	],
 	name_typ: "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress",
 	role_typ: "http://schemas.microsoft.com/ws/2008/06/identity/claims/role"
 }
-const _base64MockClaims = Buffer.from(JSON.stringify(_mockClaims), "utf-8").toString("base64")
+const base64MockClaims = Buffer.from(JSON.stringify(mockClaims), "utf-8").toString("base64")
 
 export const injectMockAuthenticatedUserHeaders = (headers: Headers): Headers => {
 	if (!MOCK_AUTH) {
@@ -110,6 +110,6 @@ export const injectMockAuthenticatedUserHeaders = (headers: Headers): Headers =>
 	if (headers.has(MS_AUTH_PRINCIPAL_CLAIMS_HEADER)) {
 		throw new Error(`Headers already have ${MS_AUTH_PRINCIPAL_CLAIMS_HEADER}, cannot inject mock authenticated user, when there is one there!`)
 	}
-	headers.set(MS_AUTH_PRINCIPAL_CLAIMS_HEADER, _base64MockClaims)
+	headers.set(MS_AUTH_PRINCIPAL_CLAIMS_HEADER, base64MockClaims)
 	return headers
 }
