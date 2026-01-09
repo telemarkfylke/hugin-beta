@@ -1,5 +1,6 @@
 // https://learn.microsoft.com/en-us/azure/app-service/configure-authentication-user-identities
 
+import { logger } from "@vestfoldfylke/loglady"
 import { type AuthenticatedUser, MSPrincipalClaims } from "$lib/types/authentication"
 import { MS_AUTH_PRINCIPAL_CLAIMS_HEADER } from "./auth-constants"
 import { injectMockAuthenticatedUserHeaders, MOCK_AUTH } from "./mock-authenticated-user"
@@ -9,12 +10,38 @@ export const getPrincipalClaims = (base64EncodedHeaderValue: string): MSPrincipa
 		throw new Error("No base64 encoded header is required to get principal claims")
 	}
 	const jsonString = Buffer.from(base64EncodedHeaderValue, "base64").toString("utf-8")
+	let principalClaims: unknown
 	try {
-		const principalClaims = JSON.parse(jsonString)
-		// Validate the parsed object structure if needed
+		principalClaims = JSON.parse(jsonString)
+	} catch (error) {
+		throw new Error(`Failed to JSON.parse principal claims from base64 encoded header value: ${error}`)
+	}
+	try {
 		return MSPrincipalClaims.parse(principalClaims)
 	} catch (error) {
-		throw new Error(`Failed to parse principal claims from base64 encoded header value: ${error}`)
+		const claimsToLog = principalClaims as MSPrincipalClaims
+		// Redact potentially sensitive information before logging
+		if (claimsToLog.claims && Array.isArray(claimsToLog.claims)) {
+			for (const claim of claimsToLog.claims) {
+				if (
+					claim.typ === "nonce" ||
+					claim.typ === "exp" ||
+					claim.typ === "iat" ||
+					claim.typ === "nbf" ||
+					claim.typ === "aud" ||
+					claim.typ === "iss" ||
+					claim.typ === "c_hash" ||
+					claim.typ === "sid" ||
+					claim.typ === "aio" ||
+					claim.typ === "uti" ||
+					claim.typ === "rh"
+				) {
+					claim.val = "[REDACTED]"
+				}
+			}
+		}
+		logger.errorException(error, "Principal claims structure is invalid - claims: {@claims}", claimsToLog)
+		throw new Error(`Principal claims structure is invalid: ${error}`)
 	}
 }
 
