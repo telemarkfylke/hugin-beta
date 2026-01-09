@@ -1,6 +1,6 @@
 import type { RequestEvent } from "@sveltejs/kit"
 import { env } from "$env/dynamic/private"
-import type { MSPrincipalClaims, MSUserClaim } from "$lib/types/authentication"
+import type { MSPrincipalClaim, MSPrincipalClaims } from "$lib/types/authentication"
 
 export type TestRequestEvent = Omit<
 	RequestEvent,
@@ -26,11 +26,11 @@ const createTestUserMSHeader = ({ oid, name, username, roles, groups }: { oid: s
 			...(roles.map((role) => ({
 				typ: "roles",
 				val: role
-			})) as MSUserClaim[]),
+			})) as MSPrincipalClaim[]),
 			...(groups.map((group) => ({
 				typ: "groups",
 				val: group
-			})) as MSUserClaim[])
+			})) as MSPrincipalClaim[])
 		],
 		name_typ: "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress",
 		role_typ: "http://schemas.microsoft.com/ws/2008/06/identity/claims/role"
