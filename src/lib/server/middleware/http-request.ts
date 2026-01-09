@@ -1,8 +1,8 @@
 import { json, type RequestEvent } from "@sveltejs/kit"
 import { logger } from "@vestfoldfylke/loglady"
-import type { AuthenticatedUser } from "$lib/types/authentication"
+import type { AuthenticatedPrincipal } from "$lib/types/authentication"
 import type { MiddlewareNextFunction } from "$lib/types/middleware/http-request"
-import { getAuthenticatedUser } from "../auth/get-authenticated-user"
+import { getAuthenticatedPrincipal } from "../auth/get-authenticated-user"
 import { HTTPError } from "./http-error"
 
 /**
@@ -20,9 +20,9 @@ export const httpRequestMiddleware = async (requestEvent: RequestEvent, next: Mi
 
 	logger.info(`${loggerPrefix} - Incoming request`)
 
-	let user: AuthenticatedUser
+	let user: AuthenticatedPrincipal
 	try {
-		user = getAuthenticatedUser(request.headers)
+		user = getAuthenticatedPrincipal(request.headers)
 		loggerPrefix += ` - User: ${user.userId} (${user.name})`
 		logger.info(`${loggerPrefix} - Authenticated user: {userId}`, user.userId)
 	} catch (error) {

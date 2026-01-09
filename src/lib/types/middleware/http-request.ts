@@ -1,5 +1,5 @@
 import type { RequestEvent } from "@sveltejs/kit"
-import type { AuthenticatedUser } from "$lib/types/authentication"
+import type { AuthenticatedPrincipal } from "$lib/types/authentication"
 
 type MiddlewareNextResponse = {
 	response: Response
@@ -8,7 +8,7 @@ type MiddlewareNextResponse = {
 
 type MiddlewareNextParams = {
 	requestEvent: RequestEvent
-	user: AuthenticatedUser
+	user: AuthenticatedPrincipal
 }
 
 export type MiddlewareNextFunction = (params: MiddlewareNextParams) => Promise<MiddlewareNextResponse>

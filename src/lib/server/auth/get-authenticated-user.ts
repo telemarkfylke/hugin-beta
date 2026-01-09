@@ -1,8 +1,8 @@
 // https://learn.microsoft.com/en-us/azure/app-service/configure-authentication-user-identities
 
 import { logger } from "@vestfoldfylke/loglady"
-import { type AuthenticatedUser, MSPrincipalClaims } from "$lib/types/authentication"
-import { MS_AUTH_PRINCIPAL_CLAIMS_HEADER } from "./auth-constants"
+import type { AuthenticatedPrincipal, MSPrincipalClaims } from "$lib/types/authentication"
+import { MS_AUTH_PRINCIPAL_CLAIMS_HEADER, MS_PRINCIPAL_CLAIM_TYPS } from "./auth-constants"
 import { injectMockAuthenticatedUserHeaders, MOCK_AUTH } from "./mock-authenticated-user"
 
 export const getPrincipalClaims = (base64EncodedHeaderValue: string): MSPrincipalClaims => {
@@ -10,48 +10,40 @@ export const getPrincipalClaims = (base64EncodedHeaderValue: string): MSPrincipa
 		throw new Error("No base64 encoded header is required to get principal claims")
 	}
 	const jsonString = Buffer.from(base64EncodedHeaderValue, "base64").toString("utf-8")
-	let principalClaims: unknown
+	let parsedPrincipalClaims: unknown
 	try {
-		principalClaims = JSON.parse(jsonString)
+		parsedPrincipalClaims = JSON.parse(jsonString)
 	} catch (error) {
 		throw new Error(`Failed to JSON.parse principal claims from base64 encoded header value: ${error}`)
 	}
-	try {
-		return MSPrincipalClaims.parse(principalClaims)
-	} catch (error) {
-		const claimsToLog = principalClaims as MSPrincipalClaims
-		// Redact potentially sensitive information before logging
-		if (claimsToLog.claims && Array.isArray(claimsToLog.claims)) {
-			for (const claim of claimsToLog.claims) {
-				if (
-					claim.typ === "nonce" ||
-					claim.typ === "exp" ||
-					claim.typ === "iat" ||
-					claim.typ === "nbf" ||
-					claim.typ === "aud" ||
-					claim.typ === "iss" ||
-					claim.typ === "c_hash" ||
-					claim.typ === "sid" ||
-					claim.typ === "aio" ||
-					claim.typ === "uti" ||
-					claim.typ === "rh"
-				) {
-					claim.val = "[REDACTED]"
-				}
-			}
-		}
-		logger.errorException(error, "Principal claims structure is invalid - claims: {@claims}", claimsToLog)
-		throw new Error(`Principal claims structure is invalid: ${error}`)
+	if (typeof parsedPrincipalClaims !== "object" || parsedPrincipalClaims === null) {
+		throw new Error("Principal claims is not a valid object")
 	}
+	const principalClaims: MSPrincipalClaims = parsedPrincipalClaims as MSPrincipalClaims
+
+	if (!principalClaims.auth_typ || !principalClaims.claims || !principalClaims.name_typ || !principalClaims.role_typ) {
+		logger.error("Principal claims object is missing required properties (auth_typ, claims, name_typ, role_typ): {@principalClaims}", principalClaims)
+		throw new Error("Principal claims object is missing required properties")
+	}
+	if (!Array.isArray(principalClaims.claims)) {
+		throw new Error("Principal claims 'claims' property is not an array")
+	}
+	for (const claim of principalClaims.claims) {
+		if (!MS_PRINCIPAL_CLAIM_TYPS.includes(claim.typ)) {
+			logger.warn("Unknown claim type found in principal claims: {claimType}", claim.typ)
+		}
+	}
+
+	return principalClaims as MSPrincipalClaims
 }
 
-export const getAuthenticatedUser = (headers: Headers): AuthenticatedUser => {
+export const getAuthenticatedPrincipal = (headers: Headers): AuthenticatedPrincipal => {
 	if (MOCK_AUTH) {
 		headers = injectMockAuthenticatedUserHeaders(headers)
 	}
 	const base64EncodedHeaderValue = headers.get(MS_AUTH_PRINCIPAL_CLAIMS_HEADER)
 	if (!base64EncodedHeaderValue) {
-		throw new Error(`Missing ${MS_AUTH_PRINCIPAL_CLAIMS_HEADER} header, cannot get authenticated user`)
+		throw new Error(`Missing ${MS_AUTH_PRINCIPAL_CLAIMS_HEADER} header, cannot get authenticated principal`)
 	}
 
 	const principalClaims = getPrincipalClaims(base64EncodedHeaderValue)
