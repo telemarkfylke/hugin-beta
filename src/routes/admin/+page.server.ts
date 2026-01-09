@@ -15,30 +15,24 @@ if (!ADMIN_ROLE) {
 logger.info("Admin role for Hugin Beta is set to {adminRole}:", ADMIN_ROLE)
 
 export const load: PageServerLoad = async ({ request }): Promise<{ claims: MSPrincipalClaims }> => {
-	try {
-		const userClaimsHeaderValue = request.headers.get(MS_AUTH_PRINCIPAL_CLAIMS_HEADER)
-		if (!userClaimsHeaderValue) {
-			error(401, "Missing claims in request headers")
-		}
-		const userClaims = getPrincipalClaims(userClaimsHeaderValue)
-		if (!userClaims) {
-			error(401, "User not authenticated")
-		}
-		if (!userClaims.claims || userClaims.claims.length === 0) {
-			error(403, "User has no claims, access forbidden")
-		}
-		if (!userClaims.claims.find((claim) => claim.typ === "roles")) {
-			error(403, "User has no roles claim, access forbidden")
-		}
-		// Check if user has admin role
-		const userRoles = userClaims.claims.filter((claim) => claim.typ === "roles").map((claim) => claim.val)
-		if (!userRoles.includes(ADMIN_ROLE)) {
-			error(403, "User does not have admin role, access forbidden")
-		}
-
-		return { claims: userClaims }
-	} catch (err) {
-		logger.errorException(err, "Error in admin page load")
-		return error(500, `Internal server error ${err instanceof Error ? err.message : ""}`)
+	const userClaimsHeaderValue = request.headers.get(MS_AUTH_PRINCIPAL_CLAIMS_HEADER)
+	if (!userClaimsHeaderValue) {
+		error(401, "Missing claims in request headers")
 	}
+	const userClaims = getPrincipalClaims(userClaimsHeaderValue)
+	if (!userClaims) {
+		error(401, "User not authenticated")
+	}
+	if (!userClaims.claims || userClaims.claims.length === 0) {
+		error(403, "User has no claims, access forbidden")
+	}
+	if (!userClaims.claims.find((claim) => claim.typ === "roles")) {
+		error(403, "User has no roles claim, access forbidden")
+	}
+	// Check if user has admin role
+	const userRoles = userClaims.claims.filter((claim) => claim.typ === "roles").map((claim) => claim.val)
+	if (!userRoles.includes(ADMIN_ROLE)) {
+		error(403, "User does not have admin role, access forbidden")
+	}
+	return { claims: userClaims }
 }
