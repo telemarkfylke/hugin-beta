@@ -1,6 +1,7 @@
 <script lang="ts">
 	import ChatComponent from "$lib/components/Chat/Chat.svelte"
 	import { ChatState } from "$lib/components/Chat/ChatState.svelte.js"
+	import Menu from "$lib/components/Menu.svelte"
 	import type { Chat } from "$lib/types/chat"
 
 	const defaultChat: Chat = {
@@ -13,7 +14,7 @@
 		},
 		config: {
 			id: "config-1",
-			name: "Mistralos",
+			name: "",
 			description: "A default chat configuration",
 			vendorId: "mistral",
 			model: "mistral-medium-latest",

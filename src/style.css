@@ -1,8 +1,39 @@
+:root {
+	--font-family: "Nunito Sans", sans-serif;
+	--header-height: 4rem;
+	--color-primary: rgb(0, 82, 96); /* Vann */
+	--color-primary-hover: rgb(204, 220, 223); /* vann-20 */
+	--color-primary-active: rgb(179, 203, 207); /* vann-30 */
+}
+
 html,
 body {
 	margin: 0;
 	padding: 0;
 	height: 100%;
-
-	font-family: "Nunito Sans", sans-serif;
+	font-family: var(--font-family);
 }
+
+button {
+	cursor: pointer;
+	height: 2rem;
+	font-family: var(--font-family);
+	border: 0px solid var(--color-primary);
+	border-radius: 4px;
+	display: flex;
+	align-items: center;
+	gap: 0.25rem;
+	color: var(--color-primary);
+}
+
+button:hover, button.icon-button:hover {
+	background-color: var(--color-primary-hover);
+}
+button:active, button.icon-button:active {
+	background-color: var(--color-primary-active);
+}
+
+button.icon-button {
+	background-color: transparent;
+}
+

@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte";
+	import favicon16 from "$lib/assets/favicon-16x16.png"
 
 	let menuOpen = $state(true)
 
@@ -33,20 +34,18 @@
 </script>
 
 {#if !menuOpen}
-	<h3 class="open-menu">
-		<button onclick={toggleMenu} title="Åpne meny">
-			<span class="material-symbols-rounded">menu</span>
+	<div class="open-menu-container">
+		<button class="icon-button" onclick={toggleMenu} title="Åpne meny">
+			<span class="material-symbols-rounded">left_panel_open</span>
 		</button>
-	</h3>
+	</div>
 {:else}
 	<div class="menu">
 		<div class="menu-header">
-			<h3 class="close-menu-container">
-				<button onclick={toggleMenu} title="Lukk meny">
-					<span class="material-symbols-rounded">arrow_menu_close</span>
-					Lukk meny
-				</button>
-			</h3>
+			<div class="app-title"><img src={favicon16} alt="Mugin logo" /> Mugin</div>
+			<button class="icon-button" onclick={toggleMenu} title="Lukk meny">
+				<span class="material-symbols-rounded">left_panel_close</span>
+			</button>
 		</div>
 		<div class="menu-content">
 			<a href="/">Hjem</a>
@@ -57,9 +56,24 @@
 	</div>
 {/if}
 <style>
-	.open-menu {
+
+	.open-menu-container, .menu-header {
+		height: var(--header-height);
+		display: flex;
+		align-items: center;
+	}
+	.open-menu-container {
 		position: fixed;
 		z-index: 100;
+	}
+	.menu-header {
+		justify-content: space-between;
+	}
+	.app-title {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		font-weight: bold;
 	}
 	.menu {
 		position: fixed;
@@ -70,6 +84,7 @@
 		animation: slideInFromLeft 0.1s ease-out forwards;
 		display: flex;
 		flex-direction: column;
+		padding: 0rem 1rem;
 	}
 	.menu-content {
 		flex: 1;
