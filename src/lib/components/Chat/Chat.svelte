@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { tick } from "svelte"
+	import ChatConfig from "./ChatConfig.svelte"
 	import ChatHistoryItem from "./ChatHistoryItem.svelte"
 	import ChatInput from "./ChatInput.svelte"
 	import type { ChatState } from "./ChatState.svelte"
@@ -36,50 +37,30 @@
 
 <div class="chat-container">
 	<div class="chat-header">
-		<h2>{chatState.chat.config.name}</h2>
-		<button onclick={() => showConfig = !showConfig}>
-			{#if showConfig} Hide Config {:else} Show Config {/if}
-		</button>
-	</div>
-	{#if showConfig}
-		<div class="chat-config">
-			{JSON.stringify(chatState.chat.config, null, 2)}
-			<br />
-			<span>Vendor:</span>
-			<select bind:value={chatState.chat.config.vendorId}>
-				<option value="openai">OpenAI</option>
-				<option value="mistral">Mistral</option>
-			</select>
-			<br />
-			{#if chatState.chat.config.vendorAgent}
-				<p>Agent-id: {chatState.chat.config.vendorAgent.id}</p>
-			{:else}
-				<span>Model:</span>
-				<select bind:value={chatState.chat.config.model}>
-					{#if chatState.chat.config.vendorId === "openai"}
-						<option value="gpt-4o">GPT-4o</option>
-						<option value="gpt-4">GPT-4</option>
-					{:else if chatState.chat.config.vendorId === "mistral"}
-						<option value="mistral-medium-latest">Mistral Medium</option>
-						<option value="mistral-large-latest">Mistral Large</option>
-					{/if}
-				</select>
-				<br />
-				<span>instructions:</span>
-				<input type="text" bind:value={chatState.chat.config.instructions} />
-				<br />
-				<input type="checkbox" bind:checked={chatState.streamResponse} /> Stream
-				<br />
-			{/if}
+		<div class="chat-header-left">
+			&nbsp;
 		</div>
-	{/if}
-	<div class="chat-items">
+		<div class="chat-header-center">
+			<h3>{chatState.chat.config.name || chatState.chat.config.model || "Ukjent navn her"}</h3>
+			<button class="icon-button" onclick={() => showConfig = !showConfig} title={showConfig ? "Skjul konfigurasjon" : "Vis konfigurasjon"}>
+				<span class="material-symbols-rounded">
+					settings
+				</span>
+			</button>
+		</div>
+		<div class="chat-header-right">
+			<button class="icon-button" onclick={() => chatState.newChat()} title="Ny samtale">
+				<span class="material-symbols-rounded">edit_square</span>
+			</button>
+		</div>
+	</div>
+	<ChatConfig {chatState} {showConfig} />
+	<div class="chat-items" class:empty={chatState.chat.history.length === 0}>
 		{#each chatState.chat.history as chatHistoryItem}
 			<ChatHistoryItem {chatHistoryItem} />
 		{/each}
-		<div bind:this={lastChatItem}>sist</div>
+		<div bind:this={lastChatItem}>&nbsp;</div>
 	</div>
-
 	<ChatInput chatConfig={chatState.chat.config} sendMessage={chatState.promptChat} />
 </div>
 
@@ -88,24 +69,38 @@
     box-sizing: border-box; /* Include padding and border in total size, to avoid overflow */
     display: flex;
     flex-direction: column;
-    max-width: 1280px;
-    margin: 0 auto;
+		margin: 0 auto;
+		flex: 1;
+    max-width: 64rem;
+    /* justify-content: center; */ /* Hvis man vil ha de på midten når samtalehistorikken er tom */
     height: 100%;
+		padding-bottom: 1.5rem;
   }
 	.chat-header {
+		height: var(--header-height);
 		display: flex;
 		align-items: center;
+		justify-content: space-between;
 		gap: 1rem;
 	}
-	.chat-config {
-		border-bottom: 1px solid #ccc;
+	.chat-header-left {
+		min-width: 3rem;
+		visibility: hidden;
+	}
+	.chat-header-center {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
 	}
 	.chat-items {
-    flex: 1;
+		flex: 1;
     padding: 0.3rem;
     overflow-y: auto;
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
   }
+	.chat-items.empty {
+		/* display: none; */ /* hvis man vil ha de skjult når tom */
+	}
 </style>
