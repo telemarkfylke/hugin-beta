@@ -1,14 +1,15 @@
 <script lang="ts">
-  type Props = {
-    inputText: string
-    initialRows?: number
-    placeholder?: string
-    onkeydown?: (event: KeyboardEvent) => void
-  }
+	type Props = {
+		value?: string | undefined
+		initialRows?: number
+		placeholder?: string
+		onkeydown?: (event: KeyboardEvent) => void
+		id?: string
+	}
 
-  let { inputText = $bindable(), initialRows = 1, placeholder = "", onkeydown = (): void => {} }: Props = $props()
+	let { value = $bindable(), initialRows = 1, placeholder = "", onkeydown = (): void => {}, id = "growing-textarea" }: Props = $props()
 
-  // Some element references
+	// Some element references
 	let textArea: HTMLTextAreaElement
 	let wrapDiv: HTMLDivElement
 	/**
@@ -17,14 +18,14 @@
 	 * Thank you to Chris Coyier and Stephen Shaw
 	 * @link https://chriscoyier.net/2023/09/29/css-solves-auto-expanding-textareas-probably-eventually/
 	 */
-  $effect(() => {
-    inputText // Track changes to inputText
-    wrapDiv.setAttribute("data-replicated-value", textArea.value) // Update replicated value on change
-  })
+	$effect(() => {
+		value // Track changes to inputText
+		wrapDiv.setAttribute("data-replicated-value", textArea.value) // Update replicated value on change
+	})
 </script>
 
 <div class="grow-wrap" bind:this={wrapDiv}>
-  <textarea rows={initialRows} bind:this={textArea} placeholder={placeholder} name="prompt-input" id="prompt-input" onkeydown={onkeydown} bind:value={inputText}></textarea>
+  <textarea rows={initialRows} bind:this={textArea} placeholder={placeholder} name="prompt-input" id={id} onkeydown={onkeydown} bind:value={value}></textarea>
 </div>
 
 <style>
