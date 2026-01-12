@@ -2,7 +2,7 @@
 	import type { ChatConfig } from "$lib/types/chat"
 	import { VENDOR_SUPPORTED_MESSAGE_MIME_TYPES } from "$lib/vendor-constants"
 	import FileDropZone from "../FileDropZone.svelte"
-    import GrowingTextArea from "../GrowingTextArea.svelte";
+	import GrowingTextArea from "../GrowingTextArea.svelte"
 
 	type Props = {
 		chatConfig: ChatConfig
@@ -41,25 +41,31 @@
 			submitPrompt()
 		}
 	}
+
+	// Use button for file input, for styling
+	let fileInput: HTMLInputElement
+	const triggerFileInput = () => {
+		fileInput.click()
+	}
 </script>
 
 <div>
 	<FileDropZone onFilesDropped={(files) => { inputFiles = files; }} />
   <form onsubmit={(event: Event) => { event.preventDefault(); submitPrompt() }}>
-    <GrowingTextArea bind:inputText={inputText} placeholder="Type your message here..." onkeydown={submitOnEnter} />
+    <GrowingTextArea bind:value={inputText} placeholder="Type your message here..." onkeydown={submitOnEnter} />
     <div id="actions">
       <div id="actions-left">
         <div id="chat-file-upload-container">
 					{#if allowedMessageMimeTypes.length === 0}
 						<span>Filopplasting er ikke mulig her</span>
 					{:else}
-						<span>Last opp filer til chat:</span>
-          	<input bind:files={inputFiles} type="file" id="chat-file-upload" multiple accept={allowedMessageMimeTypes.join(",")} />
+						<button onclick={triggerFileInput}>Legg til filer</button>
+          	<input bind:files={inputFiles} bind:this={fileInput} type="file" id="chat-file-upload" multiple accept={allowedMessageMimeTypes.join(",")} />
 						{#if inputFiles.length > 0}
           		<button type="reset" onclick={() => { inputFiles = new DataTransfer().files; }}>Clear Files ({inputFiles.length})</button>
 						{/if}
 					{/if}
-          {JSON.stringify(allowedMessageMimeTypes)}
+          <!--{JSON.stringify(allowedMessageMimeTypes)}-->
         </div>
       </div>
       <div id="actions-right">
@@ -74,4 +80,7 @@
     display: flex;
     justify-content: space-between;
   }
+	#chat-file-upload {
+		display: none;
+	}
 </style>

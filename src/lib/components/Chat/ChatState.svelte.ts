@@ -85,6 +85,13 @@ export class ChatState {
 		this.chat.owner = chat.owner
 	}
 
+	public newChat = (): void => {
+		this.chat.history = []
+		this.chat.id = ""
+		this.chat.createdAt = new Date().toISOString()
+		this.chat.updatedAt = new Date().toISOString()
+	}
+
 	public loadChat = async (chatId: string): Promise<void> => {
 		// Fetch from API and update state
 		this.isLoading = true
@@ -189,7 +196,10 @@ export class ChatState {
 			.filter((message) => message !== undefined)
 
 		const chatRequest: ChatRequest = {
-			config: this.chat.config,
+			config: {
+				...this.chat.config,
+				name: this.chat.config.name || this.chat.config.model || "Ukjent navn"
+			},
 			inputs: [...chatInput, userMessage],
 			stream: this.streamResponse,
 			store: this.storeChat
@@ -200,7 +210,7 @@ export class ChatState {
 		const tempChatResponseObject: ChatResponseObject = {
 			id: `temp_id_${Date.now()}`,
 			type: "chat_response",
-			config: this.chat.config,
+			config: chatRequest.config,
 			createdAt: new Date().toISOString(),
 			outputs: [],
 			status: "queued",
