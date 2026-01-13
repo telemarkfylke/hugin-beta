@@ -1,12 +1,19 @@
 <script lang="ts">
   import { onMount } from "svelte";
 	import favicon16 from "$lib/assets/favicon-16x16.png"
+  import type { AuthenticatedPrincipal } from "$lib/types/authentication";
+  import { slide, fade } from "svelte/transition";
+
+
+	type Props = {
+		authenticatedUser: AuthenticatedPrincipal
+	}
+	let { authenticatedUser }: Props = $props()
 
 	let menuOpen = $state(true)
 
-	let screenIsLarge = true
-
 	const smallScreenWidth = 1120
+	let screenIsLarge = true
 
 	onMount(() => {
 		if (window.innerWidth <= smallScreenWidth) {
@@ -34,13 +41,13 @@
 </script>
 
 {#if !menuOpen}
-	<div class="open-menu-container">
+	<div class="open-menu-container" transition:fade={{ duration: 100, delay: 100 }}>
 		<button class="icon-button" onclick={toggleMenu} title="Åpne meny">
 			<span class="material-symbols-rounded">left_panel_open</span>
 		</button>
 	</div>
 {:else}
-	<div class="menu">
+	<div class="menu" transition:slide={{ axis: 'x', duration: 100 }}>
 		<div class="menu-header">
 			<div class="app-title"><img src={favicon16} alt="Mugin logo" /> Mugin</div>
 			<button class="icon-button" onclick={toggleMenu} title="Lukk meny">
@@ -51,12 +58,19 @@
 			<a href="/">Hjem</a>
 		</div>
 		<div class="menu-footer">
-			Innlogga bruker eller no drit
+			<div class="logged-in-user">
+				<span class="material-symbols-outlined">account_circle</span>
+				{authenticatedUser.name}
+			</div>
+			<!--
+			<button class="icon-button" title="Logg ut" onclick={() => { console.log("Logging out...") }}>
+				<span class="material-symbols-rounded">logout</span>
+			</button>
+			-->
 		</div>
 	</div>
 {/if}
 <style>
-
 	.open-menu-container, .menu-header {
 		height: var(--header-height);
 		display: flex;
@@ -80,8 +94,7 @@
 		z-index: 100;
 		width: 16rem;
 		height: 100%;
-		background-color: #f0f0f0;
-		animation: slideInFromLeft 0.1s ease-out forwards;
+		background-color: var(--color-gress-10);
 		display: flex;
 		flex-direction: column;
 		padding: 0rem 1rem;
@@ -90,18 +103,15 @@
 		flex: 1;
 	}
 	.menu-footer {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
 		padding: 1rem 0rem;
 	}
-
-	@keyframes slideInFromLeft {
-		/* Start off-screen to the left */
-		from {
-			transform: translateX(-100vw);
-		}
-		/* End at its original position */
-		to {
-			transform: translateX(0);
-		}
+	.logged-in-user {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
 	}
 
 	/* If large screen */

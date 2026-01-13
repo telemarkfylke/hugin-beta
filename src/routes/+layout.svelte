@@ -7,7 +7,7 @@
 	import type { LayoutProps } from "./$types.js"
 
 	// Get layout props, data will be accessible for children as well, so do not put too much here to avoid overfetching
-	let { children }: LayoutProps = $props()
+	let { children, data }: LayoutProps = $props()
 </script>
 
 <svelte:head>
@@ -22,12 +22,14 @@
 </svelte:head>
 
 <main>
-	<Menu />
-	{#if children}
-		{@render children()}
-	{:else}
-		<p>fallback content</p>
-	{/if}
+	<Menu authenticatedUser={data.authenticatedUser} />
+	<div class="page-content">
+		{#if children}
+			{@render children()}
+		{:else}
+			<p>fallback content</p>
+		{/if}
+	</div>
 </main>
 
 <style>
@@ -35,5 +37,10 @@
 		box-sizing: border-box;
 		height: 100%;
 		display: flex;
+	}
+	.page-content {
+		height: 100%;
+		flex: 1;
+		padding: 0rem 0.25rem;
 	}
 </style>
