@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { canEditChat, canEditPredefinedConfig } from "$lib/authorization";
 	import type { ChatConfig } from "$lib/types/chat"
 	import GrowingTextArea from "../GrowingTextArea.svelte"
 	import type { ChatState } from "./ChatState.svelte"
@@ -24,6 +25,29 @@
 		model: "mistral-medium-latest",
 		instructions: ""
 	}
+
+	const getVendors = () => {
+		return Object.values(chatState.APP_CONFIG.VENDORS).filter(vendor => vendor.ENABLED).map(vendor => { return { id: vendor.ID, name: vendor.NAME } })
+	}
+
+	const getAvailableModels = (vendorId: string) => {
+		const vendor = Object.values(chatState.APP_CONFIG.VENDORS).find(vendor => vendor.ID === vendorId)
+		if (!vendor) return []
+		const availableModels = vendor.MODELS.map(model => model.ID)
+		return availableModels
+	}
+
+	// Almost illegal effect, but we need to auto-select first available model when changing vendor in manual config
+	$effect(() => {
+		console.log("effect ran")
+		if (chatState.chat.config.model) {
+			const availableModels = getAvailableModels(chatState.chat.config.vendorId)
+			if (!availableModels.includes(chatState.chat.config.model)) {
+				// Current model not available for selected vendor, set to first available
+				chatState.chat.config.model = availableModels[0] || ""
+			}
+		}
+	})
 
 	const onConfigTypeChange = (event: Event) => {
 		const target = event.target as HTMLInputElement
@@ -60,50 +84,57 @@
 	<label class="bold" for="vendor">KI-leverandør</label>
 	<br />
 	<select id="vendor" bind:value={chatState.chat.config.vendorId}>
-		<option value="openai">OpenAI</option>
-		<option value="mistral">Mistral</option>
+		{#each getVendors() as vendor}
+			<option value={vendor.id}>{vendor.name}</option>
+		{/each}
 	</select>
 {/snippet}
 
 {#snippet predefinedConfiguration()}
-	{@render vendorSelect()}
-	<br />
-	<label class="bold" for="vendorAgentId">Agent-id</label>
-	<br />
-	<input id="vendorAgentId" type="text" bind:value={(chatState.chat.config.vendorAgent as { id: string }).id} />
+	{#if canEditPredefinedConfig(chatState.user, chatState.APP_CONFIG.APP_ROLES)}
+		{@render vendorSelect()}
+		<br />
+		<label class="bold" for="vendorAgentId">Agent-id</label>
+		<br />
+		<input id="vendorAgentId" type="text" bind:value={(chatState.chat.config.vendorAgent as { id: string }).id} />
+	{:else}
+		Legg inn noe predefinert-agent info her senere
+	{/if}
 {/snippet}
 
 {#snippet manualConfiguration()}
-	{@render vendorSelect()}
-	<br />
-	<label class="bold" for="model">Modell</label>
-	<br />
-	<select id="model" bind:value={chatState.chat.config.model}>
-		{#if chatState.chat.config.vendorId === "openai"}
-			<option value="gpt-4o">GPT-4o</option>
-			<option value="gpt-4">GPT-4</option>
-		{:else if chatState.chat.config.vendorId === "mistral"}
-			<option value="mistral-medium-latest">Mistral Medium</option>
-			<option value="mistral-large-latest">Mistral Large</option>
-		{/if}
-	</select>
-	<br />
-	<label class="bold" for="instructions">Instruksjoner til modellen</label>
-	<GrowingTextArea id="instructions" bind:value={chatState.chat.config.instructions} />
+	{#if canEditChat(chatState.chat, chatState.user, chatState.APP_CONFIG.APP_ROLES)}
+		{@render vendorSelect()}
+		<br />
+		<label class="bold" for="model">Modell</label>
+		<br />
+		<select id="model" bind:value={chatState.chat.config.model}>
+			{#each getAvailableModels(chatState.chat.config.vendorId as keyof typeof chatState.APP_CONFIG.VENDORS) as modelId}
+				<option value={modelId}>{modelId}</option>
+			{/each}
+		</select>
+		<br />
+		<label class="bold" for="instructions">Instruksjoner til modellen</label>
+		<GrowingTextArea id="instructions" bind:value={chatState.chat.config.instructions} />
+	{:else}
+		<p>Bare legg inn noe info om hvordan denne chatten er satt opp her senere</p>
+	{/if}
 {/snippet}
 
 {#if showConfig}
 	<div class="chat-config">
-		<div class="config-type-selection">
-			<label>
-				<input type="radio" name="configType" value="manual" onchange={onConfigTypeChange} checked={!chatState.chat.config.vendorAgent} />
-				Manuell konfigurasjon
-			</label>
-			<label>
-				<input type="radio" name="configType" value="predefined" onchange={onConfigTypeChange} checked={!!chatState.chat.config.vendorAgent} />
-				Forhåndsdefinert konfigurasjon hos leverandør
-			</label>
-		</div>
+		{#if canEditPredefinedConfig(chatState.user, chatState.APP_CONFIG.APP_ROLES)}
+			<div class="config-type-selection">
+				<label>
+					<input type="radio" name="configType" value="manual" onchange={onConfigTypeChange} checked={!chatState.chat.config.vendorAgent} />
+					Manuell konfigurasjon
+				</label>
+				<label>
+					<input type="radio" name="configType" value="predefined" onchange={onConfigTypeChange} checked={!!chatState.chat.config.vendorAgent} />
+					Forhåndsdefinert konfigurasjon hos leverandør
+				</label>
+			</div>
+		{/if}
 		{#if chatState.chat.config.vendorAgent}
 			{@render predefinedConfiguration()}
 		{:else}

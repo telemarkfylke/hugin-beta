@@ -13,7 +13,7 @@ export const APP_CONFIG: AppConfig = {
 	VENDORS: {
 		MISTRAL: {
 			ID: "mistral",
-			NAME: "Mistral AI",
+			NAME: "Mistral",
 			ENABLED: !!env.MISTRAL_API_KEY,
 			MODELS: [
 				{
