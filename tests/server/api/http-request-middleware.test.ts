@@ -2,26 +2,26 @@ import type { RequestEvent, RequestHandler } from "@sveltejs/kit"
 import { describe, expect, it } from "vitest"
 import { MS_AUTH_PRINCIPAL_CLAIMS_HEADER } from "$lib/server/auth/auth-constants"
 import { HTTPError } from "$lib/server/middleware/http-error"
-import { httpRequestMiddleware } from "$lib/server/middleware/http-request"
-import type { MiddlewareNextFunction } from "$lib/types/middleware/http-request"
+import { apiRequestMiddleware } from "$lib/server/middleware/http-request"
+import type { ApiNextFunction } from "$lib/types/middleware/http-request"
 import { TEST_USER_MS_HEADERS, type TestRequestEvent } from "./test-requests-data"
 
-const idiotNextFunction: MiddlewareNextFunction = async () => {
+const idiotNextFunction: ApiNextFunction = async () => {
 	return {
 		response: new Response("Hello, world!", { status: 200 }),
 		isAuthorized: true
 	}
 }
 
-const idiotNextThrowHTTPFunction: MiddlewareNextFunction = async () => {
+const idiotNextThrowHTTPFunction: ApiNextFunction = async () => {
 	throw new HTTPError(418, "I'm a teapot")
 }
 
-const idiotNextThrowFunction: MiddlewareNextFunction = async () => {
+const idiotNextThrowFunction: ApiNextFunction = async () => {
 	throw new Error("Some unexpected error")
 }
 
-const idiotNotAuthorizedFunction: MiddlewareNextFunction = async () => {
+const idiotNotAuthorizedFunction: ApiNextFunction = async () => {
 	return {
 		response: new Response("Hello, world!", { status: 200 }),
 		isAuthorized: false
@@ -29,10 +29,10 @@ const idiotNotAuthorizedFunction: MiddlewareNextFunction = async () => {
 }
 
 const middlewareTester: RequestHandler = async (requestEvent) => {
-	return httpRequestMiddleware(requestEvent, idiotNextFunction)
+	return apiRequestMiddleware(requestEvent, idiotNextFunction)
 }
 
-describe("httpRequestMiddleware works correctly", () => {
+describe("apiRequestMiddleware works correctly", () => {
 	it("returns 401 if user is no user header is preset", async () => {
 		const requestEvent: TestRequestEvent = {
 			params: {},
@@ -54,7 +54,7 @@ describe("httpRequestMiddleware works correctly", () => {
 				headers: new Headers({ [MS_AUTH_PRINCIPAL_CLAIMS_HEADER]: TEST_USER_MS_HEADERS.employee })
 			})
 		}
-		const response = await httpRequestMiddleware(requestEvent as RequestEvent, idiotNotAuthorizedFunction)
+		const response = await apiRequestMiddleware(requestEvent as RequestEvent, idiotNotAuthorizedFunction)
 		expect(response.status).toBe(403)
 		const data = await response.json()
 		expect(data.message).toBe("Forbidden")
@@ -67,7 +67,7 @@ describe("httpRequestMiddleware works correctly", () => {
 				headers: new Headers({ [MS_AUTH_PRINCIPAL_CLAIMS_HEADER]: "fdhjfkdhkjfsd" })
 			})
 		}
-		const response = await httpRequestMiddleware(requestEvent as RequestEvent, idiotNotAuthorizedFunction)
+		const response = await apiRequestMiddleware(requestEvent as RequestEvent, idiotNotAuthorizedFunction)
 		expect(response.status).toBe(401)
 		const data = await response.json()
 		expect(data.message).toBe("Unauthorized")
@@ -93,7 +93,7 @@ describe("httpRequestMiddleware works correctly", () => {
 				headers: new Headers({ [MS_AUTH_PRINCIPAL_CLAIMS_HEADER]: TEST_USER_MS_HEADERS.employee })
 			})
 		}
-		const response = await httpRequestMiddleware(requestEvent as RequestEvent, idiotNextThrowHTTPFunction)
+		const response = await apiRequestMiddleware(requestEvent as RequestEvent, idiotNextThrowHTTPFunction)
 		expect(response.status).toBe(418)
 		const data = await response.json()
 		expect(data.message).toBe("I'm a teapot")
@@ -106,7 +106,7 @@ describe("httpRequestMiddleware works correctly", () => {
 				headers: new Headers({ [MS_AUTH_PRINCIPAL_CLAIMS_HEADER]: TEST_USER_MS_HEADERS.employee })
 			})
 		}
-		const response = await httpRequestMiddleware(requestEvent as RequestEvent, idiotNextThrowFunction)
+		const response = await apiRequestMiddleware(requestEvent as RequestEvent, idiotNextThrowFunction)
 		expect(response.status).toBe(500)
 		const data = await response.json()
 		expect(data.message).toBe("Internal Server Error")
