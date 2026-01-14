@@ -1,8 +1,10 @@
 <script lang="ts">
 	import ChatComponent from "$lib/components/Chat/Chat.svelte"
 	import { ChatState } from "$lib/components/Chat/ChatState.svelte.js"
-	import Menu from "$lib/components/Menu.svelte"
 	import type { Chat } from "$lib/types/chat"
+  import type { LayoutProps } from "./$types";
+
+	let { data }: LayoutProps = $props()
 
 	const defaultChat: Chat = {
 		id: "chat-1",
@@ -13,7 +15,7 @@
 			name: "Test User"
 		},
 		config: {
-			id: "config-1",
+			id: "",
 			name: "",
 			description: "A default chat configuration",
 			vendorId: "mistral",
@@ -23,7 +25,8 @@
 		history: []
 	}
 
-	const chatState = new ChatState(defaultChat)
+	// svelte-ignore state_referenced_locally (don't care, user is user, APP_CONFIG is APP_CONFIG. If somebody messes with them, backend must handle that)
+	const chatState = new ChatState(defaultChat, data.authenticatedUser, data.APP_CONFIG)
 </script>
 
 <ChatComponent {chatState} />

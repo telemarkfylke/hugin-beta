@@ -61,7 +61,7 @@
 		{/each}
 		<div bind:this={lastChatItem}>&nbsp;</div>
 	</div>
-	<ChatInput chatConfig={chatState.chat.config} sendMessage={chatState.promptChat} />
+	<ChatInput {chatState} sendMessage={chatState.promptChat} />
 </div>
 
 <style>

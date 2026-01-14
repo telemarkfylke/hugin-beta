@@ -1,17 +1,17 @@
 import OpenAI from "openai"
 import type { ResponseCreateParamsBase } from "openai/resources/responses/responses.mjs"
 import { env } from "$env/dynamic/private"
-import type { AIVendor, IAIVendor } from "$lib/types/AIVendor"
+import type { IAIVendor } from "$lib/types/AIVendor"
 import type { ChatRequest, ChatResponseObject, ChatResponseStream } from "$lib/types/chat"
-import { OPEN_AI_VENDOR_ID } from "$lib/vendor-constants"
 import { chatInputToOpenAIInput, openAiResponseToChatResponseObject } from "./openai-mapping"
 import { handleOpenAIResponseStream } from "./openai-stream"
+import { APP_CONFIG } from "../app-config/app-config"
 
 if (!env.SUPPORTED_MODELS_VENDOR_OPENAI || env.SUPPORTED_MODELS_VENDOR_OPENAI.trim() === "") {
 	throw new Error("SUPPORTED_MODELS_VENDOR_OPENAI is not set in environment variables")
 }
-const OPEN_AI_SUPPORTED_MODELS = env.SUPPORTED_MODELS_VENDOR_OPENAI.split(",").map((model) => model.trim())
-const OPEN_AI_DEFAULT_MODEL = OPEN_AI_SUPPORTED_MODELS[0] as string
+
+const OPEN_AI_SUPPORTED_MODELS = APP_CONFIG.VENDORS.OPENAI.MODELS.map(model => model.ID)
 
 export const openai = new OpenAI({
 	apiKey: env.OPENAI_API_KEY || "bare-en-tulle-key"
@@ -47,18 +47,6 @@ const openAiRequest = (chatRequest: ChatRequest): ResponseCreateParamsBase => {
 }
 
 export class OpenAIVendor implements IAIVendor {
-	public getInfo(): AIVendor {
-		return {
-			id: OPEN_AI_VENDOR_ID,
-			name: "OpenAI",
-			description: "OpenAI - jauda",
-			models: {
-				supported: OPEN_AI_SUPPORTED_MODELS,
-				default: OPEN_AI_DEFAULT_MODEL
-			}
-		}
-	}
-
 	public async createChatResponse(chatRequest: ChatRequest): Promise<ChatResponseObject> {
 		const response = await openai.responses.create({
 			...openAiRequest(chatRequest),

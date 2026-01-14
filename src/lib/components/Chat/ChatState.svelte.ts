@@ -1,8 +1,8 @@
-import type { VendorSupportedMessageMimeTypes } from "$lib/types/AIVendor"
+import type { AppConfig } from "$lib/types/app-config"
+import type { AuthenticatedPrincipal } from "$lib/types/authentication"
 import type { Chat, ChatHistory, ChatRequest, ChatResponseObject } from "$lib/types/chat"
 import type { ChatInputItem } from "$lib/types/chat-item"
 import type { InputFile, InputImage } from "$lib/types/chat-item-content"
-import { VENDOR_SUPPORTED_MESSAGE_MIME_TYPES } from "$lib/vendor-constants"
 import { postChatMessage } from "./PostChatMessage.svelte"
 
 const fileToBase64Url = (file: File): Promise<string> => {
@@ -20,11 +20,11 @@ const fileToBase64Url = (file: File): Promise<string> => {
 	})
 }
 
-const fileToMessageContent = async (file: File, supportedMessageMimeTypes: VendorSupportedMessageMimeTypes): Promise<InputFile | InputImage> => {
+const fileToMessageContent = async (file: File, supportedFileTypes: string[], supportedImageTypes: string[]): Promise<InputFile | InputImage> => {
 	let fileType: "image" | "file" | null = null
-	if (supportedMessageMimeTypes.file.includes(file.type)) {
+	if (supportedFileTypes.includes(file.type)) {
 		fileType = "file"
-	} else if (supportedMessageMimeTypes.image.includes(file.type)) {
+	} else if (supportedImageTypes.includes(file.type)) {
 		fileType = "image"
 	} else {
 		throw new Error(`File type ${file.type} is not supported for upload`)
@@ -63,10 +63,14 @@ export class ChatState {
 		}
 	})
 	public streamResponse: boolean = $state(true)
-	public storeChat: boolean = $state(true)
+	public storeChat: boolean = $state(false)
 	public isLoading: boolean = $state(false)
+	public user: AuthenticatedPrincipal
+	public APP_CONFIG: AppConfig
 
-	constructor(chat: Chat) {
+	constructor(chat: Chat, user: AuthenticatedPrincipal, appConfig: AppConfig) {
+		this.user = user
+		this.APP_CONFIG = appConfig
 		this.changeChat(chat)
 	}
 
@@ -170,12 +174,19 @@ export class ChatState {
 
 		// Process files if any
 		if (inputFiles && inputFiles.length > 0) {
-			const supportedMessageMimeTypes = VENDOR_SUPPORTED_MESSAGE_MIME_TYPES[`${this.chat.config.vendorId}-${this.chat.config.model}`]
-			if (!supportedMessageMimeTypes) {
-				throw new Error(`No supported message mime types found for vendor/model: ${this.chat.config.vendorId}-${this.chat.config.model}`)
+			const vendor = Object.values(this.APP_CONFIG.VENDORS).find(vendor => vendor.ID === this.chat.config.vendorId)
+			if (!vendor) {
+				throw new Error(`Vendor not found: ${this.chat.config.vendorId}`)
 			}
+			const model = vendor.MODELS.find(model => model.ID === this.chat.config.model)
+			if (!model) {
+				throw new Error(`Model not found for vendor ${this.chat.config.vendorId}: ${this.chat.config.model}`)
+			}
+			const supportedFileTypes = model.SUPPORTED_MESSAGE_FILE_MIME_TYPES.FILE
+			const supportedImageTypes = model.SUPPORTED_MESSAGE_FILE_MIME_TYPES.IMAGE
+
 			for (const file of Array.from(inputFiles)) {
-				const messageContent = await fileToMessageContent(file, supportedMessageMimeTypes)
+				const messageContent = await fileToMessageContent(file, supportedFileTypes, supportedImageTypes)
 				userMessage.content.push(messageContent)
 			}
 		}

@@ -1,11 +1,5 @@
 import type { ChatRequest, ChatResponseObject, ChatResponseStream } from "./chat"
 
-export type VendorSupportedMessageMimeTypes = {
-	file: string[]
-	image: string[]
-}
-export type VendorSupportedMessageMimeTypesMap = Record<string, { file: string[]; image: string[] }>
-
 export type AIVendor = {
 	id: string
 	name: string
@@ -18,8 +12,6 @@ export type AIVendor = {
 
 // VENDOR INTERFACE
 export interface IAIVendor {
-	/** Returns some static info about the AI Vendor */
-	getInfo(): AIVendor
 	/** Creates a chat response based on the given prompt request */
 	createChatResponse(chatRequest: ChatRequest): Promise<ChatResponseObject>
 	createChatResponseStream(chatRequest: ChatRequest): Promise<ChatResponseStream>
