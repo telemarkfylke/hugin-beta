@@ -1,8 +1,8 @@
 <script lang="ts">
 	import FileDropZone from "../FileDropZone.svelte"
 	import GrowingTextArea from "../GrowingTextArea.svelte"
-  import TypingDots from "../TypingDots.svelte";
-  import type { ChatState } from "./ChatState.svelte";
+	import TypingDots from "../TypingDots.svelte"
+	import type { ChatState } from "./ChatState.svelte"
 
 	type Props = {
 		chatState: ChatState
@@ -16,12 +16,12 @@
 			return []
 		}
 
-		const vendor = Object.values(chatState.APP_CONFIG.VENDORS).find(vendor => vendor.ID === chatState.chat.config.vendorId)
+		const vendor = Object.values(chatState.APP_CONFIG.VENDORS).find((vendor) => vendor.ID === chatState.chat.config.vendorId)
 		if (!vendor) {
 			return []
 		}
-		const supportedTypes = vendor.MODELS.find(model => model.ID === chatState.chat.config.model)?.SUPPORTED_MESSAGE_FILE_MIME_TYPES
-		
+		const supportedTypes = vendor.MODELS.find((model) => model.ID === chatState.chat.config.model)?.SUPPORTED_MESSAGE_FILE_MIME_TYPES
+
 		if (!supportedTypes) {
 			return []
 		}

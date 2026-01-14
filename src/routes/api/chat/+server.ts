@@ -1,11 +1,11 @@
 import { json, type RequestHandler } from "@sveltejs/kit"
 import { getVendor } from "$lib/server/ai-vendors"
+import { APP_CONFIG } from "$lib/server/app-config/app-config"
 import { HTTPError } from "$lib/server/middleware/http-error"
 import { apiRequestMiddleware } from "$lib/server/middleware/http-request"
 import { responseStream } from "$lib/streaming"
 import type { ChatConfig, ChatRequest } from "$lib/types/chat"
 import type { ApiNextFunction } from "$lib/types/middleware/http-request"
-import { APP_CONFIG } from "$lib/server/app-config/app-config"
 
 const validFileType = (fileUrl: string, supportedMimeTypes: string[]): boolean => {
 	const mimeType = fileUrl.substring(fileUrl.indexOf(":") + 1, fileUrl.indexOf(";base64")) // data:<mime-type>;base64,<data>
@@ -18,12 +18,12 @@ const validateFileInputs = (chatRequest: ChatRequest) => {
 		throw new HTTPError(400, "Last input must be a message.input to validate file inputs")
 	}
 
-	const vendor = Object.values(APP_CONFIG.VENDORS).find(vendor => vendor.ID === chatRequest.config.vendorId && vendor.ENABLED)
+	const vendor = Object.values(APP_CONFIG.VENDORS).find((vendor) => vendor.ID === chatRequest.config.vendorId && vendor.ENABLED)
 	if (!vendor) {
 		throw new HTTPError(400, `Unsupported vendorId: ${chatRequest.config.vendorId}`)
 	}
 
-	const modelSupportedMimeTypes = vendor.MODELS.find(model => model.ID === chatRequest.config.model)?.SUPPORTED_MESSAGE_FILE_MIME_TYPES || {
+	const modelSupportedMimeTypes = vendor.MODELS.find((model) => model.ID === chatRequest.config.model)?.SUPPORTED_MESSAGE_FILE_MIME_TYPES || {
 		FILE: [],
 		IMAGE: []
 	}
@@ -82,7 +82,7 @@ const parseChatRequest = (body: unknown): ChatRequest => {
 	if (!config.vendorId || typeof config.vendorId !== "string") {
 		throw new HTTPError(400, "vendorId is required and must be a string")
 	}
-	if (!Object.values(APP_CONFIG.VENDORS).some(vendor => vendor.ID === config.vendorId && vendor.ENABLED)) {
+	if (!Object.values(APP_CONFIG.VENDORS).some((vendor) => vendor.ID === config.vendorId && vendor.ENABLED)) {
 		throw new HTTPError(400, `Unsupported vendorId: ${config.vendorId}`)
 	}
 	if (!incomingChatRequest.inputs || !Array.isArray(incomingChatRequest.inputs)) {

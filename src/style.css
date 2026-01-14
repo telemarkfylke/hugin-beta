@@ -6,7 +6,7 @@
 	--color-primary-30: rgb(179, 203, 207); /* vann-30 */
 	--color-primary-70: rgb(77, 134, 144); /* vann-70 */
 	--color-primary-80: rgb(51, 117, 128); /* vann-80 */
-	--color-secondary-10: #E9F4EF;
+	--color-secondary-10: #e9f4ef;
 }
 
 html,
@@ -34,10 +34,12 @@ button.icon-button {
 	background-color: transparent;
 }
 
-button:hover, button.icon-button:hover {
+button:hover,
+button.icon-button:hover {
 	background-color: var(--color-primary-20);
 }
-button:active, button.icon-button:active {
+button:active,
+button.icon-button:active {
 	background-color: var(--color-primary-30);
 }
 
@@ -47,7 +49,9 @@ button.filled {
 	border: none;
 }
 
-button:disabled, button.icon-button:disabled, button.filled:disabled {
+button:disabled,
+button.icon-button:disabled,
+button.filled:disabled {
 	background-color: lightgray;
 	color: gray;
 	cursor: not-allowed;

@@ -3,11 +3,11 @@ import type { ConversationRequest } from "@mistralai/mistralai/models/components
 import { env } from "$env/dynamic/private"
 import type { IAIVendor } from "$lib/types/AIVendor"
 import type { ChatRequest, ChatResponseObject, ChatResponseStream } from "$lib/types/chat"
+import { APP_CONFIG } from "../app-config/app-config"
 import { chatInputToMistralInput, mistralResponseToChatResponseObject } from "./mistral-mapping"
 import { handleMistralResponseStream } from "./mistral-stream"
-import { APP_CONFIG } from "../app-config/app-config"
 
-const MISTRAL_SUPPORTED_MODELS = APP_CONFIG.VENDORS.MISTRAL.MODELS.map(model => model.ID)
+const MISTRAL_SUPPORTED_MODELS = APP_CONFIG.VENDORS.MISTRAL.MODELS.map((model) => model.ID)
 
 export const mistral = new Mistral({
 	apiKey: env.MISTRAL_API_KEY || "bare-en-tulle-key"

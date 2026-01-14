@@ -29,4 +29,3 @@ export const MISTRAL_DEFAULT_SUPPORTED_MESSAGE_FILE_MIME_TYPES = [
  * @link https://help.mistral.ai/en/articles/347521-how-do-i-upload-images-or-documents-to-le-chat
  */
 export const MISTRAL_DEFAULT_SUPPORTED_MESSAGE_IMAGE_MIME_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp"]
-

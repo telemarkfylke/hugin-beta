@@ -1,4 +1,4 @@
-import { json, error as svelteError, type RequestEvent } from "@sveltejs/kit"
+import { json, type RequestEvent, error as svelteError } from "@sveltejs/kit"
 import { logger } from "@vestfoldfylke/loglady"
 import type { AuthenticatedPrincipal } from "$lib/types/authentication"
 import type { ApiNextFunction, ServerLoadNextFunction } from "$lib/types/middleware/http-request"

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { ChatConfig } from "$lib/types/chat";
+	import type { ChatConfig } from "$lib/types/chat"
 	import GrowingTextArea from "../GrowingTextArea.svelte"
 	import type { ChatState } from "./ChatState.svelte"
 
@@ -54,7 +54,6 @@
 			delete chatState.chat.config.vendorAgent
 		}
 	}
-
 </script>
 
 {#snippet vendorSelect()}

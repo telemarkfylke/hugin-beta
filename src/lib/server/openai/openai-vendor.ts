@@ -3,15 +3,15 @@ import type { ResponseCreateParamsBase } from "openai/resources/responses/respon
 import { env } from "$env/dynamic/private"
 import type { IAIVendor } from "$lib/types/AIVendor"
 import type { ChatRequest, ChatResponseObject, ChatResponseStream } from "$lib/types/chat"
+import { APP_CONFIG } from "../app-config/app-config"
 import { chatInputToOpenAIInput, openAiResponseToChatResponseObject } from "./openai-mapping"
 import { handleOpenAIResponseStream } from "./openai-stream"
-import { APP_CONFIG } from "../app-config/app-config"
 
 if (!env.SUPPORTED_MODELS_VENDOR_OPENAI || env.SUPPORTED_MODELS_VENDOR_OPENAI.trim() === "") {
 	throw new Error("SUPPORTED_MODELS_VENDOR_OPENAI is not set in environment variables")
 }
 
-const OPEN_AI_SUPPORTED_MODELS = APP_CONFIG.VENDORS.OPENAI.MODELS.map(model => model.ID)
+const OPEN_AI_SUPPORTED_MODELS = APP_CONFIG.VENDORS.OPENAI.MODELS.map((model) => model.ID)
 
 export const openai = new OpenAI({
 	apiKey: env.OPENAI_API_KEY || "bare-en-tulle-key"

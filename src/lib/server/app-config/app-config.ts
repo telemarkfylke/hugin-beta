@@ -3,61 +3,61 @@ import type { AppConfig } from "$lib/types/app-config"
 import { MISTRAL_DEFAULT_SUPPORTED_MESSAGE_FILE_MIME_TYPES, OPEN_AI_DEFAULT_SUPPORTED_MESSAGE_FILE_MIME_TYPES, OPEN_AI_DEFAULT_SUPPORTED_MESSAGE_IMAGE_MIME_TYPES } from "./supported-mime-types"
 
 export const APP_CONFIG: AppConfig = {
-  NAME: 'Mugin',
-  APP_ROLES: {
-    ADMIN: env.APP_ROLE_ADMIN,
-    AGENT_MAINTAINER: env.APP_ROLE_AGENT_MAINTAINER,
-    EMPLOYEE: env.APP_ROLE_EMPLOYEE,
-    STUDENT: env.APP_ROLE_STUDENT,
-  },
-  VENDORS: {
-    MISTRAL: {
-      ID: 'mistral',
-      NAME: 'Mistral AI',
-      ENABLED: !!env.MISTRAL_API_KEY,
-      MODELS: [
-        {
-          ID: 'mistral-medium-latest',
-          SUPPORTED_MESSAGE_FILE_MIME_TYPES: {
-            FILE: MISTRAL_DEFAULT_SUPPORTED_MESSAGE_FILE_MIME_TYPES,
-            IMAGE: MISTRAL_DEFAULT_SUPPORTED_MESSAGE_FILE_MIME_TYPES
-          }
-        },
-        {
-          ID: 'mistral-medium-latest',
-          SUPPORTED_MESSAGE_FILE_MIME_TYPES: {
-            FILE: MISTRAL_DEFAULT_SUPPORTED_MESSAGE_FILE_MIME_TYPES,
-            IMAGE: MISTRAL_DEFAULT_SUPPORTED_MESSAGE_FILE_MIME_TYPES
-          }
-        }
-      ]
-    },
-    OPENAI: {
-      ID: 'openai',
-      NAME: 'OpenAI',
-      ENABLED: !!env.OPENAI_API_KEY,
-      MODELS: [
-        {
-          ID: 'gpt-4o',
-          SUPPORTED_MESSAGE_FILE_MIME_TYPES: {
-            FILE: OPEN_AI_DEFAULT_SUPPORTED_MESSAGE_FILE_MIME_TYPES,
-            IMAGE: OPEN_AI_DEFAULT_SUPPORTED_MESSAGE_IMAGE_MIME_TYPES
-          }
-        },
-        {
-          ID: 'gpt-4',
-          SUPPORTED_MESSAGE_FILE_MIME_TYPES: {
-            FILE: OPEN_AI_DEFAULT_SUPPORTED_MESSAGE_FILE_MIME_TYPES,
-            IMAGE: OPEN_AI_DEFAULT_SUPPORTED_MESSAGE_IMAGE_MIME_TYPES
-          }
-        }
-      ]
-    },
-    OLLAMA: {
-      ID: 'ollama',
-      NAME: 'Ollama',
-      ENABLED: !!env.OLLAMA_API_KEY,
-      MODELS: []
-    }
-  }
+	NAME: "Mugin",
+	APP_ROLES: {
+		ADMIN: env.APP_ROLE_ADMIN,
+		AGENT_MAINTAINER: env.APP_ROLE_AGENT_MAINTAINER,
+		EMPLOYEE: env.APP_ROLE_EMPLOYEE,
+		STUDENT: env.APP_ROLE_STUDENT
+	},
+	VENDORS: {
+		MISTRAL: {
+			ID: "mistral",
+			NAME: "Mistral AI",
+			ENABLED: !!env.MISTRAL_API_KEY,
+			MODELS: [
+				{
+					ID: "mistral-medium-latest",
+					SUPPORTED_MESSAGE_FILE_MIME_TYPES: {
+						FILE: MISTRAL_DEFAULT_SUPPORTED_MESSAGE_FILE_MIME_TYPES,
+						IMAGE: MISTRAL_DEFAULT_SUPPORTED_MESSAGE_FILE_MIME_TYPES
+					}
+				},
+				{
+					ID: "mistral-medium-latest",
+					SUPPORTED_MESSAGE_FILE_MIME_TYPES: {
+						FILE: MISTRAL_DEFAULT_SUPPORTED_MESSAGE_FILE_MIME_TYPES,
+						IMAGE: MISTRAL_DEFAULT_SUPPORTED_MESSAGE_FILE_MIME_TYPES
+					}
+				}
+			]
+		},
+		OPENAI: {
+			ID: "openai",
+			NAME: "OpenAI",
+			ENABLED: !!env.OPENAI_API_KEY,
+			MODELS: [
+				{
+					ID: "gpt-4o",
+					SUPPORTED_MESSAGE_FILE_MIME_TYPES: {
+						FILE: OPEN_AI_DEFAULT_SUPPORTED_MESSAGE_FILE_MIME_TYPES,
+						IMAGE: OPEN_AI_DEFAULT_SUPPORTED_MESSAGE_IMAGE_MIME_TYPES
+					}
+				},
+				{
+					ID: "gpt-4",
+					SUPPORTED_MESSAGE_FILE_MIME_TYPES: {
+						FILE: OPEN_AI_DEFAULT_SUPPORTED_MESSAGE_FILE_MIME_TYPES,
+						IMAGE: OPEN_AI_DEFAULT_SUPPORTED_MESSAGE_IMAGE_MIME_TYPES
+					}
+				}
+			]
+		},
+		OLLAMA: {
+			ID: "ollama",
+			NAME: "Ollama",
+			ENABLED: !!env.OLLAMA_API_KEY,
+			MODELS: []
+		}
+	}
 }

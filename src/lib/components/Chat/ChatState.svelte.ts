@@ -174,11 +174,11 @@ export class ChatState {
 
 		// Process files if any
 		if (inputFiles && inputFiles.length > 0) {
-			const vendor = Object.values(this.APP_CONFIG.VENDORS).find(vendor => vendor.ID === this.chat.config.vendorId)
+			const vendor = Object.values(this.APP_CONFIG.VENDORS).find((vendor) => vendor.ID === this.chat.config.vendorId)
 			if (!vendor) {
 				throw new Error(`Vendor not found: ${this.chat.config.vendorId}`)
 			}
-			const model = vendor.MODELS.find(model => model.ID === this.chat.config.model)
+			const model = vendor.MODELS.find((model) => model.ID === this.chat.config.model)
 			if (!model) {
 				throw new Error(`Model not found for vendor ${this.chat.config.vendorId}: ${this.chat.config.model}`)
 			}

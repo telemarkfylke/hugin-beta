@@ -5,7 +5,7 @@ import type { AuthenticatedPrincipal } from "$lib/types/authentication"
 import type { ServerLoadNextFunction } from "$lib/types/middleware/http-request"
 import type { LayoutServerLoad } from "./$types"
 
-const layoutLoad: ServerLoadNextFunction<{ authenticatedUser: AuthenticatedPrincipal, APP_CONFIG: AppConfig }> = async ({ user }) => {
+const layoutLoad: ServerLoadNextFunction<{ authenticatedUser: AuthenticatedPrincipal; APP_CONFIG: AppConfig }> = async ({ user }) => {
 	return {
 		data: {
 			authenticatedUser: user,
@@ -15,7 +15,6 @@ const layoutLoad: ServerLoadNextFunction<{ authenticatedUser: AuthenticatedPrinc
 	}
 }
 
-export const load: LayoutServerLoad = async (requestEvent): Promise<{ authenticatedUser: AuthenticatedPrincipal, APP_CONFIG: AppConfig }> => {
+export const load: LayoutServerLoad = async (requestEvent): Promise<{ authenticatedUser: AuthenticatedPrincipal; APP_CONFIG: AppConfig }> => {
 	return serverLoadRequestMiddleware(requestEvent, layoutLoad)
 }
-

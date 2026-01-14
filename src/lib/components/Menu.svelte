@@ -1,9 +1,8 @@
 <script lang="ts">
-  import { onMount } from "svelte";
+	import { onMount } from "svelte"
+	import { fade, slide } from "svelte/transition"
 	import favicon16 from "$lib/assets/favicon-16x16.png"
-  import type { AuthenticatedPrincipal } from "$lib/types/authentication";
-  import { slide, fade } from "svelte/transition";
-
+	import type { AuthenticatedPrincipal } from "$lib/types/authentication"
 
 	type Props = {
 		authenticatedUser: AuthenticatedPrincipal
@@ -17,27 +16,26 @@
 
 	onMount(() => {
 		if (window.innerWidth <= smallScreenWidth) {
-			menuOpen = false;
-			screenIsLarge = false;
+			menuOpen = false
+			screenIsLarge = false
 		}
 		const handleResize = () => {
 			if (window.innerWidth >= smallScreenWidth && !screenIsLarge) {
-				screenIsLarge = true;
-				menuOpen = true;
+				screenIsLarge = true
+				menuOpen = true
 			}
 			if (window.innerWidth < smallScreenWidth && screenIsLarge) {
-				screenIsLarge = false;
-				menuOpen = false;
+				screenIsLarge = false
+				menuOpen = false
 			}
-		};
-		window.addEventListener("resize", handleResize);
-		return () => window.removeEventListener("resize", handleResize);
-  });
+		}
+		window.addEventListener("resize", handleResize)
+		return () => window.removeEventListener("resize", handleResize)
+	})
 
 	const toggleMenu = () => {
 		menuOpen = !menuOpen
 	}
-
 </script>
 
 {#if !menuOpen}

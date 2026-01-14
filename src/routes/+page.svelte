@@ -2,7 +2,7 @@
 	import ChatComponent from "$lib/components/Chat/Chat.svelte"
 	import { ChatState } from "$lib/components/Chat/ChatState.svelte.js"
 	import type { Chat } from "$lib/types/chat"
-  import type { LayoutProps } from "./$types";
+	import type { LayoutProps } from "./$types"
 
 	let { data }: LayoutProps = $props()
 
