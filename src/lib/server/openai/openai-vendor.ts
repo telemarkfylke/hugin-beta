@@ -7,10 +7,6 @@ import { APP_CONFIG } from "../app-config/app-config"
 import { chatInputToOpenAIInput, openAiResponseToChatResponseObject } from "./openai-mapping"
 import { handleOpenAIResponseStream } from "./openai-stream"
 
-if (!env.SUPPORTED_MODELS_VENDOR_OPENAI || env.SUPPORTED_MODELS_VENDOR_OPENAI.trim() === "") {
-	throw new Error("SUPPORTED_MODELS_VENDOR_OPENAI is not set in environment variables")
-}
-
 const OPEN_AI_SUPPORTED_MODELS = APP_CONFIG.VENDORS.OPENAI.MODELS.map((model) => model.ID)
 
 export const openai = new OpenAI({
