@@ -22,17 +22,20 @@
 	// Internal state for this component
 	let inputText: string = $state("")
 	let inputFiles = $state(new DataTransfer().files)
+	let messageInProgress = $state(false)
 
 	// Simple helper for posting prompt, and clearing input
-	const submitPrompt = (): void => {
-		if (inputText.trim() === "" && inputFiles.length === 0) {
-			return // Do not submit empty prompts
+	const submitPrompt = async (): Promise<void> => {
+		if (messageInProgress || (inputText.trim() === "" && inputFiles.length === 0)) {
+			return // Do not submit empty prompts or if a message is already in progress
 		}
 		const textToSend = inputText
 		const filesToSend = inputFiles
 		inputFiles = new DataTransfer().files // Clear chat files after submission
 		inputText = ""
-		sendMessage(textToSend, filesToSend)
+		messageInProgress = true
+		await sendMessage(textToSend, filesToSend)
+		messageInProgress = false
 	}
 
 	const submitOnEnter = (event: KeyboardEvent) => {
@@ -49,7 +52,7 @@
 	}
 </script>
 
-<div>
+<div class="chat-input-container">
 	<FileDropZone onFilesDropped={(files) => { inputFiles = files; }} />
   <form onsubmit={(event: Event) => { event.preventDefault(); submitPrompt() }}>
     <GrowingTextArea bind:value={inputText} placeholder="Type your message here..." onkeydown={submitOnEnter} />
@@ -59,7 +62,12 @@
 					{#if allowedMessageMimeTypes.length === 0}
 						<span>Filopplasting er ikke mulig her</span>
 					{:else}
-						<button onclick={triggerFileInput}>Legg til filer</button>
+						<button class="icon-button" onclick={triggerFileInput} title="Legg til filer">
+							<span class="material-symbols-outlined">
+								attach_file
+							</span>
+							Legg ved
+						</button>
           	<input bind:files={inputFiles} bind:this={fileInput} type="file" id="chat-file-upload" multiple accept={allowedMessageMimeTypes.join(",")} />
 						{#if inputFiles.length > 0}
           		<button type="reset" onclick={() => { inputFiles = new DataTransfer().files; }}>Clear Files ({inputFiles.length})</button>
@@ -69,14 +77,29 @@
         </div>
       </div>
       <div id="actions-right">
-        <button type="submit">Send</button>
+				{#if messageInProgress}
+					<button disabled class="filled" title="Melding pågår...">
+						<TypingDots />
+					</button>
+				{:else}
+					<button disabled={inputText.trim().length === 0 && inputFiles.length === 0} class="filled" type="submit" title={inputText.trim().length === 0 && inputFiles.length === 0 ? "Skriv en melding eller legg til filer for å sende" : "Send melding"}>
+						<span class="material-symbols-outlined">
+							send
+						</span>
+						Send
+					</button>
+				{/if}
       </div>
     </div>
   </form>
 </div>
 
 <style>
+	.chat-input-container {
+		padding-top: 0.3rem;
+	}
   #actions {
+		padding-top: 0.2rem;
     display: flex;
     justify-content: space-between;
   }

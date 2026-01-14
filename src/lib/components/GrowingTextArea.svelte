@@ -57,9 +57,11 @@
   .grow-wrap > textarea,
   .grow-wrap::after {
     /* Identical styling required!! */
-    border: 1px solid black;
+    border: 1px solid var(--color-primary);
+    border-radius: 0.5rem;
     padding: 0.5rem;
     font: inherit;
+    padding: 0.75rem;
 
     /* Place on top of each other */
     grid-area: 1 / 1 / 2 / 2;

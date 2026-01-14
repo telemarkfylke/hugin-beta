@@ -94,7 +94,7 @@
 		z-index: 100;
 		width: 16rem;
 		height: 100%;
-		background-color: var(--color-gress-10);
+		background-color: var(--color-secondary-10);
 		display: flex;
 		flex-direction: column;
 		padding: 0rem 1rem;

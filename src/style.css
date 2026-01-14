@@ -2,9 +2,11 @@
 	--font-family: "Nunito Sans", sans-serif;
 	--header-height: 4rem;
 	--color-primary: rgb(0, 82, 96); /* Vann */
-	--color-primary-hover: rgb(204, 220, 223); /* vann-20 */
-	--color-primary-active: rgb(179, 203, 207); /* vann-30 */
-	--color-gress-10: #E9F4EF;
+	--color-primary-20: rgb(204, 220, 223); /* vann-20 */
+	--color-primary-30: rgb(179, 203, 207); /* vann-30 */
+	--color-primary-70: rgb(77, 134, 144); /* vann-70 */
+	--color-primary-80: rgb(51, 117, 128); /* vann-80 */
+	--color-secondary-10: #E9F4EF;
 }
 
 html,
@@ -19,7 +21,7 @@ button {
 	cursor: pointer;
 	height: 2rem;
 	font-family: var(--font-family);
-	border: 0px solid var(--color-primary);
+	border: 2px solid var(--color-primary);
 	border-radius: 4px;
 	display: flex;
 	align-items: center;
@@ -27,14 +29,26 @@ button {
 	color: var(--color-primary);
 }
 
-button:hover, button.icon-button:hover {
-	background-color: var(--color-primary-hover);
-}
-button:active, button.icon-button:active {
-	background-color: var(--color-primary-active);
-}
-
 button.icon-button {
+	border: none;
 	background-color: transparent;
 }
 
+button:hover, button.icon-button:hover {
+	background-color: var(--color-primary-20);
+}
+button:active, button.icon-button:active {
+	background-color: var(--color-primary-30);
+}
+
+button.filled {
+	background-color: var(--color-primary);
+	color: white;
+	border: none;
+}
+
+button:disabled, button.icon-button:disabled, button.filled:disabled {
+	background-color: lightgray;
+	color: gray;
+	cursor: not-allowed;
+}
