@@ -24,7 +24,7 @@ export const APP_CONFIG: AppConfig = {
 					}
 				},
 				{
-					ID: "mistral-medium-latest",
+					ID: "mistral-large-latest",
 					SUPPORTED_MESSAGE_FILE_MIME_TYPES: {
 						FILE: MISTRAL_DEFAULT_SUPPORTED_MESSAGE_FILE_MIME_TYPES,
 						IMAGE: MISTRAL_DEFAULT_SUPPORTED_MESSAGE_FILE_MIME_TYPES
