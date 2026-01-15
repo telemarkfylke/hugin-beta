@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { canEditChat, canEditPredefinedConfig } from "$lib/authorization";
+	import { canEditChat, canEditPredefinedConfig } from "$lib/authorization"
 	import type { ChatConfig } from "$lib/types/chat"
 	import GrowingTextArea from "../GrowingTextArea.svelte"
 	import type { ChatState } from "./ChatState.svelte"
@@ -27,13 +27,17 @@
 	}
 
 	const getVendors = () => {
-		return Object.values(chatState.APP_CONFIG.VENDORS).filter(vendor => vendor.ENABLED).map(vendor => { return { id: vendor.ID, name: vendor.NAME } })
+		return Object.values(chatState.APP_CONFIG.VENDORS)
+			.filter((vendor) => vendor.ENABLED)
+			.map((vendor) => {
+				return { id: vendor.ID, name: vendor.NAME }
+			})
 	}
 
 	const getAvailableModels = (vendorId: string) => {
-		const vendor = Object.values(chatState.APP_CONFIG.VENDORS).find(vendor => vendor.ID === vendorId)
+		const vendor = Object.values(chatState.APP_CONFIG.VENDORS).find((vendor) => vendor.ID === vendorId)
 		if (!vendor) return []
-		const availableModels = vendor.MODELS.map(model => model.ID)
+		const availableModels = vendor.MODELS.map((model) => model.ID)
 		return availableModels
 	}
 
