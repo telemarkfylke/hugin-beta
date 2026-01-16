@@ -7,7 +7,7 @@
 <h1>Agenter</h1>
 <div>
   {#each data.agents as agent}
-    <a href={`/agents/${agent.id}`}>
+    <a href={`/agents/${agent._id}`}>
       <div class="agent">
         <h2>{agent.name}</h2>
         <p>{agent.description}</p>

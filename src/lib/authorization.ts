@@ -8,7 +8,7 @@ export const canEditPredefinedConfig = (user: AuthenticatedPrincipal, appRoles: 
 }
 
 export const canEditChatConfig = (chat: Chat, user: AuthenticatedPrincipal, appRoles: AppRoles): boolean => {
-	if (chat.config.id === "") {
+	if (chat.config._id === "") {
 		return true
 	}
 	if (user.roles.includes(appRoles.ADMIN) || user.roles.includes(appRoles.AGENT_MAINTAINER)) {

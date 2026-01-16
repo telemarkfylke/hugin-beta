@@ -1,6 +1,7 @@
+import { goto } from "$app/navigation"
 import type { AppConfig } from "$lib/types/app-config"
 import type { AuthenticatedPrincipal } from "$lib/types/authentication"
-import type { Chat, ChatHistory, ChatRequest, ChatResponseObject } from "$lib/types/chat"
+import type { Chat, ChatConfig, ChatHistory, ChatRequest, ChatResponseObject } from "$lib/types/chat"
 import type { ChatInputItem } from "$lib/types/chat-item"
 import type { InputFile, InputImage } from "$lib/types/chat-item-content"
 import { postChatMessage } from "./PostChatMessage.svelte"
@@ -47,9 +48,9 @@ const fileToMessageContent = async (file: File, supportedFileTypes: string[], su
 
 export class ChatState {
 	public chat: Chat = $state({
-		id: "",
+		_id: "",
 		config: {
-			id: "",
+			_id: "",
 			name: "",
 			description: "",
 			vendorId: "",
@@ -82,7 +83,7 @@ export class ChatState {
 		if (!chat.config.vendorAgent?.id && !chat.config.model) {
 			throw new Error("Chat config must have either a vendorAgent id or a model defined")
 		}
-		this.chat.id = chat.id
+		this.chat._id = chat._id
 		this.chat.config = chat.config
 		this.chat.history = chat.history
 		this.chat.createdAt = chat.createdAt
@@ -92,7 +93,7 @@ export class ChatState {
 
 	public newChat = (): void => {
 		this.chat.history = []
-		this.chat.id = ""
+		this.chat._id = ""
 		this.chat.createdAt = new Date().toISOString()
 		this.chat.updatedAt = new Date().toISOString()
 	}
@@ -105,7 +106,7 @@ export class ChatState {
 		this.isLoading = false
 		// Mocked response
 		const response: Chat = {
-			id: chatId,
+			_id: chatId,
 			createdAt: new Date().toISOString(),
 			updatedAt: new Date().toISOString(),
 			owner: {
@@ -113,7 +114,7 @@ export class ChatState {
 				name: "Owner Name"
 			},
 			config: {
-				id: "config-id-123",
+				_id: "config-id-123",
 				name: "Example Chat Config",
 				description: "This is an example chat configuration.",
 				vendorId: "openai",
@@ -135,7 +136,7 @@ export class ChatState {
 					id: "response-id-123",
 					type: "chat_response",
 					config: {
-						id: "config-id-123",
+						_id: "config-id-123",
 						name: "Example Chat Config",
 						description: "This is an example chat configuration.",
 						vendorId: "openai",
@@ -238,5 +239,47 @@ export class ChatState {
 		this.chat.history.push(tempChatResponseObject)
 		const responseObjectToPopulate: ChatResponseObject = this.chat.history[this.chat.history.length - 1] as ChatResponseObject // The one we just pushed as it is first reactive after adding to state array
 		await postChatMessage(chatRequest, responseObjectToPopulate, this.chat)
+	}
+
+	public saveChatConfig = async (): Promise<void> => {
+		try {
+			const result = await fetch(`/api/chatconfigs`, {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json"
+				},
+				body: JSON.stringify(this.chat.config)
+			})
+			if (!result.ok) {
+				const errorData = await result.json()
+				throw new Error(`Failed to save chat config: ${result.status} ${result.statusText} - ${errorData.message || JSON.stringify(errorData)}`)
+			}
+			const savedConfig: ChatConfig = await result.json()
+			goto(`/agents/${savedConfig._id}`)
+		} catch (error) {
+			console.error("Error saving chat config:", error)
+			throw error
+		}
+	}
+
+	public updateChatConfig = async (): Promise<void> => {
+		try {
+			const result = await fetch(`/api/chatconfigs/${this.chat.config._id}`, {
+				method: "PATCH",
+				headers: {
+					"Content-Type": "application/json"
+				},
+				body: JSON.stringify(this.chat.config)
+			})
+			if (!result.ok) {
+				const errorData = await result.json()
+				throw new Error(`Failed to update chat config: ${result.status} ${result.statusText} - ${errorData.message || JSON.stringify(errorData)}`)
+			}
+			const updatedConfig: ChatConfig = await result.json()
+			this.chat.config = updatedConfig
+		} catch (error) {
+			console.error("Error updating chat config:", error)
+			throw error
+		}
 	}
 }

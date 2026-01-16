@@ -16,7 +16,7 @@ const schemaForType =
 // New and better
 const ChatConfigSchema = schemaForType<ChatConfig>()(
 	z.object({
-		id: z.string(),
+		_id: z.string(),
 		name: z.string(),
 		description: z.string(),
 		vendorId: z.string(),

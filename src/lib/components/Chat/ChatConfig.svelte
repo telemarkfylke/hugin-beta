@@ -188,6 +188,16 @@
 				{JSON.stringify(chatState.chat.config, null, 2)}
 			{/if}
 		</div>
+		<div class="config-metadata">
+			<p><strong>Konfigurasjon ID:</strong> {chatState.chat.config._id || "Ny konfigurasjon"}</p>
+			<input type="text" bind:value={chatState.chat.config.name} />
+			<input type="text" bind:value={chatState.chat.config.description} />
+		</div>
+		{#if chatState.chat.config._id}
+			<button onclick={chatState.updateChatConfig}>Oppdater konfigurasjon</button>
+		{:else}
+			<button onclick={chatState.saveChatConfig}>Lagre konfigurasjon</button>
+		{/if}
 	</div>
 {/if}
 
