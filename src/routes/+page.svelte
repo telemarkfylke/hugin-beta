@@ -7,7 +7,7 @@
 	let { data }: LayoutProps = $props()
 
 	const defaultChat: Chat = {
-		id: "chat-1",
+		_id: "chat-1",
 		createdAt: new Date().toISOString(),
 		updatedAt: new Date().toISOString(),
 		owner: {
@@ -15,9 +15,10 @@
 			name: "Test User"
 		},
 		config: {
-			id: "",
+			_id: "",
 			name: "",
 			description: "A default chat configuration",
+			project: "DEFAULT",
 			vendorId: "mistral",
 			model: "mistral-medium-latest",
 			instructions: "Answer in Norwegian."

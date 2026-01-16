@@ -70,7 +70,7 @@ const parseChatRequest = (body: unknown): ChatRequest => {
 	}
 
 	if (typeof config._id !== "string") {
-		throw new HTTPError(400, "config.id must be a string")
+		throw new HTTPError(400, "config._id must be a string")
 	}
 	if (typeof config.name !== "string") {
 		throw new HTTPError(400, "config.name must be a string")
