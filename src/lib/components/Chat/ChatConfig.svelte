@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { canEditChatConfig, canEditPredefinedConfig } from "$lib/authorization"
-	import type { ChatConfig } from "$lib/types/chat"
+	import type { ChatConfig, VendorId } from "$lib/types/chat"
 	import GrowingTextArea from "../GrowingTextArea.svelte"
 	import type { ChatState } from "./ChatState.svelte"
 
@@ -15,37 +15,30 @@
 
 	// Not reactive state, to "remember" predefined vs manual config when toggling
 	let predefinedConfigCache: Partial<ChatConfig> = {
-		vendorId: "mistral",
+		vendorId: "MISTRAL",
 		vendorAgent: {
 			id: ""
 		}
 	}
 	let manualConfigCache: Partial<ChatConfig> = {
-		vendorId: "mistral",
+		vendorId: "MISTRAL",
 		model: "mistral-medium-latest",
 		instructions: ""
 	}
 
 	const getVendors = () => {
-		return Object.values(chatState.APP_CONFIG.VENDORS)
-			.filter((vendor) => vendor.ENABLED)
-			.map((vendor) => {
-				return { id: vendor.ID, name: vendor.NAME }
-			})
+		return Object.entries(chatState.APP_CONFIG.VENDORS).filter(([_key, vendor]) => vendor.ENABLED).map(([key, vendor]) => ({
+			id: key as VendorId,
+			name: vendor.NAME
+		}))
 	}
 
-	const getAvailableProjects = (vendorId: string) => {
-		const vendor = Object.values(chatState.APP_CONFIG.VENDORS).find((vendor) => vendor.ID === vendorId)
-		if (!vendor) return []
-		const availableProjects = vendor.PROJECTS
-		return availableProjects
+	const getAvailableProjects = (vendorId: VendorId) => {
+		return chatState.APP_CONFIG.VENDORS[vendorId].PROJECTS
 	}
 
-	const getAvailableModels = (vendorId: string) => {
-		const vendor = Object.values(chatState.APP_CONFIG.VENDORS).find((vendor) => vendor.ID === vendorId)
-		if (!vendor) return []
-		const availableModels = vendor.MODELS.map((model) => model.ID)
-		return availableModels
+	const getAvailableModels = (vendorId: VendorId) => {
+		return chatState.APP_CONFIG.VENDORS[vendorId].MODELS.map((model) => model.ID)
 	}
 
 	// Almost illegal effect, but we need to auto-select first available model when changing vendor in manual config
@@ -86,7 +79,7 @@
 				instructions: chatState.chat.config.instructions
 			}
 			// Switch to predefined in actual chatConfig
-			chatState.chat.config.vendorId = predefinedConfigCache.vendorId as string
+			chatState.chat.config.vendorId = predefinedConfigCache.vendorId as VendorId
 			chatState.chat.config.project = predefinedConfigCache.project as string
 			chatState.chat.config.vendorAgent = predefinedConfigCache.vendorAgent
 			delete chatState.chat.config.model
@@ -101,7 +94,7 @@
 				}
 			}
 			// Switch to manual in actual chatConfig
-			chatState.chat.config.vendorId = manualConfigCache.vendorId as string
+			chatState.chat.config.vendorId = manualConfigCache.vendorId as VendorId
 			chatState.chat.config.project = manualConfigCache.project as string
 			chatState.chat.config.model = manualConfigCache.model as string
 			chatState.chat.config.instructions = manualConfigCache.instructions as string

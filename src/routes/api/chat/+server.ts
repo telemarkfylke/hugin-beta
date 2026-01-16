@@ -18,7 +18,7 @@ const validateFileInputs = (chatRequest: ChatRequest) => {
 		throw new HTTPError(400, "Last input must be a message.input to validate file inputs")
 	}
 
-	const vendor = Object.values(APP_CONFIG.VENDORS).find((vendor) => vendor.ID === chatRequest.config.vendorId && vendor.ENABLED)
+	const vendor = APP_CONFIG.VENDORS[chatRequest.config.vendorId]
 	if (!vendor) {
 		throw new HTTPError(400, `Unsupported vendorId: ${chatRequest.config.vendorId}`)
 	}
@@ -82,7 +82,7 @@ const parseChatRequest = (body: unknown): ChatRequest => {
 	if (!config.vendorId || typeof config.vendorId !== "string") {
 		throw new HTTPError(400, "vendorId is required and must be a string")
 	}
-	const VENDOR = Object.values(APP_CONFIG.VENDORS).find((vendor) => vendor.ID === config.vendorId && vendor.ENABLED)
+	const VENDOR = APP_CONFIG.VENDORS[config.vendorId]
 	if (!VENDOR) {
 		throw new HTTPError(400, `Unsupported vendorId: ${config.vendorId}`)
 	}

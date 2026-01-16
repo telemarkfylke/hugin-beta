@@ -1,4 +1,5 @@
 import type { IAIVendor } from "$lib/types/AIVendor"
+import type { VendorId } from "$lib/types/chat"
 import { APP_CONFIG } from "./app-config/app-config"
 import { MistralVendor } from "./mistral/mistral-vendor"
 import { OpenAIVendor } from "./openai/openai-vendor"
@@ -14,17 +15,17 @@ if (APP_CONFIG.VENDORS.MISTRAL.ENABLED) {
 	mistralVendor = new MistralVendor()
 }
 
-export const getVendor = (vendorId: string): IAIVendor => {
+export const getVendor = (vendorId: VendorId): IAIVendor => {
 	if (!vendorId) {
 		throw new Error("vendorId is required to get a vendor")
 	}
-	if (vendorId === APP_CONFIG.VENDORS.OPENAI.ID) {
+	if (vendorId === "OPENAI") {
 		if (!openAIVendor) {
 			throw new Error("OpenAI vendor is not initialized. Missing OPENAI_API_KEY?")
 		}
 		return openAIVendor
 	}
-	if (vendorId === APP_CONFIG.VENDORS.MISTRAL.ID) {
+	if (vendorId === "MISTRAL") {
 		if (!mistralVendor) {
 			throw new Error("Mistral vendor is not initialized. Missing MISTRAL_API_KEY?")
 		}

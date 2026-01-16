@@ -12,7 +12,6 @@ export const APP_CONFIG: AppConfig = {
 	},
 	VENDORS: {
 		MISTRAL: {
-			ID: "mistral",
 			NAME: "Mistral",
 			ENABLED: Boolean(env.MISTRAL_API_KEY_PROJECT_DEFAULT),
 			PROJECTS: Object.keys(env)
@@ -36,7 +35,6 @@ export const APP_CONFIG: AppConfig = {
 			]
 		},
 		OPENAI: {
-			ID: "openai",
 			NAME: "OpenAI",
 			ENABLED: Boolean(env.OPENAI_API_KEY_PROJECT_DEFAULT),
 			PROJECTS: Object.keys(env)
@@ -60,7 +58,6 @@ export const APP_CONFIG: AppConfig = {
 			]
 		},
 		OLLAMA: {
-			ID: "ollama",
 			NAME: "Ollama",
 			ENABLED: Boolean(env.OLLAMA_API_KEY),
 			PROJECTS: Object.keys(env)

@@ -16,7 +16,7 @@
 			return []
 		}
 
-		const vendor = Object.values(chatState.APP_CONFIG.VENDORS).find((vendor) => vendor.ID === chatState.chat.config.vendorId)
+		const vendor = chatState.APP_CONFIG.VENDORS[chatState.chat.config.vendorId]
 		if (!vendor) {
 			return []
 		}

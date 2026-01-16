@@ -53,7 +53,7 @@ export class ChatState {
 			_id: "",
 			name: "",
 			description: "",
-			vendorId: "",
+			vendorId: "MISTRAL",
 			project: ""
 		},
 		history: [] as ChatHistory,
@@ -117,7 +117,7 @@ export class ChatState {
 				_id: "config-id-123",
 				name: "Example Chat Config",
 				description: "This is an example chat configuration.",
-				vendorId: "openai",
+				vendorId: "OPENAI",
 				project: "DEFAULT",
 				model: "gpt-4"
 			},
@@ -139,7 +139,7 @@ export class ChatState {
 						_id: "config-id-123",
 						name: "Example Chat Config",
 						description: "This is an example chat configuration.",
-						vendorId: "openai",
+						vendorId: "OPENAI",
 						project: "DEFAULT",
 						model: "gpt-4"
 					},
@@ -178,7 +178,7 @@ export class ChatState {
 
 		// Process files if any
 		if (inputFiles && inputFiles.length > 0) {
-			const vendor = Object.values(this.APP_CONFIG.VENDORS).find((vendor) => vendor.ID === this.chat.config.vendorId)
+			const vendor = this.APP_CONFIG.VENDORS[this.chat.config.vendorId]
 			if (!vendor) {
 				throw new Error(`Vendor not found: ${this.chat.config.vendorId}`)
 			}

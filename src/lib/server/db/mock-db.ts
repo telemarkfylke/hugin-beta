@@ -6,7 +6,7 @@ const mockChatConfigs: ChatConfig[] = [
 		_id: "1234",
 		name: "Snille Mistral",
 		description: "En snill Mistral",
-		vendorId: "mistral",
+		vendorId: "MISTRAL",
 		project: "DEFAULT",
 		model: "mistral-medium-latest",
 		instructions: "Answer in Norwegian. Be overly polite and friendly."
@@ -15,7 +15,7 @@ const mockChatConfigs: ChatConfig[] = [
 		_id: "5678",
 		name: "Sure OpenAI",
 		description: "En sur OpenAI",
-		vendorId: "openai",
+		vendorId: "OPENAI",
 		project: "DEFAULT",
 		model: "gpt-4o",
 		instructions: "Answer in Norwegian. Be very grumpy and sarcastic."

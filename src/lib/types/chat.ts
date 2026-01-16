@@ -1,4 +1,8 @@
+import z from "zod"
 import type { ChatInputItem, ChatOutputItem } from "./chat-item"
+import type { AppConfig } from "./app-config"
+
+export type VendorId = keyof AppConfig["VENDORS"]
 
 export type VendorAgent = {
 	id: string
@@ -12,7 +16,7 @@ export type ChatConfig = {
 	_id: string
 	name: string
 	description: string
-	vendorId: string
+	vendorId: VendorId
 	project: string
 	vendorAgent?: VendorAgent | undefined
 	model?: string | undefined
@@ -63,3 +67,30 @@ export type Chat = {
 		name?: string
 	}
 }
+
+/**
+ *
+ * @link https://github.com/colinhacks/zod/issues/372#issuecomment-826380330
+ */
+
+export const schemaForType =
+	<T>() =>
+	// biome-ignore lint: Unexpected any
+	<S extends z.ZodType<T, any>>(arg: S) => {
+		return arg
+	}
+
+// New and better
+export const ChatConfigSchema = schemaForType<ChatConfig>()(
+	z.object({
+		_id: z.string(),
+		name: z.string(),
+		description: z.string(),
+		vendorId: z.keyof(z.object({} as AppConfig["VENDORS"])),
+		project: z.string(),
+		vendorAgent: z.object({ id: z.string() }).optional(),
+		model: z.string().optional(),
+		instructions: z.string().optional(),
+		conversationId: z.string().optional()
+	})
+)
