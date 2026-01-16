@@ -1,11 +1,11 @@
 import { json, type RequestHandler } from "@sveltejs/kit"
 import { getVendor } from "$lib/server/ai-vendors"
+import { APP_CONFIG } from "$lib/server/app-config/app-config"
 import { HTTPError } from "$lib/server/middleware/http-error"
-import { httpRequestMiddleware } from "$lib/server/middleware/http-request"
+import { apiRequestMiddleware } from "$lib/server/middleware/http-request"
 import { responseStream } from "$lib/streaming"
 import type { ChatConfig, ChatRequest } from "$lib/types/chat"
-import type { MiddlewareNextFunction } from "$lib/types/middleware/http-request"
-import { VENDOR_SUPPORTED_MESSAGE_MIME_TYPES } from "$lib/vendor-constants"
+import type { ApiNextFunction } from "$lib/types/middleware/http-request"
 
 const validFileType = (fileUrl: string, supportedMimeTypes: string[]): boolean => {
 	const mimeType = fileUrl.substring(fileUrl.indexOf(":") + 1, fileUrl.indexOf(";base64")) // data:<mime-type>;base64,<data>
@@ -18,12 +18,17 @@ const validateFileInputs = (chatRequest: ChatRequest) => {
 		throw new HTTPError(400, "Last input must be a message.input to validate file inputs")
 	}
 
-	const vendorSupportedMimeTypes = VENDOR_SUPPORTED_MESSAGE_MIME_TYPES[`${chatRequest.config.vendorId}-${chatRequest.config.model}`] || {
-		file: [],
-		image: []
+	const vendor = Object.values(APP_CONFIG.VENDORS).find((vendor) => vendor.ID === chatRequest.config.vendorId && vendor.ENABLED)
+	if (!vendor) {
+		throw new HTTPError(400, `Unsupported vendorId: ${chatRequest.config.vendorId}`)
 	}
 
-	const supportedMimeTypes = [...vendorSupportedMimeTypes.file, ...vendorSupportedMimeTypes.image]
+	const modelSupportedMimeTypes = vendor.MODELS.find((model) => model.ID === chatRequest.config.model)?.SUPPORTED_MESSAGE_FILE_MIME_TYPES || {
+		FILE: [],
+		IMAGE: []
+	}
+
+	const supportedMimeTypes = [...modelSupportedMimeTypes.FILE, ...modelSupportedMimeTypes.IMAGE]
 
 	const fileInputs = lastMessage.content.filter((contentItem) => contentItem.type === "input_file" || contentItem.type === "input_image")
 	for (const fileInput of fileInputs.slice(-1)) {
@@ -64,18 +69,21 @@ const parseChatRequest = (body: unknown): ChatRequest => {
 		throw new HTTPError(400, "config is required and must be an object")
 	}
 
-	if (!config.id || typeof config.id !== "string") {
-		throw new HTTPError(400, "config.id is required and must be a string")
+	if (typeof config.id !== "string") {
+		throw new HTTPError(400, "config.id must be a string")
 	}
-	if (!config.name || typeof config.name !== "string") {
-		throw new HTTPError(400, "config.name is required and must be a string")
+	if (typeof config.name !== "string") {
+		throw new HTTPError(400, "config.name must be a string")
 	}
-	if (!config.description || typeof config.description !== "string") {
-		throw new HTTPError(400, "config.description is required and must be a string")
+	if (typeof config.description !== "string") {
+		throw new HTTPError(400, "config.description must be a string")
 	}
 
 	if (!config.vendorId || typeof config.vendorId !== "string") {
 		throw new HTTPError(400, "vendorId is required and must be a string")
+	}
+	if (!Object.values(APP_CONFIG.VENDORS).some((vendor) => vendor.ID === config.vendorId && vendor.ENABLED)) {
+		throw new HTTPError(400, `Unsupported vendorId: ${config.vendorId}`)
 	}
 	if (!incomingChatRequest.inputs || !Array.isArray(incomingChatRequest.inputs)) {
 		throw new HTTPError(400, "inputs is required and must be an array")
@@ -150,7 +158,7 @@ const parseChatRequest = (body: unknown): ChatRequest => {
 	return manualChatRequest
 }
 
-const supahChat: MiddlewareNextFunction = async ({ requestEvent, user }) => {
+const supahChat: ApiNextFunction = async ({ requestEvent, user }) => {
 	if (!user.userId) {
 		throw new HTTPError(400, "userId is required")
 	}
@@ -186,5 +194,5 @@ const supahChat: MiddlewareNextFunction = async ({ requestEvent, user }) => {
 }
 
 export const POST: RequestHandler = async (requestEvent) => {
-	return httpRequestMiddleware(requestEvent, supahChat)
+	return apiRequestMiddleware(requestEvent, supahChat)
 }

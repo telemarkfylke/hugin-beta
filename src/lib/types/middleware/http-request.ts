@@ -1,14 +1,26 @@
 import type { RequestEvent } from "@sveltejs/kit"
 import type { AuthenticatedPrincipal } from "$lib/types/authentication"
 
-type MiddlewareNextResponse = {
+type ApiNextResponse = {
 	response: Response
 	isAuthorized: boolean
 }
 
-type MiddlewareNextParams = {
+type ApiNextParams = {
 	requestEvent: RequestEvent
 	user: AuthenticatedPrincipal
 }
 
-export type MiddlewareNextFunction = (params: MiddlewareNextParams) => Promise<MiddlewareNextResponse>
+export type ApiNextFunction = (params: ApiNextParams) => Promise<ApiNextResponse>
+
+type ServerLoadNextResponse<T> = {
+	data: T
+	isAuthorized: boolean
+}
+
+type ServerLoadNextParams = {
+	requestEvent: RequestEvent
+	user: AuthenticatedPrincipal
+}
+
+export type ServerLoadNextFunction<T> = (params: ServerLoadNextParams) => Promise<ServerLoadNextResponse<T>>

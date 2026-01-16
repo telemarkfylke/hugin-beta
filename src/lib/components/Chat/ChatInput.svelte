@@ -1,127 +1,118 @@
 <script lang="ts">
-	import type { ChatConfig } from "$lib/types/chat"
-	import { VENDOR_SUPPORTED_MESSAGE_MIME_TYPES } from "$lib/vendor-constants"
 	import FileDropZone from "../FileDropZone.svelte"
+	import GrowingTextArea from "../GrowingTextArea.svelte"
+	import TypingDots from "../TypingDots.svelte"
+	import type { ChatState } from "./ChatState.svelte"
 
 	type Props = {
-		chatConfig: ChatConfig
+		chatState: ChatState
 		sendMessage: (inputText: string, inputFiles: FileList) => Promise<void>
 	}
-	let { chatConfig, sendMessage }: Props = $props()
+	let { chatState, sendMessage }: Props = $props()
 
 	// Determine allowed file mime types based on model/vendor
 	let allowedMessageMimeTypes = $derived.by(() => {
-		const supportedTypes = VENDOR_SUPPORTED_MESSAGE_MIME_TYPES[`${chatConfig.vendorId}-${chatConfig.model}`]
+		if (!chatState.chat.config.model) {
+			return []
+		}
+
+		const vendor = Object.values(chatState.APP_CONFIG.VENDORS).find((vendor) => vendor.ID === chatState.chat.config.vendorId)
+		if (!vendor) {
+			return []
+		}
+		const supportedTypes = vendor.MODELS.find((model) => model.ID === chatState.chat.config.model)?.SUPPORTED_MESSAGE_FILE_MIME_TYPES
+
 		if (!supportedTypes) {
 			return []
 		}
-		return [...supportedTypes.file, ...supportedTypes.image]
+		return [...supportedTypes.FILE, ...supportedTypes.IMAGE]
 	})
 
 	// Internal state for this component
 	let inputText: string = $state("")
 	let inputFiles = $state(new DataTransfer().files)
+	let messageInProgress = $state(false)
 
 	// Simple helper for posting prompt, and clearing input
 	const submitPrompt = async (): Promise<void> => {
-		if (inputText.trim() === "" && inputFiles.length === 0) {
-			return // Do not submit empty prompts
+		if (messageInProgress || (inputText.trim() === "" && inputFiles.length === 0)) {
+			return // Do not submit empty prompts or if a message is already in progress
 		}
 		const textToSend = inputText
 		const filesToSend = inputFiles
 		inputFiles = new DataTransfer().files // Clear chat files after submission
 		inputText = ""
+		messageInProgress = true
 		await sendMessage(textToSend, filesToSend)
+		messageInProgress = false
 	}
 
-	// Some element references
-	let textArea: HTMLTextAreaElement
-	let wrapDiv: HTMLDivElement
-	/**
-	 * As we wait for "textarea {field-sizing: content;}" to be supported in all browsers
-	 * Magic is in CSS below, this JS just updates the data attribute on input
-	 * Thank you to Chris Coyier and Stephen Shaw
-	 * @link https://chriscoyier.net/2023/09/29/css-solves-auto-expanding-textareas-probably-eventually/
-	 */
-	const sneakyTextArea = () => {
-		wrapDiv.setAttribute("data-replicated-value", textArea.value)
-	}
 	const submitOnEnter = (event: KeyboardEvent) => {
 		if (event.key === "Enter" && !event.shiftKey) {
 			event.preventDefault()
 			submitPrompt()
 		}
 	}
+
+	// Use button for file input, for styling
+	let fileInput: HTMLInputElement
+	const triggerFileInput = () => {
+		fileInput.click()
+	}
 </script>
 
-<div>
+<div class="chat-input-container">
 	<FileDropZone onFilesDropped={(files) => { inputFiles = files; }} />
   <form onsubmit={(event: Event) => { event.preventDefault(); submitPrompt() }}>
-    <div class="grow-wrap" bind:this={wrapDiv}>
-      <textarea rows="1" bind:this={textArea} placeholder="Skriv et eller annet (shift + enter for ny linje)" name="prompt-input" id="prompt-input" oninput={sneakyTextArea} onkeydown={submitOnEnter} bind:value={inputText}></textarea>
-    </div>
+    <GrowingTextArea bind:value={inputText} placeholder="Type your message here..." onkeydown={submitOnEnter} />
     <div id="actions">
       <div id="actions-left">
         <div id="chat-file-upload-container">
 					{#if allowedMessageMimeTypes.length === 0}
 						<span>Filopplasting er ikke mulig her</span>
 					{:else}
-						<span>Last opp filer til chat:</span>
-          	<input bind:files={inputFiles} type="file" id="chat-file-upload" multiple accept={allowedMessageMimeTypes.join(",")} />
+						<button class="icon-button" onclick={triggerFileInput} title="Legg til filer">
+							<span class="material-symbols-outlined">
+								attach_file
+							</span>
+							Legg ved
+						</button>
+          	<input bind:files={inputFiles} bind:this={fileInput} type="file" id="chat-file-upload" multiple accept={allowedMessageMimeTypes.join(",")} />
 						{#if inputFiles.length > 0}
           		<button type="reset" onclick={() => { inputFiles = new DataTransfer().files; }}>Clear Files ({inputFiles.length})</button>
 						{/if}
 					{/if}
-          {JSON.stringify(allowedMessageMimeTypes)}
+          <!--{JSON.stringify(allowedMessageMimeTypes)}-->
         </div>
       </div>
       <div id="actions-right">
-        <button type="submit">Send</button>
+				{#if messageInProgress}
+					<button disabled class="filled" title="Melding pågår...">
+						<TypingDots />
+					</button>
+				{:else}
+					<button disabled={inputText.trim().length === 0 && inputFiles.length === 0} class="filled" type="submit" title={inputText.trim().length === 0 && inputFiles.length === 0 ? "Skriv en melding eller legg til filer for å sende" : "Send melding"}>
+						<span class="material-symbols-outlined">
+							send
+						</span>
+						Send
+					</button>
+				{/if}
       </div>
     </div>
   </form>
 </div>
 
 <style>
+	.chat-input-container {
+		padding-top: 0.3rem;
+	}
   #actions {
+		padding-top: 0.2rem;
     display: flex;
     justify-content: space-between;
   }
-
-  /* START AUTO GROW TEXTAREA STYLES */
-  .grow-wrap::after, #prompt-input {
-    max-height: 8rem;
-  }
-  .grow-wrap {
-    /* easy way to plop the elements on top of each other and have them both sized based on the tallest one's height */
-    display: grid;
-  }
-  .grow-wrap::after {
-    /* Note the weird space! Needed to preventy jumpy behavior */
-    content: attr(data-replicated-value) " ";
-
-    /* This is how textarea text behaves */
-    white-space: pre-wrap;
-
-    /* Hidden from view, clicks, and screen readers */
-    visibility: hidden;
-  }
-  .grow-wrap > textarea {
-    /* You could leave this, but after a user resizes, then it ruins the auto sizing */
-    resize: none;
-
-    /* Firefox shows scrollbar on growth, you can hide like this. */
-    /* overflow: hidden; */
-  }
-  .grow-wrap > textarea,
-  .grow-wrap::after {
-    /* Identical styling required!! */
-    border: 1px solid black;
-    padding: 0.5rem;
-    font: inherit;
-
-    /* Place on top of each other */
-    grid-area: 1 / 1 / 2 / 2;
-  }
-  /* END AUTO GROW TEXTAREA STYLES */
+	#chat-file-upload {
+		display: none;
+	}
 </style>

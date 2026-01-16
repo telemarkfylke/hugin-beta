@@ -1,8 +1,58 @@
+:root {
+	--font-family: "Nunito Sans", sans-serif;
+	--header-height: 4rem;
+	--color-primary: rgb(0, 82, 96); /* Vann */
+	--color-primary-20: rgb(204, 220, 223); /* vann-20 */
+	--color-primary-30: rgb(179, 203, 207); /* vann-30 */
+	--color-primary-70: rgb(77, 134, 144); /* vann-70 */
+	--color-primary-80: rgb(51, 117, 128); /* vann-80 */
+	--color-secondary-10: #e9f4ef;
+}
+
 html,
 body {
 	margin: 0;
 	padding: 0;
 	height: 100%;
+	font-family: var(--font-family);
+}
 
-	font-family: "Nunito Sans", sans-serif;
+button {
+	cursor: pointer;
+	height: 2rem;
+	font-family: var(--font-family);
+	border: 2px solid var(--color-primary);
+	border-radius: 4px;
+	display: flex;
+	align-items: center;
+	gap: 0.25rem;
+	color: var(--color-primary);
+}
+
+button.icon-button {
+	border: none;
+	background-color: transparent;
+}
+
+button:hover,
+button.icon-button:hover {
+	background-color: var(--color-primary-20);
+}
+button:active,
+button.icon-button:active {
+	background-color: var(--color-primary-30);
+}
+
+button.filled {
+	background-color: var(--color-primary);
+	color: white;
+	border: none;
+}
+
+button:disabled,
+button.icon-button:disabled,
+button.filled:disabled {
+	background-color: lightgray;
+	color: gray;
+	cursor: not-allowed;
 }

@@ -1,17 +1,13 @@
 import { Mistral } from "@mistralai/mistralai"
 import type { ConversationRequest } from "@mistralai/mistralai/models/components"
 import { env } from "$env/dynamic/private"
-import type { AIVendor, IAIVendor } from "$lib/types/AIVendor"
+import type { IAIVendor } from "$lib/types/AIVendor"
 import type { ChatRequest, ChatResponseObject, ChatResponseStream } from "$lib/types/chat"
-import { MISTRAL_VENDOR_ID } from "$lib/vendor-constants"
+import { APP_CONFIG } from "../app-config/app-config"
 import { chatInputToMistralInput, mistralResponseToChatResponseObject } from "./mistral-mapping"
 import { handleMistralResponseStream } from "./mistral-stream"
 
-if (!env.SUPPORTED_MODELS_VENDOR_MISTRAL || env.SUPPORTED_MODELS_VENDOR_MISTRAL.trim() === "") {
-	throw new Error("SUPPORTED_MODELS_VENDOR_MISTRAL is not set in environment variables")
-}
-const MISTRAL_SUPPORTED_MODELS = env.SUPPORTED_MODELS_VENDOR_MISTRAL.split(",").map((model) => model.trim())
-const MISTRAL_DEFAULT_MODEL = MISTRAL_SUPPORTED_MODELS[0] as string
+const MISTRAL_SUPPORTED_MODELS = APP_CONFIG.VENDORS.MISTRAL.MODELS.map((model) => model.ID)
 
 export const mistral = new Mistral({
 	apiKey: env.MISTRAL_API_KEY || "bare-en-tulle-key"
@@ -45,18 +41,6 @@ const mistralRequest = (chatRequest: ChatRequest): ConversationRequest => {
 }
 
 export class MistralVendor implements IAIVendor {
-	public getInfo(): AIVendor {
-		return {
-			id: MISTRAL_VENDOR_ID,
-			name: "Mistral",
-			description: "Mistral - sacre bleu",
-			models: {
-				supported: MISTRAL_SUPPORTED_MODELS,
-				default: MISTRAL_DEFAULT_MODEL
-			}
-		}
-	}
-
 	public async createChatResponse(chatRequest: ChatRequest): Promise<ChatResponseObject> {
 		const response = await mistral.beta.conversations.start({
 			...mistralRequest(chatRequest),
