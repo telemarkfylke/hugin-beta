@@ -69,7 +69,7 @@ const parseChatRequest = (body: unknown): ChatRequest => {
 		throw new HTTPError(400, "config is required and must be an object")
 	}
 
-	if (typeof config.id !== "string") {
+	if (typeof config._id !== "string") {
 		throw new HTTPError(400, "config.id must be a string")
 	}
 	if (typeof config.name !== "string") {
@@ -104,7 +104,7 @@ const parseChatRequest = (body: unknown): ChatRequest => {
 		}
 		return {
 			config: {
-				id: config.id,
+				_id: config._id,
 				name: config.name,
 				description: config.description,
 				vendorId: config.vendorId,
@@ -122,7 +122,7 @@ const parseChatRequest = (body: unknown): ChatRequest => {
 		throw new HTTPError(400, "model is required and must be a string")
 	}
 	const manualChatConfig: ChatConfig = {
-		id: config.id,
+		_id: config._id,
 		name: config.name,
 		description: config.description,
 		vendorId: config.vendorId,

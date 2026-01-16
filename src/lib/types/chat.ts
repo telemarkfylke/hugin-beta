@@ -9,7 +9,7 @@ export type ChatTool = {
 }
 
 export type ChatConfig = {
-	id: string
+	_id: string
 	name: string
 	description: string
 	vendorId: string
@@ -53,7 +53,7 @@ export type ChatHistoryItem = ChatInputItem | ChatResponseObject
 export type ChatHistory = ChatHistoryItem[]
 
 export type Chat = {
-	id: string
+	_id: string
 	config: ChatConfig
 	history: ChatHistory
 	createdAt: string

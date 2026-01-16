@@ -1,11 +1,13 @@
-import { getChatConfigs } from "$lib/server/db/chat-config"
+import { getChatConfigStore } from "$lib/server/db/get-db"
 import { serverLoadRequestMiddleware } from "$lib/server/middleware/http-request"
 import type { ChatConfig } from "$lib/types/chat"
 import type { ServerLoadNextFunction } from "$lib/types/middleware/http-request"
 import type { PageServerLoad } from "./$types"
 
-const agentsPageLoad: ServerLoadNextFunction<{ agents: ChatConfig[] }> = async ({ user }) => {
-	const agents = await getChatConfigs(user)
+const chatConfigStore = getChatConfigStore()
+
+const agentsPageLoad: ServerLoadNextFunction<{ agents: ChatConfig[] }> = async () => {
+	const agents = await chatConfigStore.getChatConfigs()
 	return {
 		data: {
 			agents
