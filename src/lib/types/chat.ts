@@ -13,6 +13,7 @@ export type ChatConfig = {
 	name: string
 	description: string
 	vendorId: string
+	project: string
 	vendorAgent?: VendorAgent | undefined
 	model?: string | undefined
 	instructions?: string | undefined

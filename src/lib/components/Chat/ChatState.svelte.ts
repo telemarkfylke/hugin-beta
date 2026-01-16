@@ -52,7 +52,8 @@ export class ChatState {
 			id: "",
 			name: "",
 			description: "",
-			vendorId: ""
+			vendorId: "",
+			project: ""
 		},
 		history: [] as ChatHistory,
 		createdAt: new Date().toISOString(),
@@ -116,6 +117,7 @@ export class ChatState {
 				name: "Example Chat Config",
 				description: "This is an example chat configuration.",
 				vendorId: "openai",
+				project: "DEFAULT",
 				model: "gpt-4"
 			},
 			history: [
@@ -137,6 +139,7 @@ export class ChatState {
 						name: "Example Chat Config",
 						description: "This is an example chat configuration.",
 						vendorId: "openai",
+						project: "DEFAULT",
 						model: "gpt-4"
 					},
 					createdAt: new Date().toISOString(),

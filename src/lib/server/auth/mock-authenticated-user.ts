@@ -1,5 +1,6 @@
 // https://learn.microsoft.com/en-us/azure/app-service/configure-authentication-user-identities
 
+import { logger } from "@vestfoldfylke/loglady"
 import { env } from "$env/dynamic/private"
 import type { MSPrincipalClaim, MSPrincipalClaims } from "$lib/types/authentication"
 import { MS_AUTH_PRINCIPAL_CLAIMS_HEADER } from "./auth-constants"
@@ -108,7 +109,8 @@ export const injectMockAuthenticatedUserHeaders = (headers: Headers): Headers =>
 		throw new Error("MOCK_AUTH is not enabled, you should not be calling this function!")
 	}
 	if (headers.has(MS_AUTH_PRINCIPAL_CLAIMS_HEADER)) {
-		throw new Error(`Headers already have ${MS_AUTH_PRINCIPAL_CLAIMS_HEADER}, cannot inject mock authenticated user, when there is one there!`)
+		logger.warn(`Headers already have ${MS_AUTH_PRINCIPAL_CLAIMS_HEADER}, probs already injected!`)
+		return headers
 	}
 	headers.set(MS_AUTH_PRINCIPAL_CLAIMS_HEADER, base64MockClaims)
 	return headers

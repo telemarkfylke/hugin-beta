@@ -17,6 +17,16 @@ body {
 	font-family: var(--font-family);
 }
 
+a,
+a:visited {
+	color: var(--color-primary);
+	text-decoration: underline;
+}
+
+a:hover {
+	color: black;
+}
+
 button {
 	cursor: pointer;
 	height: 2rem;

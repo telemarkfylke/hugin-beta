@@ -82,8 +82,12 @@ const parseChatRequest = (body: unknown): ChatRequest => {
 	if (!config.vendorId || typeof config.vendorId !== "string") {
 		throw new HTTPError(400, "vendorId is required and must be a string")
 	}
-	if (!Object.values(APP_CONFIG.VENDORS).some((vendor) => vendor.ID === config.vendorId && vendor.ENABLED)) {
+	const VENDOR = Object.values(APP_CONFIG.VENDORS).find((vendor) => vendor.ID === config.vendorId && vendor.ENABLED)
+	if (!VENDOR) {
 		throw new HTTPError(400, `Unsupported vendorId: ${config.vendorId}`)
+	}
+	if (!VENDOR.PROJECTS.includes(config.project)) {
+		throw new HTTPError(400, `Unsupported project: ${config.project} for vendorId: ${config.vendorId}`)
 	}
 	if (!incomingChatRequest.inputs || !Array.isArray(incomingChatRequest.inputs)) {
 		throw new HTTPError(400, "inputs is required and must be an array")
@@ -104,6 +108,7 @@ const parseChatRequest = (body: unknown): ChatRequest => {
 				name: config.name,
 				description: config.description,
 				vendorId: config.vendorId,
+				project: config.project,
 				vendorAgent: {
 					id: config.vendorAgent.id
 				}
@@ -121,6 +126,7 @@ const parseChatRequest = (body: unknown): ChatRequest => {
 		name: config.name,
 		description: config.description,
 		vendorId: config.vendorId,
+		project: config.project,
 		model: config.model
 	}
 	if (config.instructions) {
