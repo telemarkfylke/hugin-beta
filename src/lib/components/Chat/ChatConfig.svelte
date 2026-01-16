@@ -75,7 +75,6 @@
 		}
 	})
 
-
 	const onConfigTypeChange = (event: Event) => {
 		const target = event.target as HTMLInputElement
 		if (target.value === "predefined") {

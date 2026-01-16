@@ -20,6 +20,7 @@ const ChatConfigSchema = schemaForType<ChatConfig>()(
 		name: z.string(),
 		description: z.string(),
 		vendorId: z.string(),
+		project: z.string(),
 		vendorAgent: z.object({ id: z.string() }).optional(),
 		model: z.string().optional(),
 		instructions: z.string().optional(),

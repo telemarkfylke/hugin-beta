@@ -40,14 +40,15 @@ export const getChatConfigById = async (id: string, _principal: AuthenticatedPri
 	throw new Error("Not implemented")
 }
 
-export const getChatConfigs = async (_principal: AuthenticatedPrincipal) => {
+export const getChatConfigs = async (_principal: AuthenticatedPrincipal): Promise<ChatConfig[]> => {
 	if (env.MOCK_DB === "true") {
-		return mockChatConfigs.filter((_config) => {
-      return true
-    })
-    .map((config) => {
-			return { id: config.id, name: config.name, description: config.description, vendorId: config.vendorId }
-		})
+		return mockChatConfigs
+			.filter((_config) => {
+				return true
+			})
+			.map((config) => {
+				return config
+			})
 	}
 	throw new Error("Not implemented")
 }

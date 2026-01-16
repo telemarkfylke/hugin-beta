@@ -1,4 +1,4 @@
-import ChatConfig from "./components/Chat/ChatConfig.svelte"
+import type ChatConfig from "./components/Chat/ChatConfig.svelte"
 import type { AppRoles } from "./types/app-config"
 import type { AuthenticatedPrincipal } from "./types/authentication"
 import type { Chat } from "./types/chat"
@@ -17,7 +17,7 @@ export const canEditChatConfig = (chat: Chat, user: AuthenticatedPrincipal, appR
 	return false
 }
 
-export const canUsePredefinedConfig = (chatConfig: ChatConfig, user: AuthenticatedPrincipal, appRoles: AppRoles): boolean => {
+export const canUsePredefinedConfig = (_chatConfig: ChatConfig, _user: AuthenticatedPrincipal, _appRoles: AppRoles): boolean => {
 	return false
 }
 

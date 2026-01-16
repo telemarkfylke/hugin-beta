@@ -15,7 +15,9 @@ export const APP_CONFIG: AppConfig = {
 			ID: "mistral",
 			NAME: "Mistral",
 			ENABLED: Boolean(env.MISTRAL_API_KEY_PROJECT_DEFAULT),
-			PROJECTS: Object.keys(env).filter((key) => key.startsWith("MISTRAL_API_KEY_PROJECT")).map((key) => key.replace("MISTRAL_API_KEY_PROJECT_", "")),
+			PROJECTS: Object.keys(env)
+				.filter((key) => key.startsWith("MISTRAL_API_KEY_PROJECT"))
+				.map((key) => key.replace("MISTRAL_API_KEY_PROJECT_", "")),
 			MODELS: [
 				{
 					ID: "mistral-medium-latest",
@@ -37,7 +39,9 @@ export const APP_CONFIG: AppConfig = {
 			ID: "openai",
 			NAME: "OpenAI",
 			ENABLED: Boolean(env.OPENAI_API_KEY_PROJECT_DEFAULT),
-			PROJECTS: Object.keys(env).filter((key) => key.startsWith("OPENAI_API_KEY_PROJECT")).map((key) => key.replace("OPENAI_API_KEY_PROJECT_", "")),
+			PROJECTS: Object.keys(env)
+				.filter((key) => key.startsWith("OPENAI_API_KEY_PROJECT"))
+				.map((key) => key.replace("OPENAI_API_KEY_PROJECT_", "")),
 			MODELS: [
 				{
 					ID: "gpt-4o",
@@ -59,7 +63,9 @@ export const APP_CONFIG: AppConfig = {
 			ID: "ollama",
 			NAME: "Ollama",
 			ENABLED: Boolean(env.OLLAMA_API_KEY),
-			PROJECTS: Object.keys(env).filter((key) => key.startsWith("OLLAMA_API_KEY_PROJECT")).map((key) => key.replace("OLLAMA_API_KEY_PROJECT_", "")),
+			PROJECTS: Object.keys(env)
+				.filter((key) => key.startsWith("OLLAMA_API_KEY_PROJECT"))
+				.map((key) => key.replace("OLLAMA_API_KEY_PROJECT_", "")),
 			MODELS: []
 		}
 	}

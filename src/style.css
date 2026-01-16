@@ -17,7 +17,8 @@ body {
 	font-family: var(--font-family);
 }
 
-a, a:visited {
+a,
+a:visited {
 	color: var(--color-primary);
 	text-decoration: underline;
 }

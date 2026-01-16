@@ -50,7 +50,7 @@ export class MistralVendor implements IAIVendor {
 		const mistral = new Mistral({
 			apiKey: PROJECT_API_KEY
 		})
-		
+
 		const response = await mistral.beta.conversations.start({
 			...mistralRequest(chatRequest),
 			stream: false

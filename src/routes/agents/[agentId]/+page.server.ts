@@ -7,19 +7,19 @@ import type { PageServerLoad } from "./$types"
 
 const agentPageLoad: ServerLoadNextFunction<{ agent: ChatConfig }> = async ({ requestEvent, user }) => {
 	const agentId = requestEvent.params.agentId
-  if (!agentId) {
-    throw new Error("agentId parameter is required")
-  }
-  const agent = await getChatConfigById(agentId, user)
-  if (!agent) {
-    throw new HTTPError(404, `Agent with id ${agentId} not found`)
-  }
-  return {
-    data: {
-      agent
-    },
-    isAuthorized: true
-  }
+	if (!agentId) {
+		throw new Error("agentId parameter is required")
+	}
+	const agent = await getChatConfigById(agentId, user)
+	if (!agent) {
+		throw new HTTPError(404, `Agent with id ${agentId} not found`)
+	}
+	return {
+		data: {
+			agent
+		},
+		isAuthorized: true
+	}
 }
 
 export const load: PageServerLoad = async (requestEvent): Promise<{ agent: ChatConfig }> => {

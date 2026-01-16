@@ -6,12 +6,12 @@ import type { PageServerLoad } from "./$types"
 
 const agentsPageLoad: ServerLoadNextFunction<{ agents: ChatConfig[] }> = async ({ user }) => {
 	const agents = await getChatConfigs(user)
-  return {
-    data: {
-      agents
-    },
-    isAuthorized: true
-  }
+	return {
+		data: {
+			agents
+		},
+		isAuthorized: true
+	}
 }
 
 export const load: PageServerLoad = async (requestEvent): Promise<{ agents: ChatConfig[] }> => {

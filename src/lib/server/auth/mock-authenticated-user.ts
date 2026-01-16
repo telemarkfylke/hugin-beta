@@ -1,8 +1,8 @@
 // https://learn.microsoft.com/en-us/azure/app-service/configure-authentication-user-identities
 
+import { logger } from "@vestfoldfylke/loglady"
 import { env } from "$env/dynamic/private"
 import type { MSPrincipalClaim, MSPrincipalClaims } from "$lib/types/authentication"
-import { logger } from "@vestfoldfylke/loglady"
 import { MS_AUTH_PRINCIPAL_CLAIMS_HEADER } from "./auth-constants"
 
 export const MOCK_AUTH = env.MOCK_AUTH === "true"
