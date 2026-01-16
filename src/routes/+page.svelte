@@ -19,7 +19,7 @@
 			name: "",
 			description: "A default chat configuration",
 			project: "DEFAULT",
-			vendorId: "mistral",
+			vendorId: "MISTRAL",
 			model: "mistral-medium-latest",
 			instructions: "Answer in Norwegian."
 		},
