@@ -9,10 +9,6 @@ import { handleMistralResponseStream } from "./mistral-stream"
 
 const MISTRAL_SUPPORTED_MODELS = APP_CONFIG.VENDORS.MISTRAL.MODELS.map((model) => model.ID)
 
-export const mistral = new Mistral({
-	apiKey: env.MISTRAL_API_KEY || "bare-en-tulle-key"
-})
-
 const mistralRequest = (chatRequest: ChatRequest): ConversationRequest => {
 	const baseConfig: ConversationRequest = {
 		inputs: chatRequest.inputs.map(chatInputToMistralInput),
@@ -40,8 +36,21 @@ const mistralRequest = (chatRequest: ChatRequest): ConversationRequest => {
 	}
 }
 
+const getApiKeyForProject = (project: string): string => {
+	const PROJECT_API_KEY = env[`MISTRAL_API_KEY_PROJECT_${project}`]
+	if (!PROJECT_API_KEY) {
+		throw new Error(`No Mistral API key found for project ${project}`)
+	}
+	return PROJECT_API_KEY
+}
+
 export class MistralVendor implements IAIVendor {
 	public async createChatResponse(chatRequest: ChatRequest): Promise<ChatResponseObject> {
+		const PROJECT_API_KEY = getApiKeyForProject(chatRequest.config.project)
+		const mistral = new Mistral({
+			apiKey: PROJECT_API_KEY
+		})
+		
 		const response = await mistral.beta.conversations.start({
 			...mistralRequest(chatRequest),
 			stream: false
@@ -50,6 +59,11 @@ export class MistralVendor implements IAIVendor {
 	}
 
 	public async createChatResponseStream(chatRequest: ChatRequest): Promise<ChatResponseStream> {
+		const PROJECT_API_KEY = getApiKeyForProject(chatRequest.config.project)
+		const mistral = new Mistral({
+			apiKey: PROJECT_API_KEY
+		})
+
 		const responseStream = await mistral.beta.conversations.startStream({
 			...mistralRequest(chatRequest),
 			stream: true

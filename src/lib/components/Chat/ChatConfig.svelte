@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { canEditChat, canEditPredefinedConfig } from "$lib/authorization"
+	import { canEditChatConfig, canEditPredefinedConfig } from "$lib/authorization"
 	import type { ChatConfig } from "$lib/types/chat"
 	import GrowingTextArea from "../GrowingTextArea.svelte"
 	import type { ChatState } from "./ChatState.svelte"
@@ -34,6 +34,13 @@
 			})
 	}
 
+	const getAvailableProjects = (vendorId: string) => {
+		const vendor = Object.values(chatState.APP_CONFIG.VENDORS).find((vendor) => vendor.ID === vendorId)
+		if (!vendor) return []
+		const availableProjects = vendor.PROJECTS
+		return availableProjects
+	}
+
 	const getAvailableModels = (vendorId: string) => {
 		const vendor = Object.values(chatState.APP_CONFIG.VENDORS).find((vendor) => vendor.ID === vendorId)
 		if (!vendor) return []
@@ -43,7 +50,22 @@
 
 	// Almost illegal effect, but we need to auto-select first available model when changing vendor in manual config
 	$effect(() => {
-		console.log("effect ran")
+		console.log("project effect ran, be careful")
+		if (chatState.chat.config.vendorId) {
+			const availableProjects = getAvailableProjects(chatState.chat.config.vendorId)
+			if (!availableProjects.includes(chatState.chat.config.project)) {
+				// Current project not available for selected vendor, set to first available
+				if (!availableProjects[0]) {
+					throw new Error(`No available projects for vendor ${chatState.chat.config.vendorId}`)
+				}
+				chatState.chat.config.project = availableProjects[0]
+			}
+		}
+	})
+
+	// Almost illegal effect again, but we need to auto-select first available model when changing vendor in manual config
+	$effect(() => {
+		console.log("model effect ran, be careful")
 		if (chatState.chat.config.model) {
 			const availableModels = getAvailableModels(chatState.chat.config.vendorId)
 			if (!availableModels.includes(chatState.chat.config.model)) {
@@ -53,17 +75,20 @@
 		}
 	})
 
+
 	const onConfigTypeChange = (event: Event) => {
 		const target = event.target as HTMLInputElement
 		if (target.value === "predefined") {
 			// Cache manual config
 			manualConfigCache = {
 				vendorId: chatState.chat.config.vendorId,
+				project: chatState.chat.config.project,
 				model: chatState.chat.config.model,
 				instructions: chatState.chat.config.instructions
 			}
 			// Switch to predefined in actual chatConfig
 			chatState.chat.config.vendorId = predefinedConfigCache.vendorId as string
+			chatState.chat.config.project = predefinedConfigCache.project as string
 			chatState.chat.config.vendorAgent = predefinedConfigCache.vendorAgent
 			delete chatState.chat.config.model
 			delete chatState.chat.config.instructions
@@ -71,12 +96,14 @@
 			// Cache predefined config
 			predefinedConfigCache = {
 				vendorId: chatState.chat.config.vendorId,
+				project: chatState.chat.config.project,
 				vendorAgent: {
 					id: chatState.chat.config.vendorAgent?.id || ""
 				}
 			}
 			// Switch to manual in actual chatConfig
 			chatState.chat.config.vendorId = manualConfigCache.vendorId as string
+			chatState.chat.config.project = manualConfigCache.project as string
 			chatState.chat.config.model = manualConfigCache.model as string
 			chatState.chat.config.instructions = manualConfigCache.instructions as string
 			delete chatState.chat.config.vendorAgent
@@ -92,6 +119,13 @@
 			<option value={vendor.id}>{vendor.name}</option>
 		{/each}
 	</select>
+	{#if canEditPredefinedConfig(chatState.user, chatState.APP_CONFIG.APP_ROLES)}
+		<select id="vendor-project" bind:value={chatState.chat.config.project}>
+			{#each getAvailableProjects(chatState.chat.config.vendorId as keyof typeof chatState.APP_CONFIG.VENDORS) as projectId}
+				<option value={projectId}>{projectId}</option>
+			{/each}
+		</select>
+	{/if}
 {/snippet}
 
 {#snippet predefinedConfiguration()}
@@ -107,7 +141,7 @@
 {/snippet}
 
 {#snippet manualConfiguration()}
-	{#if canEditChat(chatState.chat, chatState.user, chatState.APP_CONFIG.APP_ROLES)}
+	{#if canEditChatConfig(chatState.chat, chatState.user, chatState.APP_CONFIG.APP_ROLES)}
 		{@render vendorSelect()}
 		<br />
 		<label class="bold" for="model">Modell</label>

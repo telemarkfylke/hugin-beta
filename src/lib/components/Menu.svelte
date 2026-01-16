@@ -53,7 +53,10 @@
 			</button>
 		</div>
 		<div class="menu-content">
-			<a href="/">Hjem</a>
+			<ul>
+				<li><a href="/">Hjem</a></li>
+				<li><a href="/agents">Agenter</a></li>
+			</ul>
 		</div>
 		<div class="menu-footer">
 			<div class="logged-in-user">
