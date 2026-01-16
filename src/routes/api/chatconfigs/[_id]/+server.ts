@@ -1,9 +1,9 @@
 import { json, type RequestHandler } from "@sveltejs/kit"
+import { getChatConfigStore } from "$lib/server/db/get-db"
 import { HTTPError } from "$lib/server/middleware/http-error"
 import { apiRequestMiddleware } from "$lib/server/middleware/http-request"
-import type { ApiNextFunction } from "$lib/types/middleware/http-request"
-import { getChatConfigStore } from "$lib/server/db/get-db"
 import type { ChatConfig } from "$lib/types/chat"
+import type { ApiNextFunction } from "$lib/types/middleware/http-request"
 
 const chatConfigStore = getChatConfigStore()
 

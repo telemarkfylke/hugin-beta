@@ -7,7 +7,7 @@ import type { PageServerLoad } from "./$types"
 
 const chatConfigStore = getChatConfigStore()
 
-const agentPageLoad: ServerLoadNextFunction<{ agent: ChatConfig }> = async ({ requestEvent, user }) => {
+const agentPageLoad: ServerLoadNextFunction<{ agent: ChatConfig }> = async ({ requestEvent }) => {
 	const agentId = requestEvent.params.agentId
 	if (!agentId) {
 		throw new Error("agentId parameter is required")
