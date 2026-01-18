@@ -2,8 +2,9 @@ import { json, type RequestHandler } from "@sveltejs/kit"
 import { getChatConfigStore } from "$lib/server/db/get-db"
 import { HTTPError } from "$lib/server/middleware/http-error"
 import { apiRequestMiddleware } from "$lib/server/middleware/http-request"
-import type { ChatConfig } from "$lib/types/chat"
 import type { ApiNextFunction } from "$lib/types/middleware/http-request"
+import { parseChatConfig } from "$lib/validation/parse-chat-config"
+import { APP_CONFIG } from "$lib/server/app-config/app-config"
 
 const chatConfigStore = getChatConfigStore()
 
@@ -18,9 +19,8 @@ const createChatConfig: ApiNextFunction = async ({ requestEvent, user }) => {
 
 	const body = await requestEvent.request.json()
 
-	// Husk validering her
+	const chatConfig = parseChatConfig(body, APP_CONFIG)
 
-	const chatConfig = body as ChatConfig
 	const newChatConfig = await chatConfigStore.createChatConfig(chatConfig)
 
 	return {

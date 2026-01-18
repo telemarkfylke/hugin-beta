@@ -4,58 +4,10 @@ import { APP_CONFIG } from "$lib/server/app-config/app-config"
 import { HTTPError } from "$lib/server/middleware/http-error"
 import { apiRequestMiddleware } from "$lib/server/middleware/http-request"
 import { responseStream } from "$lib/streaming"
-import type { ChatConfig, ChatRequest } from "$lib/types/chat"
+import type { ChatRequest } from "$lib/types/chat"
 import type { ApiNextFunction } from "$lib/types/middleware/http-request"
-
-const validFileType = (fileUrl: string, supportedMimeTypes: string[]): boolean => {
-	const mimeType = fileUrl.substring(fileUrl.indexOf(":") + 1, fileUrl.indexOf(";base64")) // data:<mime-type>;base64,<data>
-	return supportedMimeTypes.includes(mimeType)
-}
-
-const validateFileInputs = (chatRequest: ChatRequest) => {
-	const lastMessage = chatRequest.inputs[chatRequest.inputs.length - 1]
-	if (!lastMessage || lastMessage.type !== "message.input") {
-		throw new HTTPError(400, "Last input must be a message.input to validate file inputs")
-	}
-
-	const vendor = APP_CONFIG.VENDORS[chatRequest.config.vendorId]
-	if (!vendor) {
-		throw new HTTPError(400, `Unsupported vendorId: ${chatRequest.config.vendorId}`)
-	}
-
-	const modelSupportedMimeTypes = vendor.MODELS.find((model) => model.ID === chatRequest.config.model)?.SUPPORTED_MESSAGE_FILE_MIME_TYPES || {
-		FILE: [],
-		IMAGE: []
-	}
-
-	const supportedMimeTypes = [...modelSupportedMimeTypes.FILE, ...modelSupportedMimeTypes.IMAGE]
-
-	const fileInputs = lastMessage.content.filter((contentItem) => contentItem.type === "input_file" || contentItem.type === "input_image")
-	for (const fileInput of fileInputs.slice(-1)) {
-		if (!validFileType(fileInput.type === "input_file" ? fileInput.fileUrl : fileInput.imageUrl, supportedMimeTypes)) {
-			throw new HTTPError(400, `File type of uploaded file is not supported for vendor/model: ${chatRequest.config.vendorId}-${chatRequest.config.model}`)
-		}
-	}
-
-	// Filter out all previous file inputs of not valid mimetype (in case someone changed model/vendor mid-conversation)
-	for (const [index, inputItem] of chatRequest.inputs.entries()) {
-		if (index === chatRequest.inputs.length - 1) {
-			continue // Skip last message, already validated
-		}
-		if (inputItem.type !== "message.input") {
-			continue
-		}
-		inputItem.content = inputItem.content.filter((contentItem) => {
-			if (contentItem.type === "input_file") {
-				return validFileType(contentItem.fileUrl, supportedMimeTypes)
-			}
-			if (contentItem.type === "input_image") {
-				return validFileType(contentItem.imageUrl, supportedMimeTypes)
-			}
-			return true
-		})
-	}
-}
+import { parseChatConfig } from "$lib/validation/parse-chat-config"
+import { validateFileInputs } from "$lib/validation/file-input"
 
 const parseChatRequest = (body: unknown): ChatRequest => {
 	if (typeof body !== "object" || body === null) {
@@ -63,103 +15,26 @@ const parseChatRequest = (body: unknown): ChatRequest => {
 	}
 	const incomingChatRequest: ChatRequest = body as ChatRequest
 
-	const config = incomingChatRequest.config
+	const config = parseChatConfig(incomingChatRequest.config, APP_CONFIG)
 
-	if (!config || typeof config !== "object") {
-		throw new HTTPError(400, "config is required and must be an object")
-	}
-
-	if (typeof config._id !== "string") {
-		throw new HTTPError(400, "config._id must be a string")
-	}
-	if (typeof config.name !== "string") {
-		throw new HTTPError(400, "config.name must be a string")
-	}
-	if (typeof config.description !== "string") {
-		throw new HTTPError(400, "config.description must be a string")
-	}
-
-	if (!config.vendorId || typeof config.vendorId !== "string") {
-		throw new HTTPError(400, "vendorId is required and must be a string")
-	}
-	const VENDOR = APP_CONFIG.VENDORS[config.vendorId]
-	if (!VENDOR) {
-		throw new HTTPError(400, `Unsupported vendorId: ${config.vendorId}`)
-	}
-	if (!VENDOR.PROJECTS.includes(config.project)) {
-		throw new HTTPError(400, `Unsupported project: ${config.project} for vendorId: ${config.vendorId}`)
-	}
-	if (!incomingChatRequest.inputs || !Array.isArray(incomingChatRequest.inputs)) {
-		throw new HTTPError(400, "inputs is required and must be an array")
+	if (!Array.isArray(incomingChatRequest.inputs) || incomingChatRequest.inputs.length === 0) {
+		throw new HTTPError(400, "inputs must be a non-empty array")
 	}
 	if (config.vendorAgent) {
-		// Predefined config
-		if (typeof config.vendorAgent.id !== "string") {
-			throw new HTTPError(400, "vendorAgent.id must be a string")
-		}
-		if (incomingChatRequest.stream !== undefined) {
-			if (typeof incomingChatRequest.stream !== "boolean") {
-				throw new HTTPError(400, "stream must be a boolean")
-			}
-		}
 		return {
-			config: {
-				_id: config._id,
-				name: config.name,
-				description: config.description,
-				vendorId: config.vendorId,
-				project: config.project,
-				vendorAgent: {
-					id: config.vendorAgent.id
-				}
-			},
+			config,
 			inputs: incomingChatRequest.inputs,
 			stream: Boolean(incomingChatRequest.stream)
 		}
 	}
-	// Manual config
-	if (!config.model || typeof config.model !== "string") {
-		throw new HTTPError(400, "model is required and must be a string")
-	}
-	const manualChatConfig: ChatConfig = {
-		_id: config._id,
-		name: config.name,
-		description: config.description,
-		vendorId: config.vendorId,
-		project: config.project,
-		model: config.model
-	}
-	if (config.instructions) {
-		if (typeof config.instructions !== "string") {
-			throw new HTTPError(400, "instructions must be a string")
-		}
-		manualChatConfig.instructions = config.instructions
-	}
-	if (config.conversationId) {
-		if (typeof config.conversationId !== "string") {
-			throw new HTTPError(400, "conversationId must be a string")
-		}
-		manualChatConfig.conversationId = config.conversationId
-	}
-	if (incomingChatRequest.stream !== undefined) {
-		if (typeof incomingChatRequest.stream !== "boolean") {
-			throw new HTTPError(400, "stream must be a boolean")
-		}
-	}
-	if (config.tools) {
-		if (!Array.isArray(config.tools)) {
-			throw new HTTPError(400, "tools must be an array of tools")
-		}
-		manualChatConfig.tools = config.tools
-	}
 
 	const manualChatRequest: ChatRequest = {
-		config: manualChatConfig,
+		config,
 		inputs: incomingChatRequest.inputs,
 		stream: Boolean(incomingChatRequest.stream)
 	}
 
-	validateFileInputs(manualChatRequest)
+	validateFileInputs(manualChatRequest, APP_CONFIG)
 
 	return manualChatRequest
 }
@@ -176,6 +51,8 @@ const supahChat: ApiNextFunction = async ({ requestEvent, user }) => {
 	const body = await requestEvent.request.json()
 
 	const chatRequest = parseChatRequest(body)
+
+	// Check authorization here - what should be checked is if user has access to vendor-agent-id in predefined configs and eventually access to vector stores
 
 	const vendor = getVendor(chatRequest.config.vendorId)
 
