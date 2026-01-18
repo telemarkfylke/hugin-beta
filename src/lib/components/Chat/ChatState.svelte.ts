@@ -265,7 +265,7 @@ export class ChatState {
 	public updateChatConfig = async (): Promise<void> => {
 		try {
 			const result = await fetch(`/api/chatconfigs/${this.chat.config._id}`, {
-				method: "PATCH",
+				method: "PUT",
 				headers: {
 					"Content-Type": "application/json"
 				},
