@@ -20,9 +20,8 @@ export class MongoChatConfigStore implements IChatConfigStore {
 		const result = await this.collection.insertOne(chatConfig, { forceServerObjectId: true })
 		return { ...chatConfig, _id: result.insertedId.toString() }
 	}
-	async updateChatConfig(configId: string, chatConfigUpdateInput: Partial<ChatConfig>): Promise<ChatConfig> {
-		const updatedConfig = await this.collection.findOneAndUpdate({ _id: configId }, { $set: chatConfigUpdateInput }, { returnDocument: "after" })
-		if (!updatedConfig) throw new Error("ChatConfig not found")
-		return updatedConfig
+	async replaceChatConfig(configId: string, chatConfig: ChatConfig): Promise<ChatConfig> {
+		await this.collection.replaceOne({ _id: configId }, chatConfig)
+		return { ...chatConfig, _id: configId }
 	}
 }

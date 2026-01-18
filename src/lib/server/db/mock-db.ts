@@ -30,15 +30,15 @@ export class MockChatConfigStore implements IChatConfigStore {
 	async getChatConfigs(): Promise<ChatConfig[]> {
 		return mockChatConfigs
 	}
-	async createChatConfig(ChatConfig: Omit<ChatConfig, "_id">): Promise<ChatConfig> {
-		const newConfig: ChatConfig = { ...ChatConfig, _id: Date.now().toString() }
+	async createChatConfig(chatConfig: Omit<ChatConfig, "_id">): Promise<ChatConfig> {
+		const newConfig: ChatConfig = { ...chatConfig, _id: Date.now().toString() }
 		mockChatConfigs.push(newConfig)
 		return newConfig
 	}
-	async updateChatConfig(configId: string, chatConfigUpdateInput: Partial<ChatConfig>): Promise<ChatConfig> {
+	async replaceChatConfig(configId: string, chatConfig: ChatConfig): Promise<ChatConfig> {
 		const config = mockChatConfigs.find((config) => config._id === configId)
 		if (!config) throw new Error("ChatConfig not found")
-		Object.assign(config, chatConfigUpdateInput)
+		Object.assign(config, chatConfig)
 		return config
 	}
 }
