@@ -9,7 +9,21 @@ const mockChatConfigs: ChatConfig[] = [
 		vendorId: "MISTRAL",
 		project: "DEFAULT",
 		model: "mistral-medium-latest",
-		instructions: "Answer in Norwegian. Be overly polite and friendly."
+		instructions: "Answer in Norwegian. Be overly polite and friendly.",
+		accessGroups: "all",
+		type: "published",
+		created: {
+			at: new Date().toISOString(),
+			by: {
+				id: "system"
+			}
+		},
+		updated: {
+			at: new Date().toISOString(),
+			by: {
+				id: "system"
+			}
+		}
 	},
 	{
 		_id: "5678",
@@ -18,7 +32,21 @@ const mockChatConfigs: ChatConfig[] = [
 		vendorId: "OPENAI",
 		project: "DEFAULT",
 		model: "gpt-4o",
-		instructions: "Answer in Norwegian. Be very grumpy and sarcastic."
+		instructions: "Answer in Norwegian. Be very grumpy and sarcastic.",
+		accessGroups: "all",
+		type: "published",
+		created: {
+			at: new Date().toISOString(),
+			by: {
+				id: "system"
+			}
+		},
+		updated: {
+			at: new Date().toISOString(),
+			by: {
+				id: "system"
+			}
+		}
 	}
 ]
 
@@ -29,6 +57,14 @@ export class MockChatConfigStore implements IChatConfigStore {
 	}
 	async getChatConfigs(): Promise<ChatConfig[]> {
 		return mockChatConfigs
+	}
+	async getChatConfigsByVendorAgentId(vendorAgentId: string): Promise<ChatConfig[]> {
+		if (!vendorAgentId) {
+			return []
+		}
+		return mockChatConfigs.filter(
+			(config) => config.vendorAgent?.id === vendorAgentId
+		)
 	}
 	async createChatConfig(chatConfig: Omit<ChatConfig, "_id">): Promise<ChatConfig> {
 		const newConfig: ChatConfig = { ...chatConfig, _id: Date.now().toString() }

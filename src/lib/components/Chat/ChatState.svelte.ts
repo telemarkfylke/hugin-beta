@@ -54,7 +54,23 @@ export class ChatState {
 			name: "",
 			description: "",
 			vendorId: "MISTRAL",
-			project: ""
+			project: "",
+			accessGroups: "all",
+			type: "private",
+			created: {
+				at: "",
+				by: {
+					id: "",
+					name: undefined
+				}
+			},
+			updated: {
+				at: "",
+				by: {
+					id: "",
+					name: undefined
+				}
+			}
 		},
 		history: [] as ChatHistory,
 		createdAt: new Date().toISOString(),
@@ -119,7 +135,23 @@ export class ChatState {
 				description: "This is an example chat configuration.",
 				vendorId: "OPENAI",
 				project: "DEFAULT",
-				model: "gpt-4"
+				model: "gpt-4",
+				accessGroups: "all",
+				type: "private",
+				created: {
+					at: new Date().toISOString(),
+					by: {
+						id: "owner-id-123",
+						name: "Owner Name"
+					}
+				},
+				updated: {
+					at: new Date().toISOString(),
+					by: {
+						id: "owner-id-123",
+						name: "Owner Name"
+					}
+				}
 			},
 			history: [
 				{
@@ -141,7 +173,23 @@ export class ChatState {
 						description: "This is an example chat configuration.",
 						vendorId: "OPENAI",
 						project: "DEFAULT",
-						model: "gpt-4"
+						model: "gpt-4",
+						accessGroups: "all",
+						type: "private",
+						created: {
+							at: new Date().toISOString(),
+							by: {
+								id: "owner-id-123",
+								name: "Owner Name"
+							}
+						},
+						updated: {
+							at: new Date().toISOString(),
+							by: {
+								id: "owner-id-123",
+								name: "Owner Name"
+							}
+						}
 					},
 					createdAt: new Date().toISOString(),
 					outputs: [

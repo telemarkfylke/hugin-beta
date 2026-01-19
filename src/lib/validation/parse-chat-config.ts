@@ -31,7 +31,11 @@ export const parseChatConfig = (input: unknown, APP_CONFIG: AppConfig): ChatConf
       project: parsedConfig.project,
       vendorAgent: {
         id: parsedConfig.vendorAgent.id
-      }
+      },
+      accessGroups: parsedConfig.accessGroups,
+      type: parsedConfig.type,
+      created: parsedConfig.created,
+      updated: parsedConfig.updated
     }
   }
   // Manual config
@@ -47,5 +51,9 @@ export const parseChatConfig = (input: unknown, APP_CONFIG: AppConfig): ChatConf
     model: parsedConfig.model,
     instructions: parsedConfig.instructions,
     conversationId: parsedConfig.conversationId,
+    accessGroups: parsedConfig.accessGroups,
+    type: parsedConfig.type,
+    created: parsedConfig.created,
+    updated: parsedConfig.updated
   }
 }

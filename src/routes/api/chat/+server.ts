@@ -4,10 +4,14 @@ import { APP_CONFIG } from "$lib/server/app-config/app-config"
 import { HTTPError } from "$lib/server/middleware/http-error"
 import { apiRequestMiddleware } from "$lib/server/middleware/http-request"
 import { responseStream } from "$lib/streaming"
-import type { ChatRequest } from "$lib/types/chat"
+import type { ChatConfig, ChatRequest } from "$lib/types/chat"
 import type { ApiNextFunction } from "$lib/types/middleware/http-request"
 import { parseChatConfig } from "$lib/validation/parse-chat-config"
 import { validateFileInputs } from "$lib/validation/file-input"
+import type { AuthenticatedPrincipal } from "$lib/types/authentication"
+import { getChatConfigStore } from "$lib/server/db/get-db"
+import { logger } from "@vestfoldfylke/loglady"
+import { canEditPredefinedConfig, canPromptPredefinedConfig } from "$lib/authorization"
 
 const parseChatRequest = (body: unknown): ChatRequest => {
 	if (typeof body !== "object" || body === null) {
@@ -39,6 +43,39 @@ const parseChatRequest = (body: unknown): ChatRequest => {
 	return manualChatRequest
 }
 
+const canPromptVendorAgentCache: { expires: number; accessCache: Map<string, boolean> } = {
+	expires: Date.now() + 60 * 60 * 1000, // 60 minutes
+	accessCache: new Map()
+}
+
+const canPromptVendorAgent = async (user: AuthenticatedPrincipal, chatConfig: ChatConfig): Promise<boolean> => {
+	if (!chatConfig.vendorAgent) {
+		throw new Error("canPromptVendorAgent called with chatConfig that is not a predefined config")
+	}
+	if (!chatConfig.vendorAgent.id) {
+		throw new Error("canPromptVendorAgent called with chatConfig that has no vendorAgent.id")
+	}
+	if (canEditPredefinedConfig(user, APP_CONFIG.APP_ROLES)) {
+		// Quick return if can edit predefined config
+		return true
+	}
+	if (Date.now() > canPromptVendorAgentCache.expires) {
+		canPromptVendorAgentCache.expires = Date.now() + 60 * 60 * 1000 // 60 minutes
+		canPromptVendorAgentCache.accessCache.clear()
+	}
+	const cacheKey = `${user.userId}-${chatConfig.vendorId}-${chatConfig.vendorAgent?.id}`
+	const cachedAccess = canPromptVendorAgentCache.accessCache.get(cacheKey)
+	if (typeof cachedAccess === "boolean") {
+		logger.debug(`canPromptVendorAgent cache hit for key ${cacheKey}: ${cachedAccess}. Quick return.`)
+		return cachedAccess
+	}
+	const chatConfigStore = getChatConfigStore()
+	const chatConfigsWithVendorAgentId = await chatConfigStore.getChatConfigsByVendorAgentId(chatConfig.vendorAgent.id)
+	const canPrompt = canPromptPredefinedConfig(user, APP_CONFIG.APP_ROLES, chatConfig.vendorAgent.id, chatConfigsWithVendorAgentId)
+	canPromptVendorAgentCache.accessCache.set(cacheKey, canPrompt)
+	return canPrompt
+}
+
 const supahChat: ApiNextFunction = async ({ requestEvent, user }) => {
 	if (!user.userId) {
 		throw new HTTPError(400, "userId is required")
@@ -52,7 +89,13 @@ const supahChat: ApiNextFunction = async ({ requestEvent, user }) => {
 
 	const chatRequest = parseChatRequest(body)
 
-	// Check authorization here - what should be checked is if user has access to vendor-agent-id in predefined configs and eventually access to vector stores
+	// If predefined config, check if user can use it
+	if (chatRequest.config.vendorAgent) {
+		const canPrompt = await canPromptVendorAgent(user, chatRequest.config)
+		if (!canPrompt) {
+			throw new HTTPError(403, "User is not authorized to use this predefined chat configuration")
+		}
+	}
 
 	const vendor = getVendor(chatRequest.config.vendorId)
 

@@ -21,7 +21,24 @@
 			project: "DEFAULT",
 			vendorId: "MISTRAL",
 			model: "mistral-medium-latest",
-			instructions: "Answer in Norwegian."
+			instructions: "Answer in Norwegian.",
+			conversationId: "",
+			type: "private",
+			accessGroups: "all",
+			created: {
+				at: new Date().toISOString(),
+				by: {
+					id: "system",
+					name: "system"
+				}
+			},
+			updated: {
+				at: new Date().toISOString(),
+				by: {
+					id: "system",
+					name: "system"
+				}
+			}
 		},
 		history: []
 	}

@@ -16,6 +16,12 @@ export class MongoChatConfigStore implements IChatConfigStore {
 	async getChatConfigs(): Promise<ChatConfig[]> {
 		return await this.collection.find({}).toArray()
 	}
+	async getChatConfigsByVendorAgentId(vendorAgentId: string): Promise<ChatConfig[]> {
+		if (!vendorAgentId) {
+			return []
+		}
+		return await this.collection.find({ "vendorAgent.id": vendorAgentId }).toArray()
+	}
 	async createChatConfig(chatConfig: ChatConfig): Promise<ChatConfig> {
 		const result = await this.collection.insertOne(chatConfig, { forceServerObjectId: true })
 		return { ...chatConfig, _id: result.insertedId.toString() }
