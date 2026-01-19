@@ -1,6 +1,6 @@
 import z from "zod"
-import type { ChatInputItem, ChatOutputItem } from "./chat-item"
 import type { AppConfig } from "./app-config"
+import type { ChatInputItem, ChatOutputItem } from "./chat-item"
 
 export type VendorId = keyof AppConfig["VENDORS"]
 

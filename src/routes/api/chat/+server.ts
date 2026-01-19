@@ -1,17 +1,17 @@
 import { json, type RequestHandler } from "@sveltejs/kit"
+import { logger } from "@vestfoldfylke/loglady"
+import { canEditPredefinedConfig, canPromptPredefinedConfig } from "$lib/authorization"
 import { getVendor } from "$lib/server/ai-vendors"
 import { APP_CONFIG } from "$lib/server/app-config/app-config"
+import { getChatConfigStore } from "$lib/server/db/get-db"
 import { HTTPError } from "$lib/server/middleware/http-error"
 import { apiRequestMiddleware } from "$lib/server/middleware/http-request"
 import { responseStream } from "$lib/streaming"
+import type { AuthenticatedPrincipal } from "$lib/types/authentication"
 import type { ChatConfig, ChatRequest } from "$lib/types/chat"
 import type { ApiNextFunction } from "$lib/types/middleware/http-request"
-import { parseChatConfig } from "$lib/validation/parse-chat-config"
 import { validateFileInputs } from "$lib/validation/file-input"
-import type { AuthenticatedPrincipal } from "$lib/types/authentication"
-import { getChatConfigStore } from "$lib/server/db/get-db"
-import { logger } from "@vestfoldfylke/loglady"
-import { canEditPredefinedConfig, canPromptPredefinedConfig } from "$lib/authorization"
+import { parseChatConfig } from "$lib/validation/parse-chat-config"
 
 const parseChatRequest = (body: unknown): ChatRequest => {
 	if (typeof body !== "object" || body === null) {

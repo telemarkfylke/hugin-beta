@@ -27,10 +27,12 @@
 	}
 
 	const getVendors = () => {
-		return Object.entries(chatState.APP_CONFIG.VENDORS).filter(([_key, vendor]) => vendor.ENABLED).map(([key, vendor]) => ({
-			id: key as VendorId,
-			name: vendor.NAME
-		}))
+		return Object.entries(chatState.APP_CONFIG.VENDORS)
+			.filter(([_key, vendor]) => vendor.ENABLED)
+			.map(([key, vendor]) => ({
+				id: key as VendorId,
+				name: vendor.NAME
+			}))
 	}
 
 	const getAvailableProjects = (vendorId: VendorId) => {

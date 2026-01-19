@@ -35,7 +35,9 @@ export const canPromptPredefinedConfig = (user: AuthenticatedPrincipal, appRoles
 		return false
 	}
 	if (configWithAccess.vendorAgent?.id !== vendorAgentId) {
-		throw new Error(`canPromptPredefinedConfig: vendorAgentId ${vendorAgentId} does not match chatConfig.vendorAgent.id: ${configWithAccess.vendorAgent?.id}. Please provide chatConfigsWithVendorAgentId filtered by vendorAgentId.`)
+		throw new Error(
+			`canPromptPredefinedConfig: vendorAgentId ${vendorAgentId} does not match chatConfig.vendorAgent.id: ${configWithAccess.vendorAgent?.id}. Please provide chatConfigsWithVendorAgentId filtered by vendorAgentId.`
+		)
 	}
 	return true
 }
