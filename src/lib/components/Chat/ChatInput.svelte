@@ -3,6 +3,10 @@
 	import { VENDOR_SUPPORTED_MESSAGE_MIME_TYPES } from "$lib/vendor-constants"
 	import FileDropZone from "../FileDropZone.svelte"
 
+	
+	let isMenuOpen = $state(false);
+	
+	
 	type Props = {
 		chatConfig: ChatConfig
 		sendMessage: (inputText: string, inputFiles: FileList) => Promise<void>
@@ -54,11 +58,11 @@
 	}
 </script>
 
-<div>
+<div class="content" class:sidebar-open={isMenuOpen}>
 	<FileDropZone onFilesDropped={(files) => { inputFiles = files; }} />
   <form onsubmit={(event: Event) => { event.preventDefault(); submitPrompt() }}>
     <div class="grow-wrap" bind:this={wrapDiv}>
-      <textarea rows="1" bind:this={textArea} placeholder="Skriv et eller annet (shift + enter for ny linje)" name="prompt-input" id="prompt-input" oninput={sneakyTextArea} onkeydown={submitOnEnter} bind:value={inputText}></textarea>
+      <textarea rows="1" bind:this={textArea} placeholder="Skriv et eller annet (shift + enter for ny linje)" name="prompt-input" id="prompt-input" oninput={sneakyTextArea} onkeydown={submitOnEnter} bind:value={inputText} ></textarea>
     </div>
     <div id="actions">
       <div id="actions-left">
@@ -66,17 +70,16 @@
 					{#if allowedMessageMimeTypes.length === 0}
 						<span>Filopplasting er ikke mulig her</span>
 					{:else}
-						<span>Last opp filer til chat:</span>
-          	<input bind:files={inputFiles} type="file" id="chat-file-upload" multiple accept={allowedMessageMimeTypes.join(",")} />
+          	<input class="file-btn" bind:files={inputFiles} type="file" id="chat-file-upload"  />
 						{#if inputFiles.length > 0}
-          		<button type="reset" onclick={() => { inputFiles = new DataTransfer().files; }}>Clear Files ({inputFiles.length})</button>
+          		<button  type="reset" onclick={() => { inputFiles = new DataTransfer().files; }}>Clear Files ({inputFiles.length})</button>
 						{/if}
 					{/if}
-          {JSON.stringify(allowedMessageMimeTypes)}
+ 
         </div>
       </div>
       <div id="actions-right">
-        <button type="submit">Send</button>
+        <button class="submit-btn" title="Send inn " type="submit">↑</button>
       </div>
     </div>
   </form>
@@ -88,9 +91,77 @@
     justify-content: space-between;
   }
 
+  .file-btn  {
+	position: fixed;
+	right: 59%;
+    bottom: 8px;
+    cursor: pointer;
+    z-index: 20;
+	transition: right 0.3s ease, background 0.3s, box-shadow 0.3s;
+	margin-left: 0;
+
+  }
+  	.content {
+		margin-left: 0;
+		transition: margin-left 0.3s ease;
+	}
+	
+	.content.sidebar-open {
+		margin-left: 220px;
+	}
+
+  .file-btn::file-selector-button {
+	background: #80A8AF;
+	color: white;
+	border: none;
+	border-radius: 4px;
+	padding: 6px 12px;
+	cursor: pointer;
+	transition: background 0.3s, box-shadow 0.3s;
+  }
+
+  .file-btn::file-selector-button:hover {
+	background: #196370;
+	box-shadow: 2px 2px 6px rgba(0, 0, 0, 0.2);
+  }
   /* START AUTO GROW TEXTAREA STYLES */
   .grow-wrap::after, #prompt-input {
-    max-height: 8rem;
+	position: fixed;
+    bottom: 60px;
+    left: 50%;
+    transform: translateX(-50%);
+	width: 45%;
+	display: block;
+	border-radius: 8px;
+	border-style: solid 1px #333;
+	box-shadow: 2px 2px 6px rgba(0, 0, 0, 0.1);
+    transform: translateX(-50%);
+    transition: left 0.3s ease, transform 0.3s ease;
+
+	
+  }
+
+  .submit-btn {
+	position: fixed;
+    right: 27.3%;
+	font-size: 14px;
+	margin-bottom: 58px;
+    bottom: 8px;
+    background: #80A8AF;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 6px 12px;
+    cursor: pointer;
+    z-index: 20;
+		transition: right 0.3s ease, background 0.3s, box-shadow 0.3s;
+	margin-left: 0;
+	
+  }
+
+  .submit-btn:hover {
+	background: #196370;
+	box-shadow: 2px 2px 6px rgba(0, 0, 0, 0.2);
   }
   .grow-wrap {
     /* easy way to plop the elements on top of each other and have them both sized based on the tallest one's height */
@@ -123,5 +194,20 @@
     /* Place on top of each other */
     grid-area: 1 / 1 / 2 / 2;
   }
+
+  /* Når sidebar er åpen */
+:global(body.sidebar-open) .grow-wrap::after, 
+:global(body.sidebar-open) #prompt-input {
+  left: calc(50% + 110px); /* Flytt mot høyre */
+}
+
+/* Samme for knappene */
+:global(body.sidebar-open) .submit-btn {
+  right: calc(27.3% - 110px);
+}
+
+:global(body.sidebar-open) .file-btn {
+  right: calc(59% - 110px);
+}
   /* END AUTO GROW TEXTAREA STYLES */
 </style>

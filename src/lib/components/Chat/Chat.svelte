@@ -34,7 +34,7 @@
 </script>
 
 <div class="chat-container">
-	<button onclick={() => { lastChatItem.scrollIntoView({ behavior: "smooth" }) }}>LScroll</button>
+	<button class="LScroll-btn" onclick={() => { lastChatItem.scrollIntoView({ behavior: "smooth" }) }}>LScroll</button>
 	<div class="chat-header">
 		<h2>Chat ID: {chatState.chat.config.name}</h2>
 		<button onclick={() => showConfig = !showConfig}>
@@ -88,9 +88,14 @@
     box-sizing: border-box; /* Include padding and border in total size, to avoid overflow */
     display: flex;
     flex-direction: column;
-    max-width: 1280px;
+    max-width: 1400px;
     margin: 0 auto;
     height: 100%;
+	margin-left: 400px;
+	margin-right: 380px;
+	max-height: 850px;
+
+
   }
 	.chat-header {
 		display: flex;
@@ -99,6 +104,21 @@
 	}
 	.chat-config {
 		border-bottom: 1px solid #ccc;
+	}
+	.LScroll-btn {
+		width: 60px;
+		height: 40px;
+		flex-shrink: 0;
+		box-shadow: 2px 2px 6px rgba(0, 0, 0, 0.2);
+		border-radius: 4px;
+		border-style: none;
+		background: #80A8AF;
+		color: white;
+		transition: background 0.3s, box-shadow 0.3s;
+	}
+	.LScroll-btn:hover {
+		background: #196370;
+		border-style: solid 1px #333;
 	}
 	.chat-items {
     flex: 1;
