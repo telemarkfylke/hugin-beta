@@ -6,8 +6,8 @@ import type { PageServerLoad } from "./$types"
 
 const chatConfigStore = getChatConfigStore()
 
-const agentsPageLoad: ServerLoadNextFunction<{ agents: ChatConfig[] }> = async () => {
-	const agents = await chatConfigStore.getChatConfigs()
+const agentsPageLoad: ServerLoadNextFunction<{ agents: ChatConfig[] }> = async ({ user }) => {
+	const agents = await chatConfigStore.getChatConfigs(user)
 	return {
 		data: {
 			agents

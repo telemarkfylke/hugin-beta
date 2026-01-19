@@ -2,6 +2,10 @@ import type { AppRoles } from "./types/app-config"
 import type { AuthenticatedPrincipal } from "./types/authentication"
 import type { Chat, ChatConfig } from "./types/chat"
 
+export const canViewAllChatConfigs = (user: AuthenticatedPrincipal, appRoles: AppRoles): boolean => {
+	return user.roles.includes(appRoles.AGENT_MAINTAINER) || user.roles.includes(appRoles.ADMIN)
+}
+
 export const canEditPredefinedConfig = (user: AuthenticatedPrincipal, appRoles: AppRoles): boolean => {
 	return user.roles.includes(appRoles.AGENT_MAINTAINER) || user.roles.includes(appRoles.ADMIN)
 }

@@ -1,5 +1,8 @@
+import { canViewAllChatConfigs } from "$lib/authorization"
+import type { AuthenticatedPrincipal } from "$lib/types/authentication"
 import type { ChatConfig } from "$lib/types/chat"
 import type { IChatConfigStore } from "$lib/types/db/db-interface"
+import { APP_CONFIG } from "../app-config/app-config"
 
 const mockChatConfigs: ChatConfig[] = [
 	{
@@ -55,8 +58,25 @@ export class MockChatConfigStore implements IChatConfigStore {
 		const config = mockChatConfigs.find((config) => config._id === configId) || null
 		return config
 	}
-	async getChatConfigs(): Promise<ChatConfig[]> {
-		return mockChatConfigs
+	async getChatConfigs(principal: AuthenticatedPrincipal): Promise<ChatConfig[]> {
+		if (canViewAllChatConfigs(principal, APP_CONFIG.APP_ROLES)) {
+			return mockChatConfigs
+		}
+		return mockChatConfigs.filter((config) => {
+			if (config.type === "private") {
+				if (config.created.by.id === principal.userId) {
+					return true
+				}
+				return false
+			}
+			if (config.accessGroups === "all") {
+				return true
+			}
+			if (Array.isArray(config.accessGroups)) {
+				return config.accessGroups.some((group) => principal.groups.includes(group))
+			}
+			return false
+		})
 	}
 	async getChatConfigsByVendorAgentId(vendorAgentId: string): Promise<ChatConfig[]> {
 		if (!vendorAgentId) {
