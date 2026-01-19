@@ -5,6 +5,7 @@ import { HTTPError } from "$lib/server/middleware/http-error"
 import { apiRequestMiddleware } from "$lib/server/middleware/http-request"
 import type { ApiNextFunction } from "$lib/types/middleware/http-request"
 import { parseChatConfig } from "$lib/validation/parse-chat-config"
+import type { ChatConfig } from "$lib/types/chat"
 
 const chatConfigStore = getChatConfigStore()
 
@@ -21,7 +22,29 @@ const createChatConfig: ApiNextFunction = async ({ requestEvent, user }) => {
 
 	const chatConfig = parseChatConfig(body, APP_CONFIG)
 
-	const newChatConfig = await chatConfigStore.createChatConfig(chatConfig)
+	const chatConfigToCreate: ChatConfig = {
+		...chatConfig,
+		name: chatConfig.name || "Ny agent",
+		_id: "",
+		type: "private",
+		accessGroups: [],
+		created: {
+			at: new Date().toISOString(),
+			by: {
+				id: user.userId,
+				name: user.name
+			}
+		},
+		updated: {
+			at: new Date().toISOString(),
+			by: {
+				id: user.userId,
+				name: user.name
+			}
+		}
+	}
+
+	const newChatConfig = await chatConfigStore.createChatConfig(chatConfigToCreate)
 
 	return {
 		isAuthorized: true,
