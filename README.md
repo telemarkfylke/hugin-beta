@@ -393,4 +393,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-Built with care by the Hugin Team.
+Built with ❤️ by the Mugin Team of Vestfold and Telemark fylkeskommuner.
