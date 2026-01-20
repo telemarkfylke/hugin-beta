@@ -1,4 +1,3 @@
-import { HTTPError } from "./server/middleware/http-error"
 import type { AppRoles } from "./types/app-config"
 import type { AuthenticatedPrincipal } from "./types/authentication"
 import type { Chat, ChatConfig } from "./types/chat"
@@ -29,13 +28,13 @@ export const canUpdateChatConfig = (user: AuthenticatedPrincipal, appRoles: AppR
 		return true
 	}
 	if (chatConfigToUpdate.type !== "private") {
-		throw new HTTPError(403, "Not authorized to update this chat config")
+		return false
 	}
 	if (chatConfigInput.type !== "private") {
-		throw new HTTPError(403, "Not authorized to change chat config type")
+		return false
 	}
 	if (chatConfigInput.vendorAgent) {
-		throw new HTTPError(403, "Not authorized to use vendorAgent in chat config")
+		return false
 	}
 	if (chatConfigToUpdate.created.by.id === user.userId) {
 		return true
