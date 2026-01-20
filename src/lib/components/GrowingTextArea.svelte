@@ -4,10 +4,11 @@
 		initialRows?: number
 		placeholder?: string
 		onkeydown?: (event: KeyboardEvent) => void
+    onpaste?: (event: ClipboardEvent) => void // Støtte for copy-pasta-type hendelser
 		id?: string
 	}
 
-	let { value = $bindable(), initialRows = 1, placeholder = "", onkeydown = (): void => {}, id = "growing-textarea" }: Props = $props()
+	let { value = $bindable(), initialRows = 1, placeholder = "", onkeydown = (): void => {}, onpaste = (): void => {}, id = "growing-textarea" }: Props = $props()
 
 	// Some element references
 	let textArea: HTMLTextAreaElement
@@ -25,7 +26,7 @@
 </script>
 
 <div class="grow-wrap" bind:this={wrapDiv}>
-  <textarea rows={initialRows} bind:this={textArea} placeholder={placeholder} name="prompt-input" id={id} onkeydown={onkeydown} bind:value={value}></textarea>
+  <textarea rows={initialRows} bind:this={textArea} placeholder={placeholder} name="prompt-input" id={id} onkeydown={onkeydown} onpaste={onpaste} bind:value={value} ></textarea>
 </div>
 
 <style>

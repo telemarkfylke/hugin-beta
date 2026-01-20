@@ -59,12 +59,39 @@
 	const triggerFileInput = () => {
 		fileInput.click()
 	}
+
+	// Funksjone for å håndtere copy-paste
+	const handlePaste = (event: ClipboardEvent) => {
+		const clipBoardItems = event.clipboardData?.items
+		if (!clipBoardItems) return
+		
+		const filerPaste: File[] = []
+
+		for (const fil of clipBoardItems) {
+			if (fil.kind === "file") {
+				const filObjekt = fil.getAsFile()
+				if (filObjekt) {
+					filerPaste.push(filObjekt)
+				}
+			}
+		}
+
+		if (filerPaste.length === 0) return
+
+		const dataTransfer = new DataTransfer()
+
+		// Legg til filer fra clipboard
+		for (const fil of filerPaste) {
+			dataTransfer.items.add(fil)
+		}
+		inputFiles = dataTransfer.files
+	}
 </script>
 
 <div class="chat-input-container">
 	<FileDropZone onFilesDropped={(files) => { inputFiles = files; }} />
   <form onsubmit={(event: Event) => { event.preventDefault(); submitPrompt() }}>
-    <GrowingTextArea bind:value={inputText} placeholder="Type your message here..." onkeydown={submitOnEnter} />
+    <GrowingTextArea bind:value={inputText} placeholder="Type your message here..." onkeydown={submitOnEnter} onpaste={handlePaste}/>
     <div id="actions">
       <div id="actions-left">
         <div id="chat-file-upload-container">
