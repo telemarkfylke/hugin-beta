@@ -5,6 +5,7 @@ import { HTTPError } from "$lib/server/middleware/http-error"
 import { apiRequestMiddleware } from "$lib/server/middleware/http-request"
 import type { ApiNextFunction } from "$lib/types/middleware/http-request"
 import { parseChatConfig } from "$lib/validation/parse-chat-config"
+import { canUpdateChatConfig } from "$lib/authorization"
 
 const chatConfigStore = getChatConfigStore()
 
@@ -25,6 +26,16 @@ const replaceChatConfig: ApiNextFunction = async ({ requestEvent, user }) => {
 	const body = await requestEvent.request.json()
 
 	const chatConfig = parseChatConfig(body, APP_CONFIG)
+
+	const chatConfigToReplace = await chatConfigStore.getChatConfig(chatConfigId)
+
+	if (!chatConfigToReplace) {
+		throw new HTTPError(404, "Chat config not found")
+	}
+
+	if (!canUpdateChatConfig(user, APP_CONFIG.APP_ROLES, chatConfigToReplace, chatConfig)) {
+		throw new HTTPError(403, "Not authorized to update this chat config")
+	}
 
 	const newChatConfig = await chatConfigStore.replaceChatConfig(chatConfigId, chatConfig)
 
