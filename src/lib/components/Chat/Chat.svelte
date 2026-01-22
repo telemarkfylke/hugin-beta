@@ -91,8 +91,8 @@
     max-width: 1400px;
     margin: 0 auto;
     height: 100%;
-	margin-left: 400px;
-	margin-right: 380px;
+	margin-left: 280px;
+	margin-right: 280px;
 	max-height: 850px;
 
 
