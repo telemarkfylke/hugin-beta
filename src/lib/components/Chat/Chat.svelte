@@ -42,7 +42,7 @@
 		</div>
 		<div class="chat-header-center">
 			<h3>{chatState.chat.config.name || chatState.chat.config.model || "Ukjent navn her"}</h3>
-			<button class="icon-button" onclick={() => showConfig = !showConfig} title={showConfig ? "Skjul konfigurasjon" : "Vis konfigurasjon"}>
+			<button class="icon-button" onclick={() => (showConfig = !showConfig)} title={showConfig ? "Skjul konfigurasjon" : "Vis konfigurasjon"}>
 				<span class="material-symbols-rounded">
 					settings
 				</span>
@@ -66,41 +66,59 @@
 
 <style>
 	.chat-container {
-    box-sizing: border-box; /* Include padding and border in total size, to avoid overflow */
-    display: flex;
-    flex-direction: column;
+		box-sizing: border-box;
+		display: flex;
+		flex-direction: column;
 		margin: 0 auto;
 		flex: 1;
-    max-width: 64rem;
-    /* justify-content: center; */ /* Hvis man vil ha de på midten når samtalehistorikken er tom */
-    height: 100%;
-		padding-bottom: 1.5rem;
-  }
+		max-width: var(--chat-max-width);
+		height: 100%;
+		padding: 0 var(--spacing-md) var(--spacing-lg);
+	}
+
 	.chat-header {
 		height: var(--header-height);
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
-		gap: 1rem;
+		gap: var(--spacing-md);
+		border-bottom: 1px solid var(--color-border-primary);
 	}
+
 	.chat-header-left {
 		min-width: 3rem;
 		visibility: hidden;
 	}
+
 	.chat-header-center {
 		display: flex;
 		align-items: center;
-		gap: 0.5rem;
+		gap: var(--spacing-sm);
 	}
+
+	.chat-header-center h3 {
+		margin: 0;
+		color: var(--color-text-primary);
+		font-size: var(--font-size-lg);
+		font-weight: 600;
+	}
+
+	.chat-header-right {
+		min-width: 3rem;
+		display: flex;
+		justify-content: flex-end;
+	}
+
 	.chat-items {
 		flex: 1;
-    padding: 0.3rem;
-    overflow-y: auto;
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-  }
+		padding: var(--spacing-md) var(--spacing-xs);
+		overflow-y: auto;
+		display: flex;
+		flex-direction: column;
+		gap: var(--spacing-sm);
+	}
+
 	.chat-items.empty {
-		/* display: none; */ /* hvis man vil ha de skjult når tom */
+		/* display: none; */
 	}
 </style>

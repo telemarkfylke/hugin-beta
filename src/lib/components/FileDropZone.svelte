@@ -54,14 +54,14 @@
 {#if showDropZone}
 	<div class="file-drop-zone-overlay">
 		<div class="file-drop-zone-content">
+			<span class="material-symbols-outlined drop-icon">upload_file</span>
 			<h2>Last opp filer</h2>
-			<p>Støtter ymse formater...</p>
+			<p>Slipp filene dine her</p>
 		</div>
 	</div>
 {/if}
 
 <style>
-	/* TODO - konsistent styling når vi har noe styling */
 	.file-drop-zone-overlay {
 		position: fixed;
 		top: 0;
@@ -69,8 +69,7 @@
 		right: 0;
 		bottom: 0;
 		z-index: 9999;
-		background-color: black;
-		opacity: 0.8;
+		background-color: var(--color-overlay-bg);
 		backdrop-filter: blur(4px);
 		display: flex;
 		align-items: center;
@@ -79,11 +78,29 @@
 	}
 
 	.file-drop-zone-content {
-		background-color: white;
-		border: 1px solid black;
-		padding: 20px;
-		border-radius: 16px;
+		background-color: var(--color-overlay-content-bg);
+		border: 2px dashed var(--color-accent);
+		padding: var(--spacing-xl);
+		border-radius: var(--radius-xl);
 		text-align: center;
-		color: black;
+		color: var(--color-text-primary);
+	}
+
+	.drop-icon {
+		font-size: 3rem;
+		color: var(--color-accent);
+		margin-bottom: var(--spacing-sm);
+	}
+
+	.file-drop-zone-content h2 {
+		color: var(--color-accent);
+		margin: 0 0 var(--spacing-xs) 0;
+		font-size: var(--font-size-xl);
+	}
+
+	.file-drop-zone-content p {
+		color: var(--color-text-secondary);
+		margin: 0;
+		font-size: var(--font-size-sm);
 	}
 </style>

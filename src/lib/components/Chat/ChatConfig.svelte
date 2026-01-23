@@ -180,13 +180,13 @@
 			<label for="debug">Debug Chat Config</label>
 			{#if debug}
 				<br />
-				{JSON.stringify(chatState.chat.config, null, 2)}
+				<pre class="debug-output">{JSON.stringify(chatState.chat.config, null, 2)}</pre>
 			{/if}
 		</div>
 		<div class="config-metadata">
 			<p><strong>Konfigurasjon ID:</strong> {chatState.chat.config._id || "Ny konfigurasjon"}</p>
-			<input type="text" bind:value={chatState.chat.config.name} />
-			<input type="text" bind:value={chatState.chat.config.description} />
+			<input type="text" bind:value={chatState.chat.config.name} placeholder="Navn" />
+			<input type="text" bind:value={chatState.chat.config.description} placeholder="Beskrivelse" />
 		</div>
 		{#if chatState.chat.config._id}
 			<button onclick={chatState.updateChatConfig}>Oppdater konfigurasjon</button>
@@ -198,19 +198,97 @@
 
 <style>
 	.chat-config {
-		padding-bottom: 1rem;
-		border-bottom: 2px solid black;
+		padding: var(--spacing-md);
+		margin-bottom: var(--spacing-md);
+		border-bottom: 1px solid var(--color-border-secondary);
+		background-color: var(--color-bg-secondary);
+		border-radius: var(--radius-md);
 	}
+
 	label.bold {
-		font-weight: bold;
+		font-weight: 600;
+		color: var(--color-text-primary);
 	}
+
 	select {
 		min-width: 10rem;
 		font-family: var(--font-family);
-		padding: 0.25rem;
-		margin-bottom: 0.5rem;
+		padding: var(--spacing-xs) var(--spacing-sm);
+		margin-bottom: var(--spacing-sm);
+		background-color: var(--color-bg-primary);
+		border: 1px solid var(--color-border-secondary);
+		border-radius: var(--radius-sm);
+		color: var(--color-text-primary);
 	}
+
+	select:focus {
+		outline: none;
+		border-color: var(--color-accent);
+		box-shadow: 0 0 0 2px var(--color-accent-light);
+	}
+
+	input[type="text"] {
+		width: 100%;
+		margin-bottom: var(--spacing-sm);
+		background-color: var(--color-bg-primary);
+		border: 1px solid var(--color-border-secondary);
+		border-radius: var(--radius-sm);
+		padding: var(--spacing-xs) var(--spacing-sm);
+		color: var(--color-text-primary);
+		font-family: var(--font-family);
+	}
+
+	input[type="text"]:focus {
+		outline: none;
+		border-color: var(--color-accent);
+		box-shadow: 0 0 0 2px var(--color-accent-light);
+	}
+
+	input[type="text"]::placeholder {
+		color: var(--color-text-tertiary);
+	}
+
+	.config-type-selection {
+		display: flex;
+		gap: var(--spacing-md);
+		margin-bottom: var(--spacing-md);
+		flex-wrap: wrap;
+	}
+
+	.config-type-selection label {
+		display: flex;
+		align-items: center;
+		gap: var(--spacing-xs);
+		color: var(--color-text-primary);
+		cursor: pointer;
+	}
+
 	.checkboxes {
-		margin-top: 0.5rem;
+		margin-top: var(--spacing-md);
+		color: var(--color-text-primary);
+	}
+
+	.checkboxes label {
+		cursor: pointer;
+	}
+
+	.config-metadata {
+		margin-top: var(--spacing-md);
+	}
+
+	.config-metadata p {
+		color: var(--color-text-secondary);
+		font-size: var(--font-size-sm);
+		margin-bottom: var(--spacing-sm);
+	}
+
+	.debug-output {
+		background-color: var(--color-bg-tertiary);
+		padding: var(--spacing-sm);
+		border-radius: var(--radius-sm);
+		font-size: var(--font-size-sm);
+		color: var(--color-text-primary);
+		overflow-x: auto;
+		margin-top: var(--spacing-xs);
 	}
 </style>

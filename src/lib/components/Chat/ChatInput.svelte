@@ -1,5 +1,6 @@
 <script lang="ts">
 	import FileDropZone from "../FileDropZone.svelte"
+	import FilePreviewRow from "../FilePreviewRow.svelte"
 	import GrowingTextArea from "../GrowingTextArea.svelte"
 	import TypingDots from "../TypingDots.svelte"
 	import type { ChatState } from "./ChatState.svelte"
@@ -54,65 +55,209 @@
 		}
 	}
 
+	// Handle paste events for clipboard images
+	const handlePaste = (event: ClipboardEvent) => {
+		const items = event.clipboardData?.items
+		if (!items) return
+
+		const imageFiles: File[] = []
+
+		for (const item of Array.from(items)) {
+			if (item.kind === "file" && item.type.startsWith("image/")) {
+				// Check if this image type is allowed
+				if (allowedMessageMimeTypes.includes(item.type)) {
+					const file = item.getAsFile()
+					if (file) {
+						imageFiles.push(file)
+					}
+				}
+			}
+		}
+
+		if (imageFiles.length > 0) {
+			event.preventDefault() // Prevent default paste behavior for images
+
+			// Merge with existing files
+			const dataTransfer = new DataTransfer()
+			for (const file of Array.from(inputFiles)) {
+				dataTransfer.items.add(file)
+			}
+			for (const file of imageFiles) {
+				dataTransfer.items.add(file)
+			}
+			inputFiles = dataTransfer.files
+		}
+	}
+
+	// Handle files from drop zone
+	const handleFilesDropped = (files: FileList) => {
+		// Merge with existing files
+		const dataTransfer = new DataTransfer()
+		for (const file of Array.from(inputFiles)) {
+			dataTransfer.items.add(file)
+		}
+		for (const file of Array.from(files)) {
+			// Only add if mime type is allowed
+			if (allowedMessageMimeTypes.includes(file.type)) {
+				dataTransfer.items.add(file)
+			}
+		}
+		inputFiles = dataTransfer.files
+	}
+
+	// Remove a file by index
+	const removeFile = (index: number) => {
+		const dataTransfer = new DataTransfer()
+		const filesArray = Array.from(inputFiles)
+		filesArray.splice(index, 1)
+		for (const file of filesArray) {
+			dataTransfer.items.add(file)
+		}
+		inputFiles = dataTransfer.files
+	}
+
 	// Use button for file input, for styling
 	let fileInput: HTMLInputElement
 	const triggerFileInput = () => {
 		fileInput.click()
 	}
+
+	// Handle file input change
+	const handleFileInputChange = (event: Event) => {
+		const target = event.target as HTMLInputElement
+		if (target.files && target.files.length > 0) {
+			handleFilesDropped(target.files)
+			// Reset input so the same file can be selected again
+			target.value = ""
+		}
+	}
 </script>
 
 <div class="chat-input-container">
-	<FileDropZone onFilesDropped={(files) => { inputFiles = files; }} />
-  <form onsubmit={(event: Event) => { event.preventDefault(); submitPrompt() }}>
-    <GrowingTextArea bind:value={inputText} placeholder="Type your message here..." onkeydown={submitOnEnter} />
-    <div id="actions">
-      <div id="actions-left">
-        <div id="chat-file-upload-container">
-					{#if allowedMessageMimeTypes.length === 0}
-						<span>Filopplasting er ikke mulig her</span>
-					{:else}
-						<button class="icon-button" onclick={triggerFileInput} title="Legg til filer">
-							<span class="material-symbols-outlined">
-								attach_file
-							</span>
-							Legg ved
-						</button>
-          	<input bind:files={inputFiles} bind:this={fileInput} type="file" id="chat-file-upload" multiple accept={allowedMessageMimeTypes.join(",")} />
-						{#if inputFiles.length > 0}
-          		<button type="reset" onclick={() => { inputFiles = new DataTransfer().files; }}>Clear Files ({inputFiles.length})</button>
-						{/if}
-					{/if}
-          <!--{JSON.stringify(allowedMessageMimeTypes)}-->
-        </div>
-      </div>
-      <div id="actions-right">
-				{#if messageInProgress}
-					<button disabled class="filled" title="Melding pågår...">
-						<TypingDots />
+	<FileDropZone onFilesDropped={handleFilesDropped} />
+
+	<div class="input-wrapper">
+		{#if inputFiles.length > 0}
+			<FilePreviewRow files={inputFiles} onRemove={removeFile} />
+		{/if}
+
+		<form onsubmit={(event) => { event.preventDefault(); submitPrompt() }}>
+			<div class="input-row">
+				{#if allowedMessageMimeTypes.length > 0}
+					<button
+						type="button"
+						class="icon-button attach-btn"
+						onclick={triggerFileInput}
+						title="Legg til filer"
+						aria-label="Legg til filer"
+					>
+						<span class="material-symbols-outlined">attach_file</span>
 					</button>
-				{:else}
-					<button disabled={inputText.trim().length === 0 && inputFiles.length === 0} class="filled" type="submit" title={inputText.trim().length === 0 && inputFiles.length === 0 ? "Skriv en melding eller legg til filer for å sende" : "Send melding"}>
-						<span class="material-symbols-outlined">
-							send
-						</span>
-						Send
-					</button>
+					<input
+						bind:this={fileInput}
+						type="file"
+						multiple
+						accept={allowedMessageMimeTypes.join(",")}
+						onchange={handleFileInputChange}
+						hidden
+					/>
 				{/if}
-      </div>
-    </div>
-  </form>
+
+				<div class="textarea-container">
+					<GrowingTextArea
+						bind:value={inputText}
+						placeholder="Skriv meldingen din her..."
+						onkeydown={submitOnEnter}
+						onpaste={handlePaste}
+					/>
+				</div>
+
+				<button
+					class="send-btn filled"
+					type="submit"
+					disabled={messageInProgress || (inputText.trim() === "" && inputFiles.length === 0)}
+					title={messageInProgress ? "Sender melding..." : inputText.trim() === "" && inputFiles.length === 0 ? "Skriv en melding eller legg til filer" : "Send melding"}
+					aria-label="Send melding"
+				>
+					{#if messageInProgress}
+						<TypingDots />
+					{:else}
+						<span class="material-symbols-outlined">arrow_upward</span>
+					{/if}
+				</button>
+			</div>
+		</form>
+	</div>
+
+	{#if allowedMessageMimeTypes.length === 0}
+		<p class="no-upload-hint">Filopplasting er ikke tilgjengelig for denne modellen</p>
+	{/if}
 </div>
 
 <style>
 	.chat-input-container {
-		padding-top: 0.3rem;
+		padding: var(--spacing-sm) 0;
 	}
-  #actions {
-		padding-top: 0.2rem;
-    display: flex;
-    justify-content: space-between;
-  }
-	#chat-file-upload {
-		display: none;
+
+	.input-wrapper {
+		background-color: var(--color-bg-secondary);
+		border: 1px solid var(--color-border-primary);
+		border-radius: var(--radius-xl);
+		overflow: hidden;
+		transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+	}
+
+	.input-wrapper:focus-within {
+		border-color: var(--color-accent);
+		box-shadow: 0 0 0 2px var(--color-accent-light);
+	}
+
+	form {
+		padding: var(--spacing-xs);
+	}
+
+	.input-row {
+		display: flex;
+		align-items: flex-end;
+		gap: var(--spacing-xs);
+	}
+
+	.attach-btn {
+		flex-shrink: 0;
+		width: 2.25rem;
+		height: 2.25rem;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		margin-bottom: var(--spacing-xs);
+		border-radius: var(--radius-md);
+	}
+
+	.textarea-container {
+		flex: 1;
+		min-width: 0;
+	}
+
+	.send-btn {
+		flex-shrink: 0;
+		width: 2.25rem;
+		height: 2.25rem;
+		border-radius: var(--radius-full);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		margin-bottom: var(--spacing-xs);
+		padding: 0;
+	}
+
+	.send-btn span {
+		font-size: 1.25rem;
+	}
+
+	.no-upload-hint {
+		font-size: var(--font-size-xs);
+		color: var(--color-text-tertiary);
+		text-align: center;
+		margin: var(--spacing-xs) 0 0 0;
 	}
 </style>

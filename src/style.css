@@ -1,12 +1,130 @@
 :root {
+	/* === TYPOGRAPHY === */
 	--font-family: "Nunito Sans", sans-serif;
+	--font-size-xs: 0.75rem;
+	--font-size-sm: 0.875rem;
+	--font-size-base: 1rem;
+	--font-size-lg: 1.125rem;
+	--font-size-xl: 1.25rem;
+
+	/* === LAYOUT === */
 	--header-height: 4rem;
-	--color-primary: rgb(0, 82, 96); /* Vann */
-	--color-primary-20: rgb(204, 220, 223); /* vann-20 */
-	--color-primary-30: rgb(179, 203, 207); /* vann-30 */
-	--color-primary-70: rgb(77, 134, 144); /* vann-70 */
-	--color-primary-80: rgb(51, 117, 128); /* vann-80 */
-	--color-secondary-10: #e9f4ef;
+	--menu-width: 16rem;
+	--chat-max-width: 48rem;
+	--input-max-height: 12rem;
+
+	/* === SPACING === */
+	--spacing-xs: 0.25rem;
+	--spacing-sm: 0.5rem;
+	--spacing-md: 1rem;
+	--spacing-lg: 1.5rem;
+	--spacing-xl: 2rem;
+
+	/* === BORDER RADIUS === */
+	--radius-sm: 4px;
+	--radius-md: 8px;
+	--radius-lg: 12px;
+	--radius-xl: 16px;
+	--radius-full: 9999px;
+
+	/* === TRANSITIONS === */
+	--transition-fast: 150ms ease;
+	--transition-normal: 250ms ease;
+	--transition-slow: 350ms ease;
+
+	/* === COLORS - Light Mode (Default) === */
+	--color-bg-primary: #ffffff;
+	--color-bg-secondary: #f7f7f8;
+	--color-bg-tertiary: #ececec;
+	--color-bg-hover: #e5e5e5;
+	--color-bg-active: #d9d9d9;
+
+	--color-text-primary: #1a1a1a;
+	--color-text-secondary: #6b6b6b;
+	--color-text-tertiary: #9a9a9a;
+	--color-text-inverse: #ffffff;
+
+	--color-border-primary: #e5e5e5;
+	--color-border-secondary: #d1d1d1;
+	--color-border-focus: var(--color-accent);
+
+	/* === ACCENT COLORS (Brand - Vann/Water) === */
+	--color-accent: rgb(0, 82, 96);
+	--color-accent-hover: rgb(51, 117, 128);
+	--color-accent-light: rgb(204, 220, 223);
+	--color-accent-lighter: rgb(179, 203, 207);
+
+	/* === MESSAGE COLORS === */
+	--color-msg-user-bg: #daf1da;
+	--color-msg-user-text: var(--color-text-primary);
+	--color-msg-assistant-bg: transparent;
+	--color-msg-assistant-text: var(--color-text-primary);
+
+	/* === COMPONENT SPECIFIC === */
+	--color-menu-bg: #e9f4ef;
+	--color-input-bg: var(--color-bg-primary);
+	--color-input-border: var(--color-border-secondary);
+	--color-button-disabled-bg: #e5e5e5;
+	--color-button-disabled-text: #9a9a9a;
+
+	/* === OVERLAY === */
+	--color-overlay-bg: rgba(0, 0, 0, 0.8);
+	--color-overlay-content-bg: var(--color-bg-primary);
+
+	/* === SHADOWS === */
+	--shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+	--shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
+	--shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.15);
+
+	/* === CODE BLOCKS (Light) === */
+	--color-code-bg: #f6f8fa;
+	--color-code-text: #24292e;
+}
+
+/* === DARK MODE === */
+[data-theme="dark"] {
+	--color-bg-primary: #212121;
+	--color-bg-secondary: #2f2f2f;
+	--color-bg-tertiary: #3a3a3a;
+	--color-bg-hover: #404040;
+	--color-bg-active: #4a4a4a;
+
+	--color-text-primary: #ececec;
+	--color-text-secondary: #b4b4b4;
+	--color-text-tertiary: #8e8e8e;
+	--color-text-inverse: #1a1a1a;
+
+	--color-border-primary: #3a3a3a;
+	--color-border-secondary: #4a4a4a;
+
+	--color-accent: rgb(77, 134, 144);
+	--color-accent-hover: rgb(102, 156, 165);
+	--color-accent-light: rgba(77, 134, 144, 0.3);
+	--color-accent-lighter: rgba(77, 134, 144, 0.2);
+
+	--color-msg-user-bg: #2d4a3a;
+	--color-menu-bg: #1a2620;
+
+	--color-overlay-bg: rgba(0, 0, 0, 0.85);
+	--color-overlay-content-bg: var(--color-bg-secondary);
+
+	--shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+	--shadow-md: 0 4px 6px rgba(0, 0, 0, 0.4);
+	--shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.5);
+
+	/* === CODE BLOCKS (Dark) === */
+	--color-code-bg: #2d2d2d;
+	--color-code-text: #e6e6e6;
+}
+
+/* === BASE STYLES === */
+html {
+	background-color: var(--color-bg-primary);
+	color-scheme: light;
+}
+
+[data-theme="dark"] {
+	color-scheme: dark;
 }
 
 html,
@@ -15,54 +133,241 @@ body {
 	padding: 0;
 	height: 100%;
 	font-family: var(--font-family);
+	color: var(--color-text-primary);
+	background-color: var(--color-bg-primary);
 }
 
+/* Smooth theme transitions (exclude on initial load) */
+html.theme-transition,
+html.theme-transition *,
+html.theme-transition *::before,
+html.theme-transition *::after {
+	transition:
+		background-color var(--transition-normal),
+		border-color var(--transition-normal),
+		color var(--transition-fast),
+		box-shadow var(--transition-normal) !important;
+}
+
+/* === LINKS === */
 a,
 a:visited {
-	color: var(--color-primary);
+	color: var(--color-accent);
 	text-decoration: underline;
 }
 
 a:hover {
-	color: black;
+	color: var(--color-accent-hover);
 }
 
+/* === BUTTONS === */
 button {
 	cursor: pointer;
 	height: 2rem;
 	font-family: var(--font-family);
-	border: 2px solid var(--color-primary);
-	border-radius: 4px;
+	border: 1px solid var(--color-accent);
+	border-radius: var(--radius-sm);
 	display: flex;
 	align-items: center;
 	gap: 0.25rem;
-	color: var(--color-primary);
+	color: var(--color-accent);
+	background-color: transparent;
+	transition:
+		background-color var(--transition-fast),
+		border-color var(--transition-fast);
 }
 
 button.icon-button {
 	border: none;
 	background-color: transparent;
+	padding: var(--spacing-xs);
+	border-radius: var(--radius-sm);
 }
 
 button:hover,
 button.icon-button:hover {
-	background-color: var(--color-primary-20);
+	background-color: var(--color-bg-hover);
 }
+
 button:active,
 button.icon-button:active {
-	background-color: var(--color-primary-30);
+	background-color: var(--color-bg-active);
 }
 
 button.filled {
-	background-color: var(--color-primary);
-	color: white;
+	background-color: var(--color-accent);
+	color: var(--color-text-inverse);
 	border: none;
+}
+
+button.filled:hover {
+	background-color: var(--color-accent-hover);
 }
 
 button:disabled,
 button.icon-button:disabled,
 button.filled:disabled {
-	background-color: lightgray;
-	color: gray;
+	background-color: var(--color-button-disabled-bg);
+	color: var(--color-button-disabled-text);
 	cursor: not-allowed;
+	border-color: transparent;
+}
+
+/* === FORM ELEMENTS === */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+textarea,
+select {
+	font-family: var(--font-family);
+	font-size: var(--font-size-base);
+	background-color: var(--color-bg-primary);
+	color: var(--color-text-primary);
+	border: 1px solid var(--color-border-secondary);
+	border-radius: var(--radius-sm);
+	padding: var(--spacing-xs) var(--spacing-sm);
+	transition:
+		border-color var(--transition-fast),
+		box-shadow var(--transition-fast);
+}
+
+input[type="text"]:focus,
+input[type="email"]:focus,
+input[type="password"]:focus,
+textarea:focus,
+select:focus {
+	outline: none;
+	border-color: var(--color-accent);
+	box-shadow: 0 0 0 2px var(--color-accent-light);
+}
+
+input::placeholder,
+textarea::placeholder {
+	color: var(--color-text-tertiary);
+}
+
+/* === CODE BLOCKS (highlight.js overrides) === */
+.hljs {
+	background: var(--color-code-bg) !important;
+	color: var(--color-code-text) !important;
+	border-radius: var(--radius-md);
+	padding: var(--spacing-md) !important;
+}
+
+pre {
+	margin: var(--spacing-sm) 0;
+	border-radius: var(--radius-md);
+	overflow-x: auto;
+}
+
+code {
+	font-family: "Fira Code", "Consolas", "Monaco", monospace;
+	font-size: var(--font-size-sm);
+}
+
+/* Inline code */
+:not(pre) > code {
+	background-color: var(--color-bg-tertiary);
+	padding: 0.15em 0.4em;
+	border-radius: var(--radius-sm);
+	font-size: 0.9em;
+}
+
+/* Dark mode syntax highlighting */
+[data-theme="dark"] .hljs-keyword {
+	color: #c678dd;
+}
+[data-theme="dark"] .hljs-string {
+	color: #98c379;
+}
+[data-theme="dark"] .hljs-comment {
+	color: #5c6370;
+	font-style: italic;
+}
+[data-theme="dark"] .hljs-number {
+	color: #d19a66;
+}
+[data-theme="dark"] .hljs-function {
+	color: #61afef;
+}
+[data-theme="dark"] .hljs-title {
+	color: #e5c07b;
+}
+[data-theme="dark"] .hljs-built_in {
+	color: #e06c75;
+}
+[data-theme="dark"] .hljs-attr {
+	color: #d19a66;
+}
+[data-theme="dark"] .hljs-variable {
+	color: #e06c75;
+}
+[data-theme="dark"] .hljs-type {
+	color: #e5c07b;
+}
+
+/* Light mode syntax highlighting */
+[data-theme="light"] .hljs-keyword {
+	color: #a626a4;
+}
+[data-theme="light"] .hljs-string {
+	color: #50a14f;
+}
+[data-theme="light"] .hljs-comment {
+	color: #a0a1a7;
+	font-style: italic;
+}
+[data-theme="light"] .hljs-number {
+	color: #986801;
+}
+[data-theme="light"] .hljs-function {
+	color: #4078f2;
+}
+[data-theme="light"] .hljs-title {
+	color: #c18401;
+}
+[data-theme="light"] .hljs-built_in {
+	color: #e45649;
+}
+[data-theme="light"] .hljs-attr {
+	color: #986801;
+}
+[data-theme="light"] .hljs-variable {
+	color: #e45649;
+}
+[data-theme="light"] .hljs-type {
+	color: #c18401;
+}
+
+/* === SCROLLBARS === */
+::-webkit-scrollbar {
+	width: 8px;
+	height: 8px;
+}
+
+::-webkit-scrollbar-track {
+	background: var(--color-bg-secondary);
+	border-radius: var(--radius-full);
+}
+
+::-webkit-scrollbar-thumb {
+	background: var(--color-border-secondary);
+	border-radius: var(--radius-full);
+}
+
+::-webkit-scrollbar-thumb:hover {
+	background: var(--color-text-tertiary);
+}
+
+/* === UTILITY CLASSES === */
+.visually-hidden {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	padding: 0;
+	margin: -1px;
+	overflow: hidden;
+	clip: rect(0, 0, 0, 0);
+	white-space: nowrap;
+	border: 0;
 }

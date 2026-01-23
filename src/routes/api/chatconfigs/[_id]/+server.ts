@@ -1,11 +1,11 @@
 import { json, type RequestHandler } from "@sveltejs/kit"
+import { canUpdateChatConfig } from "$lib/authorization"
 import { APP_CONFIG } from "$lib/server/app-config/app-config"
 import { getChatConfigStore } from "$lib/server/db/get-db"
 import { HTTPError } from "$lib/server/middleware/http-error"
 import { apiRequestMiddleware } from "$lib/server/middleware/http-request"
 import type { ApiNextFunction } from "$lib/types/middleware/http-request"
 import { parseChatConfig } from "$lib/validation/parse-chat-config"
-import { canUpdateChatConfig } from "$lib/authorization"
 
 const chatConfigStore = getChatConfigStore()
 

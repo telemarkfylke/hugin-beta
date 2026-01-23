@@ -1,9 +1,9 @@
 import type { Collection, MongoClient } from "mongodb"
 import { env } from "$env/dynamic/private"
+import { canViewAllChatConfigs } from "$lib/authorization"
+import type { AuthenticatedPrincipal } from "$lib/types/authentication"
 import type { ChatConfig } from "$lib/types/chat"
 import type { IChatConfigStore } from "$lib/types/db/db-interface"
-import type { AuthenticatedPrincipal } from "$lib/types/authentication"
-import { canViewAllChatConfigs } from "$lib/authorization"
 import { APP_CONFIG } from "../app-config/app-config"
 
 export class MongoChatConfigStore implements IChatConfigStore {
@@ -24,10 +24,7 @@ export class MongoChatConfigStore implements IChatConfigStore {
 			.find({
 				$or: [
 					{ type: "private", "created.by.id": principal.userId },
-					{ type: "published", $or: [
-						{ accessGroups: "all" },
-						{ accessGroups: { $in: principal.groups } }
-					]}
+					{ type: "published", $or: [{ accessGroups: "all" }, { accessGroups: { $in: principal.groups } }] }
 				]
 			})
 			.toArray()

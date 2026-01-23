@@ -1,13 +1,20 @@
 <script lang="ts">
+	import { onMount } from "svelte"
 	import favicon16 from "$lib/assets/favicon-16x16.png"
 	import favicon32 from "$lib/assets/favicon-32x32.png"
 	import "../style.css" // Add global css (and make it hot reload)
 	import "../lib/axe.js"
 	import Menu from "$lib/components/Menu.svelte"
+	import { themeState } from "$lib/stores/theme.svelte"
 	import type { LayoutProps } from "./$types.js"
 
 	// Get layout props, data will be accessible for children as well, so do not put too much here to avoid overfetching
 	let { children, data }: LayoutProps = $props()
+
+	// Initialize theme on mount (for client-side hydration)
+	onMount(() => {
+		themeState.initialize()
+	})
 </script>
 
 <svelte:head>
@@ -19,6 +26,15 @@
 		@import url('https://fonts.googleapis.com/css2?family=Nunito+Sans:ital,wght@0,300;0,400;0,600;0,700;1,300;1,400;1,700&display=swap');
 		@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200');
 	</style>
+	<!-- Prevent theme flash - runs before paint -->
+	{@html `<script>
+		(function() {
+			var stored = localStorage.getItem('hugin-theme');
+			var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+			var theme = stored || (prefersDark ? 'dark' : 'light');
+			document.documentElement.setAttribute('data-theme', theme);
+		})();
+	</script>`}
 </svelte:head>
 
 <main>
@@ -37,10 +53,12 @@
 		box-sizing: border-box;
 		height: 100%;
 		display: flex;
+		background-color: var(--color-bg-primary);
 	}
 	.page-content {
 		height: 100%;
 		flex: 1;
 		padding: 0rem 0.25rem;
+		background-color: var(--color-bg-primary);
 	}
 </style>
