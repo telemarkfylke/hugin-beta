@@ -3,7 +3,7 @@
 	import { fade, slide } from "svelte/transition"
 	import favicon16 from "$lib/assets/favicon-16x16.png"
 	import type { AuthenticatedPrincipal } from "$lib/types/authentication"
-  import type { ChatConfig } from "$lib/types/chat";
+	import type { ChatConfig } from "$lib/types/chat"
 
 	type Props = {
 		authenticatedUser: AuthenticatedPrincipal
@@ -15,15 +15,13 @@
 	const smallScreenWidth = 1120
 	let screenIsLarge = true
 
-
-
 	const getAgents = async (): Promise<ChatConfig[]> => {
-		const agentResponse = await fetch('/api/chatconfigs');
+		const agentResponse = await fetch("/api/chatconfigs")
 		if (!agentResponse.ok) {
-			throw new Error('Failed to fetch agents');
+			throw new Error("Failed to fetch agents")
 		}
-		const agentsData = (await agentResponse.json()) as ChatConfig[];
-		return agentsData;
+		const agentsData = (await agentResponse.json()) as ChatConfig[]
+		return agentsData
 	}
 
 	onMount(() => {

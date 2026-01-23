@@ -1,7 +1,7 @@
 <script lang="ts">
+	import { fade, slide } from "svelte/transition"
 	import { canEditChatConfig, canEditPredefinedConfig, canPublishChatConfig } from "$lib/authorization"
 	import type { ChatConfig, VendorId } from "$lib/types/chat"
-    import { fade, slide } from "svelte/transition";
 	import GrowingTextArea from "../GrowingTextArea.svelte"
 	import type { ChatState } from "./ChatState.svelte"
 

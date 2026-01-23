@@ -3,12 +3,12 @@
 		value?: string | undefined
 		initialRows?: number
 		placeholder?: string
-    style?: "input" | "textarea"
+		style?: "input" | "textarea"
 		onkeydown?: (event: KeyboardEvent) => void
 		id?: string
 	}
 
-	let { value = $bindable(), initialRows = 1, style="textarea", placeholder = "", onkeydown = (): void => {}, id = "growing-textarea" }: Props = $props()
+	let { value = $bindable(), initialRows = 1, style = "textarea", placeholder = "", onkeydown = (): void => {}, id = "growing-textarea" }: Props = $props()
 
 	// Some element references
 	let textArea: HTMLTextAreaElement
