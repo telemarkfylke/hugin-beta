@@ -94,7 +94,6 @@
 		gap: var(--spacing-sm);
 		padding: var(--spacing-sm);
 		overflow-x: auto;
-		max-width: 100%;
 		border-bottom: 1px solid var(--color-border-primary);
 	}
 
@@ -108,24 +107,24 @@
 		gap: var(--spacing-xs);
 	}
 
-	.preview-thumbnail {
+	.preview-thumbnail,
+	.file-icon-container {
 		width: 4rem;
 		height: 4rem;
-		object-fit: cover;
 		border-radius: var(--radius-md);
 		border: 1px solid var(--color-border-primary);
+	}
+
+	.preview-thumbnail {
+		object-fit: cover;
 		background-color: var(--color-bg-secondary);
 	}
 
 	.file-icon-container {
-		width: 4rem;
-		height: 4rem;
 		display: flex;
 		align-items: center;
 		justify-content: center;
 		background-color: var(--color-bg-tertiary);
-		border-radius: var(--radius-md);
-		border: 1px solid var(--color-border-primary);
 	}
 
 	.file-icon-container span {
@@ -146,7 +145,6 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		cursor: pointer;
 		opacity: 0;
 		transition: opacity var(--transition-fast), background-color var(--transition-fast);
 		box-shadow: var(--shadow-sm);
@@ -156,12 +154,8 @@
 		opacity: 1;
 	}
 
-	.remove-btn:hover {
-		background-color: var(--color-bg-hover);
-	}
-
 	.remove-btn span {
-		font-size: 0.875rem;
+		font-size: var(--font-size-sm);
 		color: var(--color-text-secondary);
 	}
 
@@ -169,7 +163,6 @@
 		display: flex;
 		flex-direction: column;
 		align-items: center;
-		gap: 0;
 		max-width: 100%;
 	}
 
@@ -184,7 +177,7 @@
 	}
 
 	.file-size {
-		font-size: 0.625rem;
+		font-size: var(--font-size-xs);
 		color: var(--color-text-tertiary);
 	}
 </style>

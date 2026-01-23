@@ -210,42 +210,17 @@
 		color: var(--color-text-primary);
 	}
 
-	select {
-		min-width: 10rem;
-		font-family: var(--font-family);
-		padding: var(--spacing-xs) var(--spacing-sm);
+	select,
+	input[type="text"] {
 		margin-bottom: var(--spacing-sm);
-		background-color: var(--color-bg-primary);
-		border: 1px solid var(--color-border-secondary);
-		border-radius: var(--radius-sm);
-		color: var(--color-text-primary);
 	}
 
-	select:focus {
-		outline: none;
-		border-color: var(--color-accent);
-		box-shadow: 0 0 0 2px var(--color-accent-light);
+	select {
+		min-width: 10rem;
 	}
 
 	input[type="text"] {
 		width: 100%;
-		margin-bottom: var(--spacing-sm);
-		background-color: var(--color-bg-primary);
-		border: 1px solid var(--color-border-secondary);
-		border-radius: var(--radius-sm);
-		padding: var(--spacing-xs) var(--spacing-sm);
-		color: var(--color-text-primary);
-		font-family: var(--font-family);
-	}
-
-	input[type="text"]:focus {
-		outline: none;
-		border-color: var(--color-accent);
-		box-shadow: 0 0 0 2px var(--color-accent-light);
-	}
-
-	input[type="text"]::placeholder {
-		color: var(--color-text-tertiary);
 	}
 
 	.config-type-selection {
@@ -259,13 +234,11 @@
 		display: flex;
 		align-items: center;
 		gap: var(--spacing-xs);
-		color: var(--color-text-primary);
 		cursor: pointer;
 	}
 
 	.checkboxes {
 		margin-top: var(--spacing-md);
-		color: var(--color-text-primary);
 	}
 
 	.checkboxes label {
@@ -287,7 +260,6 @@
 		padding: var(--spacing-sm);
 		border-radius: var(--radius-sm);
 		font-size: var(--font-size-sm);
-		color: var(--color-text-primary);
 		overflow-x: auto;
 		margin-top: var(--spacing-xs);
 	}

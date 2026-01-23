@@ -371,3 +371,30 @@ code {
 	white-space: nowrap;
 	border: 0;
 }
+
+.flex-center {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.text-truncate {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.icon-size-sm {
+	width: 2rem;
+	height: 2rem;
+}
+
+.icon-size-md {
+	width: 2.25rem;
+	height: 2.25rem;
+}
+
+.icon-size-lg {
+	width: 4rem;
+	height: 4rem;
+}

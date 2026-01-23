@@ -9,42 +9,25 @@
 
 <style>
 	.typing {
-		align-items: center;
 		display: flex;
-		height: 17px;
-	}
-	.typing .dot {
-		animation: TypingAnimation 1.8s infinite ease-in-out;
-		background-color: currentColor;
-		border-radius: 50%;
-		height: 7px;
-		margin-right: 4px;
-		vertical-align: middle;
-		width: 7px;
-		display: inline-block;
-	}
-	.typing .dot:nth-child(1) {
-		animation-delay: 200ms;
-	}
-	.typing .dot:nth-child(2) {
-		animation-delay: 300ms;
-	}
-	.typing .dot:nth-child(3) {
-		animation-delay: 400ms;
-	}
-	.typing .dot:last-child {
-		margin-right: 0;
+		align-items: center;
+		gap: var(--spacing-xs);
 	}
 
-	@keyframes TypingAnimation {
-		0% {
-			transform: translateY(0px);
-		}
-		28% {
-			transform: translateY(-7px);
-		}
-		44% {
-			transform: translateY(0px);
-		}
+	.dot {
+		width: 0.4rem;
+		height: 0.4rem;
+		background-color: currentColor;
+		border-radius: var(--radius-full);
+		animation: typing-bounce 1.8s infinite ease-in-out;
+	}
+
+	.dot:nth-child(1) { animation-delay: 0.2s; }
+	.dot:nth-child(2) { animation-delay: 0.3s; }
+	.dot:nth-child(3) { animation-delay: 0.4s; }
+
+	@keyframes typing-bounce {
+		0%, 44%, 100% { transform: translateY(0); }
+		28% { transform: translateY(-0.4rem); }
 	}
 </style>

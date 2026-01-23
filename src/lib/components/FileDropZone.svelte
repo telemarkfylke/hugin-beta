@@ -64,10 +64,7 @@
 <style>
 	.file-drop-zone-overlay {
 		position: fixed;
-		top: 0;
-		left: 0;
-		right: 0;
-		bottom: 0;
+		inset: 0;
 		z-index: 9999;
 		background-color: var(--color-overlay-bg);
 		backdrop-filter: blur(4px);
@@ -83,7 +80,6 @@
 		padding: var(--spacing-xl);
 		border-radius: var(--radius-xl);
 		text-align: center;
-		color: var(--color-text-primary);
 	}
 
 	.drop-icon {

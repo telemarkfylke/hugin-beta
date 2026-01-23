@@ -222,27 +222,11 @@
 		gap: var(--spacing-xs);
 	}
 
-	.attach-btn {
-		flex-shrink: 0;
-		width: 2.25rem;
-		height: 2.25rem;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		margin-bottom: var(--spacing-xs);
-		border-radius: var(--radius-md);
-	}
-
-	.textarea-container {
-		flex: 1;
-		min-width: 0;
-	}
-
+	.attach-btn,
 	.send-btn {
 		flex-shrink: 0;
 		width: 2.25rem;
 		height: 2.25rem;
-		border-radius: var(--radius-full);
 		display: flex;
 		align-items: center;
 		justify-content: center;
@@ -250,8 +234,21 @@
 		padding: 0;
 	}
 
+	.attach-btn {
+		border-radius: var(--radius-md);
+	}
+
+	.send-btn {
+		border-radius: var(--radius-full);
+	}
+
 	.send-btn span {
-		font-size: 1.25rem;
+		font-size: var(--font-size-xl);
+	}
+
+	.textarea-container {
+		flex: 1;
+		min-width: 0;
 	}
 
 	.no-upload-hint {

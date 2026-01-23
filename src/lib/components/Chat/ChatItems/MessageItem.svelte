@@ -107,12 +107,15 @@
 		word-break: break-word;
 	}
 
-	.user-message-part {
-		margin-bottom: var(--spacing-xs);
+	.user-message-part,
+	.assistant-message-part {
+		&:not(:last-child) {
+			margin-bottom: var(--spacing-xs);
+		}
 	}
 
-	.user-message-part:last-child {
-		margin-bottom: 0;
+	.assistant-message-part:not(:last-child) {
+		margin-bottom: var(--spacing-sm);
 	}
 
 	.message-image {
@@ -141,7 +144,6 @@
 
 	.file-name {
 		font-size: var(--font-size-sm);
-		color: var(--color-text-primary);
 		overflow: hidden;
 		text-overflow: ellipsis;
 		white-space: nowrap;
@@ -151,25 +153,14 @@
 	.assistant-message {
 		align-self: flex-start;
 		max-width: 100%;
-		position: relative;
 	}
 
 	.message-content {
-		color: var(--color-msg-assistant-text);
 		line-height: 1.6;
-	}
-
-	.assistant-message-part {
-		margin-bottom: var(--spacing-sm);
-	}
-
-	.assistant-message-part:last-child {
-		margin-bottom: 0;
 	}
 
 	.refusal {
 		color: var(--color-text-secondary);
-		font-style: italic;
 	}
 
 	.unknown-content {

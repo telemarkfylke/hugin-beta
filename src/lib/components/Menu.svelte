@@ -69,25 +69,38 @@
 	</div>
 {/if}
 <style>
-	.open-menu-container, .menu-header {
+	.open-menu-container,
+	.menu-header {
 		height: var(--header-height);
 		display: flex;
 		align-items: center;
 	}
+
 	.open-menu-container {
 		position: fixed;
 		z-index: 100;
 	}
+
 	.menu-header {
 		justify-content: space-between;
 	}
-	.app-title {
+
+	.app-title,
+	.logged-in-user {
 		display: flex;
 		align-items: center;
-		gap: 0.5rem;
-		font-weight: bold;
-		color: var(--color-text-primary);
+		gap: var(--spacing-sm);
 	}
+
+	.app-title {
+		font-weight: bold;
+	}
+
+	.logged-in-user {
+		color: var(--color-text-secondary);
+		font-size: var(--font-size-sm);
+	}
+
 	.menu {
 		position: fixed;
 		z-index: 100;
@@ -96,19 +109,23 @@
 		background-color: var(--color-menu-bg);
 		display: flex;
 		flex-direction: column;
-		padding: 0rem 1rem;
+		padding: 0 var(--spacing-md);
 	}
+
 	.menu-content {
 		flex: 1;
 	}
+
 	.menu-content ul {
 		list-style: none;
 		padding: 0;
 		margin: 0;
 	}
+
 	.menu-content li {
 		margin-bottom: var(--spacing-xs);
 	}
+
 	.menu-content a {
 		display: block;
 		padding: var(--spacing-sm) var(--spacing-md);
@@ -117,25 +134,19 @@
 		color: var(--color-text-primary);
 		transition: background-color var(--transition-fast);
 	}
+
 	.menu-content a:hover {
 		background-color: var(--color-bg-hover);
 	}
+
 	.menu-footer {
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
-		padding: 1rem 0rem;
+		padding: var(--spacing-md) 0;
 		border-top: 1px solid var(--color-border-primary);
 	}
-	.logged-in-user {
-		display: flex;
-		align-items: center;
-		gap: 0.5rem;
-		color: var(--color-text-secondary);
-		font-size: var(--font-size-sm);
-	}
 
-	/* If large screen */
 	@media (min-width: 70rem) {
 		.menu {
 			position: static;
