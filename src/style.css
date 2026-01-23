@@ -7,7 +7,9 @@
 	--color-primary-30: rgb(179, 203, 207); /* vann-30 */
 	--color-primary-70: rgb(77, 134, 144); /* vann-70 */
 	--color-primary-80: rgb(51, 117, 128); /* vann-80 */
-	--color-secondary-10: #e9f4ef;
+	--color-secondary-10: rgb(233, 244, 239); /* gress-10 */
+	--color-secondary-20: rgb(210, 234, 224);
+	--color-secondary-30: rgb(188, 223, 208);
 }
 
 html,

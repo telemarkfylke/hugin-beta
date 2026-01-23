@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { page } from "$app/state";
 	import ChatComponent from "$lib/components/Chat/Chat.svelte"
 	import { ChatState } from "$lib/components/Chat/ChatState.svelte.js"
 	import type { Chat } from "$lib/types/chat"
@@ -47,6 +48,6 @@
 	const chatState = new ChatState(defaultChat, data.authenticatedUser, data.APP_CONFIG)
 </script>
 
-<ChatComponent {chatState} />
+<ChatComponent {chatState} showConfig={page.url.searchParams.get("createAgent") === "true"} />
 
 <!--<button onclick={() => chatState.loadChat('hahah')}>Load chat 'hahah'</button>-->

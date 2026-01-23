@@ -9,6 +9,18 @@ import type { ChatConfig } from "$lib/types/chat"
 
 const chatConfigStore = getChatConfigStore()
 
+const getChatConfigs: ApiNextFunction = async ({ user }) => {
+	const chatConfigs = await chatConfigStore.getChatConfigs(user)
+	return {
+		isAuthorized: true,
+		response: json(chatConfigs)
+	}
+}
+
+export const GET: RequestHandler = async (requestEvent) => {
+	return apiRequestMiddleware(requestEvent, getChatConfigs)
+}
+
 const createChatConfig: ApiNextFunction = async ({ requestEvent, user }) => {
 	if (!user.userId) {
 		throw new HTTPError(400, "userId is required")

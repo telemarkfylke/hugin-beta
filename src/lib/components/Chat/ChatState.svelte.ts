@@ -93,7 +93,7 @@ export class ChatState {
 		this.changeChat(chat)
 	}
 
-	public changeChat = async (chat: Chat): Promise<void> => {
+	public changeChat = (chat: Chat): void => {
 		if (!chat) {
 			throw new Error("ChatState requires a Chat object")
 		}
