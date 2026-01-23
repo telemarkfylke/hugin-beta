@@ -1,7 +1,10 @@
 import type { Collection, MongoClient } from "mongodb"
 import { env } from "$env/dynamic/private"
+import { canViewAllChatConfigs } from "$lib/authorization"
+import type { AuthenticatedPrincipal } from "$lib/types/authentication"
 import type { ChatConfig } from "$lib/types/chat"
 import type { IChatConfigStore } from "$lib/types/db/db-interface"
+import { APP_CONFIG } from "../app-config/app-config"
 
 export class MongoChatConfigStore implements IChatConfigStore {
 	private collection: Collection<ChatConfig>
@@ -13,16 +16,31 @@ export class MongoChatConfigStore implements IChatConfigStore {
 	async getChatConfig(configId: string): Promise<ChatConfig | null> {
 		return await this.collection.findOne({ _id: configId })
 	}
-	async getChatConfigs(): Promise<ChatConfig[]> {
-		return await this.collection.find({}).toArray()
+	async getChatConfigs(principal: AuthenticatedPrincipal): Promise<ChatConfig[]> {
+		if (canViewAllChatConfigs(principal, APP_CONFIG.APP_ROLES)) {
+			return await this.collection.find({}).toArray()
+		}
+		return await this.collection
+			.find({
+				$or: [
+					{ type: "private", "created.by.id": principal.userId },
+					{ type: "published", $or: [{ accessGroups: "all" }, { accessGroups: { $in: principal.groups } }] }
+				]
+			})
+			.toArray()
+	}
+	async getChatConfigsByVendorAgentId(vendorAgentId: string): Promise<ChatConfig[]> {
+		if (!vendorAgentId) {
+			return []
+		}
+		return await this.collection.find({ "vendorAgent.id": vendorAgentId }).toArray()
 	}
 	async createChatConfig(chatConfig: ChatConfig): Promise<ChatConfig> {
 		const result = await this.collection.insertOne(chatConfig, { forceServerObjectId: true })
 		return { ...chatConfig, _id: result.insertedId.toString() }
 	}
-	async updateChatConfig(configId: string, chatConfigUpdateInput: Partial<ChatConfig>): Promise<ChatConfig> {
-		const updatedConfig = await this.collection.findOneAndUpdate({ _id: configId }, { $set: chatConfigUpdateInput }, { returnDocument: "after" })
-		if (!updatedConfig) throw new Error("ChatConfig not found")
-		return updatedConfig
+	async replaceChatConfig(configId: string, chatConfig: ChatConfig): Promise<ChatConfig> {
+		await this.collection.replaceOne({ _id: configId }, chatConfig)
+		return { ...chatConfig, _id: configId }
 	}
 }

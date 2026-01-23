@@ -53,8 +53,24 @@ export class ChatState {
 			_id: "",
 			name: "",
 			description: "",
-			vendorId: "",
-			project: ""
+			vendorId: "MISTRAL",
+			project: "",
+			accessGroups: "all",
+			type: "private",
+			created: {
+				at: "",
+				by: {
+					id: "",
+					name: undefined
+				}
+			},
+			updated: {
+				at: "",
+				by: {
+					id: "",
+					name: undefined
+				}
+			}
 		},
 		history: [] as ChatHistory,
 		createdAt: new Date().toISOString(),
@@ -69,6 +85,7 @@ export class ChatState {
 	public isLoading: boolean = $state(false)
 	public user: AuthenticatedPrincipal
 	public APP_CONFIG: AppConfig
+	public configEditMode: boolean = $state(false)
 
 	constructor(chat: Chat, user: AuthenticatedPrincipal, appConfig: AppConfig) {
 		this.user = user
@@ -76,7 +93,7 @@ export class ChatState {
 		this.changeChat(chat)
 	}
 
-	public changeChat = async (chat: Chat): Promise<void> => {
+	public changeChat = (chat: Chat): void => {
 		if (!chat) {
 			throw new Error("ChatState requires a Chat object")
 		}
@@ -117,9 +134,25 @@ export class ChatState {
 				_id: "config-id-123",
 				name: "Example Chat Config",
 				description: "This is an example chat configuration.",
-				vendorId: "openai",
+				vendorId: "OPENAI",
 				project: "DEFAULT",
-				model: "gpt-4"
+				model: "gpt-4",
+				accessGroups: "all",
+				type: "private",
+				created: {
+					at: new Date().toISOString(),
+					by: {
+						id: "owner-id-123",
+						name: "Owner Name"
+					}
+				},
+				updated: {
+					at: new Date().toISOString(),
+					by: {
+						id: "owner-id-123",
+						name: "Owner Name"
+					}
+				}
 			},
 			history: [
 				{
@@ -139,9 +172,25 @@ export class ChatState {
 						_id: "config-id-123",
 						name: "Example Chat Config",
 						description: "This is an example chat configuration.",
-						vendorId: "openai",
+						vendorId: "OPENAI",
 						project: "DEFAULT",
-						model: "gpt-4"
+						model: "gpt-4",
+						accessGroups: "all",
+						type: "private",
+						created: {
+							at: new Date().toISOString(),
+							by: {
+								id: "owner-id-123",
+								name: "Owner Name"
+							}
+						},
+						updated: {
+							at: new Date().toISOString(),
+							by: {
+								id: "owner-id-123",
+								name: "Owner Name"
+							}
+						}
 					},
 					createdAt: new Date().toISOString(),
 					outputs: [
@@ -178,7 +227,7 @@ export class ChatState {
 
 		// Process files if any
 		if (inputFiles && inputFiles.length > 0) {
-			const vendor = Object.values(this.APP_CONFIG.VENDORS).find((vendor) => vendor.ID === this.chat.config.vendorId)
+			const vendor = this.APP_CONFIG.VENDORS[this.chat.config.vendorId]
 			if (!vendor) {
 				throw new Error(`Vendor not found: ${this.chat.config.vendorId}`)
 			}
@@ -265,7 +314,7 @@ export class ChatState {
 	public updateChatConfig = async (): Promise<void> => {
 		try {
 			const result = await fetch(`/api/chatconfigs/${this.chat.config._id}`, {
-				method: "PATCH",
+				method: "PUT",
 				headers: {
 					"Content-Type": "application/json"
 				},

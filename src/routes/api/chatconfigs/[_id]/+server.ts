@@ -1,13 +1,15 @@
 import { json, type RequestHandler } from "@sveltejs/kit"
+import { canUpdateChatConfig } from "$lib/authorization"
+import { APP_CONFIG } from "$lib/server/app-config/app-config"
 import { getChatConfigStore } from "$lib/server/db/get-db"
 import { HTTPError } from "$lib/server/middleware/http-error"
 import { apiRequestMiddleware } from "$lib/server/middleware/http-request"
-import type { ChatConfig } from "$lib/types/chat"
 import type { ApiNextFunction } from "$lib/types/middleware/http-request"
+import { parseChatConfig } from "$lib/validation/parse-chat-config"
 
 const chatConfigStore = getChatConfigStore()
 
-const updateChatConfig: ApiNextFunction = async ({ requestEvent, user }) => {
+const replaceChatConfig: ApiNextFunction = async ({ requestEvent, user }) => {
 	if (!user.userId) {
 		throw new HTTPError(400, "userId is required")
 	}
@@ -23,10 +25,19 @@ const updateChatConfig: ApiNextFunction = async ({ requestEvent, user }) => {
 
 	const body = await requestEvent.request.json()
 
-	// Husk validering her
+	const chatConfig = parseChatConfig(body, APP_CONFIG)
 
-	const chatConfig = body as Partial<ChatConfig>
-	const newChatConfig = await chatConfigStore.updateChatConfig(chatConfigId, chatConfig)
+	const chatConfigToReplace = await chatConfigStore.getChatConfig(chatConfigId)
+
+	if (!chatConfigToReplace) {
+		throw new HTTPError(404, "Chat config not found")
+	}
+
+	if (!canUpdateChatConfig(user, APP_CONFIG.APP_ROLES, chatConfigToReplace, chatConfig)) {
+		throw new HTTPError(403, "Not authorized to update this chat config")
+	}
+
+	const newChatConfig = await chatConfigStore.replaceChatConfig(chatConfigId, chatConfig)
 
 	return {
 		isAuthorized: true,
@@ -34,6 +45,6 @@ const updateChatConfig: ApiNextFunction = async ({ requestEvent, user }) => {
 	}
 }
 
-export const PATCH: RequestHandler = async (requestEvent) => {
-	return apiRequestMiddleware(requestEvent, updateChatConfig)
+export const PUT: RequestHandler = async (requestEvent) => {
+	return apiRequestMiddleware(requestEvent, replaceChatConfig)
 }

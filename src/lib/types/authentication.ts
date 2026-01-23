@@ -48,7 +48,7 @@ export const AuthenticatedPrincipalSchema = z.object({
 	preferredUserName: z.string(),
 	/** list of roles (values) the user has */
 	roles: z.array(z.string()),
-	/** list of groupIds the user belongs to */
+	/** list of groupIds the user is a member of */
 	groups: z.array(z.string())
 })
 

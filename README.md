@@ -17,7 +17,6 @@ Hugin Beta is an internal AI-agent web application designed to provide a democra
 - **Real-Time Streaming** - Server-Sent Events (SSE) for incremental AI responses
 - **Enterprise Authentication** - Microsoft Entra ID integration with role-based access control
 - **Multi-Modal Input** - Support for text, images, and document uploads
-- **Type-Safe Architecture** - Zod-first type system with runtime validation
 - **Modern UI** - Svelte 5 Runes for reactive state management with markdown and LaTeX rendering
 
 ---
@@ -128,6 +127,12 @@ Real-time AI responses use Server-Sent Events with the following event types:
 All events are validated using Zod discriminated unions for type-safe handling.
 
 ---
+
+### Authorization
+- Uses the functions in authorization.ts
+- Regular users can define their own chatConfigs and test basically any config against the api/chat endpoint
+  - But they cannot define chatconfigs with predefined agent/prompt-ids where the config is set up in a vendor.
+  - They can use predefined chatconfigs only if they have access to the agentId in some defined chatconfig in db - which is created by a user with more permissions.
 
 ## Getting Started
 

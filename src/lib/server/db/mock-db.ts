@@ -1,24 +1,55 @@
+import { canViewAllChatConfigs } from "$lib/authorization"
+import type { AuthenticatedPrincipal } from "$lib/types/authentication"
 import type { ChatConfig } from "$lib/types/chat"
 import type { IChatConfigStore } from "$lib/types/db/db-interface"
+import { APP_CONFIG } from "../app-config/app-config"
 
 const mockChatConfigs: ChatConfig[] = [
 	{
 		_id: "1234",
 		name: "Snille Mistral",
 		description: "En snill Mistral",
-		vendorId: "mistral",
+		vendorId: "MISTRAL",
 		project: "DEFAULT",
 		model: "mistral-medium-latest",
-		instructions: "Answer in Norwegian. Be overly polite and friendly."
+		instructions: "Answer in Norwegian. Be overly polite and friendly.",
+		accessGroups: "all",
+		type: "published",
+		created: {
+			at: new Date().toISOString(),
+			by: {
+				id: "system"
+			}
+		},
+		updated: {
+			at: new Date().toISOString(),
+			by: {
+				id: "system"
+			}
+		}
 	},
 	{
 		_id: "5678",
 		name: "Sure OpenAI",
 		description: "En sur OpenAI",
-		vendorId: "openai",
+		vendorId: "OPENAI",
 		project: "DEFAULT",
 		model: "gpt-4o",
-		instructions: "Answer in Norwegian. Be very grumpy and sarcastic."
+		instructions: "Answer in Norwegian. Be very grumpy and sarcastic.",
+		accessGroups: "all",
+		type: "published",
+		created: {
+			at: new Date().toISOString(),
+			by: {
+				id: "system"
+			}
+		},
+		updated: {
+			at: new Date().toISOString(),
+			by: {
+				id: "system"
+			}
+		}
 	}
 ]
 
@@ -27,18 +58,41 @@ export class MockChatConfigStore implements IChatConfigStore {
 		const config = mockChatConfigs.find((config) => config._id === configId) || null
 		return config
 	}
-	async getChatConfigs(): Promise<ChatConfig[]> {
-		return mockChatConfigs
+	async getChatConfigs(principal: AuthenticatedPrincipal): Promise<ChatConfig[]> {
+		if (canViewAllChatConfigs(principal, APP_CONFIG.APP_ROLES)) {
+			return mockChatConfigs
+		}
+		return mockChatConfigs.filter((config) => {
+			if (config.type === "private") {
+				if (config.created.by.id === principal.userId) {
+					return true
+				}
+				return false
+			}
+			if (config.accessGroups === "all") {
+				return true
+			}
+			if (Array.isArray(config.accessGroups)) {
+				return config.accessGroups.some((group) => principal.groups.includes(group))
+			}
+			return false
+		})
 	}
-	async createChatConfig(ChatConfig: Omit<ChatConfig, "_id">): Promise<ChatConfig> {
-		const newConfig: ChatConfig = { ...ChatConfig, _id: Date.now().toString() }
+	async getChatConfigsByVendorAgentId(vendorAgentId: string): Promise<ChatConfig[]> {
+		if (!vendorAgentId) {
+			return []
+		}
+		return mockChatConfigs.filter((config) => config.vendorAgent?.id === vendorAgentId)
+	}
+	async createChatConfig(chatConfig: Omit<ChatConfig, "_id">): Promise<ChatConfig> {
+		const newConfig: ChatConfig = { ...chatConfig, _id: Date.now().toString() }
 		mockChatConfigs.push(newConfig)
 		return newConfig
 	}
-	async updateChatConfig(configId: string, chatConfigUpdateInput: Partial<ChatConfig>): Promise<ChatConfig> {
+	async replaceChatConfig(configId: string, chatConfig: ChatConfig): Promise<ChatConfig> {
 		const config = mockChatConfigs.find((config) => config._id === configId)
 		if (!config) throw new Error("ChatConfig not found")
-		Object.assign(config, chatConfigUpdateInput)
+		Object.assign(config, chatConfig)
 		return config
 	}
 }

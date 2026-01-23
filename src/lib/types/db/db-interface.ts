@@ -1,8 +1,10 @@
 import type { ChatConfig } from "$lib/types/chat"
+import type { AuthenticatedPrincipal } from "../authentication"
 
 export interface IChatConfigStore {
 	getChatConfig(configId: string): Promise<ChatConfig | null>
-	getChatConfigs(): Promise<ChatConfig[]>
-	createChatConfig(ChatConfig: Omit<ChatConfig, "_id">): Promise<ChatConfig>
-	updateChatConfig(configId: string, chatConfigUpdateInput: Partial<ChatConfig>): Promise<ChatConfig>
+	getChatConfigs(principal: AuthenticatedPrincipal): Promise<ChatConfig[]>
+	getChatConfigsByVendorAgentId(vendorAgentId: string): Promise<ChatConfig[]>
+	createChatConfig(chatConfig: Omit<ChatConfig, "_id">): Promise<ChatConfig>
+	replaceChatConfig(configId: string, chatConfig: ChatConfig): Promise<ChatConfig>
 }

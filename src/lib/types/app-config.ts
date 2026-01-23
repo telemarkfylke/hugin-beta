@@ -7,7 +7,6 @@ export type ModelInfo = {
 }
 
 export type VendorInfo = {
-	ID: string
 	NAME: string
 	ENABLED: boolean
 	PROJECTS: string[]

@@ -7,11 +7,10 @@
 
 	type Props = {
 		chatState: ChatState
+		showConfig: boolean
 	}
 
-	let { chatState }: Props = $props()
-
-	let showConfig = $state(false)
+	let { chatState, showConfig }: Props = $props()
 
 	let lastChatItem: HTMLDivElement
 

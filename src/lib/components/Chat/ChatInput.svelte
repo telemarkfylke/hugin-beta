@@ -16,7 +16,7 @@
 			return []
 		}
 
-		const vendor = Object.values(chatState.APP_CONFIG.VENDORS).find((vendor) => vendor.ID === chatState.chat.config.vendorId)
+		const vendor = chatState.APP_CONFIG.VENDORS[chatState.chat.config.vendorId]
 		if (!vendor) {
 			return []
 		}
@@ -64,7 +64,7 @@
 <div class="chat-input-container">
 	<FileDropZone onFilesDropped={(files) => { inputFiles = files; }} />
   <form onsubmit={(event: Event) => { event.preventDefault(); submitPrompt() }}>
-    <GrowingTextArea bind:value={inputText} placeholder="Type your message here..." onkeydown={submitOnEnter} />
+    <GrowingTextArea bind:value={inputText} style="input" placeholder="Type your message here..." onkeydown={submitOnEnter} />
     <div id="actions">
       <div id="actions-left">
         <div id="chat-file-upload-container">

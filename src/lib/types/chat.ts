@@ -1,4 +1,8 @@
+import z from "zod"
+import type { AppConfig } from "./app-config"
 import type { ChatInputItem, ChatOutputItem } from "./chat-item"
+
+export type VendorId = keyof AppConfig["VENDORS"]
 
 export type VendorAgent = {
 	id: string
@@ -12,13 +16,29 @@ export type ChatConfig = {
 	_id: string
 	name: string
 	description: string
-	vendorId: string
+	vendorId: VendorId
 	project: string
 	vendorAgent?: VendorAgent | undefined
 	model?: string | undefined
 	instructions?: string | undefined
 	conversationId?: string | undefined
 	tools?: ChatTool[]
+	type: "published" | "private"
+	accessGroups: "all" | string[]
+	created: {
+		at: string
+		by: {
+			id: string
+			name?: string | undefined
+		}
+	}
+	updated: {
+		at: string
+		by: {
+			id: string
+			name?: string | undefined
+		}
+	}
 }
 
 export type ChatRequest = {
@@ -60,6 +80,49 @@ export type Chat = {
 	updatedAt: string
 	owner: {
 		id: string
-		name?: string
+		name?: string | undefined
 	}
 }
+
+/**
+ *
+ * @link https://github.com/colinhacks/zod/issues/372#issuecomment-826380330
+ */
+
+export const schemaForType =
+	<T>() =>
+	// biome-ignore lint: Unexpected any
+	<S extends z.ZodType<T, any>>(arg: S) => {
+		return arg
+	}
+
+// New and better
+export const ChatConfigSchema = schemaForType<ChatConfig>()(
+	z.object({
+		_id: z.string(),
+		name: z.string(),
+		description: z.string(),
+		vendorId: z.enum(["MISTRAL", "OPENAI", "OLLAMA"]), // Update as per AppConfig Vendor keys for now
+		project: z.string(),
+		vendorAgent: z.object({ id: z.string() }).optional(),
+		model: z.string().optional(),
+		instructions: z.string().optional(),
+		conversationId: z.string().optional(),
+		type: z.enum(["published", "private"]), // Update as per ChatConfig for now
+		accessGroups: z.union([z.literal("all"), z.array(z.string())]),
+		created: z.object({
+			at: z.string(),
+			by: z.object({
+				id: z.string(),
+				name: z.string().optional()
+			})
+		}),
+		updated: z.object({
+			at: z.string(),
+			by: z.object({
+				id: z.string(),
+				name: z.string().optional()
+			})
+		})
+	})
+)

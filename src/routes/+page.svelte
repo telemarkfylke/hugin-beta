@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { page } from "$app/state"
 	import ChatComponent from "$lib/components/Chat/Chat.svelte"
 	import { ChatState } from "$lib/components/Chat/ChatState.svelte.js"
 	import type { Chat } from "$lib/types/chat"
@@ -19,9 +20,26 @@
 			name: "",
 			description: "A default chat configuration",
 			project: "DEFAULT",
-			vendorId: "mistral",
+			vendorId: "MISTRAL",
 			model: "mistral-medium-latest",
-			instructions: "Answer in Norwegian."
+			instructions: "Answer in Norwegian.",
+			conversationId: "",
+			type: "private",
+			accessGroups: "all",
+			created: {
+				at: new Date().toISOString(),
+				by: {
+					id: "system",
+					name: "system"
+				}
+			},
+			updated: {
+				at: new Date().toISOString(),
+				by: {
+					id: "system",
+					name: "system"
+				}
+			}
 		},
 		history: []
 	}
@@ -30,6 +48,6 @@
 	const chatState = new ChatState(defaultChat, data.authenticatedUser, data.APP_CONFIG)
 </script>
 
-<ChatComponent {chatState} />
+<ChatComponent {chatState} showConfig={page.url.searchParams.get("createAgent") === "true"} />
 
 <!--<button onclick={() => chatState.loadChat('hahah')}>Load chat 'hahah'</button>-->

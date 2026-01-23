@@ -1,6 +1,11 @@
 import { env } from "$env/dynamic/private"
 import type { AppConfig } from "$lib/types/app-config"
-import { MISTRAL_DEFAULT_SUPPORTED_MESSAGE_FILE_MIME_TYPES, OPEN_AI_DEFAULT_SUPPORTED_MESSAGE_FILE_MIME_TYPES, OPEN_AI_DEFAULT_SUPPORTED_MESSAGE_IMAGE_MIME_TYPES } from "./supported-mime-types"
+import {
+	MISTRAL_DEFAULT_SUPPORTED_MESSAGE_FILE_MIME_TYPES,
+	MISTRAL_DEFAULT_SUPPORTED_MESSAGE_IMAGE_MIME_TYPES,
+	OPEN_AI_DEFAULT_SUPPORTED_MESSAGE_FILE_MIME_TYPES,
+	OPEN_AI_DEFAULT_SUPPORTED_MESSAGE_IMAGE_MIME_TYPES
+} from "./supported-mime-types"
 
 export const APP_CONFIG: AppConfig = {
 	NAME: "Mugin",
@@ -12,7 +17,6 @@ export const APP_CONFIG: AppConfig = {
 	},
 	VENDORS: {
 		MISTRAL: {
-			ID: "mistral",
 			NAME: "Mistral",
 			ENABLED: Boolean(env.MISTRAL_API_KEY_PROJECT_DEFAULT),
 			PROJECTS: Object.keys(env)
@@ -23,20 +27,19 @@ export const APP_CONFIG: AppConfig = {
 					ID: "mistral-medium-latest",
 					SUPPORTED_MESSAGE_FILE_MIME_TYPES: {
 						FILE: MISTRAL_DEFAULT_SUPPORTED_MESSAGE_FILE_MIME_TYPES,
-						IMAGE: MISTRAL_DEFAULT_SUPPORTED_MESSAGE_FILE_MIME_TYPES
+						IMAGE: MISTRAL_DEFAULT_SUPPORTED_MESSAGE_IMAGE_MIME_TYPES
 					}
 				},
 				{
 					ID: "mistral-large-latest",
 					SUPPORTED_MESSAGE_FILE_MIME_TYPES: {
 						FILE: MISTRAL_DEFAULT_SUPPORTED_MESSAGE_FILE_MIME_TYPES,
-						IMAGE: MISTRAL_DEFAULT_SUPPORTED_MESSAGE_FILE_MIME_TYPES
+						IMAGE: MISTRAL_DEFAULT_SUPPORTED_MESSAGE_IMAGE_MIME_TYPES
 					}
 				}
 			]
 		},
 		OPENAI: {
-			ID: "openai",
 			NAME: "OpenAI",
 			ENABLED: Boolean(env.OPENAI_API_KEY_PROJECT_DEFAULT),
 			PROJECTS: Object.keys(env)
@@ -60,7 +63,6 @@ export const APP_CONFIG: AppConfig = {
 			]
 		},
 		OLLAMA: {
-			ID: "ollama",
 			NAME: "Ollama",
 			ENABLED: Boolean(env.OLLAMA_API_KEY),
 			PROJECTS: Object.keys(env)
