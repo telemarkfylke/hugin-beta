@@ -10,6 +10,10 @@ export const canEditPredefinedConfig = (user: AuthenticatedPrincipal, appRoles: 
 	return user.roles.includes(appRoles.AGENT_MAINTAINER) || user.roles.includes(appRoles.ADMIN)
 }
 
+export const canPublishChatConfig = (user: AuthenticatedPrincipal, appRoles: AppRoles): boolean => {
+	return user.roles.includes(appRoles.AGENT_MAINTAINER) || user.roles.includes(appRoles.ADMIN)
+}
+
 export const canEditChatConfig = (chat: Chat, user: AuthenticatedPrincipal, appRoles: AppRoles): boolean => {
 	if (chat.config._id === "") {
 		return true

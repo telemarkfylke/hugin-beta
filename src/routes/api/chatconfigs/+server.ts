@@ -6,6 +6,7 @@ import { apiRequestMiddleware } from "$lib/server/middleware/http-request"
 import type { ApiNextFunction } from "$lib/types/middleware/http-request"
 import { parseChatConfig } from "$lib/validation/parse-chat-config"
 import type { ChatConfig } from "$lib/types/chat"
+import { canPublishChatConfig } from "$lib/authorization"
 
 const chatConfigStore = getChatConfigStore()
 
@@ -34,12 +35,16 @@ const createChatConfig: ApiNextFunction = async ({ requestEvent, user }) => {
 
 	const chatConfig = parseChatConfig(body, APP_CONFIG)
 
+	if (chatConfig.type === "published" && !canPublishChatConfig(user, APP_CONFIG.APP_ROLES)) {
+		throw new HTTPError(403, "User is not authorized to create published chat configs")
+	}
+
 	const chatConfigToCreate: ChatConfig = {
 		...chatConfig,
 		name: chatConfig.name || "Ny agent",
 		_id: "",
-		type: "private",
-		accessGroups: [],
+		type: chatConfig.type,
+		accessGroups: chatConfig.accessGroups,
 		created: {
 			at: new Date().toISOString(),
 			by: {

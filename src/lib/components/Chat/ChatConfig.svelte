@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { canEditChatConfig, canEditPredefinedConfig } from "$lib/authorization"
+	import { canEditChatConfig, canEditPredefinedConfig, canPublishChatConfig } from "$lib/authorization"
 	import type { ChatConfig, VendorId } from "$lib/types/chat"
     import { fade, slide } from "svelte/transition";
 	import GrowingTextArea from "../GrowingTextArea.svelte"
@@ -127,6 +127,30 @@
 	{/if}
 {/snippet}
 
+{#snippet publishStatusSelect()}
+	{#if canPublishChatConfig(chatState.user, chatState.APP_CONFIG.APP_ROLES)}
+		<div class="config-section vendor-model-details">
+			<div>
+				<label for="publish-status">Publiseringsstatus</label>
+				<br />
+				<select id="publish-status" bind:value={chatState.chat.config.type}>
+					<option value="private">Privat</option>
+					<option value="published">Publisert</option>
+				</select>
+			</div>
+			{#if chatState.chat.config.type === "published"}
+				<div>
+					<label for="access-groups">Tilgang</label>
+					<br />
+					<select id="access-groups" bind:value={chatState.chat.config.accessGroups}>
+						<option value="all">Alle</option>
+					</select>
+				</div>
+			{/if}
+		</div>
+	{/if}
+{/snippet}
+
 {#snippet vendorSelect()}
 	<div>
 		{#if canEditChatConfig(chatState.chat, chatState.user, chatState.APP_CONFIG.APP_ROLES)}
@@ -146,7 +170,7 @@
 {#snippet projectSelect()}
 	{#if canEditPredefinedConfig(chatState.user, chatState.APP_CONFIG.APP_ROLES)}
 		<div>
-			<label for="vendor">Prosjekt</label>
+			<label for="vendor-project">Prosjekt</label>
 			<br />
 			<select id="vendor-project" bind:value={chatState.chat.config.project}>
 				{#each getAvailableProjects(chatState.chat.config.vendorId) as projectId}
@@ -163,7 +187,7 @@
 			<div>
 				<label for="vendorAgentId">Agent-id</label>
 				<br />
-				<input id="vendorAgentId" type="text" bind:value={chatState.chat.config.vendorAgent.id} />
+				<input id="vendorAgentId" placeholder="Skriv in id på prompt eller agent fra leverandør" type="text" bind:value={chatState.chat.config.vendorAgent.id} />
 			</div>
 		{:else}
 			<p><strong>Agent-id:</strong>{chatState.chat.config.vendorAgent.id}</p>
@@ -206,6 +230,7 @@
 	<div class="chat-config-container" transition:slide={{ duration: 200 }}>
 		<div class="chat-config">
 			{@render configTypeSelect()}
+			{@render publishStatusSelect()}
 			<div class="vendor-model-details config-section">
 				{@render vendorSelect()}
 				{@render projectSelect()}
@@ -282,7 +307,6 @@
 	.config-type-selection {
 		display: flex;
 		gap: 0rem 1rem;
-		justify-content: center;
 		margin-bottom: 0.5rem;
 	}
 	select, input[type="text"] {
