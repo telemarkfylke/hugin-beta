@@ -23,11 +23,13 @@ Thumbs.db
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 
-# Claude Code project documentation
+# Claude Code
 CLAUDE.md
+.claude/
 
 # Mock db
 src/lib/db/mockdb-data.ts
 
 # Tullball
 ignore/
+input-plan.md
