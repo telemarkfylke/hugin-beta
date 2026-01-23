@@ -217,7 +217,7 @@
 			{#if canEditChatConfig(chatState.chat, chatState.user, chatState.APP_CONFIG.APP_ROLES) && chatState.configEditMode}
 				<div  transition:fade={{ duration: 100 }}>
 					<details class="config-section">
-						<summary>{chatState.chat.config._id ? "Oppdater konfigurasjon" : "Jeg er fornøyd og vil lagre konfigurasjonen som en ny agent"}</summary>
+						<summary>Jeg er fornøyd og vil lagre konfigurasjonen</summary>
 						<div class="config-metadata">
 							<div class="config-section">
 								<label for="agent-name">Navn på agent</label>
@@ -254,7 +254,7 @@
 		-->
 		{#if chatState.configEditMode}
 			<div class="info-box">
-				<span class="material-symbols-outlined">info</span> Test endringene dine ved å sende en melding i chatten nedenfor. Når du er fornøyd, kan du lagre konfigurasjonen som en ny agent.
+				<span class="material-symbols-outlined">info</span>Test endringene dine ved å sende en melding i chatten nedenfor. Når du er fornøyd, kan du lagre konfigurasjonen.
 			</div>
 		{/if}
 	</div>
