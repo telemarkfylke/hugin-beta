@@ -85,6 +85,7 @@ export class ChatState {
 	public isLoading: boolean = $state(false)
 	public user: AuthenticatedPrincipal
 	public APP_CONFIG: AppConfig
+	public configEditMode: boolean = $state(false)
 
 	constructor(chat: Chat, user: AuthenticatedPrincipal, appConfig: AppConfig) {
 		this.user = user

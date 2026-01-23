@@ -17,6 +17,9 @@ export const canEditChatConfig = (chat: Chat, user: AuthenticatedPrincipal, appR
 	if (user.roles.includes(appRoles.ADMIN) || user.roles.includes(appRoles.AGENT_MAINTAINER)) {
 		return true
 	}
+	if (chat.config.type === "private" && chat.config.created.by.id === user.userId) {
+		return true
+	}
 	return false
 }
 

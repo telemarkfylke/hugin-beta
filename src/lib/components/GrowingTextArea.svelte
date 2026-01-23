@@ -3,11 +3,12 @@
 		value?: string | undefined
 		initialRows?: number
 		placeholder?: string
+    style?: "input" | "textarea"
 		onkeydown?: (event: KeyboardEvent) => void
 		id?: string
 	}
 
-	let { value = $bindable(), initialRows = 1, placeholder = "", onkeydown = (): void => {}, id = "growing-textarea" }: Props = $props()
+	let { value = $bindable(), initialRows = 1, style="textarea", placeholder = "", onkeydown = (): void => {}, id = "growing-textarea" }: Props = $props()
 
 	// Some element references
 	let textArea: HTMLTextAreaElement
@@ -24,7 +25,7 @@
 	})
 </script>
 
-<div class="grow-wrap" bind:this={wrapDiv}>
+<div class="grow-wrap {style}" bind:this={wrapDiv}>
   <textarea rows={initialRows} bind:this={textArea} placeholder={placeholder} name="prompt-input" id={id} onkeydown={onkeydown} bind:value={value}></textarea>
 </div>
 
@@ -54,14 +55,24 @@
     /* Firefox shows scrollbar on growth, you can hide like this. */
     /* overflow: hidden; */
   }
-  .grow-wrap > textarea,
-  .grow-wrap::after {
+  .grow-wrap.input > textarea,
+  .grow-wrap.input::after {
     /* Identical styling required!! */
     border: 1px solid var(--color-primary);
     border-radius: 0.5rem;
-    padding: 0.5rem;
     font: inherit;
     padding: 0.75rem;
+
+    /* Place on top of each other */
+    grid-area: 1 / 1 / 2 / 2;
+  }
+  .grow-wrap.textarea > textarea,
+  .grow-wrap.textarea::after {
+    /* Identical styling required!! */
+    font: inherit;
+    padding: 0.5rem;
+    background-color: #f7f7f7;
+    border: none;
 
     /* Place on top of each other */
     grid-area: 1 / 1 / 2 / 2;
