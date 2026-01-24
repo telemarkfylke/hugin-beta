@@ -1,19 +1,27 @@
 <script lang="ts">
 	import { onMount } from "svelte"
 	import { fade, slide } from "svelte/transition"
+	import { page } from "$app/state"
 	import favicon16 from "$lib/assets/favicon-16x16.png"
 	import type { AuthenticatedPrincipal } from "$lib/types/authentication"
 	import type { ChatConfig } from "$lib/types/chat"
 
 	type Props = {
 		authenticatedUser: AuthenticatedPrincipal
-		menuOpen?: boolean
-		onMenuToggle?: (isOpen: boolean) => void
 	}
-	let { authenticatedUser, menuOpen = $bindable(true), onMenuToggle }: Props = $props()
+	let { authenticatedUser }: Props = $props()
+
+	let menuOpen = $state(true)
 
 	const smallScreenWidth = 1120
-	let screenIsLarge = $state(true)
+	let screenIsLarge = true
+
+	$effect(() => {
+		page.url // Track page url changes
+		if (!screenIsLarge) {
+			menuOpen = false
+		}
+	})
 
 	const getAgents = async (): Promise<ChatConfig[]> => {
 		const agentResponse = await fetch("/api/chatconfigs")
@@ -25,21 +33,18 @@
 	}
 
 	onMount(() => {
-		screenIsLarge = window.innerWidth > smallScreenWidth
-		if (!screenIsLarge) {
+		if (window.innerWidth <= smallScreenWidth) {
 			menuOpen = false
-			onMenuToggle?.(false)
+			screenIsLarge = false
 		}
 		const handleResize = () => {
-			const wasLarge = screenIsLarge
-			screenIsLarge = window.innerWidth > smallScreenWidth
-			if (screenIsLarge && !wasLarge) {
+			if (window.innerWidth >= smallScreenWidth && !screenIsLarge) {
+				screenIsLarge = true
 				menuOpen = true
-				onMenuToggle?.(true)
 			}
-			if (!screenIsLarge && wasLarge) {
+			if (window.innerWidth < smallScreenWidth && screenIsLarge) {
+				screenIsLarge = false
 				menuOpen = false
-				onMenuToggle?.(false)
 			}
 		}
 		window.addEventListener("resize", handleResize)
@@ -48,54 +53,28 @@
 
 	const toggleMenu = () => {
 		menuOpen = !menuOpen
-		onMenuToggle?.(menuOpen)
-	}
-
-	const closeMenuOnSmallScreen = () => {
-		if (!screenIsLarge) {
-			menuOpen = false
-			onMenuToggle?.(false)
-		}
-	}
-
-	const handleKeydown = (event: KeyboardEvent) => {
-		if (event.key === "Escape" && menuOpen && !screenIsLarge) {
-			menuOpen = false
-			onMenuToggle?.(false)
-		}
 	}
 </script>
 
-<svelte:window on:keydown={handleKeydown} />
-
-<!-- Backdrop overlay for small screens -->
-{#if menuOpen && !screenIsLarge}
-	<button
-		class="menu-backdrop"
-		transition:fade={{ duration: 150 }}
-		onclick={closeMenuOnSmallScreen}
-		aria-label="Lukk meny"
-	></button>
-{/if}
-
 {#if !menuOpen}
 	<div class="open-menu-container" transition:fade={{ duration: 100, delay: 100 }}>
-		<button class="icon-button" onclick={toggleMenu} title="Åpne meny" aria-expanded="false" aria-controls="sidebar-menu">
+		<button class="icon-button" onclick={toggleMenu} title="Åpne meny">
 			<span class="material-symbols-rounded">left_panel_open</span>
 		</button>
 	</div>
 {:else}
-	<nav class="menu" id="sidebar-menu" aria-label="Hovedmeny" transition:slide={{ axis: 'x', duration: 150 }}>
+	<div class="app-overlay" transition:fade={{ duration: 100 }} onclick={() => { menuOpen = false }}></div>
+	<div class="menu" transition:slide={{ axis: 'x', duration: 100 }}>
 		<div class="menu-header">
 			<div class="app-title"><img src={favicon16} alt="Mugin logo" /> Mugin</div>
-			<button class="icon-button" onclick={toggleMenu} title="Lukk meny" aria-expanded="true" aria-controls="sidebar-menu">
+			<button class="icon-button" onclick={toggleMenu} title="Lukk meny">
 				<span class="material-symbols-rounded">left_panel_close</span>
 			</button>
 		</div>
 		<div class="menu-content">
 			<div class="menu-section">
 				<div class="menu-items">
-					<a class="menu-item" href="/" onclick={closeMenuOnSmallScreen}>
+					<a class="menu-item" class:active={page.url.pathname === "/"} href="/">
 						<span class="material-symbols-outlined">home</span>Hjem
 					</a>
 				</div>
@@ -104,22 +83,22 @@
 				{#await getAgents()}
 					<div class="menu-section">
 						<div class="menu-section-title">Agenter</div>
-						<span class="loading-text">Laster...</span>
+						loading...
 					</div>
 					<div class="menu-section">
 						<div class="menu-section-title">Dine agenter</div>
-						<span class="loading-text">Laster...</span>
+						loading...
 					</div>
-				{:then agents}
+				{:then agents} 
 					<div class="menu-section">
 						<div class="menu-section-title">Agenter</div>
 						<div class="menu-items">
 							{#each agents.filter(agent => agent.type !== "private") as agent}
-								<a class="menu-item" href={"/agents/" + agent._id} onclick={closeMenuOnSmallScreen}>
+								<a class="menu-item" class:active={page.url.pathname === "/agents/" + agent._id} href={"/agents/" + agent._id}>
 									{agent.name}
 								</a>
 							{/each}
-							<a class="menu-item" href="/agents" onclick={closeMenuOnSmallScreen}>
+							<a class="menu-item" class:active={page.url.pathname === "/agents"} href="/agents">
 								<span class="material-symbols-outlined">more_horiz</span>Se alle agenter
 							</a>
 						</div>
@@ -128,14 +107,14 @@
 						<div class="menu-section-title">Dine agenter</div>
 						<div class="menu-items">
 							{#each agents.filter(agent => agent.type === "private") as agent}
-								<a class="menu-item" href={"/agents/" + agent._id} onclick={closeMenuOnSmallScreen}>
+								<a class="menu-item" class:active={page.url.pathname === "/agents/" + agent._id} href={"/agents/" + agent._id}>
 									{agent.name}
 								</a>
 							{/each}
-							<a class="menu-item" href="/?createAgent=true" onclick={closeMenuOnSmallScreen}>
+							<a class="menu-item" href="/?createAgent=true">
 								<span class="material-symbols-outlined">add</span>Lag ny agent
 							</a>
-						</div>
+						</div>	
 					</div>
 				{/await}
 			</div>
@@ -145,20 +124,24 @@
 				<span class="material-symbols-outlined">account_circle</span>
 				{authenticatedUser.name}
 			</div>
+			<!--
+			<button class="icon-button" title="Logg ut" onclick={() => { console.log("Logging out...") }}>
+				<span class="material-symbols-rounded">logout</span>
+			</button>
+			-->
 		</div>
-	</nav>
+	</div>
 {/if}
 <style>
-	/* Backdrop overlay for small screens */
-	.menu-backdrop {
+	.app-overlay {
 		position: fixed;
-		inset: 0;
-		background-color: rgba(0, 0, 0, 0.4);
-		z-index: 99;
-		border: none;
-		cursor: pointer;
+		top: 0;
+		left: 0;
+		width: 100%;
+		height: 100%;
+		background-color: rgba(0, 0, 0, 0.3);
+		z-index: 50;
 	}
-
 	.open-menu-container, .menu-header {
 		height: var(--header-height);
 		display: flex;
@@ -180,72 +163,76 @@
 	.menu {
 		position: fixed;
 		z-index: 100;
-		width: 14rem;
+		width: 12rem;
 		height: 100%;
 		background-color: var(--color-secondary-10);
 		display: flex;
 		flex-direction: column;
 		padding: 0rem 1rem;
-		box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
 	}
 	.menu-content {
 		flex: 1;
-		overflow-y: auto;
 	}
 	.menu-section {
-		margin: 1.5rem 0rem;
+		margin: 2rem 0rem;
 	}
 	.menu-section-title, .menu-item {
 		padding: 0.25rem 0.5rem;
 		display: flex;
-		align-items: flex-end;
+		align-items: center;
 		gap: 0.5rem;
+		padding: 0.25rem 0.5rem;
 	}
 	.menu-section-title {
 		font-weight: bold;
 		text-transform: uppercase;
 		font-size: 0.75rem;
 		align-items: center;
-		color: var(--color-primary-60, #666);
 	}
 	.menu-item {
 		font-size: 0.9rem;
 		text-decoration: none;
 		margin-bottom: 0.2rem;
 		border-radius: 0.5rem;
-		transition: background-color 0.15s ease;
 	}
 	.menu-item:hover, .menu-item.active {
 		background-color: var(--color-secondary-30);
+	}
+	.menu-item.active {
+		font-weight: bold;
+	}
+	.menu-item.active:hover {
+		color: var(--color-primary);
 	}
 	.menu-footer {
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
 		padding: 1rem 0rem;
-		border-top: 1px solid var(--color-secondary-30);
 	}
 	.logged-in-user {
 		display: flex;
 		align-items: center;
 		gap: 0.5rem;
-		font-size: 0.875rem;
-	}
-	.loading-text {
-		padding: 0.25rem 0.5rem;
-		font-size: 0.85rem;
-		color: var(--color-primary-60, #666);
 	}
 
-	/* Large screen: sidebar is part of the layout flow */
+	/* If large screen */
 	@media (min-width: 70rem) {
-		.menu {
-			position: relative;
-			box-shadow: none;
-			border-right: 1px solid var(--color-secondary-30);
-		}
-		.menu-backdrop {
+		.app-overlay {
 			display: none;
 		}
+		.menu {
+			position: static;
+		}
 	}
+	/* If very small screen */
+	@media (max-width: 30rem) {
+		.app-overlay {
+			display: none;
+		}
+		.menu {
+			width: calc(100% - 1rem);
+		}
+	}
+
 </style>

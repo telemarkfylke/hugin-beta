@@ -1,8 +1,8 @@
 <script lang="ts">
 	import FileDropZone from "../FileDropZone.svelte"
 	import TypingDots from "../TypingDots.svelte"
-	import FilePreview from "./FilePreview.svelte"
 	import type { ChatState } from "./ChatState.svelte"
+	import FilePreview from "./FilePreview.svelte"
 
 	type Props = {
 		chatState: ChatState
@@ -32,16 +32,15 @@
 	let inputText: string = $state("")
 	let inputFiles: File[] = $state([])
 	let messageInProgress = $state(false)
-	let textArea: HTMLTextAreaElement
 
 	// KOnverter filarrayen til en liste med filer
 	const filesToFileList = (files: File[]): FileList => {
 		const dataTransfer = new DataTransfer()
-		for ( const file of files ) {
+		for (const file of files) {
 			dataTransfer.items.add(file)
 		}
 		return dataTransfer.files
-	}	
+	}
 
 	// Simple helper for posting prompt, and clearing input
 	const submitPrompt = async (): Promise<void> => {
@@ -80,9 +79,8 @@
 		target.value = ""
 	}
 
-
 	const addFiles = (files: File[]) => {
-		const validFiles = files.filter(file => {
+		const validFiles = files.filter((file) => {
 			if (allowedMessageMimeTypes.length === 0) {
 				return false
 			} else {
@@ -123,10 +121,17 @@
 		}
 	}
 
-	// Autoresize textarea
+	// Some element references
+	let textArea: HTMLTextAreaElement
 	let wrapDiv: HTMLDivElement
+	/**
+	 * As we wait for "textarea {field-sizing: content;}" to be supported in all browsers
+	 * Magic is in CSS below, this JS just updates the data attribute on input
+	 * Thank you to Chris Coyier and Stephen Shaw
+	 * @link https://chriscoyier.net/2023/09/29/css-solves-auto-expanding-textareas-probably-eventually/
+	 */
 	$effect(() => {
-		inputText
+		inputText // Track changes to inputText
 		if (wrapDiv && textArea) {
 			wrapDiv.setAttribute("data-replicated-value", textArea.value)
 		}
@@ -136,67 +141,73 @@
 <div class="chat-input-container">
 	<FileDropZone onFilesDropped={handleFilesDropped} />
 
-	<!-- File previews above input -->
-	{#if inputFiles.length > 0}
-		<div class="file-previews">
-			{#each inputFiles as file, index}
-				<FilePreview {file} onRemove={() => removeFile(index)} />
-			{/each}
-		</div>
-	{/if}
-
 	<!-- Main input wrapper -->
 	<div class="input-wrapper">
-		<!-- Attachment button (left) -->
-		{#if allowedMessageMimeTypes.length > 0}
-			<button
-				class="input-action-button"
-				onclick={triggerFileInput}
-				title="Legg til filer"
-				type="button"
-			>
-				<span class="material-symbols-outlined">add</span>
-			</button>
-			<input
-				bind:this={fileInput}
-				type="file"
-				multiple
-				accept={allowedMessageMimeTypes.join(",")}
-				onchange={handleFileInputChange}
-				hidden
-			/>
+		{#if inputFiles.length > 0}
+			<div class="file-previews">
+				{#each inputFiles as file, index}
+					<FilePreview {file} onRemove={() => removeFile(index)} />
+				{/each}
+			</div>
 		{/if}
 
-		<!-- Text input -->
-		<div class="grow-wrap" bind:this={wrapDiv}>
-			<textarea
-				bind:this={textArea}
-				bind:value={inputText}
-				placeholder="Skriv en melding..."
-				onkeydown={submitOnEnter}
-				onpaste={handlePaste}
-				rows={1}
-			></textarea>
+		<div class="input-row">
+			<div class="input-text">
+				<!-- Text input -->
+				<div class="grow-wrap" bind:this={wrapDiv}>
+					<textarea
+						bind:this={textArea}
+						bind:value={inputText}
+						placeholder="Skriv en melding..."
+						onkeydown={submitOnEnter}
+						onpaste={handlePaste}
+						rows={1}
+					></textarea>
+				</div>
+			</div>
+
+			<div class="input-actions">
+				<!-- Attachment button (left) -->
+				{#if allowedMessageMimeTypes.length > 0}
+					<button
+						class="icon-button input-action-button"
+						onclick={triggerFileInput}
+						title="Legg til filer"
+						type="button"
+					>
+						<span class="material-symbols-outlined">attach_file</span>
+					</button>
+					<input
+						bind:this={fileInput}
+						type="file"
+						multiple
+						accept={allowedMessageMimeTypes.join(",")}
+						onchange={handleFileInputChange}
+						hidden
+					/>
+				{/if}
+			</div>
+			<div class="input-submit">
+				<!-- Send button (right) -->
+				{#if messageInProgress}
+					<button class="icon-button input-action-button send" disabled title="Sender...">
+						<TypingDots />
+					</button>
+				{:else}
+					<button
+						class="icon-button filled input-action-button send"
+						onclick={submitPrompt}
+						disabled={inputText.trim().length === 0 && inputFiles.length === 0}
+						title={inputText.trim().length === 0 && inputFiles.length === 0
+							? "Skriv en melding eller legg til filer for å sende"
+							: "Send melding"}
+						type="button"
+					>
+						<span class="material-symbols-outlined">arrow_upward</span>
+					</button>
+				{/if}
+			</div>
 		</div>
-
-		<!-- Send button (right) -->
-		{#if messageInProgress}
-			<button class="input-action-button sending" disabled title="Sender...">
-				<TypingDots />
-			</button>
-		{:else}
-			<button
-				class="input-action-button send"
-				onclick={submitPrompt}
-				disabled={inputText.trim().length === 0 && inputFiles.length === 0}
-				title={inputText.trim().length === 0 && inputFiles.length === 0
-					? "Skriv en melding eller legg til filer for å sende"
-					: "Send melding"}
-				type="button"
-			>
-				<span class="material-symbols-outlined">arrow_upward</span>
-			</button>
-		{/if}
 	</div>
 </div>
 
@@ -207,27 +218,14 @@
 		gap: 0.5rem;
 	}
 
-	/* File previews container */
-	.file-previews {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 0.5rem;
-		padding: 0.5rem;
-		background-color: var(--color-primary-10);
-		border-radius: 0.75rem 0.75rem 0 0;
-		border: 1px solid var(--color-primary-20);
-		border-bottom: none;
-	}
-
 	/* Main input wrapper - the rounded container */
 	.input-wrapper {
 		display: flex;
-		align-items: flex-end;
-		gap: 0.5rem;
-		padding: 0.5rem;
-		background-color: white;
+		flex-direction: column;
+		gap: 0.25rem;
+		padding: 0.5rem 1rem;
 		border: 1px solid var(--color-primary);
-		border-radius: 1.5rem;
+		border-radius: 24px;
 		transition: border-color 0.2s;
 	}
 
@@ -236,56 +234,51 @@
 		box-shadow: 0 0 0 2px var(--color-primary-20);
 	}
 
-	/* When file previews are shown, adjust border radius */
-	.file-previews + .input-wrapper {
-		border-radius: 0 0 1.5rem 1.5rem;
-		border-top: none;
+	/* File previews container */
+	.file-previews {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.5rem;
+		padding: 0.5rem 0rem;
+	}
+
+	.input-row {
+		display: flex;
+		gap: 0.5rem;
+		flex-wrap: wrap;
+		justify-content: space-between;
+		align-items: center;
+	}
+
+	.input-text {
+		flex: 1;
+		min-width: 100%;
+	}
+
+	.input-actions {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
 	}
 
 	/* Action buttons inside input */
 	.input-action-button {
-		flex-shrink: 0;
-		width: 2rem;
-		height: 2rem;
-		padding: 0;
-		border: none;
+		padding: 0.5rem 0.375rem; /* To keep consistent with input-textarea spacing */
+	}
+
+	.input-action-button.send {
+		width: 2.5rem;
+		height: 2.5rem;
 		border-radius: 50%;
-		background-color: var(--color-primary-10);
-		color: var(--color-primary);
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		cursor: pointer;
 		transition: background-color 0.2s;
-	}
-
-	.input-action-button:hover:not(:disabled) {
-		background-color: var(--color-primary-20);
-	}
-
-	.input-action-button:disabled {
-		background-color: var(--color-primary-10);
-		color: var(--color-primary-30);
-		cursor: not-allowed;
-	}
-
-	.input-action-button.send:not(:disabled) {
-		background-color: var(--color-primary);
-		color: white;
-	}
-
-	.input-action-button.send:hover:not(:disabled) {
-		background-color: var(--color-primary-80);
-	}
-
-	.input-action-button .material-symbols-outlined {
-		font-size: 1.25rem;
+		justify-content: center;
 	}
 
 	/* Auto-growing textarea styles */
 	.grow-wrap {
 		flex: 1;
 		display: grid;
+		padding: 0.5rem 0;
 	}
 
 	.grow-wrap::after {
@@ -298,7 +291,6 @@
 	.grow-wrap > textarea,
 	.grow-wrap::after {
 		font: inherit;
-		padding: 0.5rem 0;
 		grid-area: 1 / 1 / 2 / 2;
 		border: none;
 		outline: none;
@@ -311,4 +303,16 @@
 	.grow-wrap > textarea::placeholder {
 		color: var(--color-primary-70);
 	}
+	/* END Auto-growing textarea styles */
+
+	/* If large enough screen, make input row horizontal */
+	@media (min-width: 40rem) {
+		.input-text {
+			min-width: auto;
+		}
+		.input-actions {
+			order: -1;
+		}
+	}
+
 </style>
