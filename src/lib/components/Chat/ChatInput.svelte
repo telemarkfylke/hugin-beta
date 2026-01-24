@@ -147,26 +147,6 @@
 
 	<!-- Main input wrapper -->
 	<div class="input-wrapper">
-		<!-- Attachment button (left) -->
-		{#if allowedMessageMimeTypes.length > 0}
-			<button
-				class="input-action-button"
-				onclick={triggerFileInput}
-				title="Legg til filer"
-				type="button"
-			>
-				<span class="material-symbols-outlined">add</span>
-			</button>
-			<input
-				bind:this={fileInput}
-				type="file"
-				multiple
-				accept={allowedMessageMimeTypes.join(",")}
-				onchange={handleFileInputChange}
-				hidden
-			/>
-		{/if}
-
 		<!-- Text input -->
 		<div class="grow-wrap" bind:this={wrapDiv}>
 			<textarea
@@ -179,24 +159,46 @@
 			></textarea>
 		</div>
 
-		<!-- Send button (right) -->
-		{#if messageInProgress}
-			<button class="input-action-button sending" disabled title="Sender...">
-				<TypingDots />
-			</button>
-		{:else}
-			<button
-				class="input-action-button send"
-				onclick={submitPrompt}
-				disabled={inputText.trim().length === 0 && inputFiles.length === 0}
-				title={inputText.trim().length === 0 && inputFiles.length === 0
-					? "Skriv en melding eller legg til filer for å sende"
-					: "Send melding"}
-				type="button"
-			>
-				<span class="material-symbols-outlined">arrow_upward</span>
-			</button>
-		{/if}
+		<div class="input-actions">
+			<!-- Attachment button (left) -->
+			{#if allowedMessageMimeTypes.length > 0}
+				<button
+					class="icon-button input-action-button"
+					onclick={triggerFileInput}
+					title="Legg til filer"
+					type="button"
+				>
+					<span class="material-symbols-outlined">attach_file</span>
+				</button>
+				<input
+					bind:this={fileInput}
+					type="file"
+					multiple
+					accept={allowedMessageMimeTypes.join(",")}
+					onchange={handleFileInputChange}
+					hidden
+				/>
+			{/if}
+
+			<!-- Send button (right) -->
+			{#if messageInProgress}
+				<button class="icon-button input-action-button send" disabled title="Sender...">
+					<TypingDots />
+				</button>
+			{:else}
+				<button
+					class="icon-button filled input-action-button send"
+					onclick={submitPrompt}
+					disabled={inputText.trim().length === 0 && inputFiles.length === 0}
+					title={inputText.trim().length === 0 && inputFiles.length === 0
+						? "Skriv en melding eller legg til filer for å sende"
+						: "Send melding"}
+					type="button"
+				>
+					<span class="material-symbols-outlined">arrow_upward</span>
+				</button>
+			{/if}
+		</div>
 	</div>
 </div>
 
@@ -222,18 +224,23 @@
 	/* Main input wrapper - the rounded container */
 	.input-wrapper {
 		display: flex;
-		align-items: flex-end;
-		gap: 0.5rem;
-		padding: 0.5rem;
-		background-color: white;
+		flex-direction: column;
+		gap: 0.25rem;
+		padding: 0.5rem 1rem;
 		border: 1px solid var(--color-primary);
-		border-radius: 1.5rem;
+		border-radius: 24px;
 		transition: border-color 0.2s;
 	}
 
 	.input-wrapper:focus-within {
 		border-color: var(--color-primary-80);
 		box-shadow: 0 0 0 2px var(--color-primary-20);
+	}
+
+	.input-actions {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
 	}
 
 	/* When file previews are shown, adjust border radius */
@@ -244,42 +251,15 @@
 
 	/* Action buttons inside input */
 	.input-action-button {
-		flex-shrink: 0;
-		width: 2rem;
-		height: 2rem;
-		padding: 0;
-		border: none;
+		padding: 0.5rem 0.375rem; /* To keep consistent with textarea spacing */
+	}
+
+	.input-action-button.send {
+		width: 2.5rem;
+		height: 2.5rem;
 		border-radius: 50%;
-		background-color: var(--color-primary-10);
-		color: var(--color-primary);
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		cursor: pointer;
 		transition: background-color 0.2s;
-	}
-
-	.input-action-button:hover:not(:disabled) {
-		background-color: var(--color-primary-20);
-	}
-
-	.input-action-button:disabled {
-		background-color: var(--color-primary-10);
-		color: var(--color-primary-30);
-		cursor: not-allowed;
-	}
-
-	.input-action-button.send:not(:disabled) {
-		background-color: var(--color-primary);
-		color: white;
-	}
-
-	.input-action-button.send:hover:not(:disabled) {
-		background-color: var(--color-primary-80);
-	}
-
-	.input-action-button .material-symbols-outlined {
-		font-size: 1.25rem;
+		justify-content: center;
 	}
 
 	/* Auto-growing textarea styles */
@@ -298,7 +278,7 @@
 	.grow-wrap > textarea,
 	.grow-wrap::after {
 		font: inherit;
-		padding: 0.5rem 0;
+		padding: 0.5rem 0.375rem;
 		grid-area: 1 / 1 / 2 / 2;
 		border: none;
 		outline: none;
