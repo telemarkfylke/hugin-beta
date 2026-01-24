@@ -32,7 +32,6 @@
 	let inputText: string = $state("")
 	let inputFiles: File[] = $state([])
 	let messageInProgress = $state(false)
-	let textArea: HTMLTextAreaElement
 
 	// KOnverter filarrayen til en liste med filer
 	const filesToFileList = (files: File[]): FileList => {
@@ -122,10 +121,17 @@
 		}
 	}
 
-	// Autoresize textarea
+	// Some element references
+	let textArea: HTMLTextAreaElement
 	let wrapDiv: HTMLDivElement
+	/**
+	 * As we wait for "textarea {field-sizing: content;}" to be supported in all browsers
+	 * Magic is in CSS below, this JS just updates the data attribute on input
+	 * Thank you to Chris Coyier and Stephen Shaw
+	 * @link https://chriscoyier.net/2023/09/29/css-solves-auto-expanding-textareas-probably-eventually/
+	 */
 	$effect(() => {
-		inputText
+		inputText // Track changes to inputText
 		if (wrapDiv && textArea) {
 			wrapDiv.setAttribute("data-replicated-value", textArea.value)
 		}
