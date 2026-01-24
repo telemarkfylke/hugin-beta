@@ -1,10 +1,10 @@
 <script lang="ts">
 	import { onMount } from "svelte"
 	import { fade, slide } from "svelte/transition"
+	import { page } from "$app/state"
 	import favicon16 from "$lib/assets/favicon-16x16.png"
 	import type { AuthenticatedPrincipal } from "$lib/types/authentication"
 	import type { ChatConfig } from "$lib/types/chat"
-  import { page } from "$app/state";
 
 	type Props = {
 		authenticatedUser: AuthenticatedPrincipal
