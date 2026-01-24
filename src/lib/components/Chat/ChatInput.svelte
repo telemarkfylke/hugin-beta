@@ -136,17 +136,17 @@
 <div class="chat-input-container">
 	<FileDropZone onFilesDropped={handleFilesDropped} />
 
-	<!-- File previews above input -->
-	{#if inputFiles.length > 0}
-		<div class="file-previews">
-			{#each inputFiles as file, index}
-				<FilePreview {file} onRemove={() => removeFile(index)} />
-			{/each}
-		</div>
-	{/if}
-
 	<!-- Main input wrapper -->
 	<div class="input-wrapper">
+		<!-- File previews above input -->
+		{#if inputFiles.length > 0}
+			<div class="file-previews">
+				{#each inputFiles as file, index}
+					<FilePreview {file} onRemove={() => removeFile(index)} />
+				{/each}
+			</div>
+		{/if}
+
 		<!-- Text input -->
 		<div class="grow-wrap" bind:this={wrapDiv}>
 			<textarea
@@ -214,11 +214,7 @@
 		display: flex;
 		flex-wrap: wrap;
 		gap: 0.5rem;
-		padding: 0.5rem;
-		background-color: var(--color-primary-10);
-		border-radius: 0.75rem 0.75rem 0 0;
-		border: 1px solid var(--color-primary-20);
-		border-bottom: none;
+		padding: 1rem 0rem;
 	}
 
 	/* Main input wrapper - the rounded container */
@@ -243,15 +239,9 @@
 		align-items: center;
 	}
 
-	/* When file previews are shown, adjust border radius */
-	.file-previews + .input-wrapper {
-		border-radius: 0 0 1.5rem 1.5rem;
-		border-top: none;
-	}
-
 	/* Action buttons inside input */
 	.input-action-button {
-		padding: 0.5rem 0.375rem; /* To keep consistent with textarea spacing */
+		padding: 0.5rem 0.375rem; /* To keep consistent with input-textarea spacing */
 	}
 
 	.input-action-button.send {
@@ -291,4 +281,5 @@
 	.grow-wrap > textarea::placeholder {
 		color: var(--color-primary-70);
 	}
+	/* END Auto-growing textarea styles */
 </style>
