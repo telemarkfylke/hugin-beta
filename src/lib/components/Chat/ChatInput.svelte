@@ -145,57 +145,62 @@
 			</div>
 		{/if}
 
-		<!-- Text input -->
-		<div class="grow-wrap" bind:this={wrapDiv}>
-			<textarea
-				bind:this={textArea}
-				bind:value={inputText}
-				placeholder="Skriv en melding..."
-				onkeydown={submitOnEnter}
-				onpaste={handlePaste}
-				rows={1}
-			></textarea>
-		</div>
+		<div class="input-row">
+			<div class="input-text">
+				<!-- Text input -->
+				<div class="grow-wrap" bind:this={wrapDiv}>
+					<textarea
+						bind:this={textArea}
+						bind:value={inputText}
+						placeholder="Skriv en melding..."
+						onkeydown={submitOnEnter}
+						onpaste={handlePaste}
+						rows={1}
+					></textarea>
+				</div>
+			</div>
 
-		<div class="input-actions">
-			<!-- Attachment button (left) -->
-			{#if allowedMessageMimeTypes.length > 0}
-				<button
-					class="icon-button input-action-button"
-					onclick={triggerFileInput}
-					title="Legg til filer"
-					type="button"
-				>
-					<span class="material-symbols-outlined">attach_file</span>
-				</button>
-				<input
-					bind:this={fileInput}
-					type="file"
-					multiple
-					accept={allowedMessageMimeTypes.join(",")}
-					onchange={handleFileInputChange}
-					hidden
-				/>
-			{/if}
-
-			<!-- Send button (right) -->
-			{#if messageInProgress}
-				<button class="icon-button input-action-button send" disabled title="Sender...">
-					<TypingDots />
-				</button>
-			{:else}
-				<button
-					class="icon-button filled input-action-button send"
-					onclick={submitPrompt}
-					disabled={inputText.trim().length === 0 && inputFiles.length === 0}
-					title={inputText.trim().length === 0 && inputFiles.length === 0
-						? "Skriv en melding eller legg til filer for å sende"
-						: "Send melding"}
-					type="button"
-				>
-					<span class="material-symbols-outlined">arrow_upward</span>
-				</button>
-			{/if}
+			<div class="input-actions">
+				<!-- Attachment button (left) -->
+				{#if allowedMessageMimeTypes.length > 0}
+					<button
+						class="icon-button input-action-button"
+						onclick={triggerFileInput}
+						title="Legg til filer"
+						type="button"
+					>
+						<span class="material-symbols-outlined">attach_file</span>
+					</button>
+					<input
+						bind:this={fileInput}
+						type="file"
+						multiple
+						accept={allowedMessageMimeTypes.join(",")}
+						onchange={handleFileInputChange}
+						hidden
+					/>
+				{/if}
+			</div>
+			<div class="input-submit">
+				<!-- Send button (right) -->
+				{#if messageInProgress}
+					<button class="icon-button input-action-button send" disabled title="Sender...">
+						<TypingDots />
+					</button>
+				{:else}
+					<button
+						class="icon-button filled input-action-button send"
+						onclick={submitPrompt}
+						disabled={inputText.trim().length === 0 && inputFiles.length === 0}
+						title={inputText.trim().length === 0 && inputFiles.length === 0
+							? "Skriv en melding eller legg til filer for å sende"
+							: "Send melding"}
+						type="button"
+					>
+						<span class="material-symbols-outlined">arrow_upward</span>
+					</button>
+				{/if}
+			</div>
 		</div>
 	</div>
 </div>
@@ -205,14 +210,6 @@
 		display: flex;
 		flex-direction: column;
 		gap: 0.5rem;
-	}
-
-	/* File previews container */
-	.file-previews {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 0.5rem;
-		padding: 1rem 0rem;
 	}
 
 	/* Main input wrapper - the rounded container */
@@ -229,6 +226,27 @@
 	.input-wrapper:focus-within {
 		border-color: var(--color-primary-80);
 		box-shadow: 0 0 0 2px var(--color-primary-20);
+	}
+
+	/* File previews container */
+	.file-previews {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.5rem;
+		padding: 1rem 0rem;
+	}
+
+	.input-row {
+		display: flex;
+		gap: 0.5rem;
+		flex-wrap: wrap;
+		justify-content: space-between;
+		align-items: center;
+	}
+
+	.input-text {
+		flex: 1;
+		min-width: 100%;
 	}
 
 	.input-actions {
@@ -254,6 +272,7 @@
 	.grow-wrap {
 		flex: 1;
 		display: grid;
+		padding: 0.5rem 0;
 	}
 
 	.grow-wrap::after {
@@ -266,7 +285,6 @@
 	.grow-wrap > textarea,
 	.grow-wrap::after {
 		font: inherit;
-		padding: 0.5rem 0.375rem;
 		grid-area: 1 / 1 / 2 / 2;
 		border: none;
 		outline: none;
@@ -280,4 +298,15 @@
 		color: var(--color-primary-70);
 	}
 	/* END Auto-growing textarea styles */
+
+	/* If large enough screen, make input row horizontal */
+	@media (min-width: 40rem) {
+		.input-text {
+			min-width: auto;
+		}
+		.input-actions {
+			order: -1;
+		}
+	}
+
 </style>
