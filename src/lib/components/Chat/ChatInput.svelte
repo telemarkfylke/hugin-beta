@@ -233,7 +233,7 @@
 		display: flex;
 		flex-wrap: wrap;
 		gap: 0.5rem;
-		padding: 1rem 0rem;
+		padding: 0.5rem 0rem;
 	}
 
 	.input-row {
