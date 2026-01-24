@@ -8,8 +8,6 @@
 
 	// Get layout props, data will be accessible for children as well, so do not put too much here to avoid overfetching
 	let { children, data }: LayoutProps = $props()
-
-	let menuOpen = $state(true)
 </script>
 
 <svelte:head>
@@ -24,8 +22,8 @@
 </svelte:head>
 
 <main>
-	<Menu authenticatedUser={data.authenticatedUser} bind:menuOpen />
-	<div class="page-content" class:menu-open={menuOpen}>
+	<Menu authenticatedUser={data.authenticatedUser} />
+	<div class="page-content">
 		{#if children}
 			{@render children()}
 		{:else}
@@ -44,21 +42,5 @@
 		height: 100%;
 		flex: 1;
 		padding: 0rem 0.25rem;
-		transition: margin-left 0.15s ease;
-	}
-
-	/* On small screens, content takes full width. Menu overlays with backdrop. */
-	@media (max-width: 69.999rem) {
-		.page-content {
-			margin-left: 0;
-			width: 100%;
-		}
-	}
-
-	/* On large screens, sidebar is in normal flow - no margin needed */
-	@media (min-width: 70rem) {
-		.page-content {
-			margin-left: 0;
-		}
 	}
 </style>
