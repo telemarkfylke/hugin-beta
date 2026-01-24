@@ -137,7 +137,6 @@
 
 	<!-- Main input wrapper -->
 	<div class="input-wrapper">
-		<!-- File previews above input -->
 		{#if inputFiles.length > 0}
 			<div class="file-previews">
 				{#each inputFiles as file, index}
