@@ -16,6 +16,13 @@
 	const smallScreenWidth = 1120
 	let screenIsLarge = true
 
+	$effect(() => {
+		page.url // Track page url changes
+		if (!screenIsLarge) {
+			menuOpen = false
+		}
+	})
+
 	const getAgents = async (): Promise<ChatConfig[]> => {
 		const agentResponse = await fetch("/api/chatconfigs")
 		if (!agentResponse.ok) {
@@ -56,7 +63,7 @@
 		</button>
 	</div>
 {:else}
-	<div class="app-overlay" transition:fade={{ duration: 100 }}></div>
+	<div class="app-overlay" transition:fade={{ duration: 100 }} onclick={() => { menuOpen = false }}></div>
 	<div class="menu" transition:slide={{ axis: 'x', duration: 100 }}>
 		<div class="menu-header">
 			<div class="app-title"><img src={favicon16} alt="Mugin logo" /> Mugin</div>
