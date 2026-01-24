@@ -1,28 +1,27 @@
 <script lang="ts">
-    type Props = {
-        file: File
-        onRemove: (file: File) => void
-    }
+	type Props = {
+		file: File
+		onRemove: (file: File) => void
+	}
 
+	let { file, onRemove }: Props = $props()
 
-    let { file, onRemove }: Props = $props()
+	// Først sjekker vi om filen er et bilde
+	let isImage = $derived(file.type.startsWith("image/"))
 
-    // Først sjekker vi om filen er et bilde
-    let isImage = $derived(file.type.startsWith("image/"))
+	// Hvis det er et bilde, lager vi en URL for forhåndsvisning
+	let imageUrl = $derived(isImage ? URL.createObjectURL(file) : "")
 
-    // Hvis det er et bilde, lager vi en URL for forhåndsvisning
-    let imageUrl = $derived(isImage ? URL.createObjectURL(file) : "")
+	// Fjern forhåndsvisningen når komponenten fjernes
+	$effect(() => {
+		return () => {
+			if (isImage) {
+				URL.revokeObjectURL(imageUrl)
+			}
+		}
+	})
 
-    // Fjern forhåndsvisningen når komponenten fjernes
-    $effect(() => {
-        return () => {
-            if (isImage) {
-                URL.revokeObjectURL(imageUrl)
-            }
-        }
-    })
-
-    // Returner passende ikon basert på MIME-typen
+	// Returner passende ikon basert på MIME-typen
 	const getFileIcon = (mimeType: string): string => {
 		if (mimeType === "application/pdf") return "picture_as_pdf"
 		if (mimeType.startsWith("text/")) return "description"

@@ -1,8 +1,8 @@
 <script lang="ts">
 	import FileDropZone from "../FileDropZone.svelte"
 	import TypingDots from "../TypingDots.svelte"
-	import FilePreview from "./FilePreview.svelte"
 	import type { ChatState } from "./ChatState.svelte"
+	import FilePreview from "./FilePreview.svelte"
 
 	type Props = {
 		chatState: ChatState
@@ -37,11 +37,11 @@
 	// KOnverter filarrayen til en liste med filer
 	const filesToFileList = (files: File[]): FileList => {
 		const dataTransfer = new DataTransfer()
-		for ( const file of files ) {
+		for (const file of files) {
 			dataTransfer.items.add(file)
 		}
 		return dataTransfer.files
-	}	
+	}
 
 	// Simple helper for posting prompt, and clearing input
 	const submitPrompt = async (): Promise<void> => {
@@ -80,9 +80,8 @@
 		target.value = ""
 	}
 
-
 	const addFiles = (files: File[]) => {
-		const validFiles = files.filter(file => {
+		const validFiles = files.filter((file) => {
 			if (allowedMessageMimeTypes.length === 0) {
 				return false
 			} else {
