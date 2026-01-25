@@ -85,7 +85,7 @@ export class ChatState {
 	public isLoading: boolean = $state(false)
 	public user: AuthenticatedPrincipal
 	public APP_CONFIG: AppConfig
-	public showConfig: boolean = $state(false)
+	public configMode: boolean = $state(false)
 	public configEdited: boolean = $state(false)
 	public initialConfig: ChatConfig | null = $state(null)
 

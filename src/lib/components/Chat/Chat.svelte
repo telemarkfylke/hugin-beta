@@ -35,13 +35,13 @@
 
 <div class="chat-container">
 	<ChatHeaderWithConfig {chatState} />
-	<div class="chat-body" class:mobile-hidden={chatState.configMode}>
-		<div class="chat-items" class:empty={chatState.chat.history.length === 0}>
-			{#each chatState.chat.history as chatHistoryItem}
-				<ChatHistoryItem {chatHistoryItem} />
-			{/each}
-			<div bind:this={lastChatItem}>&nbsp;</div>
-		</div>
+	<div class="chat-items" class:mobile-hidden={chatState.configMode}  class:empty={chatState.chat.history.length === 0}>
+		{#each chatState.chat.history as chatHistoryItem}
+			<ChatHistoryItem {chatHistoryItem} />
+		{/each}
+		<div bind:this={lastChatItem}>&nbsp;</div>
+	</div>
+	<div class="chat-input-container" class:mobile-hidden={chatState.configMode}>
 		<ChatInput {chatState} sendMessage={chatState.promptChat} />
 	</div>
 </div>
@@ -58,17 +58,9 @@
     height: 100%;		
 		padding: 0rem 0.5rem 1.5rem 0.5rem;
   }
-	.chat-body {
-		box-sizing: border-box; /* Include padding and border in total size, to avoid overflow */
-    display: flex;
-    flex-direction: column;
-		flex: 1;
-	}
-	.chat-body.mobile-hidden {
-		display: none;
-	}
 	.chat-items {
 		flex: 1;
+		max-height: 100%;
     padding: 0.3rem;
     overflow-y: auto;
     display: flex;
@@ -78,9 +70,15 @@
 	.chat-items.empty {
 		/* display: none; */ /* hvis man vil ha de skjult når tom */
 	}
+	.mobile-hidden {
+		display: none;
+	}
 	@media screen and (min-height: 60rem) and (min-width: 40rem) {
-		.chat-body.mobile-hidden {
+		.chat-items.mobile-hidden {
 			display: flex;
+		}
+		.chat-input-container.mobile-hidden {
+			display: block;
 		}
 	}
 </style>

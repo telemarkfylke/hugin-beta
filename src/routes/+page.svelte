@@ -46,8 +46,9 @@
 
 	// svelte-ignore state_referenced_locally (don't care, user is user, APP_CONFIG is APP_CONFIG. If somebody messes with them, backend must handle that)
 	const chatState = new ChatState(defaultChat, data.authenticatedUser, data.APP_CONFIG)
+	chatState.configMode = page.url.searchParams.get("createAgent") === "true"
 </script>
 
-<ChatComponent {chatState} showConfig={page.url.searchParams.get("createAgent") === "true"} />
+<ChatComponent {chatState} />
 
 <!--<button onclick={() => chatState.loadChat('hahah')}>Load chat 'hahah'</button>-->
