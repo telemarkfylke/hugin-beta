@@ -51,6 +51,9 @@
 	}
 
 	const getAgentName = () => {
+		if (chatState.configEdited && !chatState.chat.config.name) {
+			return "Uten navn*"
+		}
 		let name = chatState.chat.config.name || chatState.chat.config.model
 		if (!name) {
 			name = chatState.chat.config._id ? "Uten navn" : "Ny agent"
