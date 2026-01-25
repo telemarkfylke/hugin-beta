@@ -137,15 +137,32 @@
 	</div>
 	<div class="chat-header-right">
 		<div class="chat-actions">
-			<button class="icon-button" onclick={() => chatState.newChat()} title="Ny samtale">
-				<span class="material-symbols-rounded">edit_square</span>
-			</button>
-			{#if userCanEditConfig}
-				<button class="icon-button" onclick={() => chatState.configMode = !chatState.configMode} title={chatState.configMode ? "Skjul konfigurasjon" : "Vis konfigurasjon"}>
-					<span class="material-symbols-rounded">
-						settings
-					</span>
+			{#if !chatState.configMode}
+				<button class="icon-button" onclick={() => chatState.newChat()} title="Ny samtale">
+					<span class="material-symbols-rounded">edit_square</span>
 				</button>
+			{/if}
+			{#if userCanEditConfig}
+				{#if chatState.configMode && chatState.configEdited}
+					<button onclick={() => chatState.configMode = !chatState.configMode} title="Test agent-konfigurasjon">
+						<span class="material-symbols-rounded">
+							experiment
+						</span>
+						<span class="widescreen-span">Test agent</span>
+					</button>
+				{:else}
+					<button class="icon-button" onclick={() => chatState.configMode = !chatState.configMode} title={chatState.configMode ? "Skjul konfigurasjon" : "Vis konfigurasjon"}>
+					{#if chatState.configMode}
+						<span class="material-symbols-rounded">
+							close
+						</span>
+					{:else}
+						<span class="material-symbols-rounded">
+							build
+						</span>
+					{/if}
+					</button>
+				{/if}
 			{:else}
 				<button class="icon-button" onclick={() => chatState.configMode = !chatState.configMode} title={chatState.configMode ? "Skjul beskrivelse" : "Vis beskrivelse"}>
 					<span class="material-symbols-rounded">
@@ -291,11 +308,17 @@
 	.chat-header-left {
 		min-width: 3rem;
 		visibility: hidden;
+		flex: 1;
 	}
 	.chat-header-center {
 		display: flex;
 		align-items: center;
 		gap: 0.5rem;
+	}
+	.chat-header-right {
+		display: flex;
+		flex: 1;
+		justify-content: right;
 	}
 	.chat-actions {
 		display: flex;
@@ -369,11 +392,19 @@
 		cursor: pointer;
 	}
 
+	.widescreen-span {
+		display: none;
+	}
+
+	/* If screen wide enough, display some text */
+	@media screen and (min-width: 40rem) {
+		.widescreen-span {
+			display: inline;
+		}
+	}
+
 	/* If large enough screen, user can test while config is open */
 	@media screen and (min-height: 64rem) and (min-width: 40rem) {
-		#mobile-test-button {
-			display: none;
-		}
 		.info-box {
 			display: flex;
 			flex: 1

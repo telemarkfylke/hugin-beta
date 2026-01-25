@@ -78,7 +78,7 @@
 	.chat-items.empty {
 		/* display: none; */ /* hvis man vil ha de skjult når tom */
 	}
-	@media screen and (min-height: 64rem) and (min-width: 40rem) {
+	@media screen and (min-height: 60rem) and (min-width: 40rem) {
 		.chat-body.mobile-hidden {
 			display: flex;
 		}
