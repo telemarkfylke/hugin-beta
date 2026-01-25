@@ -194,7 +194,7 @@
 			<!-- Config type selection -->
 			 {#if userCanEditPredefinedConfig}
 				<div class="config-section">
-					<div class="config-item">
+					<div class="config-item radio-group">
 						<label class="radio-label">
 							<input type="radio" name="configType" value="manual" onchange={onConfigTypeChange} checked={!chatState.chat.config.vendorAgent} />
 							Manuell konfigurasjon
@@ -326,7 +326,7 @@
 		padding: 1rem 0;
 	}
 	.config-section {
-		row-gap: 0.5rem;
+		column-gap: 0.5rem;
 		border-bottom: 1px solid var(--color-primary-30);
 		flex-wrap: wrap;
 	}
@@ -334,6 +334,11 @@
 		display: flex;
 		flex: 1;
 		flex-direction: column;
+	}
+	.config-item.radio-group {
+		flex-direction: row;
+		align-items: center;
+		gap: 1rem;
 	}
 	.config-actions {
 		justify-content: space-between;
