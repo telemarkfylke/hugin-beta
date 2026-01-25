@@ -85,7 +85,9 @@ export class ChatState {
 	public isLoading: boolean = $state(false)
 	public user: AuthenticatedPrincipal
 	public APP_CONFIG: AppConfig
-	public configEditMode: boolean = $state(false)
+	public showConfig: boolean = $state(false)
+	public configEdited: boolean = $state(false)
+	public initialConfig: ChatConfig | null = $state(null)
 
 	constructor(chat: Chat, user: AuthenticatedPrincipal, appConfig: AppConfig) {
 		this.user = user
@@ -106,6 +108,7 @@ export class ChatState {
 		this.chat.createdAt = chat.createdAt
 		this.chat.updatedAt = chat.updatedAt
 		this.chat.owner = chat.owner
+		this.initialConfig = JSON.parse(JSON.stringify(chat.config))
 	}
 
 	public newChat = (): void => {
