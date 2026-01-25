@@ -35,7 +35,7 @@
 
 <div class="chat-container">
 	<ChatHeaderWithConfig {chatState} />
-	<div class="chat-body" class:hidden={chatState.showConfig}>
+	<div class="chat-body" class:mobile-hidden={chatState.configMode}>
 		<div class="chat-items" class:empty={chatState.chat.history.length === 0}>
 			{#each chatState.chat.history as chatHistoryItem}
 				<ChatHistoryItem {chatHistoryItem} />
@@ -64,7 +64,7 @@
     flex-direction: column;
 		flex: 1;
 	}
-	.chat-body.hidden {
+	.chat-body.mobile-hidden {
 		display: none;
 	}
 	.chat-items {
@@ -79,7 +79,7 @@
 		/* display: none; */ /* hvis man vil ha de skjult når tom */
 	}
 	@media screen and (min-height: 64rem) and (min-width: 40rem) {
-		.chat-body.hidden {
+		.chat-body.mobile-hidden {
 			display: flex;
 		}
 	}

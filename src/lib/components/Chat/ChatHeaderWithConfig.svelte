@@ -129,7 +129,7 @@
 		&nbsp;
 	</div>
 	<div class="chat-header-center">
-		{#if chatState.showConfig}
+		{#if chatState.configMode}
 			<input type="text" id="agent-name" placeholder="Gi agenten et navn" bind:value={chatState.chat.config.name} />
 		{:else}
 			<h3>{getAgentName()}</h3>
@@ -141,13 +141,13 @@
 				<span class="material-symbols-rounded">edit_square</span>
 			</button>
 			{#if userCanEditConfig}
-				<button class="icon-button" onclick={() => chatState.showConfig = !chatState.showConfig} title={chatState.showConfig ? "Skjul konfigurasjon" : "Vis konfigurasjon"}>
+				<button class="icon-button" onclick={() => chatState.configMode = !chatState.configMode} title={chatState.configMode ? "Skjul konfigurasjon" : "Vis konfigurasjon"}>
 					<span class="material-symbols-rounded">
 						settings
 					</span>
 				</button>
 			{:else}
-				<button class="icon-button" onclick={() => chatState.showConfig = !chatState.showConfig} title={chatState.showConfig ? "Skjul beskrivelse" : "Vis beskrivelse"}>
+				<button class="icon-button" onclick={() => chatState.configMode = !chatState.configMode} title={chatState.configMode ? "Skjul beskrivelse" : "Vis beskrivelse"}>
 					<span class="material-symbols-rounded">
 						info
 					</span>
@@ -158,10 +158,9 @@
 </div>
 
 <!-- Show config toggle only available if user can edit, so no need to check that further on -->
-{#if chatState.showConfig}
+{#if chatState.configMode}
 	<div class="chat-config-container" transition:slide={{ duration: 200 }}>
 		<div class="chat-config">
-			
 			<!-- Description -->
 			<div class="config-section">
 				<div class="config-item">
@@ -192,7 +191,7 @@
 			{/if}
 
 			<!-- Config type selection -->
-			 {#if userCanEditPredefinedConfig}
+			{#if userCanEditPredefinedConfig}
 				<div class="config-section">
 					<div class="config-item radio-group">
 						<label class="radio-label">
@@ -258,41 +257,26 @@
 					</div>
 				</div>
 			{/if}
+		</div>
 
-			<!-- Actions (save and so on) -->
-			<div class="config-actions">
-				<div class="config-action-item">
-					{#if chatState.configEdited}
-						<div class="info-box">
-							<span class="material-symbols-outlined">info</span>Test endringene dine ved å sende en melding i chatten nedenfor. Du kan også trygt skjule konfigurasjonen mens du tester.
-						</div>
-					{/if}
-					<button id="mobile-test-button" onclick={() => { chatState.showConfig = false } }><span class="material-symbols-outlined">experiment</span>Test agent</button>
-				</div>
-				<div class="config-action-item right">
-					{#if chatState.chat.config._id}
-						<button disabled={!chatState.configEdited} class="filled save-button" onclick={chatState.updateChatConfig}><span class="material-symbols-outlined">save</span>Lagre endringer</button>
-					{:else}
-						<button disabled={!chatState.configEdited} class="filled save-button" onclick={chatState.saveChatConfig}><span class="material-symbols-outlined">save</span> Lagre som ny agent</button>
-					{/if}
-				</div>
+		<!-- Actions (save and so on) -->
+		<div class="config-actions">
+			<div class="config-action-item">
+				{#if chatState.configEdited}
+					<div class="info-box">
+						<span class="material-symbols-outlined">info</span>Test endringene dine ved å sende en melding i chatten nedenfor. Du kan også trygt skjule konfigurasjonen mens du tester.
+					</div>
+				{/if}
+			</div>
+			<div class="config-action-item right">
+				{#if chatState.chat.config._id}
+					<button disabled={!chatState.configEdited} class="filled save-button" onclick={chatState.updateChatConfig}><span class="material-symbols-outlined">save</span>Lagre endringer</button>
+				{:else}
+					<button disabled={!chatState.configEdited} class="filled save-button" onclick={chatState.saveChatConfig}><span class="material-symbols-outlined">save</span> Lagre som ny agent</button>
+				{/if}
 			</div>
 		</div>
-		<!-- Dev settings
-		<div class="checkboxes">
-			<input type="checkbox" id="stream" bind:checked={chatState.streamResponse} />
-			<label for="stream">Stream svar</label>
-			<br />
-			<input type="checkbox" id="debug" bind:checked={debug} />
-			<label for="debug">Debug Chat Config</label>
-			{#if debug}
-				<br />
-				{JSON.stringify(chatState.chat.config, null, 2)}
-			{/if}
-		</div>
-		-->
 	</div>
-
 {/if}
 
 <style>
@@ -350,6 +334,7 @@
 	}
 	.config-action-item.right {
 		flex-shrink: 0;
+		gap: 0.5rem;
 	}
 
 	.info-box {
