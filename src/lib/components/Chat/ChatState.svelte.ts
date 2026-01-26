@@ -46,32 +46,34 @@ const fileToMessageContent = async (file: File, supportedFileTypes: string[], su
 	}
 }
 
+const placeHolderConfig: ChatConfig = {
+	_id: "",
+	name: "",
+	description: "",
+	vendorId: "MISTRAL",
+	project: "",
+	accessGroups: "all",
+	type: "private",
+	created: {
+		at: "",
+		by: {
+			id: "",
+			name: undefined
+		}
+	},
+	updated: {
+		at: "",
+		by: {
+			id: "",
+			name: undefined
+		}
+	}
+}
+
 export class ChatState {
 	public chat: Chat = $state({
 		_id: "",
-		config: {
-			_id: "",
-			name: "",
-			description: "",
-			vendorId: "MISTRAL",
-			project: "",
-			accessGroups: "all",
-			type: "private",
-			created: {
-				at: "",
-				by: {
-					id: "",
-					name: undefined
-				}
-			},
-			updated: {
-				at: "",
-				by: {
-					id: "",
-					name: undefined
-				}
-			}
-		},
+		config: placeHolderConfig,
 		history: [] as ChatHistory,
 		createdAt: new Date().toISOString(),
 		updatedAt: new Date().toISOString(),
@@ -87,7 +89,7 @@ export class ChatState {
 	public APP_CONFIG: AppConfig
 	public configMode: boolean = $state(false)
 	public configEdited: boolean = $state(false)
-	public initialConfig: ChatConfig | null = $state(null)
+	public initialConfig: ChatConfig = $state(placeHolderConfig)
 
 	constructor(chat: Chat, user: AuthenticatedPrincipal, appConfig: AppConfig) {
 		this.user = user
