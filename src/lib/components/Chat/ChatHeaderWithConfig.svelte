@@ -143,10 +143,17 @@
 			{#if !chatState.configMode}
 				<button class="icon-button" onclick={() => chatState.newChat()} title="Ny samtale">
 					<span class="material-symbols-rounded">edit_square</span>
+					<span class="widescreen-span">Ny samtale</span>
 				</button>
 			{/if}
 			{#if userCanEditConfig}
 				{#if chatState.configMode && chatState.configEdited}
+					<button onclick={() => chatState.chat.config = JSON.parse(JSON.stringify(chatState.initialConfig))} title="Test agent-konfigurasjon">
+						<span class="material-symbols-rounded">
+							history
+						</span>
+						<span class="widescreen-span">Reset</span>
+					</button>
 					<button onclick={() => chatState.configMode = !chatState.configMode} title="Test agent-konfigurasjon">
 						<span class="material-symbols-rounded">
 							experiment
@@ -154,17 +161,20 @@
 						<span class="widescreen-span">Test agent</span>
 					</button>
 				{:else}
-					<button class="icon-button" onclick={() => chatState.configMode = !chatState.configMode} title={chatState.configMode ? "Skjul konfigurasjon" : "Vis konfigurasjon"}>
 					{#if chatState.configMode}
-						<span class="material-symbols-rounded">
-							close
-						</span>
+						<button class="icon-button" onclick={() => chatState.configMode = !chatState.configMode} title={chatState.configMode ? "Skjul konfigurasjon" : "Vis konfigurasjon"}>
+							<span class="material-symbols-rounded">
+								close
+							</span>
+						</button>
 					{:else}
-						<span class="material-symbols-rounded">
-							build
-						</span>
+						<button class:icon-button={!chatState.configEdited} onclick={() => chatState.configMode = !chatState.configMode} title={chatState.configMode ? "Skjul konfigurasjon" : "Vis konfigurasjon"}>
+							<span class="material-symbols-rounded">
+								build
+							</span>
+							<span class="widescreen-span">Konfigurer</span>
+						</button>
 					{/if}
-					</button>
 				{/if}
 			{:else}
 				<button class="icon-button" onclick={() => chatState.configMode = !chatState.configMode} title={chatState.configMode ? "Skjul beskrivelse" : "Vis beskrivelse"}>
