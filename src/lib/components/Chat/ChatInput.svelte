@@ -64,7 +64,9 @@
 <div class="chat-input-container">
 	<FileDropZone onFilesDropped={(files) => { inputFiles = files; }} />
   <form onsubmit={(event: Event) => { event.preventDefault(); submitPrompt() }}>
-    <GrowingTextArea bind:value={inputText} placeholder="Type your message here..." onkeydown={submitOnEnter} />
+	<div class="user_input">
+		<GrowingTextArea bind:value={inputText} placeholder="Type your message here..." onkeydown={submitOnEnter} />
+	</div>
     <div id="actions">
       <div id="actions-left">
         <div id="chat-file-upload-container">
@@ -106,11 +108,24 @@
 <style>
 	.chat-input-container {
 		padding-top: 0.3rem;
+		
+		
 	}
   #actions {
 		padding-top: 0.2rem;
     display: flex;
     justify-content: space-between;
+  }
+  .user_input {
+	background-color: aqua;
+	width: 80%;
+	margin-left: auto;
+	margin-right: auto;
+	display: block;
+	float: left;
+  }
+  .icon-button {
+	background-color: aqua;
   }
 	#chat-file-upload {
 		display: none;

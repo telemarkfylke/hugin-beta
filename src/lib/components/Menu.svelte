@@ -54,8 +54,8 @@
 		</div>
 		<div class="menu-content">
 			<ul>
-				<li><a href="/">Hjem</a></li>
-				<li><a href="/agents">Agenter</a></li>
+				<li class="menu-list"><a class="nav-item" href="/">Hjem</a></li>
+				<li class="menu-list"><a class="nav-item" href="/agents">Agenter</a></li>
 			</ul>
 		</div>
 		<div class="menu-footer">
@@ -108,6 +108,20 @@
 		align-items: center;
 		justify-content: space-between;
 		padding: 1rem 0rem;
+	}
+	.nav-item {
+		text-decoration: none;
+	}
+	.menu-list {
+		list-style: none;
+		margin: 0;
+		padding: 0.5rem 0rem;
+		border-radius: 0.25rem;
+		transition: background-color 0.2s;
+	}
+	.menu-list:hover {
+		background-color:#99BABF;
+		border-radius: 0.25rem;
 	}
 	.logged-in-user {
 		display: flex;
