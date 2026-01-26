@@ -11,6 +11,8 @@
 
 	let { chatState }: Props = $props()
 
+	let showDescription: boolean = $state(false)
+
 	let userCanEditConfig = $derived(canEditChatConfig(chatState.chat, chatState.user, chatState.APP_CONFIG.APP_ROLES))
 	let userCanEditPredefinedConfig = $derived(canEditPredefinedConfig(chatState.user, chatState.APP_CONFIG.APP_ROLES))
 
@@ -137,6 +139,13 @@
 		{:else}
 			<h3>{getAgentName()}</h3>
 		{/if}
+		{#if !userCanEditConfig}
+			<button class="icon-button" onclick={() => showDescription = !showDescription} title={showDescription ? "Skjul beskrivelse" : "Vis beskrivelse"}>
+				<span class="material-symbols-rounded">
+					{showDescription ? 'expand_less' : 'info'}
+				</span>
+			</button>
+		{/if}
 	</div>
 	<div class="chat-header-right">
 		<div class="chat-actions">
@@ -176,12 +185,6 @@
 						</button>
 					{/if}
 				{/if}
-			{:else}
-				<button class="icon-button" onclick={() => chatState.configMode = !chatState.configMode} title={chatState.configMode ? "Skjul beskrivelse" : "Vis beskrivelse"}>
-					<span class="material-symbols-rounded">
-						info
-					</span>
-				</button>
 			{/if}
 		</div>
 	</div>
@@ -306,6 +309,17 @@
 				{/if}
 			</div>
 		</div>
+	</div>
+{/if}
+
+{#if showDescription}
+	<div class="info-box" transition:slide={{ duration: 200 }}>
+		<span class="material-symbols-outlined">info</span>
+		{#if chatState.chat.config.description}
+			{chatState.chat.config.description}
+		{:else}
+			<em>Ingen beskrivelse tilgjengelig for denne agenten.</em>
+		{/if}
 	</div>
 {/if}
 
