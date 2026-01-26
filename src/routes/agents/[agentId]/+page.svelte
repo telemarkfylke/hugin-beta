@@ -23,11 +23,12 @@
 
 	// Get url param agentId and update chat config when it changes
 	$effect(() => {
+		console.log("Agent ID changed:", page.params.agentId)
 		page.params.agentId
 		const initialChat: Chat = {
 			_id: "",
-			createdAt: new Date().toISOString(),
-			updatedAt: new Date().toISOString(),
+			createdAt: "",
+			updatedAt: "",
 			owner: {
 				id: data.authenticatedUser.userId,
 				name: data.authenticatedUser.name
@@ -38,7 +39,7 @@
 		agentChatState.changeChat(initialChat)
 	})
 </script>
-  <ChatComponent chatState={agentChatState} showConfig={page.url.searchParams.get("editAgent") === "true"} />
+  <ChatComponent chatState={agentChatState} />
 <style>
   
 </style>

@@ -2,10 +2,10 @@
 	import ChatComponent from "$lib/components/Chat/Chat.svelte"
 	import { ChatState } from "$lib/components/Chat/ChatState.svelte.js"
 	import type { Chat } from "$lib/types/chat"
-	import type { LayoutProps } from "./$types"
+	import type { PageProps } from "./$types"
 
-	let { data }: LayoutProps = $props()
-
+	let { data }: PageProps = $props()
+	
 	const defaultChat: Chat = {
 		_id: "chat-1",
 		createdAt: new Date().toISOString(),
@@ -45,6 +45,7 @@
 
 	// svelte-ignore state_referenced_locally (don't care, user is user, APP_CONFIG is APP_CONFIG. If somebody messes with them, backend must handle that)
 	const chatState = new ChatState(defaultChat, data.authenticatedUser, data.APP_CONFIG)
+	chatState.configMode = true
 </script>
 
 <ChatComponent {chatState} />

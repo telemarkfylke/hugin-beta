@@ -111,7 +111,7 @@
 									{agent.name}
 								</a>
 							{/each}
-							<a class="menu-item" href="/?createAgent=true">
+							<a class="menu-item" href="/agents/create">
 								<span class="material-symbols-outlined">add</span>Lag ny agent
 							</a>
 						</div>	
