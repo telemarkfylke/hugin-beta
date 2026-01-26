@@ -4,6 +4,7 @@
 	import ChatHistoryItem from "./ChatHistoryItem.svelte"
 	import ChatInput from "./ChatInput.svelte"
 	import type { ChatState } from "./ChatState.svelte"
+  import { beforeNavigate } from "$app/navigation";
 
 	type Props = {
 		chatState: ChatState
@@ -12,6 +13,16 @@
 	let { chatState }: Props = $props()
 
 	let lastChatItem: HTMLDivElement
+
+	// Check if edited and routing
+	beforeNavigate(({ cancel, from, to }) => {
+		if (chatState.configEdited && from?.url.pathname !== to?.url.pathname) {
+			const confirmLeave = confirm("Du har ulagrede endringer i agent-konfigurasjonen. Er du sikker på at du vil forlate siden?");
+			if (!confirmLeave) {
+				cancel();
+			}
+		}
+	});
 
 	// Scroll-shit
 	$effect(() => {
