@@ -111,7 +111,7 @@
 									{agent.name}
 								</a>
 							{/each}
-							<a class="menu-item" href="/agents/create">
+							<a class="menu-item" class:active={page.url.pathname === "/agents/create"} href="/agents/create">
 								<span class="material-symbols-outlined">add</span>Lag ny agent
 							</a>
 						</div>	
