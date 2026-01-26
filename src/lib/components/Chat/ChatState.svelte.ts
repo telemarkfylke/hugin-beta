@@ -331,6 +331,9 @@ export class ChatState {
 			}
 			const updatedConfig: ChatConfig = await result.json()
 			this.chat.config = updatedConfig
+			this.configEdited = false
+			this.initialConfig = JSON.parse(JSON.stringify(updatedConfig))
+			this.configMode = false
 		} catch (error) {
 			console.error("Error updating chat config:", error)
 			throw error
