@@ -294,7 +294,7 @@
 			<div class="config-action-item">
 				{#if chatState.configEdited}
 					<div class="info-box">
-						<span class="material-symbols-outlined">info</span>Test endringene dine ved å sende en melding i chatten nedenfor. Du kan også trygt skjule konfigurasjonen mens du tester.
+						<span class="material-symbols-outlined">info</span><span>Test endringene dine<span class="chat-input-visible-span">&nbsp;i fullskjerm</span> ved å klikke på "Test agent" oppe i høyre hjørne. Klikk på "Konfigurer" igjen for å gå tilbake til redigering.</span>
 					</div>
 				{/if}
 			</div>
@@ -374,7 +374,7 @@
 	}
 
 	.info-box {
-		display: none;
+		display: flex;
 		font-size: smaller;
 		background-color: var(--color-primary-20);
 		gap: 0.5rem;
@@ -409,6 +409,10 @@
 		display: none;
 	}
 
+	.chat-input-visible-span {
+		display: none;
+	}
+
 	/* If screen wide enough, display some text */
 	@media screen and (min-width: 40rem) {
 		.widescreen-span {
@@ -418,9 +422,8 @@
 
 	/* If large enough screen, user can test while config is open */
 	@media screen and (min-height: 64rem) and (min-width: 40rem) {
-		.info-box {
-			display: flex;
-			flex: 1
+		.chat-input-visible-span {
+			display: inline;
 		}
 	}
 </style>
