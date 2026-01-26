@@ -5,6 +5,7 @@
 	import favicon16 from "$lib/assets/favicon-16x16.png"
 	import type { AuthenticatedPrincipal } from "$lib/types/authentication"
 	import type { ChatConfig } from "$lib/types/chat"
+    import { onNavigate } from "$app/navigation";
 
 	type Props = {
 		authenticatedUser: AuthenticatedPrincipal
@@ -12,6 +13,7 @@
 	let { authenticatedUser }: Props = $props()
 
 	let menuOpen = $state(true)
+	let menuAgents: { isLoading: boolean; agents: ChatConfig[], error: string | null } = $state({ isLoading: false, agents: [], error: null })
 
 	const smallScreenWidth = 1120
 	let screenIsLarge = true
@@ -32,6 +34,18 @@
 		return agentsData
 	}
 
+	const loadAgents = async () => {
+		menuAgents.isLoading = true
+		menuAgents.error = null
+		try {
+			menuAgents.agents = await getAgents()
+		} catch (error) {
+			console.error("Error loading agents:", error)
+			menuAgents.error = (error as Error).message
+		}
+		menuAgents.isLoading = false
+	}
+
 	onMount(() => {
 		if (window.innerWidth <= smallScreenWidth) {
 			menuOpen = false
@@ -48,7 +62,16 @@
 			}
 		}
 		window.addEventListener("resize", handleResize)
+		
+		loadAgents()
+
 		return () => window.removeEventListener("resize", handleResize)
+	})
+
+	onNavigate(({ from, type }) => {
+		if (type === "goto" && from?.route.id === "/agents/create") {
+			loadAgents()
+		}
 	})
 
 	const toggleMenu = () => {
@@ -80,7 +103,7 @@
 				</div>
 			</div>
 			<div class="menu-section">
-				{#await getAgents()}
+				{#if menuAgents.isLoading}
 					<div class="menu-section">
 						<div class="menu-section-title">Agenter</div>
 						loading...
@@ -89,11 +112,20 @@
 						<div class="menu-section-title">Dine agenter</div>
 						loading...
 					</div>
-				{:then agents} 
+				{:else if menuAgents.error}
+					<div class="menu-section">
+						<div class="menu-section-title">Agenter</div>
+						loading...
+					</div>
+					<div class="menu-section">
+						<div class="menu-section-title">Dine agenter</div>
+						loading...
+					</div>
+				{:else}
 					<div class="menu-section">
 						<div class="menu-section-title">Agenter</div>
 						<div class="menu-items">
-							{#each agents.filter(agent => agent.type !== "private") as agent}
+							{#each menuAgents.agents.filter(agent => agent.type !== "private") as agent}
 								<a class="menu-item" class:active={page.url.pathname === "/agents/" + agent._id} href={"/agents/" + agent._id}>
 									{agent.name}
 								</a>
@@ -106,7 +138,7 @@
 					<div class="menu-section">
 						<div class="menu-section-title">Dine agenter</div>
 						<div class="menu-items">
-							{#each agents.filter(agent => agent.type === "private") as agent}
+							{#each menuAgents.agents.filter(agent => agent.type === "private") as agent}
 								<a class="menu-item" class:active={page.url.pathname === "/agents/" + agent._id} href={"/agents/" + agent._id}>
 									{agent.name}
 								</a>
@@ -116,7 +148,7 @@
 							</a>
 						</div>	
 					</div>
-				{/await}
+				{/if}
 			</div>
 		</div>
 		<div class="menu-footer">
