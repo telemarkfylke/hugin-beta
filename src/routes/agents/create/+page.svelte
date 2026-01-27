@@ -5,7 +5,7 @@
 	import type { PageProps } from "./$types"
 
 	let { data }: PageProps = $props()
-	
+
 	const defaultChat: Chat = {
 		_id: "chat-1",
 		createdAt: new Date().toISOString(),

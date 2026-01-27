@@ -1,10 +1,10 @@
 <script lang="ts">
 	import { tick } from "svelte"
+	import { beforeNavigate } from "$app/navigation"
 	import ChatHeaderWithConfig from "./ChatHeaderWithConfig.svelte"
 	import ChatHistoryItem from "./ChatHistoryItem.svelte"
 	import ChatInput from "./ChatInput.svelte"
 	import type { ChatState } from "./ChatState.svelte"
-  import { beforeNavigate } from "$app/navigation";
 
 	type Props = {
 		chatState: ChatState
@@ -18,12 +18,12 @@
 	beforeNavigate(({ cancel, from, to, type }) => {
 		// goto is for programmatic navigation (for now at least), we only care about user navigation
 		if (type !== "goto" && chatState.configEdited && from?.url.pathname !== to?.url.pathname) {
-			const confirmLeave = confirm("Du har ulagrede endringer i agent-konfigurasjonen. Er du sikker på at du vil forlate siden?");
+			const confirmLeave = confirm("Du har ulagrede endringer i agent-konfigurasjonen. Er du sikker på at du vil forlate siden?")
 			if (!confirmLeave) {
-				cancel();
+				cancel()
 			}
 		}
-	});
+	})
 
 	// Scroll-shit
 	$effect(() => {
