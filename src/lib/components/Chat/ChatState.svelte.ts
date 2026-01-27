@@ -46,32 +46,34 @@ const fileToMessageContent = async (file: File, supportedFileTypes: string[], su
 	}
 }
 
+const placeHolderConfig: ChatConfig = {
+	_id: "",
+	name: "",
+	description: "",
+	vendorId: "MISTRAL",
+	project: "",
+	accessGroups: "all",
+	type: "private",
+	created: {
+		at: "",
+		by: {
+			id: "",
+			name: undefined
+		}
+	},
+	updated: {
+		at: "",
+		by: {
+			id: "",
+			name: undefined
+		}
+	}
+}
+
 export class ChatState {
 	public chat: Chat = $state({
 		_id: "",
-		config: {
-			_id: "",
-			name: "",
-			description: "",
-			vendorId: "MISTRAL",
-			project: "",
-			accessGroups: "all",
-			type: "private",
-			created: {
-				at: "",
-				by: {
-					id: "",
-					name: undefined
-				}
-			},
-			updated: {
-				at: "",
-				by: {
-					id: "",
-					name: undefined
-				}
-			}
-		},
+		config: placeHolderConfig,
 		history: [] as ChatHistory,
 		createdAt: new Date().toISOString(),
 		updatedAt: new Date().toISOString(),
@@ -85,7 +87,9 @@ export class ChatState {
 	public isLoading: boolean = $state(false)
 	public user: AuthenticatedPrincipal
 	public APP_CONFIG: AppConfig
-	public configEditMode: boolean = $state(false)
+	public configMode: boolean = $state(false)
+	public configEdited: boolean = $state(false)
+	public initialConfig: ChatConfig = $state(placeHolderConfig)
 
 	constructor(chat: Chat, user: AuthenticatedPrincipal, appConfig: AppConfig) {
 		this.user = user
@@ -106,6 +110,7 @@ export class ChatState {
 		this.chat.createdAt = chat.createdAt
 		this.chat.updatedAt = chat.updatedAt
 		this.chat.owner = chat.owner
+		this.initialConfig = JSON.parse(JSON.stringify(chat.config))
 	}
 
 	public newChat = (): void => {
@@ -326,6 +331,9 @@ export class ChatState {
 			}
 			const updatedConfig: ChatConfig = await result.json()
 			this.chat.config = updatedConfig
+			this.configEdited = false
+			this.initialConfig = JSON.parse(JSON.stringify(updatedConfig))
+			this.configMode = false
 		} catch (error) {
 			console.error("Error updating chat config:", error)
 			throw error

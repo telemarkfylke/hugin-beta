@@ -1,18 +1,29 @@
 <script lang="ts">
 	import { tick } from "svelte"
-	import ChatConfig from "./ChatConfig.svelte"
+	import { beforeNavigate } from "$app/navigation"
+	import ChatHeaderWithConfig from "./ChatHeaderWithConfig.svelte"
 	import ChatHistoryItem from "./ChatHistoryItem.svelte"
 	import ChatInput from "./ChatInput.svelte"
 	import type { ChatState } from "./ChatState.svelte"
 
 	type Props = {
 		chatState: ChatState
-		showConfig: boolean
 	}
 
-	let { chatState, showConfig }: Props = $props()
+	let { chatState }: Props = $props()
 
 	let lastChatItem: HTMLDivElement
+
+	// Check if edited and routing
+	beforeNavigate(({ cancel, from, to, type }) => {
+		// goto is for programmatic navigation (for now at least), we only care about user navigation
+		if (type !== "goto" && chatState.configEdited && from?.url.pathname !== to?.url.pathname) {
+			const confirmLeave = confirm("Du har ulagrede endringer i agent-konfigurasjonen. Er du sikker på at du vil forlate siden?")
+			if (!confirmLeave) {
+				cancel()
+			}
+		}
+	})
 
 	// Scroll-shit
 	$effect(() => {
@@ -35,32 +46,16 @@
 </script>
 
 <div class="chat-container">
-	<div class="chat-header">
-		<div class="chat-header-left">
-			&nbsp;
-		</div>
-		<div class="chat-header-center">
-			<h3>{chatState.chat.config.name || chatState.chat.config.model || "Ukjent navn her"}</h3>
-			<button class="icon-button" onclick={() => showConfig = !showConfig} title={showConfig ? "Skjul konfigurasjon" : "Vis konfigurasjon"}>
-				<span class="material-symbols-rounded">
-					settings
-				</span>
-			</button>
-		</div>
-		<div class="chat-header-right">
-			<button class="icon-button" onclick={() => chatState.newChat()} title="Ny samtale">
-				<span class="material-symbols-rounded">edit_square</span>
-			</button>
-		</div>
-	</div>
-	<ChatConfig {chatState} {showConfig} />
-	<div class="chat-items" class:empty={chatState.chat.history.length === 0}>
+	<ChatHeaderWithConfig {chatState} />
+	<div class="chat-items" class:mobile-hidden={chatState.configMode}  class:empty={chatState.chat.history.length === 0}>
 		{#each chatState.chat.history as chatHistoryItem}
 			<ChatHistoryItem {chatHistoryItem} />
 		{/each}
 		<div bind:this={lastChatItem}>&nbsp;</div>
 	</div>
-	<ChatInput {chatState} sendMessage={chatState.promptChat} />
+	<div class="chat-input-container" class:mobile-hidden={chatState.configMode}>
+		<ChatInput {chatState} sendMessage={chatState.promptChat} />
+	</div>
 </div>
 
 <style>
@@ -72,27 +67,12 @@
 		flex: 1;
     max-width: 64rem;
     /* justify-content: center; */ /* Hvis man vil ha de på midten når samtalehistorikken er tom */
-    height: 100%;
-		padding-bottom: 1.5rem;
+    height: 100%;		
+		padding: 0rem 0.5rem 1.5rem 0.5rem;
   }
-	.chat-header {
-		height: var(--header-height);
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		gap: 1rem;
-	}
-	.chat-header-left {
-		min-width: 3rem;
-		visibility: hidden;
-	}
-	.chat-header-center {
-		display: flex;
-		align-items: center;
-		gap: 0.5rem;
-	}
 	.chat-items {
 		flex: 1;
+		max-height: 100%;
     padding: 0.3rem;
     overflow-y: auto;
     display: flex;
@@ -101,5 +81,16 @@
   }
 	.chat-items.empty {
 		/* display: none; */ /* hvis man vil ha de skjult når tom */
+	}
+	.mobile-hidden {
+		display: none;
+	}
+	@media screen and (min-height: 60rem) and (min-width: 40rem) {
+		.chat-items.mobile-hidden {
+			display: flex;
+		}
+		.chat-input-container.mobile-hidden {
+			display: block;
+		}
 	}
 </style>

@@ -1,8 +1,8 @@
 <script lang="ts">
 	import FileDropZone from "../FileDropZone.svelte"
-	import GrowingTextArea from "../GrowingTextArea.svelte"
 	import TypingDots from "../TypingDots.svelte"
 	import type { ChatState } from "./ChatState.svelte"
+	import FilePreview from "./FilePreview.svelte"
 
 	type Props = {
 		chatState: ChatState
@@ -30,8 +30,17 @@
 
 	// Internal state for this component
 	let inputText: string = $state("")
-	let inputFiles = $state(new DataTransfer().files)
+	let inputFiles: File[] = $state([])
 	let messageInProgress = $state(false)
+
+	// KOnverter filarrayen til en liste med filer
+	const filesToFileList = (files: File[]): FileList => {
+		const dataTransfer = new DataTransfer()
+		for (const file of files) {
+			dataTransfer.items.add(file)
+		}
+		return dataTransfer.files
+	}
 
 	// Simple helper for posting prompt, and clearing input
 	const submitPrompt = async (): Promise<void> => {
@@ -39,8 +48,8 @@
 			return // Do not submit empty prompts or if a message is already in progress
 		}
 		const textToSend = inputText
-		const filesToSend = inputFiles
-		inputFiles = new DataTransfer().files // Clear chat files after submission
+		const filesToSend = filesToFileList(inputFiles)
+		inputFiles = [] // Clear chat files after submission
 		inputText = ""
 		messageInProgress = true
 		await sendMessage(textToSend, filesToSend)
@@ -54,65 +63,256 @@
 		}
 	}
 
-	// Use button for file input, for styling
+	// Når noen klikker på "legg ved filer" knappen
 	let fileInput: HTMLInputElement
 	const triggerFileInput = () => {
 		fileInput.click()
 	}
+
+	// Håndtering av filinput endring
+	const handleFileInputChange = (event: Event) => {
+		const target = event.target as HTMLInputElement
+		if (target.files) {
+			addFiles(Array.from(target.files))
+		}
+		// Reset input so same file can be selected again
+		target.value = ""
+	}
+
+	const addFiles = (files: File[]) => {
+		const validFiles = files.filter((file) => {
+			if (allowedMessageMimeTypes.length === 0) {
+				return false
+			} else {
+				return allowedMessageMimeTypes.includes(file.type)
+			}
+		})
+		inputFiles = [...inputFiles, ...validFiles]
+	}
+
+	// Håndtering av drag-n-drop filer
+	const handleFilesDropped = (files: FileList) => {
+		addFiles(Array.from(files))
+	}
+
+	// Fjerning av filer
+	const removeFile = (index: number) => {
+		inputFiles = inputFiles.filter((_, i) => i !== index)
+	}
+
+	// Handle copy-pasta fra clipboard
+	const handlePaste = (event: ClipboardEvent) => {
+		const items = event.clipboardData?.items
+		if (!items) return
+
+		const files: File[] = []
+		for (const item of Array.from(items)) {
+			if (item.kind === "file") {
+				const file = item.getAsFile()
+				if (file) {
+					files.push(file)
+				}
+			}
+		}
+
+		if (files.length > 0) {
+			event.preventDefault()
+			addFiles(files)
+		}
+	}
+
+	// Some element references
+	let textArea: HTMLTextAreaElement
+	let wrapDiv: HTMLDivElement
+	/**
+	 * As we wait for "textarea {field-sizing: content;}" to be supported in all browsers
+	 * Magic is in CSS below, this JS just updates the data attribute on input
+	 * Thank you to Chris Coyier and Stephen Shaw
+	 * @link https://chriscoyier.net/2023/09/29/css-solves-auto-expanding-textareas-probably-eventually/
+	 */
+	$effect(() => {
+		inputText // Track changes to inputText
+		if (wrapDiv && textArea) {
+			wrapDiv.setAttribute("data-replicated-value", textArea.value)
+		}
+	})
 </script>
 
 <div class="chat-input-container">
-	<FileDropZone onFilesDropped={(files) => { inputFiles = files; }} />
-  <form onsubmit={(event: Event) => { event.preventDefault(); submitPrompt() }}>
-    <GrowingTextArea bind:value={inputText} style="input" placeholder="Type your message here..." onkeydown={submitOnEnter} />
-    <div id="actions">
-      <div id="actions-left">
-        <div id="chat-file-upload-container">
-					{#if allowedMessageMimeTypes.length === 0}
-						<span>Filopplasting er ikke mulig her</span>
-					{:else}
-						<button class="icon-button" onclick={triggerFileInput} title="Legg til filer">
-							<span class="material-symbols-outlined">
-								attach_file
-							</span>
-							Legg ved
-						</button>
-          	<input bind:files={inputFiles} bind:this={fileInput} type="file" id="chat-file-upload" multiple accept={allowedMessageMimeTypes.join(",")} />
-						{#if inputFiles.length > 0}
-          		<button type="reset" onclick={() => { inputFiles = new DataTransfer().files; }}>Clear Files ({inputFiles.length})</button>
-						{/if}
-					{/if}
-          <!--{JSON.stringify(allowedMessageMimeTypes)}-->
-        </div>
-      </div>
-      <div id="actions-right">
+	<FileDropZone onFilesDropped={handleFilesDropped} />
+
+	<!-- Main input wrapper -->
+	<div class="input-wrapper">
+		{#if inputFiles.length > 0}
+			<div class="file-previews">
+				{#each inputFiles as file, index}
+					<FilePreview {file} onRemove={() => removeFile(index)} />
+				{/each}
+			</div>
+		{/if}
+
+		<div class="input-row">
+			<div class="input-text">
+				<!-- Text input -->
+				<div class="grow-wrap" bind:this={wrapDiv}>
+					<textarea
+						bind:this={textArea}
+						bind:value={inputText}
+						placeholder="Skriv en melding..."
+						onkeydown={submitOnEnter}
+						onpaste={handlePaste}
+						rows={1}
+					></textarea>
+				</div>
+			</div>
+
+			<div class="input-actions">
+				<!-- Attachment button (left) -->
+				{#if allowedMessageMimeTypes.length > 0}
+					<button
+						class="icon-button input-action-button"
+						onclick={triggerFileInput}
+						title="Legg til filer"
+						type="button"
+					>
+						<span class="material-symbols-outlined">attach_file</span>
+					</button>
+					<input
+						bind:this={fileInput}
+						type="file"
+						multiple
+						accept={allowedMessageMimeTypes.join(",")}
+						onchange={handleFileInputChange}
+						hidden
+					/>
+				{/if}
+			</div>
+			<div class="input-submit">
+				<!-- Send button (right) -->
 				{#if messageInProgress}
-					<button disabled class="filled" title="Melding pågår...">
+					<button class="icon-button input-action-button send" disabled title="Sender...">
 						<TypingDots />
 					</button>
 				{:else}
-					<button disabled={inputText.trim().length === 0 && inputFiles.length === 0} class="filled" type="submit" title={inputText.trim().length === 0 && inputFiles.length === 0 ? "Skriv en melding eller legg til filer for å sende" : "Send melding"}>
-						<span class="material-symbols-outlined">
-							send
-						</span>
-						Send
+					<button
+						class="icon-button filled input-action-button send"
+						onclick={submitPrompt}
+						disabled={inputText.trim().length === 0 && inputFiles.length === 0}
+						title={inputText.trim().length === 0 && inputFiles.length === 0
+							? "Skriv en melding eller legg til filer for å sende"
+							: "Send melding"}
+						type="button"
+					>
+						<span class="material-symbols-outlined">arrow_upward</span>
 					</button>
 				{/if}
-      </div>
-    </div>
-  </form>
+			</div>
+		</div>
+	</div>
 </div>
 
 <style>
 	.chat-input-container {
-		padding-top: 0.3rem;
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
 	}
-  #actions {
-		padding-top: 0.2rem;
-    display: flex;
-    justify-content: space-between;
-  }
-	#chat-file-upload {
-		display: none;
+
+	/* Main input wrapper - the rounded container */
+	.input-wrapper {
+		display: flex;
+		flex-direction: column;
+		gap: 0.25rem;
+		padding: 0.5rem 1rem;
+		border: 1px solid var(--color-primary);
+		border-radius: 24px;
+		transition: border-color 0.2s;
 	}
+
+	.input-wrapper:focus-within {
+		border-color: var(--color-primary-80);
+		box-shadow: 0 0 0 2px var(--color-primary-20);
+	}
+
+	/* File previews container */
+	.file-previews {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.5rem;
+		padding: 0.5rem 0rem;
+	}
+
+	.input-row {
+		display: flex;
+		gap: 0.5rem;
+		flex-wrap: wrap;
+		justify-content: space-between;
+		align-items: center;
+	}
+
+	.input-text {
+		flex: 1;
+		min-width: 100%;
+	}
+
+	.input-actions {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+	}
+
+	/* Action buttons inside input */
+	.input-action-button {
+		padding: 0.5rem 0.375rem; /* To keep consistent with input-textarea spacing */
+	}
+
+	.input-action-button.send {
+		width: 2.5rem;
+		height: 2.5rem;
+		border-radius: 50%;
+		transition: background-color 0.2s;
+		justify-content: center;
+	}
+
+	/* Auto-growing textarea styles */
+	.grow-wrap {
+		flex: 1;
+		display: grid;
+		padding: 0.5rem 0;
+	}
+
+	.grow-wrap::after {
+		content: attr(data-replicated-value) " ";
+		white-space: pre-wrap;
+		visibility: hidden;
+		max-height: 8rem;
+	}
+
+	.grow-wrap > textarea,
+	.grow-wrap::after {
+		font: inherit;
+		grid-area: 1 / 1 / 2 / 2;
+		border: none;
+		outline: none;
+		resize: none;
+		background: transparent;
+		max-height: 8rem;
+		overflow-y: auto;
+	}
+
+	.grow-wrap > textarea::placeholder {
+		color: var(--color-primary-70);
+	}
+	/* END Auto-growing textarea styles */
+
+	/* If large enough screen, make input row horizontal */
+	@media (min-width: 40rem) {
+		.input-text {
+			min-width: auto;
+		}
+		.input-actions {
+			order: -1;
+		}
+	}
+
 </style>

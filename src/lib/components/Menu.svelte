@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { onMount } from "svelte"
 	import { fade, slide } from "svelte/transition"
+	import { onNavigate } from "$app/navigation"
+	import { page } from "$app/state"
 	import favicon16 from "$lib/assets/favicon-16x16.png"
 	import type { AuthenticatedPrincipal } from "$lib/types/authentication"
 	import type { ChatConfig } from "$lib/types/chat"
@@ -11,9 +13,17 @@
 	let { authenticatedUser }: Props = $props()
 
 	let menuOpen = $state(true)
+	let menuAgents: { isLoading: boolean; agents: ChatConfig[]; error: string | null } = $state({ isLoading: false, agents: [], error: null })
 
 	const smallScreenWidth = 1120
 	let screenIsLarge = true
+
+	$effect(() => {
+		page.url // Track page url changes
+		if (!screenIsLarge) {
+			menuOpen = false
+		}
+	})
 
 	const getAgents = async (): Promise<ChatConfig[]> => {
 		const agentResponse = await fetch("/api/chatconfigs")
@@ -22,6 +32,18 @@
 		}
 		const agentsData = (await agentResponse.json()) as ChatConfig[]
 		return agentsData
+	}
+
+	const loadAgents = async () => {
+		menuAgents.isLoading = true
+		menuAgents.error = null
+		try {
+			menuAgents.agents = await getAgents()
+		} catch (error) {
+			console.error("Error loading agents:", error)
+			menuAgents.error = (error as Error).message
+		}
+		menuAgents.isLoading = false
 	}
 
 	onMount(() => {
@@ -40,7 +62,16 @@
 			}
 		}
 		window.addEventListener("resize", handleResize)
+
+		loadAgents()
+
 		return () => window.removeEventListener("resize", handleResize)
+	})
+
+	onNavigate(({ from, type }) => {
+		if (type === "goto" && from?.route.id === "/agents/create") {
+			loadAgents()
+		}
 	})
 
 	const toggleMenu = () => {
@@ -55,6 +86,7 @@
 		</button>
 	</div>
 {:else}
+	<div class="app-overlay" transition:fade={{ duration: 100 }} onclick={() => { menuOpen = false }}></div>
 	<div class="menu" transition:slide={{ axis: 'x', duration: 100 }}>
 		<div class="menu-header">
 			<div class="app-title"><img src={favicon16} alt="Mugin logo" /> Mugin</div>
@@ -65,13 +97,13 @@
 		<div class="menu-content">
 			<div class="menu-section">
 				<div class="menu-items">
-					<a class="menu-item" href="/">
+					<a class="menu-item" class:active={page.url.pathname === "/"} href="/">
 						<span class="material-symbols-outlined">home</span>Hjem
 					</a>
 				</div>
 			</div>
 			<div class="menu-section">
-				{#await getAgents()}
+				{#if menuAgents.isLoading}
 					<div class="menu-section">
 						<div class="menu-section-title">Agenter</div>
 						loading...
@@ -80,16 +112,25 @@
 						<div class="menu-section-title">Dine agenter</div>
 						loading...
 					</div>
-				{:then agents} 
+				{:else if menuAgents.error}
+					<div class="menu-section">
+						<div class="menu-section-title">Agenter</div>
+						loading...
+					</div>
+					<div class="menu-section">
+						<div class="menu-section-title">Dine agenter</div>
+						loading...
+					</div>
+				{:else}
 					<div class="menu-section">
 						<div class="menu-section-title">Agenter</div>
 						<div class="menu-items">
-							{#each agents.filter(agent => agent.type !== "private") as agent}
-								<a class="menu-item" href={"/agents/" + agent._id}>
+							{#each menuAgents.agents.filter(agent => agent.type !== "private") as agent}
+								<a class="menu-item" class:active={page.url.pathname === "/agents/" + agent._id} href={"/agents/" + agent._id}>
 									{agent.name}
 								</a>
 							{/each}
-							<a class="menu-item" href="/agents">
+							<a class="menu-item" class:active={page.url.pathname === "/agents"} href="/agents">
 								<span class="material-symbols-outlined">more_horiz</span>Se alle agenter
 							</a>
 						</div>
@@ -97,17 +138,17 @@
 					<div class="menu-section">
 						<div class="menu-section-title">Dine agenter</div>
 						<div class="menu-items">
-							{#each agents.filter(agent => agent.type === "private") as agent}
-								<a class="menu-item" href={"/agents/" + agent._id}>
+							{#each menuAgents.agents.filter(agent => agent.type === "private") as agent}
+								<a class="menu-item" class:active={page.url.pathname === "/agents/" + agent._id} href={"/agents/" + agent._id}>
 									{agent.name}
 								</a>
 							{/each}
-							<a class="menu-item" href="/?createAgent=true">
+							<a class="menu-item" class:active={page.url.pathname === "/agents/create"} href="/agents/create">
 								<span class="material-symbols-outlined">add</span>Lag ny agent
 							</a>
 						</div>	
 					</div>
-				{/await}
+				{/if}
 			</div>
 		</div>
 		<div class="menu-footer">
@@ -124,6 +165,15 @@
 	</div>
 {/if}
 <style>
+	.app-overlay {
+		position: fixed;
+		top: 0;
+		left: 0;
+		width: 100%;
+		height: 100%;
+		background-color: rgba(0, 0, 0, 0.3);
+		z-index: 50;
+	}
 	.open-menu-container, .menu-header {
 		height: var(--header-height);
 		display: flex;
@@ -161,7 +211,7 @@
 	.menu-section-title, .menu-item {
 		padding: 0.25rem 0.5rem;
 		display: flex;
-		align-items: flex-end;
+		align-items: center;
 		gap: 0.5rem;
 		padding: 0.25rem 0.5rem;
 	}
@@ -175,10 +225,16 @@
 		font-size: 0.9rem;
 		text-decoration: none;
 		margin-bottom: 0.2rem;
+		border-radius: 0.5rem;
 	}
 	.menu-item:hover, .menu-item.active {
 		background-color: var(--color-secondary-30);
-		border-radius: 0.5rem;
+	}
+	.menu-item.active {
+		font-weight: bold;
+	}
+	.menu-item.active:hover {
+		color: var(--color-primary);
 	}
 	.menu-footer {
 		display: flex;
@@ -194,15 +250,21 @@
 
 	/* If large screen */
 	@media (min-width: 70rem) {
+		.app-overlay {
+			display: none;
+		}
 		.menu {
 			position: static;
 		}
 	}
-
-
-/*
-hvis den er liten
-
-*/
+	/* If very small screen */
+	@media (max-width: 30rem) {
+		.app-overlay {
+			display: none;
+		}
+		.menu {
+			width: calc(100% - 1rem);
+		}
+	}
 
 </style>
