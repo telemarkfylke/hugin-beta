@@ -22,7 +22,7 @@
 </svelte:head>
 
 <main>
-	<Menu authenticatedUser={data.authenticatedUser} />
+	<Menu authenticatedUser={data.authenticatedUser} appName={data.APP_CONFIG.NAME} />
 	<div class="page-content">
 		{#if children}
 			{@render children()}

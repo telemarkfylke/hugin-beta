@@ -9,8 +9,9 @@
 
 	type Props = {
 		authenticatedUser: AuthenticatedPrincipal
+		appName: string
 	}
-	let { authenticatedUser }: Props = $props()
+	let { authenticatedUser, appName }: Props = $props()
 
 	let menuOpen = $state(true)
 	let menuAgents: { isLoading: boolean; agents: ChatConfig[]; error: string | null } = $state({ isLoading: false, agents: [], error: null })
@@ -89,7 +90,7 @@
 	<div class="app-overlay" transition:fade={{ duration: 100 }} onclick={() => { menuOpen = false }}></div>
 	<div class="menu" transition:slide={{ axis: 'x', duration: 100 }}>
 		<div class="menu-header">
-			<div class="app-title"><img src={favicon16} alt="Mugin logo" /> Mugin</div>
+			<div class="app-title"><img src={favicon16} alt="{appName} logo" /> {appName}</div>
 			<button class="icon-button" onclick={toggleMenu} title="Lukk meny">
 				<span class="material-symbols-rounded">left_panel_close</span>
 			</button>
