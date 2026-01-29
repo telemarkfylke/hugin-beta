@@ -11,6 +11,7 @@
 </script>
 
 <svelte:head>
+	<title>{data.APP_CONFIG.NAME}</title>
 	<link rel="icon" type="image/png" sizes="32x32" href={favicon32}>
 	<link rel="icon" type="image/png" sizes="16x16" href={favicon16}>
 	<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
