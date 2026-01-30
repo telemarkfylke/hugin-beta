@@ -7,14 +7,8 @@ import {
 	OPEN_AI_DEFAULT_SUPPORTED_MESSAGE_IMAGE_MIME_TYPES
 } from "./supported-mime-types"
 
-const getAppName = (): string => {
-	if (env.COUNTY === "TFK") return "Hugin"
-	if (env.COUNTY === "VFK") return "Munin"
-	return "Mugin"
-}
-
 export const APP_CONFIG: AppConfig = {
-	NAME: getAppName(),
+	NAME: env.APP_NAME || "Mugin",
 	APP_ROLES: {
 		ADMIN: env.APP_ROLE_ADMIN,
 		AGENT_MAINTAINER: env.APP_ROLE_AGENT_MAINTAINER,
