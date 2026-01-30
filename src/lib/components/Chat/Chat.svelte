@@ -48,10 +48,12 @@
 <div class="chat-container">
 	<ChatHeaderWithConfig {chatState} />
 	<div class="chat-items" class:mobile-hidden={chatState.configMode}  class:empty={chatState.chat.history.length === 0}>
-		{#each chatState.chat.history as chatHistoryItem}
-			<ChatHistoryItem {chatHistoryItem} />
-		{/each}
-		<div bind:this={lastChatItem}>&nbsp;</div>
+		<div class="chat-items-inner">
+			{#each chatState.chat.history as chatHistoryItem}
+				<ChatHistoryItem {chatHistoryItem} />
+			{/each}
+			<div bind:this={lastChatItem}>&nbsp;</div>
+		</div>
 	</div>
 	<div class="chat-input-container" class:mobile-hidden={chatState.configMode}>
 		<ChatInput {chatState} sendMessage={chatState.promptChat} />
@@ -60,25 +62,38 @@
 
 <style>
 	.chat-container {
-    box-sizing: border-box; /* Include padding and border in total size, to avoid overflow */
+    box-sizing: border-box;
     display: flex;
     flex-direction: column;
-		margin: 0 auto;
 		flex: 1;
-    max-width: 64rem;
-    /* justify-content: center; */ /* Hvis man vil ha de på midten når samtalehistorikken er tom */
-    height: 100%;		
-		padding: 0rem 0.5rem 1.5rem 0.5rem;
+    height: 100%;
+		padding-bottom: 1.5rem;
   }
+	.chat-input-container {
+		max-width: 50rem;
+		margin: 0 auto;
+		width: 100%;
+		box-sizing: border-box;
+		padding: 0 0.5rem;
+	}
 	.chat-items {
 		flex: 1;
 		max-height: 100%;
-    padding: 0.3rem;
-    overflow-y: auto;
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
+    	overflow-y: auto;
+		scrollbar-width: thin;
+		scrollbar-color: rgba(0, 0, 0, 0.2) transparent;
   }
+
+	.chat-items-inner {
+		max-width: 50rem;
+		margin: 0 auto;
+		width: 100%;
+		box-sizing: border-box;
+		padding: 0.3rem 0.5rem;
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+	}
 	.chat-items.empty {
 		/* display: none; */ /* hvis man vil ha de skjult når tom */
 	}
