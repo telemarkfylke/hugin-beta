@@ -8,7 +8,7 @@ import {
 } from "./supported-mime-types"
 
 export const APP_CONFIG: AppConfig = {
-	NAME: "Mugin",
+	NAME: env.APP_NAME || "Mugin",
 	APP_ROLES: {
 		ADMIN: env.APP_ROLE_ADMIN,
 		AGENT_MAINTAINER: env.APP_ROLE_AGENT_MAINTAINER,
