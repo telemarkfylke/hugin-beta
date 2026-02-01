@@ -51,7 +51,7 @@ const mockChatConfigs: ChatConfig[] = [
 			}
 		}
 	},
-		{
+	{
 		_id: "3000",
 		name: "ChatGPT tenker",
 		description: "OpenAIs avanserte og nyeste KI for rask tenkning og resonnering.",
