@@ -4,9 +4,9 @@ import { APP_CONFIG } from "$lib/server/app-config/app-config"
 import { getChatConfigStore } from "$lib/server/db/get-db"
 import { HTTPError } from "$lib/server/middleware/http-error"
 import { apiRequestMiddleware } from "$lib/server/middleware/http-request"
+import type { NewChatConfig } from "$lib/types/chat"
 import type { ApiNextFunction } from "$lib/types/middleware/http-request"
 import { parseChatConfig } from "$lib/validation/parse-chat-config"
-import type { NewChatConfig } from "$lib/types/chat"
 
 const chatConfigStore = getChatConfigStore()
 
@@ -39,7 +39,7 @@ const replaceChatConfig: ApiNextFunction = async ({ requestEvent, user }) => {
 	}
 
 	const chatConfigUpdateData = chatConfig as NewChatConfig
-	
+
 	// @ts-expect-error (_id må fjernes, men jeg orker ikke fikse det på en annen måte nå)
 	delete chatConfigUpdateData._id
 
