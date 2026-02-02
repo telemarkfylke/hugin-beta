@@ -19,11 +19,11 @@ export class MongoChatConfigStore implements IChatConfigStore {
 		if (!env.MONGODB_DB_NAME) {
 			throw new Error("MONGODB_DB_NAME is not set (du har glemt den)")
 		}
-		if (!env.MONGODB_CHAT_CONFIGS_COLLECTION_NAME) {
-			throw new Error("MONGODB_CHAT_CONFIGS_COLLECTION_NAME is not set (du har glemt den)")
+		if (!env.MONGODB_CHAT_CONFIG_COLLECTION) {
+			throw new Error("MONGODB_CHAT_CONFIG_COLLECTION is not set (du har glemt den)")
 		}
 		this.mongoClient = mongoClient
-		this.collectionName = env.MONGODB_CHAT_CONFIGS_COLLECTION_NAME
+		this.collectionName = env.MONGODB_CHAT_CONFIG_COLLECTION
 	}
 
 	private async getDb(): Promise<Db> {

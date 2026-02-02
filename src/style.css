@@ -10,6 +10,9 @@
 	--color-secondary-10: rgb(233, 244, 239); /* gress-10 */
 	--color-secondary-20: rgb(210, 234, 224);
 	--color-secondary-30: rgb(188, 223, 208);
+	--color-danger: #b7173d; /* Nype */
+	--color-danger-70: #cd5d77;
+	--color-danger-80: #c54564;
 }
 
 html,
@@ -73,6 +76,18 @@ button.filled:hover {
 }
 button.filled:active {
 	background-color: var(--color-primary-70);
+}
+
+button.filled.danger {
+	background-color: var(--color-danger);
+}
+
+button.filled.danger:hover {
+	background-color: var(--color-danger-80);
+}
+
+button.filled.danger:active {
+	background-color: var(--color-danger-70);
 }
 
 button:disabled,

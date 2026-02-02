@@ -295,20 +295,27 @@
 		<!-- Actions (save and so on) -->
 		<div class="config-actions">
 			<div class="config-action-item">
-				{#if chatState.configEdited}
-					<div class="info-box">
-						<span class="material-symbols-outlined">info</span><span>Test endringene dine<span class="chat-input-visible-span">&nbsp;i fullskjerm</span> ved å klikke på "Test agent" oppe i høyre hjørne. Klikk på "Konfigurer" igjen for å gå tilbake til redigering.</span>
-					</div>
+				{#if chatState.chat.config._id}
+					<button class="filled danger" onclick={chatState.deleteChatConfig}><span class="material-symbols-outlined">delete</span>Slett agent</button>
+				{:else}
+					&nbsp;
 				{/if}
 			</div>
 			<div class="config-action-item right">
 				{#if chatState.chat.config._id}
-					<button disabled={!chatState.configEdited} class="filled save-button" onclick={chatState.updateChatConfig}><span class="material-symbols-outlined">save</span>Lagre endringer</button>
+					<button disabled={!chatState.configEdited} class="filled" onclick={chatState.updateChatConfig}><span class="material-symbols-outlined">save</span>Lagre endringer</button>
 				{:else}
-					<button disabled={!chatState.configEdited} class="filled save-button" onclick={chatState.saveChatConfig}><span class="material-symbols-outlined">save</span> Lagre som ny agent</button>
+					<button disabled={!chatState.configEdited} class="filled" onclick={chatState.saveChatConfig}><span class="material-symbols-outlined">save</span> Lagre som ny agent</button>
 				{/if}
 			</div>
 		</div>
+		
+		<!-- Config info-box -->
+		{#if chatState.configEdited}
+			<div class="info-box">
+				<span class="material-symbols-outlined">info</span><span>Test endringene dine<span class="chat-input-visible-span">&nbsp;i fullskjerm</span> ved å klikke på "Test agent" oppe i høyre hjørne. Klikk på "Konfigurer" igjen for å gå tilbake til redigering.</span>
+			</div>
+		{/if}
 	</div>
 {/if}
 
