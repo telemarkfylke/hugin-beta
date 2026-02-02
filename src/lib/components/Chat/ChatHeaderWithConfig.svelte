@@ -324,6 +324,13 @@
 {/if}
 
 <style>
+	.chat-header, .chat-config-container {
+		max-width: 50rem;
+		margin: 0 auto;
+		width: 100%;
+		box-sizing: border-box;
+		padding: 0 0.5rem;
+	}
 	.chat-header {
 		height: var(--header-height);
 		display: flex;
@@ -388,6 +395,10 @@
 	}
 
 	.info-box {
+		max-width: 50rem;
+		margin: 0 auto;
+		width: 100%;
+		box-sizing: border-box;
 		display: flex;
 		font-size: smaller;
 		background-color: var(--color-primary-20);
