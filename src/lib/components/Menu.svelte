@@ -69,9 +69,15 @@
 		return () => window.removeEventListener("resize", handleResize)
 	})
 
-	onNavigate(({ from, type }) => {
-		if (type === "goto" && from?.route.id === "/agents/create") {
-			loadAgents()
+	onNavigate(({ from, to, type }) => {
+		// Programmatic navigation (goto) (please use href for user navigation...)
+		if (type === "goto") {
+			const cameFromCreate = from?.route.id === "/agents/create"
+			const cameFromDelete = from?.route.id?.startsWith("/agents/") && to?.route.id === "/agents"
+			const cameFromUpdate = from?.route.id && from.route.id === to?.route.id
+			if (cameFromCreate || cameFromDelete || cameFromUpdate) {
+				loadAgents()
+			}
 		}
 	})
 

@@ -6,6 +6,6 @@ export interface IChatConfigStore {
 	getChatConfigs(principal: AuthenticatedPrincipal): Promise<ChatConfig[]>
 	getChatConfigsByVendorAgentId(vendorAgentId: string): Promise<ChatConfig[]>
 	createChatConfig(chatConfig: NewChatConfig): Promise<ChatConfig>
-	replaceChatConfig(configId: string, chatConfig: ChatConfig): Promise<ChatConfig>
+	replaceChatConfig(configId: string, chatConfig: NewChatConfig): Promise<ChatConfig>
 	deleteChatConfig(configId: string): Promise<void>
 }

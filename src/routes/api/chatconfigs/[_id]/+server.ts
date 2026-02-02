@@ -6,6 +6,7 @@ import { HTTPError } from "$lib/server/middleware/http-error"
 import { apiRequestMiddleware } from "$lib/server/middleware/http-request"
 import type { ApiNextFunction } from "$lib/types/middleware/http-request"
 import { parseChatConfig } from "$lib/validation/parse-chat-config"
+import type { NewChatConfig } from "$lib/types/chat"
 
 const chatConfigStore = getChatConfigStore()
 
@@ -37,12 +38,21 @@ const replaceChatConfig: ApiNextFunction = async ({ requestEvent, user }) => {
 		throw new HTTPError(403, "Not authorized to update this chat config")
 	}
 
-	const newChatConfig = await chatConfigStore.replaceChatConfig(chatConfigId, chatConfig)
+	const chatConfigUpdateData = chatConfig as NewChatConfig
+	
+	// @ts-expect-error (_id må fjernes, men jeg orker ikke fikse det på en annen måte nå)
+	delete chatConfigUpdateData._id
+
+	const newChatConfig = await chatConfigStore.replaceChatConfig(chatConfigId, chatConfigUpdateData)
 
 	return {
 		isAuthorized: true,
 		response: json(newChatConfig)
 	}
+}
+
+export const PUT: RequestHandler = async (requestEvent) => {
+	return apiRequestMiddleware(requestEvent, replaceChatConfig)
 }
 
 const deleteChatConfig: ApiNextFunction = async ({ requestEvent, user }) => {
@@ -75,10 +85,6 @@ const deleteChatConfig: ApiNextFunction = async ({ requestEvent, user }) => {
 		isAuthorized: true,
 		response: json({ message: "Chat config deleted" })
 	}
-}
-
-export const PUT: RequestHandler = async (requestEvent) => {
-	return apiRequestMiddleware(requestEvent, replaceChatConfig)
 }
 
 export const DELETE: RequestHandler = async (requestEvent) => {

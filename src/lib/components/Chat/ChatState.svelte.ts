@@ -338,6 +338,7 @@ export class ChatState {
 			console.error("Error updating chat config:", error)
 			throw error
 		}
+		goto(`/agents/${this.chat.config._id}`)
 	}
 
 	public deleteChatConfig = async (): Promise<void> => {

@@ -85,7 +85,7 @@ export class MongoChatConfigStore implements IChatConfigStore {
 		return { ...chatConfig, _id: result.insertedId.toString() }
 	}
 
-	async replaceChatConfig(configId: string, chatConfig: ChatConfig): Promise<ChatConfig> {
+	async replaceChatConfig(configId: string, chatConfig: NewChatConfig): Promise<ChatConfig> {
 		const db = await this.getDb()
 		const collection: Collection<DbChatConfig> = db.collection(this.collectionName)
 		await collection.replaceOne({ _id: new ObjectId(configId) }, chatConfig)

@@ -112,7 +112,7 @@ export class MockChatConfigStore implements IChatConfigStore {
 		mockChatConfigs.push(newConfig)
 		return newConfig
 	}
-	async replaceChatConfig(configId: string, chatConfig: ChatConfig): Promise<ChatConfig> {
+	async replaceChatConfig(configId: string, chatConfig: NewChatConfig): Promise<ChatConfig> {
 		const config = mockChatConfigs.find((config) => config._id === configId)
 		if (!config) throw new Error("ChatConfig not found")
 		Object.assign(config, chatConfig)
