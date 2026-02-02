@@ -4,7 +4,7 @@ import { APP_CONFIG } from "$lib/server/app-config/app-config"
 import { getChatConfigStore } from "$lib/server/db/get-db"
 import { HTTPError } from "$lib/server/middleware/http-error"
 import { apiRequestMiddleware } from "$lib/server/middleware/http-request"
-import type { ChatConfig } from "$lib/types/chat"
+import type { ChatConfig, NewChatConfig } from "$lib/types/chat"
 import type { ApiNextFunction } from "$lib/types/middleware/http-request"
 import { parseChatConfig } from "$lib/validation/parse-chat-config"
 
@@ -33,16 +33,15 @@ const createChatConfig: ApiNextFunction = async ({ requestEvent, user }) => {
 
 	const body = await requestEvent.request.json()
 
-	const chatConfig = parseChatConfig(body, APP_CONFIG)
+	const chatConfig: ChatConfig = parseChatConfig(body, APP_CONFIG)
 
 	if (chatConfig.type === "published" && !canPublishChatConfig(user, APP_CONFIG.APP_ROLES)) {
 		throw new HTTPError(403, "User is not authorized to create published chat configs")
 	}
 
-	const chatConfigToCreate: ChatConfig = {
+	const chatConfigToCreate: NewChatConfig = {
 		...chatConfig,
 		name: chatConfig.name || "Ny agent",
-		_id: "",
 		type: chatConfig.type,
 		accessGroups: chatConfig.accessGroups,
 		created: {
@@ -60,6 +59,8 @@ const createChatConfig: ApiNextFunction = async ({ requestEvent, user }) => {
 			}
 		}
 	}
+	// @ts-expect-error (_id må fjernes, men jeg orker ikke fikse det på en annen måte nå)
+	delete chatConfigToCreate._id
 
 	const newChatConfig = await chatConfigStore.createChatConfig(chatConfigToCreate)
 

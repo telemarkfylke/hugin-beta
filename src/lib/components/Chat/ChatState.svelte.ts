@@ -338,5 +338,27 @@ export class ChatState {
 			console.error("Error updating chat config:", error)
 			throw error
 		}
+		goto(`/agents/${this.chat.config._id}`)
+	}
+
+	public deleteChatConfig = async (): Promise<void> => {
+		const confirmDelete = confirm("Er du sikker på at du vil slette denne agenten? Dette kan ikke angres. 😬")
+		if (!confirmDelete) {
+			return
+		}
+
+		try {
+			const result = await fetch(`/api/chatconfigs/${this.chat.config._id}`, {
+				method: "DELETE"
+			})
+			if (!result.ok) {
+				const errorData = await result.json()
+				throw new Error(`Failed to delete chat config: ${result.status} ${result.statusText} - ${errorData.message || JSON.stringify(errorData)}`)
+			}
+			goto(`/agents`)
+		} catch (error) {
+			console.error("Error deleting chat config:", error)
+			throw error
+		}
 	}
 }

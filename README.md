@@ -162,9 +162,12 @@ Create a `.env` file in the project root:
 MISTRAL_API_KEY_PROJECT_DEFAULT="your-mistral-api-key"
 OPENAI_API_KEY_PROJECT_DEFAULT="your-openai-api-key"
 
-# Database Configuration
+# Mock Database Configuration
 MOCK_DB="true"                    # Use in-memory database (required for local dev)
-# MONGO_DB_URI="mongodb+srv://..." # Production MongoDB connection
+# Or production Database Configuration
+MONGODB_CONNECTION_STRING="mongodb+srv://..." # Production MongoDB connection
+MONGODB_DB_NAME="mugin" # Name of database
+MONGODB_CHAT_CONFIG_COLLECTION="chat-configs" # Name of collection which holds chat configurations
 
 # Authentication
 MOCK_AUTH="true"                  # Enable mock authentication for local development
