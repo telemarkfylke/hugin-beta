@@ -9,14 +9,10 @@ let chatConfigStore: IChatConfigStore
 if (env.MOCK_DB === "true") {
 	chatConfigStore = new MockChatConfigStore()
 } else {
-	let mongoClient: MongoClient
-	try {
-		mongoClient = new MongoClient(env.MONGO_DB_URI || "")
-		await mongoClient.connect()
-	} catch (error) {
-		logger.errorException(error, "Failed to connect to MongoDB")
-		throw error
+	if (!env.MONGODB_CONNECTION_STRING) {
+		throw new Error("MONGODB_CONNECTION_STRING is not set (du har glemt den)")
 	}
+	const mongoClient = new MongoClient(env.MONGODB_CONNECTION_STRING)
 	chatConfigStore = new MongoChatConfigStore(mongoClient)
 }
 

@@ -1,10 +1,10 @@
 import { canViewAllChatConfigs } from "$lib/authorization"
 import type { AuthenticatedPrincipal } from "$lib/types/authentication"
-import type { ChatConfig } from "$lib/types/chat"
+import type { ChatConfig, NewChatConfig } from "$lib/types/chat"
 import type { IChatConfigStore } from "$lib/types/db/db-interface"
 import { APP_CONFIG } from "../app-config/app-config"
 
-const mockChatConfigs: ChatConfig[] = [
+let mockChatConfigs: ChatConfig[] = [
 	{
 		_id: "1000",
 		name: "Mistral",
@@ -107,7 +107,7 @@ export class MockChatConfigStore implements IChatConfigStore {
 		}
 		return mockChatConfigs.filter((config) => config.vendorAgent?.id === vendorAgentId)
 	}
-	async createChatConfig(chatConfig: Omit<ChatConfig, "_id">): Promise<ChatConfig> {
+	async createChatConfig(chatConfig: NewChatConfig): Promise<ChatConfig> {
 		const newConfig: ChatConfig = { ...chatConfig, _id: Date.now().toString() }
 		mockChatConfigs.push(newConfig)
 		return newConfig
@@ -117,5 +117,8 @@ export class MockChatConfigStore implements IChatConfigStore {
 		if (!config) throw new Error("ChatConfig not found")
 		Object.assign(config, chatConfig)
 		return config
+	}
+	async deleteChatConfig(configId: string): Promise<void> {
+		mockChatConfigs = mockChatConfigs.filter((config) => config._id !== configId)
 	}
 }

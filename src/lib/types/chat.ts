@@ -1,3 +1,4 @@
+import type { ObjectId } from "mongodb"
 import z from "zod"
 import type { AppConfig } from "./app-config"
 import type { ChatInputItem, ChatOutputItem } from "./chat-item"
@@ -40,6 +41,9 @@ export type ChatConfig = {
 		}
 	}
 }
+
+export type DbChatConfig = Omit<ChatConfig, "_id"> & { _id: ObjectId }
+export type NewChatConfig = Omit<ChatConfig, "_id">
 
 export type ChatRequest = {
 	config: ChatConfig
