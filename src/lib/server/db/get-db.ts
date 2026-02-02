@@ -1,4 +1,3 @@
-import { logger } from "@vestfoldfylke/loglady"
 import { MongoClient } from "mongodb"
 import { env } from "$env/dynamic/private"
 import type { IChatConfigStore } from "$lib/types/db/db-interface"
