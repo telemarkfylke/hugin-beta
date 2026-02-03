@@ -6,6 +6,7 @@
 
 	let { data }: PageProps = $props()
 
+	// Defaultchatten
 	const defaultChat: Chat = {
 		_id: "",
 		createdAt: new Date().toISOString(),

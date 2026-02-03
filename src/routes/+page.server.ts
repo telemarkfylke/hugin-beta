@@ -1,3 +1,4 @@
+import { DEFAULT_AGENT_ID } from "$env/static/private"
 import { getChatConfigStore } from "$lib/server/db/get-db"
 import { HTTPError } from "$lib/server/middleware/http-error"
 import { serverLoadRequestMiddleware } from "$lib/server/middleware/http-request"
@@ -7,10 +8,8 @@ import type { PageServerLoad } from "./$types"
 
 const chatConfigStore = getChatConfigStore()
 
-const DEFAULT_AGENT_ID = "1000" // Mistral agent
-
 const homePageLoad: ServerLoadNextFunction<{ agent: ChatConfig }> = async () => {
-	const agent = await chatConfigStore.getChatConfig(DEFAULT_AGENT_ID)
+	const agent = await chatConfigStore.getChatConfig(DEFAULT_AGENT_ID as string)
 	if (!agent) {
 		throw new HTTPError(404, `Default agent with id ${DEFAULT_AGENT_ID} not found`)
 	}
