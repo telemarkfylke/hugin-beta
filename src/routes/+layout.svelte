@@ -42,6 +42,5 @@
 	.page-content {
 		height: 100%;
 		flex: 1;
-		padding: 0rem 0.25rem;
 	}
 </style>

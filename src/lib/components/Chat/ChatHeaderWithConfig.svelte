@@ -422,7 +422,7 @@
 		padding-bottom: 0.5rem;
 	}
 	select, input[type="text"] {
-		width: calc(100%-0.5rem);
+		width: calc(100% - 0.5rem);
 		font-family: var(--font-family);
 		font-size: inherit;
 		padding: 0.25rem;
