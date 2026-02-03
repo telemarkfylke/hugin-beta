@@ -47,8 +47,8 @@
 
 <div class="chat-container">
 	<ChatHeaderWithConfig {chatState} />
-	<div class="chat-items" class:mobile-hidden={chatState.configMode}  class:empty={chatState.chat.history.length === 0}>
-		<div class="chat-items-inner">
+	<div class="chat-items-container" class:mobile-hidden={chatState.configMode}  class:empty={chatState.chat.history.length === 0}>
+		<div class="chat-items">
 			{#each chatState.chat.history as chatHistoryItem}
 				<ChatHistoryItem {chatHistoryItem} />
 			{/each}
@@ -65,26 +65,18 @@
     box-sizing: border-box;
     display: flex;
     flex-direction: column;
+		position: relative;
 		flex: 1;
-    height: 100%;
+    height: 100vh;
 		padding-bottom: 1.5rem;
   }
-	.chat-input-container {
-		max-width: 50rem;
-		margin: 0 auto;
-		width: 100%;
-		box-sizing: border-box;
-		padding: 0 0.5rem;
-	}
-	.chat-items {
+	.chat-items-container {
 		flex: 1;
-		max-height: 100%;
-    	overflow-y: auto;
+    overflow-y: auto;
 		scrollbar-width: thin;
 		scrollbar-color: rgba(0, 0, 0, 0.2) transparent;
   }
-
-	.chat-items-inner {
+	.chat-items {
 		max-width: 50rem;
 		margin: 0 auto;
 		width: 100%;
@@ -97,11 +89,20 @@
 	.chat-items.empty {
 		/* display: none; */ /* hvis man vil ha de skjult når tom */
 	}
+	.chat-input-container {
+		max-width: 50rem;
+		margin: 0 auto;
+		width: 100%;
+		box-sizing: border-box;
+		padding: 0 0.5rem;
+	}
+
 	.mobile-hidden {
 		display: none;
 	}
+
 	@media screen and (min-height: 60rem) and (min-width: 40rem) {
-		.chat-items.mobile-hidden {
+		.chat-items-container.mobile-hidden {
 			display: flex;
 		}
 		.chat-input-container.mobile-hidden {
