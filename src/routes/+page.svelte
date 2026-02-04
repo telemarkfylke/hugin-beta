@@ -2,44 +2,20 @@
 	import ChatComponent from "$lib/components/Chat/Chat.svelte"
 	import { ChatState } from "$lib/components/Chat/ChatState.svelte.js"
 	import type { Chat } from "$lib/types/chat"
-	import type { LayoutProps } from "./$types"
+	import type { PageProps } from "./$types"
 
-	let { data }: LayoutProps = $props()
+	let { data }: PageProps = $props()
 
+	// Defaultchatten
 	const defaultChat: Chat = {
-		_id: "chat-1",
+		_id: "",
 		createdAt: new Date().toISOString(),
 		updatedAt: new Date().toISOString(),
 		owner: {
-			id: "user-1",
-			name: "Test User"
+			id: data.authenticatedUser.userId,
+			name: data.authenticatedUser.name
 		},
-		config: {
-			_id: "",
-			name: "",
-			description: "A default chat configuration",
-			project: "DEFAULT",
-			vendorId: "MISTRAL",
-			model: "mistral-medium-latest",
-			instructions: "Answer in Norwegian.",
-			conversationId: "",
-			type: "private",
-			accessGroups: "all",
-			created: {
-				at: new Date().toISOString(),
-				by: {
-					id: "system",
-					name: "system"
-				}
-			},
-			updated: {
-				at: new Date().toISOString(),
-				by: {
-					id: "system",
-					name: "system"
-				}
-			}
-		},
+		config: data.agent,
 		history: []
 	}
 
