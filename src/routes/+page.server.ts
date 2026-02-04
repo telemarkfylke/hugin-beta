@@ -9,7 +9,10 @@ import type { PageServerLoad } from "./$types"
 const chatConfigStore = getChatConfigStore()
 
 const homePageLoad: ServerLoadNextFunction<{ agent: ChatConfig }> = async () => {
-	const agent = await chatConfigStore.getChatConfig(DEFAULT_AGENT_ID as string)
+	if (!DEFAULT_AGENT_ID) {
+		throw new HTTPError(500, "DEFAULT_AGENT_ID environment variable is not set")
+	}
+	const agent = await chatConfigStore.getChatConfig(DEFAULT_AGENT_ID)
 	if (!agent) {
 		throw new HTTPError(404, `Default agent with id ${DEFAULT_AGENT_ID} not found`)
 	}
