@@ -94,6 +94,7 @@
 	</div>
 {:else}
 	<div class="app-overlay" transition:fade={{ duration: 100 }} onclick={() => { menuOpen = false }}></div>
+	<div class ="menu large-screen-space-stealer" transition:slide={{ axis: 'x', duration: 100 }}></div> 
 	<div class="menu" transition:slide={{ axis: 'x', duration: 100 }}>
 		<div class="menu-header">
 			<div class="app-title"><img src={favicon16} alt="{appName} logo" /> {appName}</div>
@@ -203,11 +204,12 @@
 		position: fixed;
 		z-index: 100;
 		width: 12rem;
-		height: 100%;
+		height: 100vh;
 		background-color: var(--color-secondary-10);
 		display: flex;
 		flex-direction: column;
 		padding: 0rem 1rem;
+		overflow: auto;
 	}
 	.menu-content {
 		flex: 1;
@@ -260,7 +262,7 @@
 		.app-overlay {
 			display: none;
 		}
-		.menu {
+		.menu.large-screen-space-stealer {
 			position: static;
 		}
 	}

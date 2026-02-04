@@ -106,3 +106,9 @@ details > summary {
 details > summary:hover {
 	color: black;
 }
+
+/* Katex override for not breaking layout... */
+.katex .katex-mathml {
+	top: 0px;
+	left: 0px;
+}
