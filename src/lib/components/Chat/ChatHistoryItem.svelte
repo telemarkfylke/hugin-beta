@@ -8,6 +8,24 @@
 		chatHistoryItem: ChatHistoryItem
 	}
 	let { chatHistoryItem }: Props = $props()
+
+	let copied = $state(false)
+
+	const copyResponse = () => {
+		if (chatHistoryItem.type !== "chat_response") return
+    console.log('Chatten som ska kopieres:', chatHistoryItem)
+		const text = chatHistoryItem.outputs
+			.filter((item) => item.type === "message.output")
+			.flatMap((item) => item.content)
+			.filter((part) => part.type === "output_text")
+			.map((part) => ("text" in part ? part.text : ""))
+			.join("\n")
+		navigator.clipboard.writeText(text)
+		copied = true
+		setTimeout(() => {
+			copied = false
+		}, 2000)
+	}
 </script>
 
 {#if chatHistoryItem.type === 'message.input'}
@@ -23,11 +41,14 @@
         <ChatItem {chatItem} />
       {/each}
     {/if}
-    <!--
-    <div class="chat-response-usage">
-      Usage: {chatMessage.usage ? `Prompt tokens: ${chatMessage.usage.inputTokens}, Completion tokens: ${chatMessage.usage.outputTokens}, Total tokens: ${chatMessage.usage.totalTokens}` : 'N/A'}
-    </div>
-    -->
+    {#if chatHistoryItem.status === "completed"}
+      <div class="chat-response-actions">
+        <button class="icon-button" onclick={copyResponse} title="Kopier">
+          <span class="material-symbols-outlined">{copied ? "check" : "content_copy"}</span>
+          {#if copied}Kopiert!{/if}
+        </button>
+      </div>
+    {/if}
   </div>
 {/if}
 
@@ -39,5 +60,13 @@
     gap: 0.5rem;
     margin-top: 1rem;
     margin-bottom: 0.5rem;
+  }
+  .chat-response-actions {
+    display: flex;
+    gap: 0.25rem;
+    margin-top: 0.25rem;
+  }
+  .chat-response-actions button {
+    font-size: 0.8rem;
   }
 </style>
