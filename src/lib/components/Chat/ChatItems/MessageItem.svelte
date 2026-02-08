@@ -4,27 +4,28 @@
 
 	type Props = {
 		chatItem: ChatItem
-    completed?: boolean
+		completed?: boolean
 	}
-	let { chatItem, completed = true  }: Props = $props()
+	let { chatItem, completed = true }: Props = $props()
 
-  let copied = $state(false)
+	let copied = $state(false)
 
 	const copyOutputText = (elementId: string) => {
-    const element = document.getElementById(elementId)
-    if (!element) return
-    const textToCopy = element.textContent || ""
-		navigator.clipboard.writeText(textToCopy)
-      .then(() => {
-        copied = true
-        setTimeout(() => {
-          copied = false
-        }, 2000)
-      })
-      .catch((err) => {
-        console.error("Failed to copy text: ", err)
-      })
-  }
+		const element = document.getElementById(elementId)
+		if (!element) return
+		const textToCopy = element.textContent || ""
+		navigator.clipboard
+			.writeText(textToCopy)
+			.then(() => {
+				copied = true
+				setTimeout(() => {
+					copied = false
+				}, 2000)
+			})
+			.catch((err) => {
+				console.error("Failed to copy text: ", err)
+			})
+	}
 
 	// Helper
 	const getImage = (imageUrl: string): string => {
