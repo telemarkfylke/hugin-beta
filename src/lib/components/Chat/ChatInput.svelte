@@ -28,9 +28,6 @@
 		return [...supportedTypes.FILE, ...supportedTypes.IMAGE]
 	})
 
-	// La den her, men  den burde kanskje ligge i en config et sted?
-	const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024 // 10 MB er 10 * 1024 * 1024 bytes :-)
-
 	// Internal state for this component
 	let inputText: string = $state("")
 	let inputFiles: File[] = $state([])
@@ -92,7 +89,7 @@
 			if (!allowedMessageMimeTypes.includes(file.type)) {
 				return false
 			}
-			if (file.size > MAX_FILE_SIZE_BYTES) {
+			if (file.size > chatState.APP_CONFIG.BODY_SIZE_LIMIT) {
 				oversizedFiles.push(file.name)
 				return false
 			}
