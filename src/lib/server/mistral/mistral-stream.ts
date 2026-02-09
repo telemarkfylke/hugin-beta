@@ -3,11 +3,11 @@ import type { ConversationEvents } from "@mistralai/mistralai/models/components/
 import { createSse } from "$lib/streaming.js"
 import type { IAIVendorStreamHandler } from "$lib/types/AIVendor"
 
-export const handleMistralResponseStream: IAIVendorStreamHandler<EventStream<ConversationEvents>> = (chatRequest, mistralStream) => {
+export const handleMistralResponseStream: IAIVendorStreamHandler<EventStream<ConversationEvents>> = (_chatRequest, mistralStream) => {
 	return new ReadableStream({
 		async start(controller) {
 			// Enqueue config event with data
-			controller.enqueue(createSse({ event: "response.config", data: chatRequest.config }))
+			// controller.enqueue(createSse({ event: "response.config", data: chatRequest.config })) hva er denne til?
 			for await (const chunk of mistralStream) {
 				switch (chunk.data.type) {
 					case "conversation.response.started":
