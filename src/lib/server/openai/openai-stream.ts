@@ -3,11 +3,11 @@ import type { Stream } from "openai/streaming"
 import { createSse } from "$lib/streaming.js"
 import type { IAIVendorStreamHandler } from "$lib/types/AIVendor"
 
-export const handleOpenAIResponseStream: IAIVendorStreamHandler<Stream<ResponseStreamEvent>> = (chatRequest, openAIStream) => {
+export const handleOpenAIResponseStream: IAIVendorStreamHandler<Stream<ResponseStreamEvent>> = (_chatRequest, openAIStream) => {
 	return new ReadableStream({
 		async start(controller) {
 			// Enqueue config event with data
-			controller.enqueue(createSse({ event: "response.config", data: chatRequest.config }))
+			// controller.enqueue(createSse({ event: "response.config", data: chatRequest.config })) hva er denne til?
 			for await (const chunk of openAIStream) {
 				switch (chunk.type) {
 					case "response.created":

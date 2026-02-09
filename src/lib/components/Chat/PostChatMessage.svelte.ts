@@ -115,6 +115,8 @@ export const postChatMessage = async (chatRequest: ChatRequest, chatResponseObje
 		Object.assign(chatResponseObject, responseData)
 		return
 	} catch (error) {
+		addMessageDeltaToChatItem(chatResponseObject, `error_${Date.now()}`, "\n\n[Error occurred while receiving agent response]")
+		chatResponseObject.status = "failed"
 		console.error("Error in postChatMessage:", error)
 		throw error
 	}

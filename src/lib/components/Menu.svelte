@@ -133,7 +133,7 @@
 					<div class="menu-section">
 						<div class="menu-section-title">Agenter</div>
 						<div class="menu-items">
-							{#each menuAgents.agents.filter(agent => agent.type !== "private") as agent}
+							{#each menuAgents.agents.filter(agent => agent.type === "published").slice(0,5) as agent}
 								<a class="menu-item" class:active={page.url.pathname === "/agents/" + agent._id} href={"/agents/" + agent._id}>
 									{agent.name}
 								</a>
@@ -146,7 +146,7 @@
 					<div class="menu-section">
 						<div class="menu-section-title">Dine agenter</div>
 						<div class="menu-items">
-							{#each menuAgents.agents.filter(agent => agent.type === "private") as agent}
+							{#each menuAgents.agents.filter(agent => agent.type === "private" && agent.created.by.id === authenticatedUser.userId).slice(0,5) as agent}
 								<a class="menu-item" class:active={page.url.pathname === "/agents/" + agent._id} href={"/agents/" + agent._id}>
 									{agent.name}
 								</a>

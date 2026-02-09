@@ -6,9 +6,8 @@
 
 	type Props = {
 		chatState: ChatState
-		sendMessage: (inputText: string, inputFiles: FileList) => Promise<void>
 	}
-	let { chatState, sendMessage }: Props = $props()
+	let { chatState }: Props = $props()
 
 	// Determine allowed file mime types based on model/vendor
 	let allowedMessageMimeTypes = $derived.by(() => {
@@ -53,7 +52,11 @@
 		inputFiles = [] // Clear chat files after submission
 		inputText = ""
 		messageInProgress = true
-		await sendMessage(textToSend, filesToSend)
+		try {
+			await chatState.promptChat(textToSend, filesToSend)
+		} catch (error) {
+			console.error("Error submitting prompt:", error)
+		}
 		messageInProgress = false
 	}
 

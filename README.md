@@ -117,7 +117,7 @@ Real-time AI responses use Server-Sent Events with the following event types:
 
 | Event | Description |
 |-------|-------------|
-| `response.config` | Chat configuration metadata |
+| `response.config` | Chat configuration metadata nobody uses? |
 | `response.started` | Response initiated with responseId |
 | `response.output_text.delta` | Incremental text chunk |
 | `response.done` | Completion with token usage statistics |

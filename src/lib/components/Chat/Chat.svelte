@@ -56,7 +56,7 @@
 		</div>
 	</div>
 	<div class="chat-input-container" class:mobile-hidden={chatState.configMode}>
-		<ChatInput {chatState} sendMessage={chatState.promptChat} />
+		<ChatInput {chatState} />
 	</div>
 </div>
 

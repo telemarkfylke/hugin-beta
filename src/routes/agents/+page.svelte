@@ -8,6 +8,7 @@
 <!-- -->
 <div class="agents-page">
 	<header class="page-header">
+		<div>&nbsp;</div>
 		<h1>Agenter</h1>
 		<a href="/agents/create" class="new-agent-link">
 			<button class="filled">
@@ -24,8 +25,15 @@
 			<a href="/agents/create">Opprett din første agent</a>
 		</div>
 	{:else}
+		<h3>Publiserte</h3>
 		<div class="agents-grid">
-			{#each data.agents as agent}
+			{#each data.agents.filter(agent => agent.type === "published") as agent}
+				<AgentCard {agent} />
+			{/each}
+		</div>
+		<h3>Private</h3>
+		<div class="agents-grid">
+			{#each data.agents.filter(agent => agent.type === "private") as agent}
 				<AgentCard {agent} />
 			{/each}
 		</div>
@@ -36,10 +44,11 @@
 	.agents-page {
 		max-width: 72rem;
 		margin: 0 auto;
-		padding: 1.5rem;
+		padding: 0rem 1rem 1rem 1rem;
 	}
 
 	.page-header {
+		height: var(--header-height);
 		display: flex;
 		justify-content: space-between;
 		align-items: center;
