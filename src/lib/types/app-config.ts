@@ -22,6 +22,7 @@ export type AppRoles = {
 
 export type AppConfig = {
 	NAME: string
+	BODY_SIZE_LIMIT_BYTES: number
 	APP_ROLES: AppRoles
 	VENDORS: {
 		MISTRAL: VendorInfo

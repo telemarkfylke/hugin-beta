@@ -32,8 +32,9 @@
 	let inputText: string = $state("")
 	let inputFiles: File[] = $state([])
 	let messageInProgress = $state(false)
+	let fileSizeWarning = $state(false)
 
-	// KOnverter filarrayen til en liste med filer
+	// Konverter filarrayen til en liste med filer
 	const filesToFileList = (files: File[]): FileList => {
 		const dataTransfer = new DataTransfer()
 		for (const file of files) {
@@ -80,13 +81,26 @@
 	}
 
 	const addFiles = (files: File[]) => {
+		const oversizedFiles: string[] = []
 		const validFiles = files.filter((file) => {
 			if (allowedMessageMimeTypes.length === 0) {
 				return false
-			} else {
-				return allowedMessageMimeTypes.includes(file.type)
 			}
+			if (!allowedMessageMimeTypes.includes(file.type)) {
+				return false
+			}
+			if (file.size > chatState.APP_CONFIG.BODY_SIZE_LIMIT_BYTES) {
+				oversizedFiles.push(file.name)
+				return false
+			}
+			return true
 		})
+		if (oversizedFiles.length > 0) {
+			fileSizeWarning = true
+			setTimeout(() => {
+				fileSizeWarning = false
+			}, 4000) // Viser varsel i 4 sekunder
+		}
 		inputFiles = [...inputFiles, ...validFiles]
 	}
 
@@ -149,6 +163,10 @@
 					<FilePreview {file} onRemove={() => removeFile(index)} />
 				{/each}
 			</div>
+		{/if}
+
+		{#if fileSizeWarning}
+			<div class="file-size-warning">Filen er for stor (maks 10 MB)</div>
 		{/if}
 
 		<div class="input-row">
@@ -240,6 +258,12 @@
 		flex-wrap: wrap;
 		gap: 0.5rem;
 		padding: 0.5rem 0rem;
+	}
+
+	.file-size-warning {
+		font-size: 0.85rem;
+		color: var(--color-danger);
+		padding: 0.25rem 0;
 	}
 
 	.input-row {
