@@ -9,7 +9,7 @@ import {
 
 export const APP_CONFIG: AppConfig = {
 	NAME: env.APP_NAME || "Mugin",
-	BODY_SIZE_LIMIT_BYTES: Number(env.BODY_SIZE_LIMIT.split('M')[0]) * 1024 * 1024 || 10 * 1024 * 1024,
+	BODY_SIZE_LIMIT_BYTES: env.BODY_SIZE_LIMIT && env.BODY_SIZE_LIMIT.endsWith("M") ? Number(env.BODY_SIZE_LIMIT.split('M')[0]) * 1024 * 1024 : 10 * 1024 * 1024,
 	APP_ROLES: {
 		ADMIN: env.APP_ROLE_ADMIN,
 		AGENT_MAINTAINER: env.APP_ROLE_AGENT_MAINTAINER,
