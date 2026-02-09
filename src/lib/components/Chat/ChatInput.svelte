@@ -89,7 +89,7 @@
 			if (!allowedMessageMimeTypes.includes(file.type)) {
 				return false
 			}
-			if (file.size > chatState.APP_CONFIG.BODY_SIZE_LIMIT) {
+			if (file.size > chatState.APP_CONFIG.BODY_SIZE_LIMIT_BYTES) {
 				oversizedFiles.push(file.name)
 				return false
 			}
