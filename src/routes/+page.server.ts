@@ -1,4 +1,4 @@
-import { DEFAULT_AGENT_ID } from "$env/static/private"
+import { env } from "$env/dynamic/private"
 import { getChatConfigStore } from "$lib/server/db/get-db"
 import { serverLoadRequestMiddleware } from "$lib/server/middleware/http-request"
 import type { ChatConfig } from "$lib/types/chat"
@@ -32,10 +32,10 @@ const fallbackAgent: ChatConfig = {
 }
 
 const homePageLoad: ServerLoadNextFunction<{ agent: ChatConfig }> = async () => {
-	if (!DEFAULT_AGENT_ID) {
+	if (!env.DEFAULT_AGENT_ID) {
 		return { data: { agent: fallbackAgent }, isAuthorized: true }
 	}
-	const agent = await chatConfigStore.getChatConfig(DEFAULT_AGENT_ID)
+	const agent = await chatConfigStore.getChatConfig(env.DEFAULT_AGENT_ID)
 	if (!agent) {
 		return { data: { agent: fallbackAgent }, isAuthorized: true }
 	}
