@@ -213,21 +213,23 @@
 						hidden
 					/>
 				{/if}
-				<button
-					class="icon-button input-action-button"
-					class:active={webSearchEnabled}
-					onclick={() => {
-						if (webSearchEnabled) {
-							chatState.chat.config.tools = chatState.chat.config.tools?.filter(t => t.type !== "web_search") ?? []
-						} else {
-							chatState.chat.config.tools = [...(chatState.chat.config.tools ?? []), { type: "web_search" }]
-						}
-					}}
-					title={webSearchEnabled ? "Websøk aktivert" : "Websøk deaktivert"}
-					type="button"
-				>
-					<span class="material-symbols-outlined">travel_explore</span>
-				</button>
+				{#if chatState.chat.config.vendorId === "OPENAI"}
+					<button
+						class="icon-button input-action-button"
+						class:active={webSearchEnabled}
+						onclick={() => {
+							if (webSearchEnabled) {
+								chatState.chat.config.tools = chatState.chat.config.tools?.filter(t => t.type !== "web_search") ?? []
+							} else {
+								chatState.chat.config.tools = [...(chatState.chat.config.tools ?? []), { type: "web_search" }]
+							}
+						}}
+						title={webSearchEnabled ? "Websøk aktivert" : "Websøk deaktivert"}
+						type="button"
+					>
+						<span class="material-symbols-outlined">travel_explore</span>
+					</button>
+				{/if}
 			</div>
 			<div class="input-submit">
 				<!-- Send button (right) -->
