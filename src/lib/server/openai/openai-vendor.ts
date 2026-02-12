@@ -14,10 +14,19 @@ const openAiRequest = (chatRequest: ChatRequest): ResponseCreateParamsBase => {
 		input: chatRequest.inputs.map(chatInputToOpenAIInput),
 		store: false
 	}
+
+	const tools = chatRequest.config.tools?.map(tool => {
+		if (tool.type === "web_search") {
+			return { type: "web_search_preview" as const }
+		}
+		return tool
+	})
+
 	if (chatRequest.config.vendorAgent) {
 		if (!chatRequest.config.vendorAgent.id) {
 			throw new Error("vendorAgent with valid id is required for predefined agent chat config")
 		}
+		console.log("OpenAI request tools:", JSON.stringify(tools))
 		return {
 			prompt: {
 				id: chatRequest.config.vendorAgent.id
@@ -31,11 +40,12 @@ const openAiRequest = (chatRequest: ChatRequest): ResponseCreateParamsBase => {
 	if (!OPEN_AI_SUPPORTED_MODELS.includes(chatRequest.config.model)) {
 		throw new Error(`Model ${chatRequest.config.model} is not supported by OpenAI vendor`)
 	}
-	return {
-		model: chatRequest.config.model,
-		instructions: chatRequest.config.instructions || "",
-		...baseConfig
-	}
+return {
+    ...baseConfig,
+    model: chatRequest.config.model,
+    instructions: chatRequest.config.instructions || "",
+    ...(tools ? { tools } : {}),
+}
 }
 
 const getApiKeyForProject = (project: string): string => {
@@ -64,6 +74,9 @@ export class OpenAIVendor implements IAIVendor {
 		const openai = new OpenAI({
 			apiKey: PROJECT_API_KEY
 		})
+		const requestParams = { ...openAiRequest(chatRequest), stream: true }
+		console.log("FULL OpenAI request:", JSON.stringify(requestParams, null, 2))
+
 		const responseStream = await openai.responses.create({
 			...openAiRequest(chatRequest),
 			stream: true

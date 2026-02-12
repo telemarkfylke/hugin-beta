@@ -32,6 +32,10 @@
 	let inputFiles: File[] = $state([])
 	let messageInProgress = $state(false)
 	let fileSizeWarning = $state(false)
+	let webSearchEnabled = $derived(chatState.chat.config.tools?.some((tool) => tool.type === "web_search") ?? false)
+
+	// Logger for å se åssen chatstae.tools ser ut
+	$effect(() => {console.log("tools:", chatState.chat.config.tools)})
 
 	// Konverter filarrayen til en liste med filer
 	const filesToFileList = (files: File[]): FileList => {
@@ -207,6 +211,21 @@
 						hidden
 					/>
 				{/if}
+				<button
+					class="icon-button input-action-button"
+					class:active={webSearchEnabled}
+					onclick={() => {
+						if (webSearchEnabled) {
+							chatState.chat.config.tools = chatState.chat.config.tools?.filter(t => t.type !== "web_search") ?? []
+						} else {
+							chatState.chat.config.tools = [...(chatState.chat.config.tools ?? []), { type: "web_search" }]
+						}
+					}}
+					title={webSearchEnabled ? "Websøk aktivert" : "Websøk deaktivert"}
+					type="button"
+				>
+					<span class="material-symbols-outlined">travel_explore</span>
+				</button>
 			</div>
 			<div class="input-submit">
 				<!-- Send button (right) -->
@@ -291,6 +310,12 @@
 	/* Action buttons inside input */
 	.input-action-button {
 		padding: 0.5rem 0.375rem; /* To keep consistent with input-textarea spacing */
+	}
+
+	.input-action-button.active {
+		color: var(--color-primary);
+		background-color: var(--color-primary-20);
+		border-radius: 50%;
 	}
 
 	.input-action-button.send {

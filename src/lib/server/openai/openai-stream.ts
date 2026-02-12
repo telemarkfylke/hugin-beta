@@ -28,11 +28,20 @@ export const handleOpenAIResponseStream: IAIVendorStreamHandler<Stream<ResponseS
 					case "response.failed":
 						controller.enqueue(createSse({ event: "response.error", data: { code: chunk.response.error?.code || "unknown", message: chunk.response.error?.message || "Unknown error" } }))
 						break
+					// Websøkeventer kommer her etterhvert
+					case "response.web_search_call.in_progress":
+					case "response.web_search_call.searching":
+					case "response.web_search_call.completed":
+					case "response.output_item.added":
+					case "response.output_item.done":
+						console.log("Web search event:", chunk.type, JSON.stringify(chunk, null, 2))
+    					break
 					default:
 						console.warn("Unhandled OpenAI response stream event type:", chunk.type)
 						createSse({ event: "response.output_text.delta", data: { itemId: "unknown_open_ai_sse", content: JSON.stringify(chunk) } })
 						break
 					// Ta hensyn til flere event typer her etter behov
+
 				}
 			}
 			controller.close()

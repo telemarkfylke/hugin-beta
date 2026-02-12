@@ -51,6 +51,7 @@ export const parseChatConfig = (input: unknown, APP_CONFIG: AppConfig): ChatConf
 		model: parsedConfig.model,
 		instructions: parsedConfig.instructions,
 		conversationId: parsedConfig.conversationId,
+		tools: parsedConfig.tools, // <- Jeg vil bare si at jeg brukte 2 timer på å finne ut av at denne måtte være her. Hilsen, fuzzbin
 		accessGroups: parsedConfig.accessGroups,
 		type: parsedConfig.type,
 		created: parsedConfig.created,
