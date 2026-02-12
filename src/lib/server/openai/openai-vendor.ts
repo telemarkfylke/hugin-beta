@@ -15,7 +15,7 @@ const openAiRequest = (chatRequest: ChatRequest): ResponseCreateParamsBase => {
 		store: false
 	}
 
-	const tools = chatRequest.config.tools?.map(tool => {
+	const tools = chatRequest.config.tools?.map((tool) => {
 		if (tool.type === "web_search") {
 			return { type: "web_search_preview" as const }
 		}
@@ -40,12 +40,12 @@ const openAiRequest = (chatRequest: ChatRequest): ResponseCreateParamsBase => {
 	if (!OPEN_AI_SUPPORTED_MODELS.includes(chatRequest.config.model)) {
 		throw new Error(`Model ${chatRequest.config.model} is not supported by OpenAI vendor`)
 	}
-return {
-    ...baseConfig,
-    model: chatRequest.config.model,
-    instructions: chatRequest.config.instructions || "",
-    ...(tools ? { tools } : {}),
-}
+	return {
+		...baseConfig,
+		model: chatRequest.config.model,
+		instructions: chatRequest.config.instructions || "",
+		...(tools ? { tools } : {})
+	}
 }
 
 const getApiKeyForProject = (project: string): string => {

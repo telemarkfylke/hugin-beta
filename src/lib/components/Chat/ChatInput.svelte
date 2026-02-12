@@ -35,7 +35,9 @@
 	let webSearchEnabled = $derived(chatState.chat.config.tools?.some((tool) => tool.type === "web_search") ?? false)
 
 	// Logger for å se åssen chatstae.tools ser ut
-	$effect(() => {console.log("tools:", chatState.chat.config.tools)})
+	$effect(() => {
+		console.log("tools:", chatState.chat.config.tools)
+	})
 
 	// Konverter filarrayen til en liste med filer
 	const filesToFileList = (files: File[]): FileList => {

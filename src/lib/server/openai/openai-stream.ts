@@ -35,13 +35,12 @@ export const handleOpenAIResponseStream: IAIVendorStreamHandler<Stream<ResponseS
 					case "response.output_item.added":
 					case "response.output_item.done":
 						console.log("Web search event:", chunk.type, JSON.stringify(chunk, null, 2))
-    					break
+						break
 					default:
 						console.warn("Unhandled OpenAI response stream event type:", chunk.type)
 						createSse({ event: "response.output_text.delta", data: { itemId: "unknown_open_ai_sse", content: JSON.stringify(chunk) } })
 						break
 					// Ta hensyn til flere event typer her etter behov
-
 				}
 			}
 			controller.close()
