@@ -20,14 +20,9 @@
       <TypingDots />
     {:else}
       {#each chatHistoryItem.outputs as chatItem}
-        <ChatItem {chatItem} />
+        <ChatItem {chatItem} completed={chatHistoryItem.status === "completed"} />
       {/each}
     {/if}
-    <!--
-    <div class="chat-response-usage">
-      Usage: {chatMessage.usage ? `Prompt tokens: ${chatMessage.usage.inputTokens}, Completion tokens: ${chatMessage.usage.outputTokens}, Total tokens: ${chatMessage.usage.totalTokens}` : 'N/A'}
-    </div>
-    -->
   </div>
 {/if}
 
