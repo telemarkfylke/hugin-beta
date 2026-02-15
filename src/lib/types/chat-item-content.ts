@@ -14,9 +14,18 @@ export type InputImage = {
 	imageUrl: string
 }
 
+export type UrlCitation = {
+	type: "url_citation"
+	url: string
+	title: string
+	startIndex: number
+	endIndex: number
+}
+
 export type OutputText = {
 	type: "output_text"
 	text: string
+	annotations?: UrlCitation[]
 }
 
 export type OutputRefusal = {

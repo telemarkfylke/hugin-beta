@@ -91,9 +91,19 @@ const openAIChatOutputMessageToChatOutputMessage = (outputItem: ResponseOutputMe
 	for (const contentItem of outputItem.content) {
 		switch (contentItem.type) {
 			case "output_text": {
+				const urlCitations = contentItem.annotations.filter((a) => a.type === "url_citation")
 				chatOutputItem.content.push({
 					type: "output_text",
-					text: contentItem.text
+					text: contentItem.text,
+					...(urlCitations.length > 0 && {
+						annotations: urlCitations.map((a) => ({
+							type: "url_citation" as const,
+							url: a.url,
+							title: a.title,
+							startIndex: a.start_index,
+							endIndex: a.end_index
+						}))
+					})
 				})
 				break
 			}

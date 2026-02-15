@@ -48,6 +48,22 @@ const ConversationCreated = z.object({
 	})
 })
 
+const ResponseAnnotations = z.object({
+	event: z.literal("response.annotations"),
+	data: z.object({
+		itemId: z.string(),
+		annotations: z.array(
+			z.object({
+				type: z.literal("url_citation"),
+				url: z.string(),
+				title: z.string(),
+				startIndex: z.number(),
+				endIndex: z.number()
+			})
+		)
+	})
+})
+
 export const MuginSse = z.discriminatedUnion("event", [
 	// New events
 	ResponseConfig,
@@ -55,7 +71,8 @@ export const MuginSse = z.discriminatedUnion("event", [
 	ResponseDone,
 	ResponseError,
 	ResponseOutputTextDelta,
-	ConversationCreated
+	ConversationCreated,
+	ResponseAnnotations
 ])
 
 export type MuginSse = z.infer<typeof MuginSse>

@@ -34,6 +34,7 @@
 				const lastContent = lastItem.content[lastItem.content.length - 1]
 				if (lastContent?.type === "output_text") {
 					lastContent.text
+					lastContent.annotations
 				} else if (lastContent?.type === "output_refusal") {
 					lastContent.reason
 				}
