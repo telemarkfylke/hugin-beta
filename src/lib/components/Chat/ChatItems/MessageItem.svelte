@@ -4,8 +4,28 @@
 
 	type Props = {
 		chatItem: ChatItem
+		completed?: boolean
 	}
-	let { chatItem }: Props = $props()
+	let { chatItem, completed = true }: Props = $props()
+
+	let copied = $state(false)
+
+	const copyOutputText = (elementId: string) => {
+		const element = document.getElementById(elementId)
+		if (!element) return
+		const textToCopy = element.textContent || ""
+		navigator.clipboard
+			.writeText(textToCopy)
+			.then(() => {
+				copied = true
+				setTimeout(() => {
+					copied = false
+				}, 2000)
+			})
+			.catch((err) => {
+				console.error("Failed to copy text: ", err)
+			})
+	}
 
 	// Helper
 	const getImage = (imageUrl: string): string => {
@@ -40,9 +60,9 @@
   </div>
 {:else if chatItem.type === 'message.output'}
   <div class="assistant-message">
-    {#each chatItem.content as contentPart}
-      <div class="assistant-message-part-{contentPart.type}">
-        {#if contentPart.type === 'output_text'}
+    {#each chatItem.content as contentPart, index}
+      {#if contentPart.type === 'output_text'}
+        <div id="output-text-{chatItem.id}-{index}" class="assistant-message-content-part">
           {@html markdownFormatter(contentPart.text)}
           {#if contentPart.annotations && contentPart.annotations.length > 0}
             <div class="citations">
@@ -54,13 +74,25 @@
               </ol>
             </div>
           {/if}
-        {:else if contentPart.type === 'output_refusal'}
+        </div>
+        {#if completed}
+          <div class="output-text-actions">
+            <button class="icon-button" onclick={() => copyOutputText(`output-text-${chatItem.id}-${index}`)} title="Kopier">
+              <span class="material-symbols-outlined">{copied ? "check" : "content_copy"}</span>
+              {#if copied}Kopiert!{/if}
+            </button>
+          </div>
+        {/if}
+      {:else if contentPart.type === 'output_refusal'}
+        <div class="assistant-message-content-part">
           <em>Assistant refused to answer: {contentPart.reason}</em>
-        {:else}
+        </div>
+      {:else}
+        <div class="assistant-message-content-part">
           <span>Unknown content part type</span>
           {JSON.stringify(contentPart)}
-        {/if}
-      </div>
+        </div>
+      {/if}
     {/each}
   </div>
 {/if}
