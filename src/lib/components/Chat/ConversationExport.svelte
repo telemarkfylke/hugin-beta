@@ -51,7 +51,7 @@
 
 		const a = document.createElement("a")
 		a.href = url
-		a.download = `${filename}.kraa`
+		a.download = `${filename}.kráa`
 		document.body.appendChild(a)
 		a.click()
 		document.body.removeChild(a)
@@ -66,7 +66,7 @@
 		bind:this={fileInput}
 		onchange={handleFileSelect}		
 		style="display: none"
-		accept=".kraa"
+		accept=".kráa"
 	/>
 	<button
 		onclick={() => {
