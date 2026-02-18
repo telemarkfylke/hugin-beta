@@ -4,12 +4,13 @@
 	import type { ChatConfig, VendorId } from "$lib/types/chat"
 	import GrowingTextArea from "../GrowingTextArea.svelte"
 	import type { ChatState } from "./ChatState.svelte"
+	import ConversationExport from "./ConversationExport.svelte"
 
 	type Props = {
 		chatState: ChatState
 	}
 
-	let { chatState }: Props = $props()
+	let { chatState = $bindable() }: Props = $props()
 
 	let showDescription: boolean = $state(false)
 
@@ -154,6 +155,7 @@
 					<span class="material-symbols-rounded">edit_square</span>
 					<span class="widescreen-span">Ny samtale</span>
 				</button>
+				<ConversationExport bind:chat={chatState.chat} />
 			{/if}
 			{#if userCanEditConfig}
 				{#if chatState.configMode && chatState.configEdited}

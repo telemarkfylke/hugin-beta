@@ -46,7 +46,7 @@
 </script>
 
 <div class="chat-container">
-	<ChatHeaderWithConfig {chatState} />
+	<ChatHeaderWithConfig bind:chatState ={chatState} />
 	<div class="chat-items-container" class:mobile-hidden={chatState.configMode}  class:empty={chatState.chat.history.length === 0}>
 		<div class="chat-items">
 			{#each chatState.chat.history as chatHistoryItem}
