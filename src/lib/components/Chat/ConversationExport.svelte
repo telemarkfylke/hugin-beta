@@ -24,10 +24,16 @@
 		const input = event.target as HTMLInputElement
 		if (input.files && input.files.length > 0) {
 			const selectedFile = input.files[0]
-			const conversationJson = await selectedFile?.text()
-			if (conversationJson) {
-				chat.history = JSON.parse(conversationJson)
-				filename = selectedFile?.name || ""
+			if (selectedFile) {
+				const conversationJson = await selectedFile?.text()
+				if (conversationJson) {
+					chat.history = JSON.parse(conversationJson)
+					const fileParts = selectedFile.name.split(".")
+					if (fileParts.length > 1) {
+						fileParts.pop()
+					}
+					filename = fileParts.join(".")
+				}
 			}
 		}
 		input.value = ""
