@@ -90,6 +90,7 @@ export class ChatState {
 	public configMode: boolean = $state(false)
 	public configEdited: boolean = $state(false)
 	public initialConfig: ChatConfig = $state(placeHolderConfig)
+	public webSearchEnabled: boolean = $state(false)
 
 	constructor(chat: Chat, user: AuthenticatedPrincipal, appConfig: AppConfig) {
 		this.user = user
@@ -111,6 +112,7 @@ export class ChatState {
 		this.chat.updatedAt = chat.updatedAt
 		this.chat.owner = chat.owner
 		this.initialConfig = JSON.parse(JSON.stringify(chat.config))
+		this.webSearchEnabled = false
 	}
 
 	public newChat = (): void => {
@@ -264,10 +266,15 @@ export class ChatState {
 			})
 			.filter((message) => message !== undefined)
 
+		const webSearchTools: typeof this.chat.config.tools = this.webSearchEnabled
+			? [{ type: "web_search" }, ...(this.chat.config.tools?.filter((t) => t.type !== "web_search") ?? [])]
+			: this.chat.config.tools?.filter((t) => t.type !== "web_search")
+
 		const chatRequest: ChatRequest = {
 			config: {
 				...this.chat.config,
-				name: this.chat.config.name || this.chat.config.model || "Ukjent navn"
+				name: this.chat.config.name || this.chat.config.model || "Ukjent navn",
+				tools: webSearchTools
 			},
 			inputs: [...chatInput, userMessage],
 			stream: this.streamResponse,

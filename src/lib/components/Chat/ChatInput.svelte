@@ -32,12 +32,7 @@
 	let inputFiles: File[] = $state([])
 	let messageInProgress = $state(false)
 	let fileSizeWarning = $state(false)
-	let webSearchEnabled = $derived(chatState.chat.config.tools?.some((tool) => tool.type === "web_search") ?? false)
-
-	// Logger for å se åssen chatstae.tools ser ut
-	$effect(() => {
-		console.log("tools:", chatState.chat.config.tools)
-	})
+	let webSearchEnabled = $derived(chatState.webSearchEnabled)
 
 	// Konverter filarrayen til en liste med filer
 	const filesToFileList = (files: File[]): FileList => {
@@ -218,11 +213,7 @@
 						class="icon-button input-action-button"
 						class:active={webSearchEnabled}
 						onclick={() => {
-							if (webSearchEnabled) {
-								chatState.chat.config.tools = chatState.chat.config.tools?.filter(t => t.type !== "web_search") ?? []
-							} else {
-								chatState.chat.config.tools = [...(chatState.chat.config.tools ?? []), { type: "web_search" }]
-							}
+							chatState.webSearchEnabled = !chatState.webSearchEnabled
 						}}
 						title={webSearchEnabled ? "Websøk aktivert" : "Websøk deaktivert"}
 						type="button"
