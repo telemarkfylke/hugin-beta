@@ -28,6 +28,38 @@ export const handleOpenAIResponseStream: IAIVendorStreamHandler<Stream<ResponseS
 					case "response.failed":
 						controller.enqueue(createSse({ event: "response.error", data: { code: chunk.response.error?.code || "unknown", message: chunk.response.error?.message || "Unknown error" } }))
 						break
+					case "response.web_search_call.in_progress":
+					case "response.web_search_call.searching":
+					case "response.web_search_call.completed":
+					case "response.output_item.added":
+						break
+					case "response.output_item.done": {
+						if (chunk.item.type === "message") {
+							for (const content of chunk.item.content) {
+								if (content.type === "output_text" && content.annotations.length > 0) {
+									const urlCitations = content.annotations.filter((a) => a.type === "url_citation")
+									if (urlCitations.length > 0) {
+										controller.enqueue(
+											createSse({
+												event: "response.annotations",
+												data: {
+													itemId: chunk.item.id,
+													annotations: urlCitations.map((a) => ({
+														type: "url_citation" as const,
+														url: a.url,
+														title: a.title,
+														startIndex: a.start_index,
+														endIndex: a.end_index
+													}))
+												}
+											})
+										)
+									}
+								}
+							}
+						}
+						break
+					}
 					default:
 						console.warn("Unhandled OpenAI response stream event type:", chunk.type)
 						createSse({ event: "response.output_text.delta", data: { itemId: "unknown_open_ai_sse", content: JSON.stringify(chunk) } })
