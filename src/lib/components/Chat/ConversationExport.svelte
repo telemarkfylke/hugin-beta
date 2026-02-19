@@ -1,7 +1,10 @@
 <script lang="ts">
-	import type { Chat } from "$lib/types/chat"
+	import type { Chat, ChatHistory } from "$lib/types/chat"
+	import ChatHistoryItem from "./ChatHistoryItem.svelte"
 
 	type MenuState = "closed" | "open" | "filename"
+
+	type RavenFile = { meta: { fileversion: number }; history: ChatHistory }
 
 	let menuState: MenuState = $state("closed")
 
@@ -27,7 +30,8 @@
 			if (selectedFile) {
 				const conversationJson = await selectedFile?.text()
 				if (conversationJson) {
-					chat.history = JSON.parse(conversationJson)
+					const fileContent: RavenFile = JSON.parse(conversationJson) as RavenFile
+					chat.history = fileContent.history
 					const fileParts = selectedFile.name.split(".")
 					if (fileParts.length > 1) {
 						fileParts.pop()
@@ -45,7 +49,10 @@
 
 	const saveConversation = async () => {
 		menuState = "closed"
-		const content = JSON.stringify(chat.history)
+
+		const ravenFile: RavenFile = { meta: { fileversion: 1 }, history: chat.history }
+		const content = JSON.stringify(ravenFile)
+
 		const blob = new Blob([content], { type: "text/plain" })
 		const url = URL.createObjectURL(blob)
 
