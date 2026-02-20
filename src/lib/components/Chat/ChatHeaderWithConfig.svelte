@@ -1,11 +1,11 @@
 <script lang="ts">
 	import { slide } from "svelte/transition"
+	import { page } from "$app/state"
 	import { canEditChatConfig, canEditPredefinedConfig, canPublishChatConfig } from "$lib/authorization"
 	import type { ChatConfig, VendorId } from "$lib/types/chat"
 	import GrowingTextArea from "../GrowingTextArea.svelte"
 	import type { ChatState } from "./ChatState.svelte"
 	import ConversationExport from "./ConversationExport.svelte"
-	import { page } from '$app/state';
 
 	type Props = {
 		chatState: ChatState
@@ -69,8 +69,8 @@
 	}
 
 	const shareAgent = async () => {
-		const fullURL = $derived(page.url.href);
-		await navigator.clipboard.writeText(fullURL);
+		const fullURL = $derived(page.url.href)
+		await navigator.clipboard.writeText(fullURL)
 		alert("Agentens adresse er kopiert til utklippstavlen og kan limes inn i en mail eller melding for å deles med andre.\n\nNB: Alle med lenken kan bruke agenten.")
 	}
 
