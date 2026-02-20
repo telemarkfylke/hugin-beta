@@ -5,6 +5,7 @@
 	import GrowingTextArea from "../GrowingTextArea.svelte"
 	import type { ChatState } from "./ChatState.svelte"
 	import ConversationExport from "./ConversationExport.svelte"
+	import { page } from '$app/state';
 
 	type Props = {
 		chatState: ChatState
@@ -65,6 +66,12 @@
 			name += "*"
 		}
 		return name
+	}
+
+	const shareAgent = async () => {
+		const fullURL = $derived(page.url.href);
+		await navigator.clipboard.writeText(fullURL);
+		alert("Agentens adresse er kopiert til utklippstavlen og kan limes inn i en mail eller melding for å deles med andre.\n\nNB: Alle med lenken kan bruke agenten.")
 	}
 
 	// Almost illegal effect, but we need to auto-select first available model when changing vendor in manual config
@@ -305,6 +312,7 @@
 			</div>
 			<div class="config-action-item right">
 				{#if chatState.chat.config._id}
+					<button class="filled" onclick={shareAgent}><span class="material-symbols-outlined">share</span>Del agent</button>	
 					<button disabled={!chatState.configEdited} class="filled" onclick={chatState.updateChatConfig}><span class="material-symbols-outlined">save</span>Lagre endringer</button>
 				{:else}
 					<button disabled={!chatState.configEdited} class="filled" onclick={chatState.saveChatConfig}><span class="material-symbols-outlined">save</span> Lagre som ny agent</button>
