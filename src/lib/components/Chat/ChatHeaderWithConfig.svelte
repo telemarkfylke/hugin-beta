@@ -69,10 +69,10 @@
 	}
 
 	const copyAgentUrl = async () => {
-			const fullURL = $derived(page.url.href)
-			await navigator.clipboard.writeText(fullURL)
-			chatState.chat.config.shared = true
-			alert("Agentens adresse er kopiert til utklippstavlen og kan limes inn i en mail eller melding for å deles med andre.\n\nNB: Alle med lenken kan bruke agenten.")
+		const fullURL = $derived(page.url.href)
+		await navigator.clipboard.writeText(fullURL)
+		chatState.chat.config.shared = true
+		alert("Agentens adresse er kopiert til utklippstavlen og kan limes inn i en mail eller melding for å deles med andre.\n\nNB: Alle med lenken kan bruke agenten.")
 	}
 
 	// Almost illegal effect, but we need to auto-select first available model when changing vendor in manual config

@@ -111,7 +111,10 @@ export const ChatConfigSchema = schemaForType<ChatConfig>()(
 		project: z.string(),
 		vendorAgent: z.object({ id: z.string() }).optional(),
 		model: z.string().optional(),
-		tools: z.array(z.object({ type: z.enum(["web_search"]) })).nullable().optional(), // Update as per ChatTool for now
+		tools: z
+			.array(z.object({ type: z.enum(["web_search"]) }))
+			.nullable()
+			.optional(), // Update as per ChatTool for now
 		shared: z.boolean().optional(),
 		instructions: z.string().optional(),
 		conversationId: z.string().optional(),
