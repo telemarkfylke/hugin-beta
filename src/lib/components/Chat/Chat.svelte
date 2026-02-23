@@ -14,6 +14,13 @@
 
 	let lastChatItem: HTMLDivElement
 
+	const accessIsDenied = (): boolean => {
+		if (chatState.chat.config.created.by.id === chatState.user.userId) return false
+		if (chatState.chat.config.created.by.id === "system") return false
+		if (chatState.chat.config.shared) return false
+		return chatState.chat.config.type === "private"
+	}
+
 	// Check if edited and routing
 	beforeNavigate(({ cancel, from, to, type }) => {
 		// goto is for programmatic navigation (for now at least), we only care about user navigation
@@ -45,7 +52,11 @@
 		})
 	})
 </script>
-
+{#if accessIsDenied()}
+<div class="chat-container">
+	Denne agenten er ikke tilgjengelig for deg.
+</div>
+{:else}
 <div class="chat-container">
 	<ChatHeaderWithConfig bind:chatState ={chatState} />
 	<div class="chat-items-container" class:mobile-hidden={chatState.configMode}  class:empty={chatState.chat.history.length === 0}>
@@ -60,6 +71,7 @@
 		<ChatInput {chatState} />
 	</div>
 </div>
+{/if}
 
 <style>
 	.chat-container {

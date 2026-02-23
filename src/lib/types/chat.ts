@@ -23,8 +23,9 @@ export type ChatConfig = {
 	model?: string | undefined
 	instructions?: string | undefined
 	conversationId?: string | undefined
-	tools?: ChatTool[] | undefined
+	tools?: ChatTool[] | undefined | null
 	type: "published" | "private"
+	shared?: boolean | undefined
 	accessGroups: "all" | string[]
 	created: {
 		at: string
@@ -110,7 +111,11 @@ export const ChatConfigSchema = schemaForType<ChatConfig>()(
 		project: z.string(),
 		vendorAgent: z.object({ id: z.string() }).optional(),
 		model: z.string().optional(),
-		tools: z.array(z.object({ type: z.enum(["web_search"]) })).optional(), // Update as per ChatTool for now
+		tools: z
+			.array(z.object({ type: z.enum(["web_search"]) }))
+			.nullable()
+			.optional(), // Update as per ChatTool for now
+		shared: z.boolean().optional(),
 		instructions: z.string().optional(),
 		conversationId: z.string().optional(),
 		type: z.enum(["published", "private"]), // Update as per ChatConfig for now

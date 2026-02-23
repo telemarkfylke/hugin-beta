@@ -1,6 +1,5 @@
 <script lang="ts">
 	import type { Chat, ChatHistory } from "$lib/types/chat"
-	import ChatHistoryItem from "./ChatHistoryItem.svelte"
 
 	type MenuState = "closed" | "open" | "filename"
 
