@@ -68,10 +68,11 @@
 		return name
 	}
 
-	const shareAgent = async () => {
-		const fullURL = $derived(page.url.href)
-		await navigator.clipboard.writeText(fullURL)
-		alert("Agentens adresse er kopiert til utklippstavlen og kan limes inn i en mail eller melding for å deles med andre.\n\nNB: Alle med lenken kan bruke agenten.")
+	const copyAgentUrl = async () => {
+			const fullURL = $derived(page.url.href)
+			await navigator.clipboard.writeText(fullURL)
+			chatState.chat.config.shared = true
+			alert("Agentens adresse er kopiert til utklippstavlen og kan limes inn i en mail eller melding for å deles med andre.\n\nNB: Alle med lenken kan bruke agenten.")
 	}
 
 	// Almost illegal effect, but we need to auto-select first available model when changing vendor in manual config
@@ -211,6 +212,18 @@
 				</div>
 			</div>
 
+						
+			<!-- Sharing selection -->
+			<div class="config-section">
+				<div>
+					<label for="shared_box" class="radio-label"><input type="checkbox" bind:checked={chatState.chat.config.shared} name="shared_box" />Del agent</label>
+					<button class="label-button" disabled={!chatState.chat.config.shared} onclick={copyAgentUrl}><span class="material-symbols-outlined">content_copy</span></button>
+				</div>
+					<div id="share_section">
+						Ved å dele din agent kan de som har url'en til den bruke den, men den blir ikke listet opp noe sted.						
+					</div>
+			</div>
+
 			<!-- Publish options -->
 			{#if canPublishChatConfig(chatState.user, chatState.APP_CONFIG.APP_ROLES)}
 				<div class="config-section">
@@ -227,10 +240,10 @@
 							<select id="access-groups" bind:value={chatState.chat.config.accessGroups}>
 								<option value="all">Alle</option>
 							</select>
-						</div>
+						</div>					
 					{/if}
 				</div>
-			{/if}
+			{/if}			
 
 			<!-- Config type selection -->
 			{#if userCanEditPredefinedConfig}
@@ -312,7 +325,6 @@
 			</div>
 			<div class="config-action-item right">
 				{#if chatState.chat.config._id}
-					<button class="filled" onclick={shareAgent}><span class="material-symbols-outlined">share</span>Del agent</button>	
 					<button disabled={!chatState.configEdited} class="filled" onclick={chatState.updateChatConfig}><span class="material-symbols-outlined">save</span>Lagre endringer</button>
 				{:else}
 					<button disabled={!chatState.configEdited} class="filled" onclick={chatState.saveChatConfig}><span class="material-symbols-outlined">save</span> Lagre som ny agent</button>
@@ -341,6 +353,14 @@
 {/if}
 
 <style>
+	button.label-button {
+		border:0 solid black;
+		background-color: transparent;
+		font-size: smaller;
+		display: inline;
+		width: 8px;
+	}
+
 	.chat-header, .chat-config-container {
 		max-width: 50rem;
 		margin: 0 auto;
