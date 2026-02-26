@@ -79,11 +79,17 @@ export const APP_CONFIG: AppConfig = {
 		},
 		OLLAMA: {
 			NAME: "Ollama",
-			ENABLED: Boolean(env.OLLAMA_API_KEY),
-			PROJECTS: Object.keys(env)
-				.filter((key) => key.startsWith("OLLAMA_API_KEY_PROJECT"))
-				.map((key) => key.replace("OLLAMA_API_KEY_PROJECT_", "")),
-			MODELS: []
+			ENABLED: Boolean(env.OLLAMA_HOST),
+			PROJECTS: ["DEFAULT"],
+			MODELS: [
+				{
+					ID: "llama3",
+					SUPPORTED_MESSAGE_FILE_MIME_TYPES: {
+						FILE: [],
+						IMAGE: []
+					}
+				}
+			]
 		}
 	}
 }
