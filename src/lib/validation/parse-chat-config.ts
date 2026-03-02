@@ -32,6 +32,7 @@ export const parseChatConfig = (input: unknown, APP_CONFIG: AppConfig): ChatConf
 			vendorAgent: {
 				id: parsedConfig.vendorAgent.id
 			},
+			shared: parsedConfig.shared,
 			accessGroups: parsedConfig.accessGroups,
 			type: parsedConfig.type,
 			created: parsedConfig.created,
