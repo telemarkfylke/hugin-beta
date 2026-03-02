@@ -54,6 +54,9 @@ export const canPromptPredefinedConfig = (user: AuthenticatedPrincipal, appRoles
 		return true
 	}
 	const configWithAccess = chatConfigsWithVendorAgentId.find((config) => {
+		if (config.shared === true) 
+			return true
+			
 		if (config.type === "published") {
 			if (config.accessGroups === "all") {
 				return true
