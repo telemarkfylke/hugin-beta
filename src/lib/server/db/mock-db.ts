@@ -95,6 +95,15 @@ export class MockChatConfigStore implements IChatConfigStore {
 			if (config.accessGroups.includes("all")) {
 				return true
 			}
+			if (config.accessGroups.includes("employee") && principal.roles.includes(APP_CONFIG.APP_ROLES.EMPLOYEE)) {
+				return true
+			}
+			if (config.accessGroups.includes("edu_employee") && principal.roles.includes(APP_CONFIG.APP_ROLES.EDU_EMPLOYEE)) {
+				return true
+			}
+			if (config.accessGroups.includes("student") && (principal.roles.includes(APP_CONFIG.APP_ROLES.STUDENT) || principal.roles.includes(APP_CONFIG.APP_ROLES.EDU_EMPLOYEE))) {
+				return true
+			}
 			if (Array.isArray(config.accessGroups)) {
 				return config.accessGroups.some((group) => typeof group !== "string" && principal.groups.includes(group.id))
 			}

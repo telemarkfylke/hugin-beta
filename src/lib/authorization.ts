@@ -66,7 +66,7 @@ export const canPromptPredefinedConfig = (user: AuthenticatedPrincipal, appConfi
 			if (config.accessGroups.includes("edu_employee") && user.roles.includes(appConfig.APP_ROLES.EDU_EMPLOYEE)) {
 				return true
 			}
-			if (config.accessGroups.includes("student") && user.roles.includes(appConfig.APP_ROLES.STUDENT)) {
+			if (config.accessGroups.includes("student") && (user.roles.includes(appConfig.APP_ROLES.STUDENT) || user.roles.includes(appConfig.APP_ROLES.EDU_EMPLOYEE))) {
 				return true
 			}
 			return config.accessGroups.some((group) => typeof group !== "string" && user.groups.includes(group.id))
