@@ -244,7 +244,7 @@
 								<option value="all">Alle</option>
 								<option value="employee">Ansatte</option>
 								<option value="edu_employee">Skole-ansatte</option>
-								<option value="student">Elever</option>
+								<option value="student">Elever og skole-ansatte</option>
 							</select>
 						</div>					
 					{/if}
