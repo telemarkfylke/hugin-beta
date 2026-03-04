@@ -71,7 +71,7 @@ const canPromptVendorAgent = async (user: AuthenticatedPrincipal, chatConfig: Ch
 	}
 	const chatConfigStore = getChatConfigStore()
 	const chatConfigsWithVendorAgentId = await chatConfigStore.getChatConfigsByVendorAgentId(chatConfig.vendorAgent.id)
-	const canPrompt = canPromptPredefinedConfig(user, APP_CONFIG.APP_ROLES, chatConfig.vendorAgent.id, chatConfigsWithVendorAgentId)
+	const canPrompt = canPromptPredefinedConfig(user, APP_CONFIG, chatConfig.vendorAgent.id, chatConfigsWithVendorAgentId)
 	canPromptVendorAgentCache.accessCache.set(cacheKey, canPrompt)
 	return canPrompt
 }

@@ -52,7 +52,7 @@
 		})
 	})
 </script>
-{#if accessIsDenied()}
+{#if !chatState.APP_CONFIG.AGENT_CONFIG_SHARE_DISABLED && accessIsDenied()}
 <div class="chat-container">
 	Denne agenten er ikke tilgjengelig for deg.
 </div>

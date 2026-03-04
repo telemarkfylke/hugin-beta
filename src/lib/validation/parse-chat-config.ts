@@ -44,7 +44,7 @@ export const parseChatConfig = (input: unknown, APP_CONFIG: AppConfig): ChatConf
 		throw new HTTPError(400, `Unsupported model: ${parsedConfig.model} for vendorId: ${parsedConfig.vendorId}`)
 	}
 
-	// NB : Husk å legge til propertiene i dette objektet også. Spessielst hvir det er optional så er det lett å glemme.
+	// NB : Husk å legge til propertiene i dette objektet også. Spesielt hvis det er optional så er det lett å glemme.
 	return {
 		_id: parsedConfig._id,
 		name: parsedConfig.name,

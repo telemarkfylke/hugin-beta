@@ -13,7 +13,7 @@ let mockChatConfigs: ChatConfig[] = [
 		project: "DEFAULT",
 		model: "mistral-large-latest",
 		instructions: "",
-		accessGroups: "all",
+		accessGroups: ["all"],
 		type: "published",
 		created: {
 			at: new Date().toISOString(),
@@ -36,7 +36,7 @@ let mockChatConfigs: ChatConfig[] = [
 		project: "DEFAULT",
 		model: "gpt-4.1",
 		instructions: "",
-		accessGroups: "all",
+		accessGroups: ["all"],
 		type: "published",
 		created: {
 			at: new Date().toISOString(),
@@ -59,7 +59,7 @@ let mockChatConfigs: ChatConfig[] = [
 		project: "DEFAULT",
 		model: "gpt-5.2",
 		instructions: "",
-		accessGroups: "all",
+		accessGroups: ["all"],
 		type: "published",
 		created: {
 			at: new Date().toISOString(),
@@ -92,11 +92,11 @@ export class MockChatConfigStore implements IChatConfigStore {
 				}
 				return false
 			}
-			if (config.accessGroups === "all") {
+			if (config.accessGroups.includes("all")) {
 				return true
 			}
 			if (Array.isArray(config.accessGroups)) {
-				return config.accessGroups.some((group) => principal.groups.includes(group))
+				return config.accessGroups.some((group) => typeof group !== "string" && principal.groups.includes(group.id))
 			}
 			return false
 		})

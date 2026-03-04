@@ -1,4 +1,4 @@
-import type { AppRoles } from "./types/app-config"
+import type { AppConfig, AppRoles } from "./types/app-config"
 import type { AuthenticatedPrincipal } from "./types/authentication"
 import type { Chat, ChatConfig } from "./types/chat"
 
@@ -49,20 +49,27 @@ export const canUpdateChatConfig = (user: AuthenticatedPrincipal, appRoles: AppR
 	return false
 }
 
-export const canPromptPredefinedConfig = (user: AuthenticatedPrincipal, appRoles: AppRoles, vendorAgentId: string, chatConfigsWithVendorAgentId: ChatConfig[]): boolean => {
-	if (user.roles.includes(appRoles.AGENT_MAINTAINER) || user.roles.includes(appRoles.ADMIN)) {
+export const canPromptPredefinedConfig = (user: AuthenticatedPrincipal, appConfig: AppConfig, vendorAgentId: string, chatConfigsWithVendorAgentId: ChatConfig[]): boolean => {
+	if (user.roles.includes(appConfig.APP_ROLES.AGENT_MAINTAINER) || user.roles.includes(appConfig.APP_ROLES.ADMIN)) {
 		return true
 	}
 	const configWithAccess = chatConfigsWithVendorAgentId.find((config) => {
-		if (config.shared === true) return true
+		if (!appConfig.AGENT_CONFIG_SHARE_DISABLED && config.shared === true) return true
 
 		if (config.type === "published") {
-			if (config.accessGroups === "all") {
+			if (config.accessGroups.includes("all")) {
 				return true
 			}
-			if (Array.isArray(config.accessGroups)) {
-				return config.accessGroups.some((group) => user.groups.includes(group))
+			if (config.accessGroups.includes("employee") && user.roles.includes(appConfig.APP_ROLES.EMPLOYEE)) {
+				return true
 			}
+			if (config.accessGroups.includes("edu_employee") && user.roles.includes(appConfig.APP_ROLES.EDU_EMPLOYEE)) {
+				return true
+			}
+			if (config.accessGroups.includes("student") && user.roles.includes(appConfig.APP_ROLES.STUDENT)) {
+				return true
+			}
+			return config.accessGroups.some((group) => typeof group !== "string" && user.groups.includes(group.id))
 		}
 		return false
 	})
