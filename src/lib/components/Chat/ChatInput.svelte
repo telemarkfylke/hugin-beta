@@ -208,7 +208,7 @@
 						hidden
 					/>
 				{/if}
-				{#if chatState.chat.config.vendorId === "OPENAI"}
+				{#if chatState.chat.config.vendorId === "OPENAI" || chatState.chat.config.vendorId === "MISTRAL"}
 					<button
 						class="icon-button input-action-button"
 						class:active={webSearchEnabled}
