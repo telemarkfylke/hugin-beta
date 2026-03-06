@@ -57,8 +57,8 @@ const ResponseAnnotations = z.object({
 				type: z.literal("url_citation"),
 				url: z.string(),
 				title: z.string(),
-				startIndex: z.number(),
-				endIndex: z.number()
+				startIndex: z.number().optional(), // Mistral bruker idndexer på sitteringer. Det gjør ikke OpenaAI
+				endIndex: z.number().optional()
 			})
 		)
 	})
