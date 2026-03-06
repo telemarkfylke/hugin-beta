@@ -1,9 +1,9 @@
-import type { AppRoles } from "./types/app-config"
+import type { AppConfig, AppRoles } from "./types/app-config"
 import type { AuthenticatedPrincipal } from "./types/authentication"
 import type { Chat, ChatConfig } from "./types/chat"
 
 export const canViewAllChatConfigs = (user: AuthenticatedPrincipal, appRoles: AppRoles): boolean => {
-	return user.roles.includes(appRoles.AGENT_MAINTAINER) || user.roles.includes(appRoles.ADMIN)
+	return user.roles.includes(appRoles.ADMIN)
 }
 
 export const canEditPredefinedConfig = (user: AuthenticatedPrincipal, appRoles: AppRoles): boolean => {
@@ -18,7 +18,10 @@ export const canEditChatConfig = (chat: Chat, user: AuthenticatedPrincipal, appR
 	if (chat.config._id === "") {
 		return true
 	}
-	if (user.roles.includes(appRoles.ADMIN) || user.roles.includes(appRoles.AGENT_MAINTAINER)) {
+	if (user.roles.includes(appRoles.ADMIN)) {
+		return true
+	}
+	if (chat.config.type === "published" && user.roles.includes(appRoles.AGENT_MAINTAINER)) {
 		return true
 	}
 	if (chat.config.type === "private" && chat.config.created.by.id === user.userId) {
@@ -31,48 +34,47 @@ export const canUpdateChatConfig = (user: AuthenticatedPrincipal, appRoles: AppR
 	if (chatConfigToUpdate._id !== chatConfigInput._id) {
 		throw new Error("canUpdateChatConfig: chatConfigToUpdate._id does not match chatConfigInput._id - please provide the correct chatConfigToUpdate")
 	}
-	if (user.roles.includes(appRoles.ADMIN) || user.roles.includes(appRoles.AGENT_MAINTAINER)) {
+	if (user.roles.includes(appRoles.ADMIN)) {
 		return true
 	}
-	if (chatConfigToUpdate.type !== "private") {
-		return false
-	}
-	if (chatConfigInput.type !== "private") {
-		return false
-	}
-	if (chatConfigInput.vendorAgent) {
-		return false
-	}
 	if (chatConfigToUpdate.created.by.id === user.userId) {
+		return true
+	}
+	if (chatConfigToUpdate.type === "published" && user.roles.includes(appRoles.AGENT_MAINTAINER)) {
 		return true
 	}
 	return false
 }
 
-export const canPromptPredefinedConfig = (user: AuthenticatedPrincipal, appRoles: AppRoles, vendorAgentId: string, chatConfigsWithVendorAgentId: ChatConfig[]): boolean => {
-	if (user.roles.includes(appRoles.AGENT_MAINTAINER) || user.roles.includes(appRoles.ADMIN)) {
+export const canPromptConfig = (user: AuthenticatedPrincipal, appConfig: AppConfig, chatConfig: ChatConfig): boolean => {
+	if (user.roles.includes(appConfig.APP_ROLES.ADMIN)) {
 		return true
 	}
-	const configWithAccess = chatConfigsWithVendorAgentId.find((config) => {
-		if (config.shared === true) return true
-
-		if (config.type === "published") {
-			if (config.accessGroups === "all") {
-				return true
-			}
-			if (Array.isArray(config.accessGroups)) {
-				return config.accessGroups.some((group) => user.groups.includes(group))
-			}
+	if (chatConfig.shared) {
+		return true
+	}
+	if (chatConfig.type === "private" && chatConfig.created.by.id === user.userId) {
+		return true
+	}
+	if (chatConfig.type === "published") {
+		if (user.roles.includes(appConfig.APP_ROLES.AGENT_MAINTAINER)) {
+			return true
 		}
-		return false
-	})
-	if (!configWithAccess) {
-		return false
+		if (chatConfig.accessGroups.includes("all")) {
+			return true
+		}
+		if (chatConfig.accessGroups.includes("employee") && user.roles.includes(appConfig.APP_ROLES.EMPLOYEE)) {
+			return true
+		}
+		if (chatConfig.accessGroups.includes("edu_employee") && user.roles.includes(appConfig.APP_ROLES.EDU_EMPLOYEE)) {
+			return true
+		}
+		if (chatConfig.accessGroups.includes("student") && (user.roles.includes(appConfig.APP_ROLES.STUDENT) || user.roles.includes(appConfig.APP_ROLES.EDU_EMPLOYEE))) {
+			return true
+		}
+		if (chatConfig.accessGroups.some((group) => typeof group !== "string" && user.groups.includes(group.id))) {
+			return true
+		}
 	}
-	if (configWithAccess.vendorAgent?.id !== vendorAgentId) {
-		throw new Error(
-			`canPromptPredefinedConfig: vendorAgentId ${vendorAgentId} does not match chatConfig.vendorAgent.id: ${configWithAccess.vendorAgent?.id}. Please provide chatConfigsWithVendorAgentId filtered by vendorAgentId.`
-		)
-	}
-	return true
+	return false
 }

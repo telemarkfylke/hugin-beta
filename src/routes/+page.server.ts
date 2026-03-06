@@ -15,7 +15,7 @@ const fallbackAgent: ChatConfig = {
 	project: "DEFAULT",
 	model: "mistral-large-latest",
 	instructions: "",
-	accessGroups: "all",
+	accessGroups: ["all"],
 	type: "published",
 	created: {
 		at: new Date().toISOString(),

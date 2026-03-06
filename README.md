@@ -167,7 +167,6 @@ MOCK_DB="true"                    # Use in-memory database (required for local d
 # Or production Database Configuration
 MONGODB_CONNECTION_STRING="mongodb+srv://..." # Production MongoDB connection
 MONGODB_DB_NAME="mugin" # Name of database
-MONGODB_CHAT_CONFIG_COLLECTION="chat-configs" # Name of collection which holds chat configurations
 
 # Authentication
 MOCK_AUTH="true"                  # Enable mock authentication for local development

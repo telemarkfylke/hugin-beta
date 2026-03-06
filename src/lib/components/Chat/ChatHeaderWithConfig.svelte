@@ -69,8 +69,7 @@
 	}
 
 	const copyAgentUrl = async () => {
-		const fullURL = $derived(page.url.href)
-		await navigator.clipboard.writeText(fullURL)
+		await navigator.clipboard.writeText(page.url.href)
 		chatState.chat.config.shared = true
 		alert("Agentens adresse er kopiert til utklippstavlen og kan limes inn i en mail eller melding for å deles med andre.\n\nNB: Alle med lenken kan bruke agenten.")
 	}
@@ -163,7 +162,9 @@
 					<span class="material-symbols-rounded">edit_square</span>
 					<span class="widescreen-span">Ny samtale</span>
 				</button>
-				<ConversationExport bind:chat={chatState.chat} />
+				{#if !chatState.APP_CONFIG.CONVERSATION_EXPORT_DISABLED}
+					<ConversationExport bind:chat={chatState.chat} />
+				{/if}
 			{/if}
 			{#if userCanEditConfig}
 				{#if chatState.configMode && chatState.configEdited}
@@ -237,8 +238,11 @@
 					{#if chatState.chat.config.type === "published"}
 						<div class="config-item">
 							<label for="access-groups">Tilgang</label>
-							<select id="access-groups" bind:value={chatState.chat.config.accessGroups}>
+							<select multiple id="access-groups" bind:value={chatState.chat.config.accessGroups}>
 								<option value="all">Alle</option>
+								<option value="employee">Ansatte</option>
+								<option value="edu_employee">Skole-ansatte</option>
+								<option value="student">Elever og skole-ansatte</option>
 							</select>
 						</div>					
 					{/if}

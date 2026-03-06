@@ -13,6 +13,12 @@ export type ChatTool = {
 	type: "web_search"
 }
 
+export type RoleAccessGroups = "all" | "employee" | "edu_employee" | "student"
+export type EntraAccessGroup = {
+	id: string
+	displayName: string
+}
+
 export type ChatConfig = {
 	_id: string
 	name: string
@@ -26,7 +32,7 @@ export type ChatConfig = {
 	tools?: ChatTool[] | undefined | null
 	type: "published" | "private"
 	shared?: boolean | undefined
-	accessGroups: "all" | string[]
+	accessGroups: (RoleAccessGroups | EntraAccessGroup)[]
 	created: {
 		at: string
 		by: {
@@ -119,7 +125,7 @@ export const ChatConfigSchema = schemaForType<ChatConfig>()(
 		instructions: z.string().optional(),
 		conversationId: z.string().optional(),
 		type: z.enum(["published", "private"]), // Update as per ChatConfig for now
-		accessGroups: z.union([z.literal("all"), z.array(z.string())]),
+		accessGroups: z.array(z.union([z.literal("all"), z.literal("employee"), z.literal("edu_employee"), z.literal("student"), z.object({ id: z.string(), displayName: z.string() })])),
 		created: z.object({
 			at: z.string(),
 			by: z.object({

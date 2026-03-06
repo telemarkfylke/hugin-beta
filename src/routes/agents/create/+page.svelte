@@ -24,7 +24,7 @@
 			instructions: "Answer in Norwegian.",
 			conversationId: "",
 			type: "private",
-			accessGroups: "all",
+			accessGroups: ["all"],
 			created: {
 				at: new Date().toISOString(),
 				by: {

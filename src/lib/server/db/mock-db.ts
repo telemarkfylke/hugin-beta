@@ -13,7 +13,7 @@ let mockChatConfigs: ChatConfig[] = [
 		project: "DEFAULT",
 		model: "mistral-large-latest",
 		instructions: "",
-		accessGroups: "all",
+		accessGroups: ["all"],
 		type: "published",
 		created: {
 			at: new Date().toISOString(),
@@ -36,7 +36,7 @@ let mockChatConfigs: ChatConfig[] = [
 		project: "DEFAULT",
 		model: "gpt-4.1",
 		instructions: "",
-		accessGroups: "all",
+		accessGroups: ["all"],
 		type: "published",
 		created: {
 			at: new Date().toISOString(),
@@ -59,7 +59,7 @@ let mockChatConfigs: ChatConfig[] = [
 		project: "DEFAULT",
 		model: "gpt-5.2",
 		instructions: "",
-		accessGroups: "all",
+		accessGroups: ["all"],
 		type: "published",
 		created: {
 			at: new Date().toISOString(),
@@ -92,20 +92,23 @@ export class MockChatConfigStore implements IChatConfigStore {
 				}
 				return false
 			}
-			if (config.accessGroups === "all") {
+			if (config.accessGroups.includes("all")) {
+				return true
+			}
+			if (config.accessGroups.includes("employee") && principal.roles.includes(APP_CONFIG.APP_ROLES.EMPLOYEE)) {
+				return true
+			}
+			if (config.accessGroups.includes("edu_employee") && principal.roles.includes(APP_CONFIG.APP_ROLES.EDU_EMPLOYEE)) {
+				return true
+			}
+			if (config.accessGroups.includes("student") && (principal.roles.includes(APP_CONFIG.APP_ROLES.STUDENT) || principal.roles.includes(APP_CONFIG.APP_ROLES.EDU_EMPLOYEE))) {
 				return true
 			}
 			if (Array.isArray(config.accessGroups)) {
-				return config.accessGroups.some((group) => principal.groups.includes(group))
+				return config.accessGroups.some((group) => typeof group !== "string" && principal.groups.includes(group.id))
 			}
 			return false
 		})
-	}
-	async getChatConfigsByVendorAgentId(vendorAgentId: string): Promise<ChatConfig[]> {
-		if (!vendorAgentId) {
-			return []
-		}
-		return mockChatConfigs.filter((config) => config.vendorAgent?.id === vendorAgentId)
 	}
 	async createChatConfig(chatConfig: NewChatConfig): Promise<ChatConfig> {
 		const newConfig: ChatConfig = { ...chatConfig, _id: Date.now().toString() }

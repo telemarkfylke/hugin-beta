@@ -52,7 +52,7 @@ const placeHolderConfig: ChatConfig = {
 	description: "",
 	vendorId: "MISTRAL",
 	project: "",
-	accessGroups: "all",
+	accessGroups: ["all"],
 	type: "private",
 	created: {
 		at: "",
@@ -144,7 +144,7 @@ export class ChatState {
 				vendorId: "OPENAI",
 				project: "DEFAULT",
 				model: "gpt-4",
-				accessGroups: "all",
+				accessGroups: ["all"],
 				type: "private",
 				created: {
 					at: new Date().toISOString(),
@@ -182,7 +182,7 @@ export class ChatState {
 						vendorId: "OPENAI",
 						project: "DEFAULT",
 						model: "gpt-4",
-						accessGroups: "all",
+						accessGroups: ["all"],
 						type: "private",
 						created: {
 							at: new Date().toISOString(),
