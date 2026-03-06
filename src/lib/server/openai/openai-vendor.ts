@@ -74,8 +74,6 @@ export class OpenAIVendor implements IAIVendor {
 		const openai = new OpenAI({
 			apiKey: PROJECT_API_KEY
 		})
-		const requestParams = { ...openAiRequest(chatRequest), stream: true }
-		console.log("FULL OpenAI request:", JSON.stringify(requestParams, null, 2))
 
 		const responseStream = await openai.responses.create({
 			...openAiRequest(chatRequest),

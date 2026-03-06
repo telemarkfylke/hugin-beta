@@ -69,26 +69,11 @@ export class MongoChatConfigStore implements IChatConfigStore {
 		const query: Filter<DbChatConfig> = {
 			$or: [
 				{ type: "private", "created.by.id": principal.userId },
-				{ type: "published",
-					$or: [
-						{ accessGroups: { $in: roleAccessGroups } },
-						{ "accessGroups.id": { $in: principal.groups } }
-					]
-				}
+				{ type: "published", $or: [{ accessGroups: { $in: roleAccessGroups } }, { "accessGroups.id": { $in: principal.groups } }] }
 			]
 		}
 
 		const chatConfigs = await collection.find(query).toArray()
-		return chatConfigs.map((config) => ({ ...config, _id: config._id.toString() }))
-	}
-
-	async getChatConfigsByVendorAgentId(vendorAgentId: string): Promise<ChatConfig[]> {
-		const db = await this.getDb()
-		const collection: Collection<DbChatConfig> = db.collection(this.collectionName)
-		if (!vendorAgentId) {
-			return []
-		}
-		const chatConfigs = await collection.find({ "vendorAgent.id": vendorAgentId }).toArray()
 		return chatConfigs.map((config) => ({ ...config, _id: config._id.toString() }))
 	}
 

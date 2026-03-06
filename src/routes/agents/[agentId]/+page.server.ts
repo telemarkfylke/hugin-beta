@@ -1,3 +1,5 @@
+import { canPromptConfig } from "$lib/authorization"
+import { APP_CONFIG } from "$lib/server/app-config/app-config"
 import { getChatConfigStore } from "$lib/server/db/get-db"
 import { HTTPError } from "$lib/server/middleware/http-error"
 import { serverLoadRequestMiddleware } from "$lib/server/middleware/http-request"
@@ -7,7 +9,7 @@ import type { PageServerLoad } from "./$types"
 
 const chatConfigStore = getChatConfigStore()
 
-const agentPageLoad: ServerLoadNextFunction<{ agent: ChatConfig }> = async ({ requestEvent }) => {
+const agentPageLoad: ServerLoadNextFunction<{ agent: ChatConfig }> = async ({ requestEvent, user }) => {
 	const agentId = requestEvent.params.agentId
 	if (!agentId) {
 		throw new Error("agentId parameter is required")
@@ -16,6 +18,11 @@ const agentPageLoad: ServerLoadNextFunction<{ agent: ChatConfig }> = async ({ re
 	if (!agent) {
 		throw new HTTPError(404, `Agent with id ${agentId} not found`)
 	}
+
+	if (!canPromptConfig(user, APP_CONFIG, agent)) {
+		throw new HTTPError(403, "Du har ikke tilgang til denne agenten")
+	}
+
 	return {
 		data: {
 			agent

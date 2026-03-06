@@ -110,12 +110,6 @@ export class MockChatConfigStore implements IChatConfigStore {
 			return false
 		})
 	}
-	async getChatConfigsByVendorAgentId(vendorAgentId: string): Promise<ChatConfig[]> {
-		if (!vendorAgentId) {
-			return []
-		}
-		return mockChatConfigs.filter((config) => config.vendorAgent?.id === vendorAgentId)
-	}
 	async createChatConfig(chatConfig: NewChatConfig): Promise<ChatConfig> {
 		const newConfig: ChatConfig = { ...chatConfig, _id: Date.now().toString() }
 		mockChatConfigs.push(newConfig)

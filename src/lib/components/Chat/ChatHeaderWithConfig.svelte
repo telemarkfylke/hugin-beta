@@ -215,17 +215,15 @@
 
 						
 			<!-- Sharing selection -->
-			{#if !chatState.APP_CONFIG.AGENT_CONFIG_SHARE_DISABLED}
-				<div class="config-section">
-					<div>
-						<label for="shared_box" class="radio-label"><input type="checkbox" bind:checked={chatState.chat.config.shared} name="shared_box" />Del agent</label>
-						<button class="label-button" disabled={!chatState.chat.config.shared} onclick={copyAgentUrl}><span class="material-symbols-outlined">content_copy</span></button>
-					</div>
-						<div id="share_section">
-							Ved å dele din agent kan de som har url'en til den bruke den, men den blir ikke listet opp noe sted.						
-						</div>
+			<div class="config-section">
+				<div>
+					<label for="shared_box" class="radio-label"><input type="checkbox" bind:checked={chatState.chat.config.shared} name="shared_box" />Del agent</label>
+					<button class="label-button" disabled={!chatState.chat.config.shared} onclick={copyAgentUrl}><span class="material-symbols-outlined">content_copy</span></button>
 				</div>
-			{/if}
+					<div id="share_section">
+						Ved å dele din agent kan de som har url'en til den bruke den, men den blir ikke listet opp noe sted.						
+					</div>
+			</div>
 
 			<!-- Publish options -->
 			{#if canPublishChatConfig(chatState.user, chatState.APP_CONFIG.APP_ROLES)}

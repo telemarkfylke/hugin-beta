@@ -26,7 +26,6 @@ export type AppConfig = {
 	BODY_SIZE_LIMIT_BYTES: number
 	APP_ROLES: AppRoles
 	CONVERSATION_EXPORT_DISABLED: boolean
-	AGENT_CONFIG_SHARE_DISABLED: boolean
 	VENDORS: {
 		MISTRAL: VendorInfo
 		OPENAI: VendorInfo
