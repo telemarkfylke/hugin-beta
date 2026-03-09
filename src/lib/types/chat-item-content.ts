@@ -18,8 +18,8 @@ export type UrlCitation = {
 	type: "url_citation"
 	url: string
 	title: string
-	startIndex: number
-	endIndex: number
+	startIndex?: number | undefined // Fordi Mistral har indexer på siteringer
+	endIndex?: number | undefined
 }
 
 export type OutputText = {

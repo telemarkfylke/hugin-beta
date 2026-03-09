@@ -13,13 +13,30 @@ export const handleMistralResponseStream: IAIVendorStreamHandler<EventStream<Con
 					case "conversation.response.started":
 						controller.enqueue(createSse({ event: "response.started", data: { responseId: chunk.data.conversationId } }))
 						break
-					case "message.output.delta":
-						controller.enqueue(
-							createSse({
-								event: "response.output_text.delta",
-								data: { itemId: chunk.data.id, content: typeof chunk.data.content === "string" ? chunk.data.content : JSON.stringify(chunk.data.content) }
-							})
-						)
+					case "message.output.delta": {
+						const content = chunk.data.content
+						if (typeof content === "string") {
+							controller.enqueue(createSse({ event: "response.output_text.delta", data: { itemId: chunk.data.id, content } }))
+						} else if (content.type === "tool_reference") {
+							if (content.url) {
+								controller.enqueue(
+									createSse({
+										event: "response.annotations",
+										data: {
+											itemId: chunk.data.id,
+											annotations: [{ type: "url_citation" as const, url: content.url, title: content.title }]
+										}
+									})
+								)
+							}
+						} else if (content.type === "text") {
+							controller.enqueue(createSse({ event: "response.output_text.delta", data: { itemId: chunk.data.id, content: content.text } }))
+						}
+						break
+					}
+					case "tool.execution.started":
+					case "tool.execution.delta":
+					case "tool.execution.done":
 						break
 					case "conversation.response.done":
 						controller.enqueue(
@@ -33,8 +50,7 @@ export const handleMistralResponseStream: IAIVendorStreamHandler<EventStream<Con
 						controller.enqueue(createSse({ event: "response.error", data: { code: chunk.data.code.toString(), message: chunk.data.message } }))
 						break
 					default:
-						console.warn("Unhandled OpenAI response stream event type:", chunk.data.type)
-						createSse({ event: "response.output_text.delta", data: { itemId: `${chunk.data.id}`, content: JSON.stringify(chunk.data) } })
+						console.warn("Unhandled Mistral response stream event type:", chunk.data.type)
 						break
 					// Ta hensyn til flere event typer her etter behov
 				}
