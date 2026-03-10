@@ -92,7 +92,8 @@ export const postChatMessage = async (chatRequest: ChatRequest, chatResponseObje
 							case "response.annotations": {
 								const outputMessage = chatResponseObject.outputs.find((o) => o.type === "message.output" && o.id === chatResult.data.itemId)
 								if (outputMessage?.type === "message.output" && outputMessage.content[0]?.type === "output_text") {
-									outputMessage.content[0].annotations = chatResult.data.annotations
+									const existing = outputMessage.content[0].annotations ?? []
+									outputMessage.content[0].annotations = [...existing, ...chatResult.data.annotations]
 								}
 								break
 							}
