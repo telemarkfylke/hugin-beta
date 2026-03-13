@@ -85,7 +85,7 @@ export const APP_CONFIG: AppConfig = {
 			PROJECTS: ["DEFAULT"],
 			MODELS: [
 				{
-					ID: "llama3",
+					ID: "llama3:8b",
 					SUPPORTED_MESSAGE_FILE_MIME_TYPES: {
 						FILE: [],
 						IMAGE: []
