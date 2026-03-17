@@ -97,6 +97,13 @@ export const APP_CONFIG: AppConfig = {
 						FILE: [],
 						IMAGE: []
 					}
+				},
+				{
+					ID: "LTG/normistral-11b-thinking:latest",
+					SUPPORTED_MESSAGE_FILE_MIME_TYPES: {
+						FILE: [],
+						IMAGE: []
+					},
 				}
 			]
 		}
