@@ -103,7 +103,7 @@ export const APP_CONFIG: AppConfig = {
 					SUPPORTED_MESSAGE_FILE_MIME_TYPES: {
 						FILE: [],
 						IMAGE: []
-					},
+					}
 				}
 			]
 		}
