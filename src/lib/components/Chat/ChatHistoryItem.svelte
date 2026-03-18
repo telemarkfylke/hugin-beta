@@ -19,6 +19,9 @@
     {#if chatHistoryItem.status === "queued" || chatHistoryItem.status === "in_progress" && chatHistoryItem.outputs.length === 0}
       <TypingDots />
     {:else}
+    {#if chatHistoryItem.status === "searching"}
+        <p>Søker på nettet...</p>
+      {/if}
       {#each chatHistoryItem.outputs as chatItem}
         <ChatItem {chatItem} completed={chatHistoryItem.status === "completed"} />
       {/each}
