@@ -64,6 +64,11 @@ const ResponseAnnotations = z.object({
 	})
 })
 
+const ResponseWebsearch = z.object({
+	event: z.literal("response.web_search_call"),
+	data: z.object({})
+})
+
 export const MuginSse = z.discriminatedUnion("event", [
 	// New events
 	ResponseConfig,
@@ -72,7 +77,8 @@ export const MuginSse = z.discriminatedUnion("event", [
 	ResponseError,
 	ResponseOutputTextDelta,
 	ConversationCreated,
-	ResponseAnnotations
+	ResponseAnnotations,
+	ResponseWebsearch
 ])
 
 export type MuginSse = z.infer<typeof MuginSse>
