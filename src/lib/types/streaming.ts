@@ -65,7 +65,7 @@ const ResponseAnnotations = z.object({
 })
 
 const ResponseWebsearch = z.object({
-	event: z.literal("response.web_search_call"),
+	event: z.literal("response.searching"),
 	data: z.object({})
 })
 

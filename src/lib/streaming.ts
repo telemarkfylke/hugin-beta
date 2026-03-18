@@ -37,7 +37,8 @@ export const parseSse = (chunk: string): MuginSse[] => {
 	if (typeof chunk !== "string" && !chunk) throw new Error("No chunk (string) provided for parsing SSE")
 	if (chunk.length === 0) return [] // Return empty array for empty chunk
 	if (!chunk.endsWith("\n\n")) {
-		throw new Error("Invalid SSE format - chunk must end with two newlines")
+		// throw new Error("Invalid SSE format - chunk must end with two newlines")
+		return [] // En foreløpig dirtyfix for å sjekke.
 	}
 	const eventLines = chunk.split("\n\n")
 	const result: MuginSse[] = []

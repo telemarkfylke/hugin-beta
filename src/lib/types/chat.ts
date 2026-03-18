@@ -73,7 +73,7 @@ export type ChatResponseObject = {
 	config: ChatConfig
 	createdAt: string
 	outputs: ChatOutputItem[]
-	status: "completed" | "failed" | "in_progress" | "cancelled" | "queued" | "incomplete"
+	status: "completed" | "failed" | "in_progress" | "cancelled" | "queued" | "incomplete" | "searching"
 	usage: ChatResponseUsage
 }
 
