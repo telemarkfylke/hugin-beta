@@ -17,29 +17,29 @@
 	},
 	"devDependencies": {
 		"@biomejs/biome": "2.3.6",
-		"@sveltejs/adapter-node": "^5.4.0",
-		"@sveltejs/kit": "^2.22.0",
-		"@sveltejs/vite-plugin-svelte": "^6.0.0",
+		"@sveltejs/adapter-node": "^5.5.4",
+		"@sveltejs/kit": "^2.55.0",
+		"@sveltejs/vite-plugin-svelte": "^6.2.4",
 		"@types/markdown-it": "^14.1.2",
-		"@types/node": "^24.10.1",
-		"axe-core": "^4.10.3",
-		"svelte": "^5.0.0",
-		"svelte-check": "^4.0.0",
+		"@types/node": "^24.12.0",
+		"axe-core": "^4.11.1",
+		"svelte": "^5.54.0",
+		"svelte-check": "^4.4.5",
 		"typescript": "^5.9.3",
-		"vite": "^7.0.4",
-		"vitest": "^4.0.15"
+		"vite": "^7.3.1",
+		"vitest": "^4.1.0"
 	},
 	"dependencies": {
-		"@mistralai/mistralai": "^1.10.0",
-		"@vestfoldfylke/loglady": "^1.5.0",
+		"@mistralai/mistralai": "^1.15.1",
+		"@vestfoldfylke/loglady": "^1.5.2",
 		"@vscode/markdown-it-katex": "^1.1.2",
 		"highlight.js": "^11.11.1",
-		"katex": "^0.16.25",
-		"markdown-it": "^14.1.0",
-		"mongodb": "^6.20.0",
+		"katex": "^0.16.38",
+		"markdown-it": "^14.1.1",
+		"mongodb": "^6.21.0",
 		"ollama": "^0.6.3",
-		"openai": "^6.7.0",
+		"openai": "^6.32.0",
 		"pdf-lib": "^1.17.1",
-		"zod": "^4.1.13"
+		"zod": "^4.3.6"
 	}
 }
