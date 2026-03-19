@@ -30,6 +30,8 @@ export const handleOpenAIResponseStream: IAIVendorStreamHandler<Stream<ResponseS
 						break
 					case "response.web_search_call.in_progress":
 					case "response.web_search_call.searching":
+						controller.enqueue(createSse({ event: "response.searching", data: {} }))
+						break
 					case "response.web_search_call.completed":
 					case "response.output_item.added":
 						break

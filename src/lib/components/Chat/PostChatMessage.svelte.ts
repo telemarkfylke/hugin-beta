@@ -83,6 +83,10 @@ export const postChatMessage = async (chatRequest: ChatRequest, chatResponseObje
 								addMessageDeltaToChatItem(chatResponseObject, chatResult.data.itemId, chatResult.data.content)
 								break
 							}
+							case "response.searching": {
+								chatResponseObject.status = "searching"
+								break
+							}
 							case "response.done": {
 								console.log("Response done. Total tokens used:", chatResult.data.usage.totalTokens)
 								chatResponseObject.status = "completed"
