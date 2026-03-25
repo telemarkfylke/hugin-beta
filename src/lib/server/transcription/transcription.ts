@@ -1,5 +1,6 @@
 
 import { jwtDecode } from 'jwt-decode'
+import axios from 'axios'
 const { VITE_AI_API_URI: aiApiUri } = import.meta.env
 
 
@@ -49,15 +50,25 @@ export async function sendFileToTranscription(filliste: Blob, metadata: Transcri
 
 	const token = bearerToken // || await getToken();
 
+	const response = await axios.post(`${aiApiUri}/nbTranscript`, datapakken, {
+    method: 'post',
+    data: datapakken,
+    headers: {
+      'Content-Type': 'multipart/form-data',
+      authorization: `Bearer ${token}`
+    }
+  })
+		
+	/*
 	const response = await fetch(`${aiApiUri}/nbTranscript`, {
 		method: 'POST',
 		headers: {
-			//'Content-Type': 'multipart/form-data',
+			'Content-Type': 'multipart/form-data',
 			authorization: `Bearer ${token}`
 		},
 		body: JSON.stringify(datapakken)
 	})
-
+*/
 	const resMessage = response.statusText
 	console.log(resMessage)
 

@@ -33,6 +33,7 @@
 		"@mistralai/mistralai": "^1.15.1",
 		"@vestfoldfylke/loglady": "^1.5.2",
 		"@vscode/markdown-it-katex": "^1.1.2",
+		"axios": "^1.13.6",
 		"highlight.js": "^11.11.1",
 		"jwt-decode": "^4.0.0",
 		"katex": "^0.16.38",
