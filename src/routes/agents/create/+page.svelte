@@ -17,7 +17,7 @@
 		config: {
 			_id: "",
 			name: "",
-			description: "A default chat configuration",
+			description: "",
 			project: "DEFAULT",
 			vendorId: "MISTRAL",
 			model: "mistral-medium-latest",

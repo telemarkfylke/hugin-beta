@@ -57,6 +57,20 @@ button.icon-button {
 	background-color: transparent;
 }
 
+button.header-action {
+	background: none;
+	border: none;
+	color: inherit;
+	opacity: 0.7;
+	border-radius: 6px;
+	white-space: nowrap;
+	transition: opacity 0.15s, background-color 0.15s;
+}
+button.header-action:hover {
+	opacity: 1;
+	background-color: var(--color-primary-10);
+}
+
 button:hover,
 button.icon-button:hover {
 	background-color: var(--color-primary-20);

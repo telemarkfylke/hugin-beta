@@ -88,8 +88,8 @@ export class ChatState {
 	public user: AuthenticatedPrincipal
 	public APP_CONFIG: AppConfig
 	public configMode: boolean = $state(false)
-	public configEdited: boolean = $state(false)
 	public initialConfig: ChatConfig = $state(placeHolderConfig)
+	public configEdited: boolean = $derived(JSON.stringify(this.chat.config) !== JSON.stringify(this.initialConfig))
 	public webSearchEnabled: boolean = $state(false)
 
 	constructor(chat: Chat, user: AuthenticatedPrincipal, appConfig: AppConfig) {
@@ -338,7 +338,6 @@ export class ChatState {
 			}
 			const updatedConfig: ChatConfig = await result.json()
 			this.chat.config = updatedConfig
-			this.configEdited = false
 			this.initialConfig = JSON.parse(JSON.stringify(updatedConfig))
 			this.configMode = false
 		} catch (error) {
