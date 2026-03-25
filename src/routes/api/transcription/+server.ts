@@ -26,7 +26,6 @@ const postTranscription: ApiNextFunction = async ({ requestEvent, user }) => {
 	}
 }
 
-
 export const POST: RequestHandler = async (requestEvent) => {
 	return apiRequestMiddleware(requestEvent, postTranscription)
 }

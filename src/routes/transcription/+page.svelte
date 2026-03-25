@@ -1,18 +1,15 @@
 <script>
 	// disabled as this seems to not be fully implemented yet
-	//import { nbTranscript } from "$lib/openaiToolsLabs"
-	//import { getHuginToken } from "$lib/useApi.js"
+
 	import { onMount } from "svelte";
 	import IconSpinner from "$lib/components/IconSpinner.svelte";
 	import InfoBox from "$lib/components/InfoBox.svelte";
-	//import type { TranscriptionMetadata } from "$lib/server/transcription/types";
 
 	// Global variabler
 	let mediaRecorder; //:MediaRecorder;
 	let audioChunks = []; //:Blob[] = [];
 	let audioBlob; //:Blob;
 	let audioUrl = $state();
-	//let token= $state(null);//:string | null = $state(null)
 	// disabled as this seems to not be fully implemented yet
 	// eslint-disable-next-line no-unused-vars
 	//let ferdigTranskript:string = $state("Her kommer transkripsjonen");
@@ -30,14 +27,6 @@
 		selectedFileName: null,
 	});
 
-	/*
-	const checkRoles = (user, roles) => {
-		if (!user || !user.roles) {
-			return false
-		}
-		return roles.some(role => user.roles.includes(role))
-	}
-*/
 
 	onMount(async () => {
 		if (mockApi && mockApi === "true") {
