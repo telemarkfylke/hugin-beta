@@ -16,6 +16,13 @@
 	let fileInput: HTMLInputElement
 
 	let filename = $state("")
+	let container: HTMLDivElement
+
+	function handleOutsideClick(event: MouseEvent) {
+		if (menuState !== "closed" && !container.contains(event.target as Node)) {
+			menuState = "closed"
+		}
+	}
 
 	function triggerFileSelect() {
 		fileInput.click()
@@ -65,7 +72,9 @@
 	}
 </script>
 
-<div class="splitbutton">
+<svelte:document onclick={handleOutsideClick} />
+
+<div class="splitbutton" bind:this={container}>
 	<input
 		id="hidden-file-input"
 		type="file"
@@ -82,71 +91,85 @@
 					menuState = "closed"
 			}
 		}}
-		class="icon-button">Import/Export</button
+		class="header-action"
+		title="Import/Eksport"><span class="material-symbols-rounded">import_export</span> Import/Eksport</button
 	>
-	{#if menuState==="open"}
+	{#if menuState === "open"}
 		<div class="splitmenu">
-			<button class="icon-button" onclick={triggerFileSelect}>
-				Import
+			<button onclick={(e) => { e.stopPropagation(); triggerFileSelect() }}>
+				<span class="material-symbols-rounded">upload</span>Import
 			</button>
-			<button onclick={openSave}>
-				Export
+			<button onclick={(e) => { e.stopPropagation(); openSave() }}>
+				<span class="material-symbols-rounded">download</span>Eksport
 			</button>
 		</div>
-	{:else if menuState==="filename"}
-	<div class="splitmenu">
-		<label for="filename_input">Gi samtalen et navn</label>
-		<input id="filename_input" type="text" bind:value={filename} placeholder="Navn..." />
-		<button onclick={saveConversation}>
-			Lagre
-		</button>
-	</div>
-
+	{:else if menuState === "filename"}
+		<div class="splitmenu filename-form">
+			<label for="filename_input">Gi samtalen et navn</label>
+			<input id="filename_input" type="text" bind:value={filename} placeholder="Navn..." />
+			<div class="filename-actions">
+				<button onclick={() => menuState = "closed"}>Avbryt</button>
+				<button class="filled" onclick={saveConversation}>Lagre</button>
+			</div>
+		</div>
 	{/if}
 </div>
 
 <style>
-  .splitbutton {
-    position: relative;
-    display: inline-block;
-  }
-
-.splitmenu {
-    position:absolute;
-    top: 100%;
-    left: 0;
-    background: white;
-    border: 1px solid #ddd;
-    z-index: 10;
-    min-width: 120px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.07);
-  }
-  .splitmenu button {
-    display: block;
-    width: 100%;
-    background: none;
-    border: none;
-    padding: 8px 16px;
-    text-align: left;
-    cursor: pointer;
-  }
-  .splitmenu button:hover {
-    background: #f0f0f0;
-  }
-
-
-	input[type="text"] {
-		width: calc(100% - 0.5rem);
-		font-family: var(--font-family);
-		font-size: inherit;
-		padding: 0.25rem;
+	.splitbutton {
+		position: relative;
+		display: inline-block;
 	}
-
-	label {
+	.splitmenu {
+		position: absolute;
+		top: calc(100% + 0.25rem);
+		right: 0;
+		background: white;
+		border: 1px solid var(--color-primary-30);
+		border-radius: 8px;
+		z-index: 10;
+		min-width: 10rem;
+		box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+		overflow: hidden;
+	}
+	.splitmenu button {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		width: 100%;
+		border: none;
+		border-radius: 0;
+		background: none;
+		padding: 0.6rem 1rem;
+		text-align: left;
+		color: var(--color-primary);
+	}
+	.splitmenu button:hover {
+		background-color: var(--color-primary-10);
+	}
+	.filename-form {
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+		padding: 0.75rem;
+	}
+	.filename-form input[type="text"] {
+		font: inherit;
+		font-size: small;
+		padding: 0.5rem;
+		background-color: #f7f7f7;
+		border: none;
+		border-radius: 4px;
+		width: 100%;
+		box-sizing: border-box;
+	}
+	.filename-form label {
 		color: var(--color-primary);
 		font-size: small;
-		display: inline-block;
-		padding-bottom: 0.5rem;
 	}
-
+	.filename-actions {
+		display: flex;
+		justify-content: flex-end;
+		gap: 0.5rem;
+	}
 </style>

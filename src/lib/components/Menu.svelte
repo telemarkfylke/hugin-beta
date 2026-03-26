@@ -84,6 +84,21 @@
 	const toggleMenu = () => {
 		menuOpen = !menuOpen
 	}
+
+	const STORAGE_KEY = "hugin_skip_new_chat_confirm"
+
+	let showUserSettings = $state(false)
+	let settingSkipNewChatConfirm = $state(false)
+
+	const openUserSettings = () => {
+		settingSkipNewChatConfirm = localStorage.getItem(STORAGE_KEY) === "true"
+		showUserSettings = true
+	}
+
+	const saveUserSettings = () => {
+		localStorage.setItem(STORAGE_KEY, settingSkipNewChatConfirm ? "true" : "false")
+		showUserSettings = false
+	}
 </script>
 
 {#if !menuOpen}
@@ -160,15 +175,31 @@
 			</div>
 		</div>
 		<div class="menu-footer">
-			<div class="logged-in-user">
+			<button class="icon-button logged-in-user" onclick={openUserSettings} title="Brukerinnstillinger">
 				<span class="material-symbols-outlined">account_circle</span>
 				{authenticatedUser.name}
-			</div>
-			<!--
-			<button class="icon-button" title="Logg ut" onclick={() => { console.log("Logging out...") }}>
-				<span class="material-symbols-rounded">logout</span>
 			</button>
-			-->
+		</div>
+	</div>
+{/if}
+
+{#if showUserSettings}
+	<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
+	<div class="settings-backdrop" onclick={() => showUserSettings = false}>
+		<div class="settings-modal" onclick={(e) => e.stopPropagation()}>
+			<div class="settings-hero">
+				<p class="settings-tagline">Ikke mye her ennå…</p>
+			</div>
+			<div class="settings-options">
+				<label class="settings-toggle">
+					<input type="checkbox" bind:checked={settingSkipNewChatConfirm} />
+					<span>Ikke vis advarsel ved ny samtale</span>
+				</label>
+			</div>
+			<div class="settings-actions">
+				<button onclick={() => showUserSettings = false}>Avbryt</button>
+				<button class="filled" onclick={saveUserSettings}>Lagre</button>
+			</div>
 		</div>
 	</div>
 {/if}
@@ -254,6 +285,72 @@
 	.logged-in-user {
 		display: flex;
 		align-items: center;
+		gap: 0.5rem;
+		font-size: 0.9rem;
+		border: none;
+		color: inherit;
+		opacity: 0.75;
+		padding: 0.25rem 0.5rem;
+		border-radius: 0.5rem;
+		width: 100%;
+	}
+	.logged-in-user:hover {
+		opacity: 1;
+		background-color: var(--color-secondary-30);
+	}
+
+	.settings-backdrop {
+		position: fixed;
+		inset: 0;
+		background-color: rgba(0, 0, 0, 0.35);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		z-index: 200;
+	}
+	.settings-modal {
+		background: white;
+		border-radius: 12px;
+		padding: 2rem 1.75rem 1.5rem;
+		max-width: 22rem;
+		width: 90%;
+		display: flex;
+		flex-direction: column;
+		gap: 1.5rem;
+		box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+	}
+	.settings-hero {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 0.75rem;
+	}
+.settings-tagline {
+		margin: 0;
+		color: #999;
+		font-size: 0.9rem;
+		font-style: italic;
+	}
+	.settings-options {
+		display: flex;
+		flex-direction: column;
+		gap: 0.75rem;
+	}
+	.settings-toggle {
+		display: flex;
+		align-items: center;
+		gap: 0.6rem;
+		font-size: 0.9rem;
+		cursor: pointer;
+		color: inherit;
+		padding-bottom: 0;
+	}
+	.settings-toggle input {
+		width: auto;
+	}
+	.settings-actions {
+		display: flex;
+		justify-content: flex-end;
 		gap: 0.5rem;
 	}
 
