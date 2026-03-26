@@ -1,10 +1,10 @@
 <script lang="ts">
+	import { page } from "$app/stores"
 	import ChatComponent from "$lib/components/Chat/Chat.svelte"
 	import { ChatState } from "$lib/components/Chat/ChatState.svelte.js"
 	import WelcomeSplash from "$lib/components/WelcomeSplash.svelte"
 	import type { Chat } from "$lib/types/chat"
 	import type { PageProps } from "./$types"
-	import { page } from "$app/stores"
 
 	let { data }: PageProps = $props()
 
