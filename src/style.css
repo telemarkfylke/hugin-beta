@@ -64,7 +64,9 @@ button.header-action {
 	opacity: 0.7;
 	border-radius: 6px;
 	white-space: nowrap;
-	transition: opacity 0.15s, background-color 0.15s;
+	transition:
+		opacity 0.15s,
+		background-color 0.15s;
 }
 button.header-action:hover {
 	opacity: 1;
