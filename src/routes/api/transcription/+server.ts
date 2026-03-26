@@ -17,8 +17,8 @@ const postTranscription: ApiNextFunction = async ({ requestEvent, user }) => {
 	
 	const fileList:Blob = formdata.get("filelist") as Blob
 	const metadata:TranscriptionMetadata = formdata.get("metadata") as any 
-
-	const success = await sendFileToTranscription(fileList, metadata, bearerToken)
+	console.log("user : "+ JSON.stringify(user))
+	const success = await sendFileToTranscription(user.preferredUserName ,fileList, metadata, bearerToken)
 
 	return {
 		isAuthorized: true,

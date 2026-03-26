@@ -30,6 +30,7 @@
 		"vitest": "^4.1.0"
 	},
 	"dependencies": {
+		"@azure/msal-node": "^5.1.1",
 		"@mistralai/mistralai": "^1.15.1",
 		"@vestfoldfylke/loglady": "^1.5.2",
 		"@vscode/markdown-it-katex": "^1.1.2",
