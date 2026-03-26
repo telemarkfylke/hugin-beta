@@ -1,9 +1,9 @@
 <script lang="ts">
 	import { slide } from "svelte/transition"
 	import { canEditChatConfig } from "$lib/authorization"
+	import ChatConfigPanel from "./ChatConfigPanel.svelte"
 	import type { ChatState } from "./ChatState.svelte"
 	import ConversationExport from "./ConversationExport.svelte"
-	import ChatConfigPanel from "./ChatConfigPanel.svelte"
 	import NewChatDialog from "./NewChatDialog.svelte"
 
 	type Props = {
