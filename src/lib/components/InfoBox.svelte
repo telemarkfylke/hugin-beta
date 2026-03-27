@@ -1,16 +1,14 @@
 <script>
-    
-    /**
-     * @typedef {Object} Props
-     * @property {any} title - Props
-     * @property {boolean} [open]
-     * @property {import('svelte').Snippet} [children]
-     */
+	/**
+	 * @typedef {Object} Props
+	 * @property {any} title - Props
+	 * @property {boolean} [open]
+	 * @property {import('svelte').Snippet} [children]
+	 */
 
-    /** @type {Props} */
-    /* eslint-disable-next-line prefer-const */
-    let { title, open = $bindable(false), children } = $props();
-
+	/** @type {Props} */
+	/* eslint-disable-next-line prefer-const */
+	let { title, open = $bindable(false), children } = $props()
 </script>
 
 <div class="infoBox">

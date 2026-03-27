@@ -1,113 +1,111 @@
 <script>
 	// disabled as this seems to not be fully implemented yet
 
-	import { onMount } from "svelte";
-	import IconSpinner from "$lib/components/IconSpinner.svelte";
-	import InfoBox from "$lib/components/InfoBox.svelte";
+	import { onMount } from "svelte"
+	import IconSpinner from "$lib/components/IconSpinner.svelte"
+	import InfoBox from "$lib/components/InfoBox.svelte"
 
 	// Global variabler
-	let mediaRecorder; //:MediaRecorder;
-	let audioChunks = []; //:Blob[] = [];
-	let audioBlob; //:Blob;
-	let audioUrl = $state();
+	let mediaRecorder //:MediaRecorder;
+	let audioChunks = [] //:Blob[] = [];
+	let audioBlob //:Blob;
+	let audioUrl = $state()
 	// disabled as this seems to not be fully implemented yet
 	// eslint-disable-next-line no-unused-vars
 	//let ferdigTranskript:string = $state("Her kommer transkripsjonen");
-	let recording = $state(false);
-	let timer = $state(0);
-	let timerInterval; //:NodeJS.Timeout;
+	let recording = $state(false)
+	let timer = $state(0)
+	let timerInterval //:NodeJS.Timeout;
 
-	const { VITE_MOCK_API: mockApi } = import.meta.env;
+	const { VITE_MOCK_API: mockApi } = import.meta.env
 
 	/* eslint-disable-next-line prefer-const */
 	let metadata = $state({
 		filnavn: "",
 		spraak: "",
 		format: "",
-		selectedFileName: null,
-	});
-
+		selectedFileName: null
+	})
 
 	onMount(async () => {
 		if (mockApi && mockApi === "true") {
 			// Pretend to wait for api call
-			await new Promise((resolve) => setTimeout(resolve, 2000));
+			await new Promise((resolve) => setTimeout(resolve, 2000))
 		}
 		//token = await getHuginToken(true)
-	});
+	})
 
 	async function startRecording() {
-		const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-		mediaRecorder = new MediaRecorder(stream);
+		const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+		mediaRecorder = new MediaRecorder(stream)
 
 		mediaRecorder.ondataavailable = (event) => {
-			audioChunks.push(event.data);
-		};
+			audioChunks.push(event.data)
+		}
 
 		mediaRecorder.onstop = () => {
-			metadata.filnavn = "mittopptak.wav";
-			audioBlob = new Blob(audioChunks, { type: "audio/wav" });
-			audioUrl = URL.createObjectURL(audioBlob);
-			audioChunks = [];
-			clearInterval(timerInterval);
-			timer = 0;
-		};
+			metadata.filnavn = "mittopptak.wav"
+			audioBlob = new Blob(audioChunks, { type: "audio/wav" })
+			audioUrl = URL.createObjectURL(audioBlob)
+			audioChunks = []
+			clearInterval(timerInterval)
+			timer = 0
+		}
 
-		mediaRecorder.start();
-		recording = true;
+		mediaRecorder.start()
+		recording = true
 		timerInterval = setInterval(() => {
-			timer += 1;
-		}, 1000);
+			timer += 1
+		}, 1000)
 	}
 
 	function stopRecording() {
-		mediaRecorder.stop();
-		recording = false;
-		mediaRecorder.stream.getTracks().forEach((track) => track.stop());
+		mediaRecorder.stop()
+		recording = false
+		mediaRecorder.stream.getTracks().forEach((track) => {
+			track.stop()
+		})
 	}
 
 	// Filhåndtering
 	const handleAudioFileSelect = (event) => {
-		const selectedFile = event.target.files[0];
+		const selectedFile = event.target.files[0]
 		if (selectedFile) {
-			metadata.filnavn = selectedFile.name;
+			metadata.filnavn = selectedFile.name
 			// Lager blob til transkripsjon og url for avspilling
-			audioBlob = new Blob([selectedFile], { type: "audio/wav" });
-			audioUrl = URL.createObjectURL(audioBlob);
+			audioBlob = new Blob([selectedFile], { type: "audio/wav" })
+			audioUrl = URL.createObjectURL(audioBlob)
 			// sendTilTranscript(audioBlob);
 		}
-	};
+	}
 
 	const sendTilTranscript = async () => {
-		const transButton = document.getElementById("transButton");
+		const transButton = document.getElementById("transButton")
 		if (transButton) {
-			transButton.textContent = "epost på vei";
-			transButton.disabled = true;
+			transButton.textContent = "epost på vei"
+			transButton.disabled = true
 		}
 
 		try {
-			const datapakken = new FormData();
-			datapakken.append("filelist", audioBlob);
-			datapakken.append("metadata", metadata);
+			const datapakken = new FormData()
+			datapakken.append("filelist", audioBlob)
+			datapakken.append("metadata", metadata)
 
 			const result = await fetch(`/api/transcription`, {
 				method: "POST",
-				headers: {
-				},
-				body: datapakken,
-			});
+				headers: {},
+				body: datapakken
+			})
 
 			if (!result.ok) {
-				const errorData = await result.json();
-				throw new Error(
-					`Failed to save chat config: ${result.status} ${result.statusText} - ${errorData.message || JSON.stringify(errorData)}`,
-				);
+				const errorData = await result.json()
+				throw new Error(`Failed to save chat config: ${result.status} ${result.statusText} - ${errorData.message || JSON.stringify(errorData)}`)
 			}
 		} catch (error) {
-			console.error("Error saving chat config:", error);
-			throw error;
+			console.error("Error posting transcription:", error)
+			throw error
 		}
-	};
+	}
 </script>
 
 {#if false}

@@ -1,12 +1,12 @@
 <script>
-  /**
-   * @typedef {Object} Props
-   * @property {string} [width]
-   */
+	/**
+	 * @typedef {Object} Props
+	 * @property {string} [width]
+	 */
 
-  /** @type {Props} */
-  const { width = '100px' } = $props();
-  </script>
+	/** @type {Props} */
+	const { width = "100px" } = $props()
+</script>
   
   <div class="spinnerContainer" style="width: {width}">
     <svg viewBox="0 0 50 50" focusable="false" aria-label="Laster innhold...">
