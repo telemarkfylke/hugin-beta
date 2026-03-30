@@ -4,7 +4,7 @@ import { env } from "$env/dynamic/private"
 
 type TranscriptionMetadata = { filnavn: string; spraak: string; format: string; selectedFileName: string | null }
 
-const { VITE_AI_API_URI: aiApiUri, VITE_TRANSCRIPTION_APPREG_ID: client_id, VITE_TRANSCRIPTION_APPREG_KEY: client_secret, VITE_APPREG_TENANT_ID: tenant_id } = import.meta.env
+const { VITE_AI_API_URI: aiApiUri, VITE_TRANSCRIPTION_APPREG_ID: client_id, VITE_TRANSCRIPTION_APPREG_KEY: client_secret, VITE_APPREG_TENANT_ID: tenant_id, VITE_TRANSCRIPTION_SCOPES: scopes, } = import.meta.env
 const authority = `https://login.microsoftonline.com/${tenant_id}`
 
 const config = {
@@ -20,8 +20,33 @@ let cachedToken: string | null = null
 let cachedTokenExpiresOn: number = 0
 
 const tokenRequest = {
-	scopes: ["https://graph.microsoft.com/.default"] // or your API scope
+	scopes: scopes.split(";") // or your API scope
 }
+
+
+async function sendWithFetch(datapakken: FormData, token: string): Promise<Response> {
+	return fetch(`${aiApiUri}/nbTranscript`, {
+		method: 'POST',
+		headers: {
+			'Content-Type': 'multipart/form-data',
+			authorization: `Bearer ${token}`
+		},
+		body: datapakken
+	})
+}
+
+async function sendWithAxios(datapakken: FormData, token: string): Promise<Response> {
+	return axios.post(`${aiApiUri}/nbTranscript`, datapakken, {
+		method: "post",
+		data: datapakken,
+		headers: {
+			"Content-Type": "multipart/form-data",
+			authorization: `Bearer ${token}`
+		}
+	})
+}
+
+
 
 export async function sendFileToTranscription(userUpn: string, filliste: Blob, metadata: TranscriptionMetadata): Promise<{ responseCode: number; message: string }> {
 	/*
@@ -36,29 +61,13 @@ export async function sendFileToTranscription(userUpn: string, filliste: Blob, m
 	datapakken.append("format", metadata.format)
 	datapakken.append("upn", userUpn)
 
-	const token = env.TRANSCRIPTION_MOCK_TOKEN ? env.TRANSCRIPTION_MOCK_TOKEN : getToken()
+	const token = env.TRANSCRIPTION_MOCK_TOKEN ? env.TRANSCRIPTION_MOCK_TOKEN : await getToken()
 
 	try {
-		const response = await axios.post(`${aiApiUri}/nbTranscript`, datapakken, {
-			method: "post",
-			data: datapakken,
-			headers: {
-				"Content-Type": "multipart/form-data",
-				authorization: `Bearer ${token}`
-			}
-		})
 
-		/*
-		const response = await fetch(`${aiApiUri}/nbTranscript`, {
-			method: 'POST',
-			//data: datapakken,
-			headers: {
-				'Content-Type': 'multipart/form-data',
-				authorization: `Bearer ${token}`
-			},
-			body:datapakken
-		})
-*/
+		//const response = await sendWithFetch(datapakken, token)
+		const response = await sendWithAxios(datapakken, token)
+
 		const resMessage = response.statusText
 		console.log(resMessage)
 		return { responseCode: response.status, message: response.statusText }

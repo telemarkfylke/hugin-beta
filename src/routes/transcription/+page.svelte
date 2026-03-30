@@ -89,7 +89,7 @@
 		try {
 			const datapakken = new FormData()
 			datapakken.append("filelist", audioBlob)
-			datapakken.append("metadata", metadata)
+			datapakken.append("metadata", JSON.stringify(metadata))
 
 			const result = await fetch(`/api/transcription`, {
 				method: "POST",
