@@ -107,6 +107,17 @@ export const APP_CONFIG: AppConfig = {
 					}
 				}
 			]
+		},
+		LITELLM: {
+			NAME: "Telemark fylkeskommune",
+			ENABLED: Boolean(env.LITELLM_BASE_URL),
+			PROJECTS: ["DEFAULT"],
+			MODELS: [
+				{
+					ID: "gemma:2b",
+					SUPPORTED_MESSAGE_FILE_MIME_TYPES: { FILE: [], IMAGE: [] }
+				}
+			]
 		}
 	}
 }
