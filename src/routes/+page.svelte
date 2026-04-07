@@ -1,6 +1,8 @@
 <script lang="ts">
+	import { page } from "$app/stores"
 	import ChatComponent from "$lib/components/Chat/Chat.svelte"
 	import { ChatState } from "$lib/components/Chat/ChatState.svelte.js"
+	import WelcomeSplash from "$lib/components/WelcomeSplash.svelte"
 	import type { Chat } from "$lib/types/chat"
 	import type { PageProps } from "./$types"
 
@@ -21,8 +23,11 @@
 
 	// svelte-ignore state_referenced_locally (don't care, user is user, APP_CONFIG is APP_CONFIG. If somebody messes with them, backend must handle that)
 	const chatState = new ChatState(defaultChat, data.authenticatedUser, data.APP_CONFIG)
+
+	let showSplash = $state($page.url.searchParams.has("splash"))
 </script>
 
 <ChatComponent {chatState} />
+<WelcomeSplash bind:show={showSplash} />
 
 <!--<button onclick={() => chatState.loadChat('hahah')}>Load chat 'hahah'</button>-->

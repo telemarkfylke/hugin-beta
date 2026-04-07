@@ -4,13 +4,7 @@ import { env } from "$env/dynamic/private"
 
 type TranscriptionMetadata = { filnavn: string; spraak: string; format: string; selectedFileName: string | null }
 
-const {
-	VITE_AI_API_URI: aiApiUri,
-	VITE_TRANSCRIPTION_APPREG_ID: client_id,
-	VITE_TRANSCRIPTION_APPREG_KEY: client_secret,
-	VITE_APPREG_TENANT_ID: tenant_id,
-	VITE_TRANSCRIPTION_SCOPES: scopes
-} = import.meta.env
+const { VITE_AI_API_URI: aiApiUri, VITE_TRANSCRIPTION_APPREG_ID: client_id, VITE_TRANSCRIPTION_APPREG_KEY: client_secret, VITE_APPREG_TENANT_ID: tenant_id, VITE_TRANSCRIPTION_SCOPES: scopes, } = import.meta.env
 const authority = `https://login.microsoftonline.com/${tenant_id}`
 
 const config = {
@@ -29,11 +23,12 @@ const tokenRequest = {
 	scopes: scopes.split(";") // or your API scope
 }
 
+
 async function sendWithFetch(datapakken: FormData, token: string): Promise<Response> {
 	return fetch(`${aiApiUri}/nbTranscript`, {
-		method: "POST",
+		method: 'POST',
 		headers: {
-			"Content-Type": "multipart/form-data",
+			'Content-Type': 'multipart/form-data',
 			authorization: `Bearer ${token}`
 		},
 		body: datapakken
@@ -51,6 +46,8 @@ async function sendWithAxios(datapakken: FormData, token: string): Promise<Respo
 	})
 }
 
+
+
 export async function sendFileToTranscription(userUpn: string, filliste: Blob, metadata: TranscriptionMetadata): Promise<{ responseCode: number; message: string }> {
 	/*
 		const decoded = jwtDecode(bearerToken)
@@ -67,6 +64,7 @@ export async function sendFileToTranscription(userUpn: string, filliste: Blob, m
 	const token = env.TRANSCRIPTION_MOCK_TOKEN ? env.TRANSCRIPTION_MOCK_TOKEN : await getToken()
 
 	try {
+
 		//const response = await sendWithFetch(datapakken, token)
 		const response = await sendWithAxios(datapakken, token)
 

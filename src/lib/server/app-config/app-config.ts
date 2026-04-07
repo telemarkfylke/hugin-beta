@@ -18,6 +18,7 @@ export const APP_CONFIG: AppConfig = {
 		EDU_EMPLOYEE: env.APP_ROLE_EDU_EMPLOYEE || "eduemployee"
 	},
 	CONVERSATION_EXPORT_DISABLED: env.CONVERSATION_EXPORT_DISABLED === "true",
+	NEW_CHAT_CONFIRM_DISABLED: env.NEW_CHAT_CONFIRM_DISABLED === "true",
 	VENDORS: {
 		MISTRAL: {
 			NAME: "Mistral",
@@ -104,6 +105,17 @@ export const APP_CONFIG: AppConfig = {
 						FILE: [],
 						IMAGE: []
 					}
+				}
+			]
+		},
+		LITELLM: {
+			NAME: "Telemark fylkeskommune",
+			ENABLED: Boolean(env.LITELLM_BASE_URL),
+			PROJECTS: ["DEFAULT"],
+			MODELS: [
+				{
+					ID: "gemma:2b",
+					SUPPORTED_MESSAGE_FILE_MIME_TYPES: { FILE: [], IMAGE: [] }
 				}
 			]
 		}

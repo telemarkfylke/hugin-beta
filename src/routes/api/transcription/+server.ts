@@ -13,7 +13,7 @@ const postTranscription: ApiNextFunction = async ({ requestEvent, user }) => {
 	const formdata = await requestEvent.request.formData()
 
 	const fileList: Blob = formdata.get("filelist") as Blob
-	const formData: string = (formdata.get("metadata") as string) || ""
+	const formData: string = formdata.get("metadata") as string || ""
 	const metadata: TranscriptionMetadata = JSON.parse(formData) // as unknown as TranscriptionMetadata
 	const response = await sendFileToTranscription(user.preferredUserName, fileList, metadata)
 
