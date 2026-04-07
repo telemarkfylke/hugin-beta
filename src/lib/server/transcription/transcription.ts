@@ -13,21 +13,26 @@ const {
 } = import.meta.env
 const authority = `https://login.microsoftonline.com/${tenant_id}`
 
-const config = {
-	auth: {
-		clientId: client_id,
-		authority: authority,
-		clientSecret: client_secret
+let cca: ConfidentialClientApplication | null = null
+function getCca(): ConfidentialClientApplication {
+	if (!cca) {
+		cca = new ConfidentialClientApplication({
+			auth: {
+				clientId: client_id,
+				authority: authority,
+				clientSecret: client_secret
+			}
+		})
 	}
+	return cca
 }
-const cca = new ConfidentialClientApplication(config)
 
 let cachedToken: string | null = null
 let cachedTokenExpiresOn: number = 0
 
-const tokenRequest = {
-	scopes: scopes.split(";") // or your API scope
-}
+const getTokenRequest = () => ({
+	scopes: (scopes ?? "").split(";") // or your API scope
+})
 
 /*
 async function _sendWithFetch(datapakken: FormData, token: string): Promise<Response> {
@@ -85,7 +90,7 @@ export async function getToken(): Promise<string> {
 	if (cachedToken && now < cachedTokenExpiresOn - 60) {
 		return cachedToken
 	}
-	const response = await cca.acquireTokenByClientCredential(tokenRequest)
+	const response = await getCca().acquireTokenByClientCredential(getTokenRequest())
 	if (response?.accessToken) {
 		cachedToken = response.accessToken
 		cachedTokenExpiresOn = Math.floor((response.expiresOn as Date).getTime() / 1000)
