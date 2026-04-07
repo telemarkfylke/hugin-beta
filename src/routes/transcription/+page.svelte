@@ -98,8 +98,9 @@
 			})
 
 			if (!result.ok) {
+				alert("Transkripsjon feilet")
 				if (transButton) {
-					transButton.textContent = "transkripsjon feilet"
+					transButton.textContent = "Send til transkripsjon"
 					transButton.disabled = false
 				}
 				const errorData = await result.json()
