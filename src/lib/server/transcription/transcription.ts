@@ -4,23 +4,15 @@ import { env } from "$env/dynamic/private"
 
 type TranscriptionMetadata = { filnavn: string; spraak: string; format: string; selectedFileName: string | null }
 
-const {
-	VITE_AI_API_URI: aiApiUri,
-	VITE_TRANSCRIPTION_APPREG_ID: client_id,
-	VITE_TRANSCRIPTION_APPREG_KEY: client_secret,
-	VITE_APPREG_TENANT_ID: tenant_id,
-	VITE_TRANSCRIPTION_SCOPES: scopes
-} = import.meta.env
-const authority = `https://login.microsoftonline.com/${tenant_id}`
-
 let cca: ConfidentialClientApplication | null = null
 function getCca(): ConfidentialClientApplication {
 	if (!cca) {
+		const authority = `https://login.microsoftonline.com/${env.APPREG_TENANT_ID}`
 		cca = new ConfidentialClientApplication({
 			auth: {
-				clientId: client_id,
-				authority: authority,
-				clientSecret: client_secret
+				clientId: env.TRANSCRIPTION_APPREG_ID ?? "",
+				authority,
+				clientSecret: env.TRANSCRIPTION_APPREG_KEY ?? ""
 			}
 		})
 	}
@@ -31,7 +23,7 @@ let cachedToken: string | null = null
 let cachedTokenExpiresOn: number = 0
 
 const getTokenRequest = () => ({
-	scopes: (scopes ?? "").split(";") // or your API scope
+	scopes: (env.TRANSCRIPTION_SCOPES ?? "").split(";")
 })
 
 /*
@@ -47,7 +39,7 @@ async function _sendWithFetch(datapakken: FormData, token: string): Promise<Resp
 }
 */
 async function sendWithAxios(datapakken: FormData, token: string): Promise<Response> {
-	return axios.post(`${aiApiUri}/nbTranscript`, datapakken, {
+	return axios.post(`${env.AI_API_URI}/nbTranscript`, datapakken, {
 		method: "post",
 		data: datapakken,
 		headers: {
