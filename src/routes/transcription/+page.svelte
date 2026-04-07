@@ -102,7 +102,7 @@
 					transButton.textContent = "transkripsjon feilet"
 					transButton.disabled = false
 				}
-						const errorData = await result.json()
+				const errorData = await result.json()
 				throw new Error(`Failed to post transcription: ${result.status} ${result.statusText} - ${errorData.message || JSON.stringify(errorData)}`)
 			}
 		} catch (error) {
