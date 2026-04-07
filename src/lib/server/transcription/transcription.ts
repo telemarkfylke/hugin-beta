@@ -62,26 +62,21 @@ export async function sendFileToTranscription(userUpn: string, filliste: Blob, m
 		const decoded = jwtDecode(bearerToken)
 		const user_upn = (decoded as any).upn	
 	*/
-
-	const datapakken = new FormData()
-	datapakken.append("filer", filliste)
-	datapakken.append("filnavn", metadata.filnavn)
-	datapakken.append("spraak", metadata.spraak)
-	datapakken.append("format", metadata.format)
-	datapakken.append("upn", userUpn)
-
-	const token = env.TRANSCRIPTION_MOCK_TOKEN ? env.TRANSCRIPTION_MOCK_TOKEN : await getToken()
-
 	try {
+		const datapakken = new FormData()
+		datapakken.append("filer", filliste)
+		datapakken.append("filnavn", metadata.filnavn)
+		datapakken.append("spraak", metadata.spraak)
+		datapakken.append("format", metadata.format)
+		datapakken.append("upn", userUpn)
+
+		const token = env.TRANSCRIPTION_MOCK_TOKEN ? env.TRANSCRIPTION_MOCK_TOKEN : await getToken()
+
 		//const response = await _sendWithFetch(datapakken, token)
 		const response = await sendWithAxios(datapakken, token)
-
-		const resMessage = response.statusText
-		console.log(resMessage)
 		return { responseCode: response.status, message: response.statusText }
 	} catch (error) {
-		console.log(error)
-		throw error
+		return { responseCode: 500, message: (error as Error).message || "Internal server error" }
 	}
 }
 
