@@ -98,8 +98,12 @@
 			})
 
 			if (!result.ok) {
-				const errorData = await result.json()
-				throw new Error(`Failed to save chat config: ${result.status} ${result.statusText} - ${errorData.message || JSON.stringify(errorData)}`)
+				if (transButton) {
+					transButton.textContent = "transkripsjon feilet"
+					transButton.disabled = false
+				}
+						const errorData = await result.json()
+				throw new Error(`Failed to post transcription: ${result.status} ${result.statusText} - ${errorData.message || JSON.stringify(errorData)}`)
 			}
 		} catch (error) {
 			console.error("Error posting transcription:", error)
