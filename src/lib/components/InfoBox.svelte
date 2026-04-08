@@ -1,14 +1,14 @@
-<script>
-	/**
-	 * @typedef {Object} Props
-	 * @property {any} title - Props
-	 * @property {boolean} [open]
-	 * @property {import('svelte').Snippet} [children]
-	 */
+<script lang="ts">
+	import type { Snippet } from "svelte"
 
-	/** @type {Props} */
+	type Props = {
+		title: string
+		open?: boolean
+		children?: Snippet
+	}
+
 	/* eslint-disable-next-line prefer-const */
-	let { title, open = $bindable(false), children } = $props()
+	let { title, open = $bindable(false), children }: Props = $props()
 </script>
 
 <div class="infoBox">
