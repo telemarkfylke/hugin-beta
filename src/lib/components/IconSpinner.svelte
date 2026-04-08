@@ -1,11 +1,9 @@
-<script>
-	/**
-	 * @typedef {Object} Props
-	 * @property {string} [width]
-	 */
+<script lang="ts">
+	type Props = {
+		width?: string
+	}
 
-	/** @type {Props} */
-	const { width = "100px" } = $props()
+	const { width = "100px" }: Props = $props()
 </script>
   
   <div class="spinnerContainer" style="width: {width}">
