@@ -114,7 +114,7 @@ export const APP_CONFIG: AppConfig = {
 			PROJECTS: ["DEFAULT"],
 			MODELS: [
 				{
-					ID: "gemma:2b",
+					ID: "LTG/normistral-11b-thinking",
 					SUPPORTED_MESSAGE_FILE_MIME_TYPES: { FILE: [], IMAGE: [] }
 				}
 			]
