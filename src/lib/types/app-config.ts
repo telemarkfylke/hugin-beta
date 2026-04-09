@@ -14,10 +14,10 @@ export type VendorInfo = {
 }
 
 export type AppRoles = {
-	ADMIN: string | undefined
-	AGENT_MAINTAINER: string | undefined
-	EMPLOYEE: string | undefined
-	STUDENT: string | undefined
+	ADMIN: string
+	AGENT_MAINTAINER: string
+	EMPLOYEE: string
+	STUDENT: string
 	EDU_EMPLOYEE: string
 }
 
