@@ -19,24 +19,32 @@ jobs:
     runs-on: self-hosted
     steps:
       - name: 'Checkout GitHub Action'
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
       - name: Setup Node ${{ env.NODE_VERSION }} Environment
-        uses: actions/setup-node@v1
+        uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
 
-      - name: 'Resolve Project Dependencies Using Npm'
+      - name: 'Install dependencies'
         shell: bash
-        run: |
-          pushd './${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}'
-          npm install
-          npm run build --if-present
-          npm run test --if-present
-          popd
+        run: npm ci
+
+      - name: 'Lint and type check'
+        shell: bash
+        run: npx tsc --noEmit && npx @biomejs/biome check
+
+      - name: 'Build'
+        shell: bash
+        run: npm run build
+
+      - name: 'Run unit tests'
+        shell: bash
+        run: npm run test:unit -- --run
 
       - name: 'Run Azure Functions Action'
-        uses: Azure/functions-action@v1
+        uses: Azure/functions-action@v2
         id: fa
         with:
           app-name: ${{ env.APP_NAME }} # set this to your function or web app name
