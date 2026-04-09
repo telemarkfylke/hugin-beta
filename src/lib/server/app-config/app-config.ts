@@ -114,7 +114,7 @@ export const APP_CONFIG: AppConfig = {
 			PROJECTS: ["DEFAULT"],
 			MODELS: [
 				{
-					ID: "LTG/normistral-11b-thinking",
+					ID: "norallm/normistral-11b-thinking",
 					SUPPORTED_MESSAGE_FILE_MIME_TYPES: { FILE: [], IMAGE: [] }
 				}
 			]
