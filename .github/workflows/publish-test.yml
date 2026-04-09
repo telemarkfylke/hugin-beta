@@ -44,7 +44,7 @@ jobs:
         run: npm run test:unit -- --run
 
       - name: 'Run Azure Functions Action'
-        uses: Azure/functions-action@v2
+        uses: Azure/functions-action@v1
         id: fa
         with:
           app-name: ${{ env.APP_NAME }} # set this to your function or web app name
