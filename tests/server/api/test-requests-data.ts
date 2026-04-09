@@ -42,7 +42,7 @@ const testEmployee = createTestUserMSHeader({
 	oid: "user-oid-1234",
 	name: "Regular User",
 	username: "regular.user@example.com",
-	roles: [env.APP_ROLE_EMPLOYEE],
+	roles: [env.APP_ROLE_EMPLOYEE].filter((r): r is string => r !== undefined),
 	groups: ["test-agent-2-group", "test-agent-3-group"]
 })
 
@@ -50,7 +50,7 @@ const testAdmin = createTestUserMSHeader({
 	oid: "admin-oid-5678",
 	name: "Admin User",
 	username: "admin.user@example.com",
-	roles: [env.APP_ROLE_ADMIN],
+	roles: [env.APP_ROLE_ADMIN].filter((r): r is string => r !== undefined),
 	groups: ["some-admin-group"]
 })
 
