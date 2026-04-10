@@ -10,9 +10,9 @@
 	type Props = {
 		authenticatedUser: AuthenticatedPrincipal
 		appName: string
-		isStudent: boolean
+		isEmployee: boolean
 	}
-	let { authenticatedUser, appName, isStudent }: Props = $props()
+	let { authenticatedUser, appName, isEmployee }: Props = $props()
 
 	let menuOpen = $state(true)
 	let menuAgents: { isLoading: boolean; agents: ChatConfig[]; error: string | null } = $state({ isLoading: false, agents: [], error: null })
@@ -174,7 +174,7 @@
 					</div>
 				{/if}
 			</div>
-			{#if appName === "Hugin" && !isStudent}
+			{#if appName === "Hugin" && isEmployee}
 				<div class="menu-section">
 					<div class="menu-section-title">Andre tjenester</div>
 					<div class="menu-items">
