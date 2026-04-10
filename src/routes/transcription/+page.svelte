@@ -220,24 +220,6 @@
 			</button>
 		</div>
 
-		<!-- Warning panel -->
-		<section class="warning-panel" aria-label="Viktig informasjon">
-			<h3>
-				<span class="material-symbols-outlined">warning</span>
-				Husk at:
-			</h3>
-			<ul>
-				<li>Tjenesten er under utvikling og kan være ustabil.</li>
-				<li>Ikke bruk tjenesten til sensitiv eller taushetsbelagt informasjon.</li>
-				<li>Alle parter må informeres før opptak starter.</li>
-				<li>Transkripsjoner og oppsummeringer kan inneholde feil — kvalitetssikre alltid resultatet.</li>
-				<li>
-					Slett lydfilen fra enheten din etter opplasting, og sørg for at den ikke synkroniseres
-					til skylagring (f.eks. iCloud, OneDrive). Last aldri opp opptak av elever.
-				</li>
-			</ul>
-		</section>
-
 		<!-- Action cards -->
 		<div class="action-grid">
 			<!-- Upload -->
@@ -345,7 +327,24 @@
 				{/if}
 			</section>
 		{/if}
-
+		
+		<!-- Warning panel -->
+		<section class="warning-panel" aria-label="Viktig informasjon">
+			<h3>
+				<span class="material-symbols-outlined">warning</span>
+				Husk at:
+			</h3>
+			<ul>
+				<li>Tjenesten er under utvikling og kan være ustabil.</li>
+				<li>Ikke bruk tjenesten til sensitiv eller taushetsbelagt informasjon.</li>
+				<li>Alle parter må informeres før opptak starter.</li>
+				<li>Transkripsjoner og oppsummeringer kan inneholde feil — kvalitetssikre alltid resultatet.</li>
+				<li>
+					Slett lydfilen fra enheten din etter opplasting, og sørg for at den ikke synkroniseres
+					til skylagring (f.eks. iCloud, OneDrive). Last aldri opp opptak av elever.
+				</li>
+			</ul>
+		</section>
 		<p class="model-info">Modell: Nasjonalbibliotekets nb-whisper-medium</p>
 
 		<InfoBox title="Personvernerklæring">
