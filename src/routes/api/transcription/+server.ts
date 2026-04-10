@@ -17,13 +17,13 @@ const postTranscription: ApiNextFunction = async ({ requestEvent, user }) => {
 	const metadata: TranscriptionMetadata = JSON.parse(formData) // as unknown as TranscriptionMetadata
 	const response = await sendFileToTranscription(user.preferredUserName, fileList, metadata)
 
-	if (response.responseCode !== 200) {
+	if (response.responseCode >= 400) {
 		throw new HTTPError(response.responseCode, response.message)
 	}
 
 	return {
 		isAuthorized: true,
-		response: json(response)
+		response: json(response, { status: response.responseCode })
 	}
 }
 
