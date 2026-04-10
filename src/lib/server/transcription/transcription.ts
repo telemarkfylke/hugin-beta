@@ -50,10 +50,6 @@ async function sendWithAxios(datapakken: FormData, token: string): Promise<Respo
 }
 
 export async function sendFileToTranscription(userUpn: string, filliste: Blob, metadata: TranscriptionMetadata): Promise<{ responseCode: number; message: string }> {
-	/*
-		const decoded = jwtDecode(bearerToken)
-		const user_upn = (decoded as any).upn	
-	*/
 	try {
 		const datapakken = new FormData()
 		datapakken.append("filer", filliste)
@@ -64,9 +60,13 @@ export async function sendFileToTranscription(userUpn: string, filliste: Blob, m
 
 		const token = env.TRANSCRIPTION_MOCK_TOKEN ? env.TRANSCRIPTION_MOCK_TOKEN : await getToken()
 
-		//const response = await _sendWithFetch(datapakken, token)
-		const response = await sendWithAxios(datapakken, token)
-		return { responseCode: response.status, message: response.statusText }
+		// Fire and forget — the downstream server polls Azure Blob for new files,
+		// so we don't need to wait for the transcription to complete.
+		sendWithAxios(datapakken, token).catch((error) => {
+			console.error("Failed to upload file for transcription:", error.message)
+		})
+
+		return { responseCode: 202, message: "File sent for transcription" }
 	} catch (error) {
 		return { responseCode: 500, message: (error as Error).message || "Internal server error" }
 	}
