@@ -23,7 +23,7 @@
 </svelte:head>
 
 <main>
-	<Menu authenticatedUser={data.authenticatedUser} appName={data.APP_CONFIG.NAME} />
+	<Menu authenticatedUser={data.authenticatedUser} appName={data.APP_CONFIG.NAME} isEmployee={data.authenticatedUser.roles.includes(data.APP_CONFIG.APP_ROLES.EMPLOYEE)} />
 	<div class="page-content">
 		{#if children}
 			{@render children()}

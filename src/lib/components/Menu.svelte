@@ -10,8 +10,9 @@
 	type Props = {
 		authenticatedUser: AuthenticatedPrincipal
 		appName: string
+		isEmployee: boolean
 	}
-	let { authenticatedUser, appName }: Props = $props()
+	let { authenticatedUser, appName, isEmployee }: Props = $props()
 
 	let menuOpen = $state(true)
 	let menuAgents: { isLoading: boolean; agents: ChatConfig[]; error: string | null } = $state({ isLoading: false, agents: [], error: null })
@@ -173,6 +174,14 @@
 					</div>
 				{/if}
 			</div>
+			{#if appName === "Hugin" && isEmployee}
+				<div class="menu-section">
+					<div class="menu-section-title">Andre tjenester</div>
+					<div class="menu-items">
+						<a class="menu-item" class:active={page.url.pathname === "/transcription"} href="/transcription">Tale-til-notat</a>
+					</div>
+				</div>
+			{/if}
 		</div>
 		<div class="menu-footer">
 			<button class="icon-button logged-in-user" onclick={openUserSettings} title="Brukerinnstillinger">
