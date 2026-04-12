@@ -1,14 +1,37 @@
 <script lang="ts">
-	import { onMount } from "svelte"
+	import { onDestroy, onMount } from "svelte"
+	import { env as publicEnv } from "$env/dynamic/public"
 	import IconSpinner from "$lib/components/IconSpinner.svelte"
 	import InfoBox from "$lib/components/InfoBox.svelte"
+	import type { TranscriptionJob } from "$lib/server/transcription/types"
 
 	type TranscriptionMode = "open" | "closed"
 
-	const MAX_FILE_SIZE_MB = 150
+	const { data } = $props()
+
+	const COPYPARTY_BASE_URL = publicEnv.PUBLIC_COPYPARTY_BASE_URL ?? ""
+	const upn = $derived(data.authenticatedUser.preferredUserName)
+
+	const MAX_FILE_SIZE_MB = 500
 	const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024
-	const ACCEPTED_EXTENSIONS = [".mp3", ".wav", ".m4a", ".mp4", ".mov", ".avi"]
-	const ACCEPTED_MIME_TYPES = ["audio/mpeg", "audio/mp3", "audio/wav", "audio/x-wav", "audio/wave", "audio/mp4", "audio/x-m4a", "video/mp4", "video/quicktime", "video/x-msvideo"]
+	const ACCEPTED_EXTENSIONS = [".mp3", ".mp4", ".wav", ".m4a", ".ogg", ".webm", ".flac", ".mkv", ".avi", ".wma"]
+	const ACCEPTED_MIME_TYPES = [
+		"audio/mpeg",
+		"audio/mp3",
+		"audio/wav",
+		"audio/x-wav",
+		"audio/wave",
+		"audio/mp4",
+		"audio/x-m4a",
+		"audio/ogg",
+		"audio/webm",
+		"audio/flac",
+		"audio/x-ms-wma",
+		"video/mp4",
+		"video/webm",
+		"video/x-matroska",
+		"video/x-msvideo"
+	]
 	const ACCEPT_ATTR = [...ACCEPTED_EXTENSIONS, ...ACCEPTED_MIME_TYPES].join(",")
 
 	const { VITE_MOCK_API: mockApi } = import.meta.env
@@ -16,27 +39,22 @@
 	let selectedMode: TranscriptionMode = $state("open")
 	let isLoading = $state(true)
 
-	// Recording state
 	let mediaRecorder: MediaRecorder | undefined
 	let audioChunks: Blob[] = []
 	let audioBlob: Blob | undefined = $state()
 	let audioUrl: string | undefined = $state()
+	let selectedFileName: string | null = $state(null)
 	let recording = $state(false)
 	let timer = $state(0)
 	let timerInterval: ReturnType<typeof setInterval> | undefined
 
-	// Upload state
 	let fileInputEl: HTMLInputElement | undefined = $state()
 	let fileError = $state("")
 	let submitStatus: "idle" | "sending" | "sent" | "error" = $state("idle")
 	let submitMessage = $state("")
 
-	let metadata = $state({
-		filnavn: "",
-		spraak: "",
-		format: "",
-		selectedFileName: null as string | null
-	})
+	let jobs: TranscriptionJob[] = $state([])
+	let pollInterval: ReturnType<typeof setInterval> | undefined
 
 	const formatTimer = (seconds: number) => {
 		const m = Math.floor(seconds / 60)
@@ -46,15 +64,56 @@
 		return `${m}:${s}`
 	}
 
+	const formatDateTime = (iso: string) => {
+		try {
+			return new Date(iso).toLocaleString("nb-NO")
+		} catch {
+			return iso
+		}
+	}
+
+	const hasActiveJobs = () => jobs.some((j) => j.status === "uploading" || j.status === "processing")
+
+	const refreshJobs = async () => {
+		try {
+			const res = await fetch("/api/transcription")
+			if (!res.ok) return
+			const body = (await res.json()) as { jobs: TranscriptionJob[] }
+			jobs = body.jobs ?? []
+
+			// Stop polling when all jobs are terminal
+			if (!hasActiveJobs() && pollInterval) {
+				clearInterval(pollInterval)
+				pollInterval = undefined
+			}
+		} catch {
+			// ignore polling errors
+		}
+	}
+
+	const ensurePolling = () => {
+		if (!pollInterval) {
+			pollInterval = setInterval(refreshJobs, 5000)
+		}
+	}
+
 	onMount(async () => {
 		if (mockApi && mockApi === "true") {
 			await new Promise((resolve) => setTimeout(resolve, 500))
 		}
+		await refreshJobs()
+		if (hasActiveJobs()) {
+			pollInterval = setInterval(refreshJobs, 5000)
+		}
 		isLoading = false
 	})
 
+	onDestroy(() => {
+		if (pollInterval) clearInterval(pollInterval)
+	})
+
 	const selectMode = (mode: TranscriptionMode) => {
-		if (mode === "closed") return // disabled for now
+		if (mode === "closed") return
 		selectedMode = mode
 	}
 
@@ -68,8 +127,8 @@
 			}
 
 			mediaRecorder.onstop = () => {
-				metadata.filnavn = "mittopptak.wav"
-				audioBlob = new Blob(audioChunks, { type: "audio/wav" })
+				selectedFileName = `opptak-${Date.now()}.webm`
+				audioBlob = new Blob(audioChunks, { type: "audio/webm" })
 				audioUrl = URL.createObjectURL(audioBlob)
 				audioChunks = []
 				if (timerInterval) clearInterval(timerInterval)
@@ -119,36 +178,56 @@
 			return
 		}
 
-		metadata.filnavn = selectedFile.name
-		metadata.selectedFileName = selectedFile.name
-		audioBlob = new Blob([selectedFile], { type: selectedFile.type || "audio/wav" })
+		selectedFileName = selectedFile.name
+		audioBlob = new Blob([selectedFile], { type: selectedFile.type || "application/octet-stream" })
 		audioUrl = URL.createObjectURL(audioBlob)
 	}
 
 	const sendTilTranscript = async () => {
-		if (!audioBlob) return
+		if (!audioBlob || !selectedFileName) return
+		if (!COPYPARTY_BASE_URL) {
+			submitStatus = "error"
+			submitMessage = "Copyparty-URL er ikke konfigurert (PUBLIC_COPYPARTY_BASE_URL)."
+			return
+		}
 		submitStatus = "sending"
 		submitMessage = ""
 
+		let localJobId: string | undefined
 		try {
-			const datapakken = new FormData()
-			datapakken.append("filelist", audioBlob)
-			datapakken.append("metadata", JSON.stringify(metadata))
-
-			const result = await fetch(`/api/transcription`, {
+			const createRes = await fetch("/api/transcription", {
 				method: "POST",
-				body: datapakken
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ fileName: selectedFileName })
 			})
+			if (!createRes.ok) {
+				const err = await createRes.json().catch(() => ({}))
+				throw new Error(err.message || `Kunne ikke opprette jobb (${createRes.status})`)
+			}
+			const created = (await createRes.json()) as { job: TranscriptionJob }
+			localJobId = created.job.id
+			await refreshJobs()
 
-			if (!result.ok) {
-				const errorData = await result.json().catch(() => ({}))
-				submitStatus = "error"
-				submitMessage = `Transkripsjon feilet: ${errorData.message || result.statusText}`
-				return
+			const uploadUrl = `${COPYPARTY_BASE_URL.replace(/\/$/, "")}/${encodeURIComponent(upn)}/${encodeURIComponent(selectedFileName)}`
+			const putRes = await fetch(uploadUrl, {
+				method: "PUT",
+				body: audioBlob,
+				headers: { "Content-Type": "application/octet-stream" }
+			})
+			if (putRes.status !== 200 && putRes.status !== 201 && putRes.status !== 204) {
+				throw new Error(`Opplasting feilet (${putRes.status})`)
 			}
 
+			await fetch("/api/transcription", {
+				method: "PATCH",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ id: localJobId, status: "processing" })
+			})
+
 			submitStatus = "sent"
-			submitMessage = "Transkripsjonsjobben er sendt. Du får resultatet på e-post."
+			submitMessage = "Filen er lastet opp. Transkripsjonen kjører nå – resultatet vises i listen under når den er ferdig."
+			await refreshJobs()
+			ensurePolling()
 		} catch (error) {
 			submitStatus = "error"
 			submitMessage = `Noe gikk galt: ${(error as Error).message}`
@@ -164,10 +243,9 @@
 	<div class="transcription-page">
 		<h1>Eksperimentell selvbetjeningsløsning for transkripsjon av tale</h1>
 		<p class="lead">
-			Spill inn eller last opp lyd og få transkripsjonen tilsendt på e-post til brukeren du er logget inn med.
+			Spill inn eller last opp lyd. Filen lastes opp direkte til Copyparty, og resultatet dukker opp i listen under når transkripsjonen er ferdig.
 		</p>
 
-		<!-- Mode selection -->
 		<div class="mode-grid" role="radiogroup" aria-label="Velg transkripsjonsmodus">
 			<button
 				type="button"
@@ -220,17 +298,14 @@
 			</button>
 		</div>
 
-		<!-- Action cards -->
 		<div class="action-grid">
-			<!-- Upload -->
 			<section class="action-card" aria-labelledby="upload-title">
 				<h3 id="upload-title">
 					<span class="material-symbols-outlined">upload_file</span>
 					Last opp en lydfil
 				</h3>
 				<p class="action-description">
-					Last opp lydklipp i formatene MP3, WAV, M4A, MP4, MOV eller AVI (maks {MAX_FILE_SIZE_MB} MB).
-					Den ferdige transkripsjonen og en oppsummering blir sendt til deg på e-post.
+					Last opp lyd- eller videoklipp (maks {MAX_FILE_SIZE_MB} MB). Støttede formater: {ACCEPTED_EXTENSIONS.join(", ")}.
 				</p>
 				<p class="action-reminder">
 					<strong>Husk</strong> å slette lydfilen fra enheten din etter opplasting.
@@ -247,7 +322,7 @@
 						Velg fil
 					</button>
 					<span class="file-name">
-						{metadata.selectedFileName ?? "Ingen fil er valgt"}
+						{selectedFileName ?? "Ingen fil er valgt"}
 					</span>
 					<input
 						bind:this={fileInputEl}
@@ -264,7 +339,6 @@
 				{/if}
 			</section>
 
-			<!-- Record -->
 			<section class="action-card" aria-labelledby="record-title">
 				<h3 id="record-title">
 					<span class="material-symbols-outlined">mic</span>
@@ -272,8 +346,7 @@
 				</h3>
 				<div class="info-callout">
 					<strong>NB!</strong> Husk å laste ned lydopptaket før du sender til transkribering
-					i tilfelle noe går galt eller om du trenger en backup. Lydopptaket slettes umiddelbart etter
-					at det er sendt avgårde.
+					i tilfelle noe går galt eller om du trenger en backup.
 				</div>
 
 				<button
@@ -297,7 +370,6 @@
 			</section>
 		</div>
 
-		<!-- Preview & submit -->
 		{#if audioUrl && !recording}
 			<section class="preview-card" aria-label="Forhåndsvisning">
 				<h3>
@@ -313,9 +385,9 @@
 						disabled={submitStatus === "sending" || submitStatus === "sent"}
 					>
 						<span class="material-symbols-outlined">send</span>
-						{submitStatus === "sending" ? "Sender…" : submitStatus === "sent" ? "Sendt" : "Send til transkripsjon"}
+						{submitStatus === "sending" ? "Laster opp…" : submitStatus === "sent" ? "Sendt" : "Send til transkripsjon"}
 					</button>
-					<a href={audioUrl} download={metadata.filnavn || "opptak.wav"} class="download-button">
+					<a href={audioUrl} download={selectedFileName || "opptak.webm"} class="download-button">
 						<span class="material-symbols-outlined">download</span>
 						Last ned opptak
 					</a>
@@ -327,8 +399,53 @@
 				{/if}
 			</section>
 		{/if}
-		
-		<!-- Warning panel -->
+
+		<section class="jobs-card" aria-label="Transkripsjoner">
+			<h3>
+				<span class="material-symbols-outlined">history</span>
+				Mine transkripsjoner
+			</h3>
+			{#if jobs.length === 0}
+				<p class="jobs-empty">Ingen transkripsjoner ennå.</p>
+			{:else}
+				<ul class="jobs-list">
+					{#each jobs as job (job.id)}
+						<li class="job-item" class:completed={job.status === "completed"} class:failed={job.status === "failed"}>
+							<div class="job-header">
+								<span class="job-name">{job.fileName}</span>
+								<span class="job-status status-{job.status}">
+									{#if job.status === "uploading"}Laster opp
+									{:else if job.status === "processing"}Behandles
+									{:else if job.status === "completed"}Ferdig
+									{:else}Feilet
+									{/if}
+								</span>
+							</div>
+							<div class="job-meta">
+								Opprettet: {formatDateTime(job.createdAt)}
+								{#if job.durationSeconds != null}
+									· Varighet: {job.durationSeconds.toFixed(1)} s
+								{/if}
+							</div>
+							{#if job.status === "failed" && job.error}
+								<p class="error-text">{job.error}</p>
+							{/if}
+							{#if job.status === "completed" && job.result}
+								{#if job.result.docx_url}
+									<div class="job-actions">
+										<a class="download-button" href={`/api/transcription/${job.id}/download`}>
+											<span class="material-symbols-outlined">description</span>
+											Last ned Word-dokument
+										</a>
+									</div>
+								{/if}
+							{/if}
+						</li>
+					{/each}
+				</ul>
+			{/if}
+		</section>
+
 		<section class="warning-panel" aria-label="Viktig informasjon">
 			<h3>
 				<span class="material-symbols-outlined">warning</span>
@@ -442,7 +559,6 @@
 		padding: 3rem;
 	}
 
-	/* --- Mode selection --- */
 	.mode-grid {
 		display: grid;
 		grid-template-columns: 1fr 1fr;
@@ -534,7 +650,6 @@
 		margin-top: 0.25rem;
 	}
 
-	/* --- Warning panel --- */
 	.warning-panel {
 		background-color: #fdecef;
 		border: 1px solid var(--color-danger-70);
@@ -563,7 +678,6 @@
 		line-height: 1.4;
 	}
 
-	/* --- Action cards --- */
 	.action-grid {
 		display: grid;
 		grid-template-columns: 1fr 1fr;
@@ -661,7 +775,6 @@
 		50% { opacity: 0.4; transform: scale(0.85); }
 	}
 
-	/* --- Preview card --- */
 	.preview-card {
 		background-color: var(--color-primary-10);
 		border: 1px solid var(--color-primary-20);
@@ -710,13 +823,106 @@
 		color: var(--color-primary);
 	}
 
+	.jobs-card {
+		background-color: var(--color-primary-10);
+		border: 1px solid var(--color-primary-20);
+		border-radius: 8px;
+		padding: 1.25rem;
+		margin-bottom: 1.5rem;
+	}
+
+	.jobs-card h3 {
+		margin: 0 0 0.75rem;
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		color: var(--color-primary);
+		font-size: 1.05rem;
+	}
+
+	.jobs-empty {
+		margin: 0;
+		color: var(--color-primary-80);
+		font-style: italic;
+		font-size: 0.9rem;
+	}
+
+	.jobs-list {
+		list-style: none;
+		padding: 0;
+		margin: 0;
+		display: flex;
+		flex-direction: column;
+		gap: 0.75rem;
+	}
+
+	.job-item {
+		background-color: white;
+		border: 1px solid var(--color-primary-20);
+		border-radius: 6px;
+		padding: 0.75rem 1rem;
+	}
+
+	.job-item.completed {
+		border-left: 4px solid var(--color-primary);
+	}
+
+	.job-item.failed {
+		border-left: 4px solid var(--color-danger);
+	}
+
+	.job-header {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		gap: 0.5rem;
+		flex-wrap: wrap;
+	}
+
+	.job-name {
+		font-weight: 600;
+		color: var(--color-primary);
+	}
+
+	.job-status {
+		font-size: 0.75rem;
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
+		padding: 0.15rem 0.5rem;
+		border-radius: 999px;
+		background-color: var(--color-secondary-20);
+		color: var(--color-primary);
+	}
+
+	.job-status.status-completed {
+		background-color: var(--color-primary);
+		color: white;
+	}
+
+	.job-status.status-failed {
+		background-color: var(--color-danger);
+		color: white;
+	}
+
+	.job-meta {
+		font-size: 0.8rem;
+		color: var(--color-primary-80);
+		margin-top: 0.25rem;
+	}
+
+	.job-actions {
+		margin-top: 0.5rem;
+		display: flex;
+		gap: 0.5rem;
+		flex-wrap: wrap;
+	}
+
 	.model-info {
 		font-size: 0.85rem;
 		color: var(--color-primary-80);
 		margin: 1.5rem 0 1rem;
 	}
 
-	/* --- Responsive --- */
 	@media (max-width: 768px) {
 		.mode-grid,
 		.action-grid {

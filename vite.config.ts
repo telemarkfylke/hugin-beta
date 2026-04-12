@@ -3,6 +3,10 @@ import { defineConfig } from "vitest/config"
 
 export default defineConfig({
 	plugins: [sveltekit()],
+	server: {
+		// Allow callbacks from Docker containers via host.docker.internal
+		allowedHosts: ["host.docker.internal"]
+	},
 	test: {
 		expect: { requireAssertions: true },
 		projects: [
