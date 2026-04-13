@@ -1,32 +1,53 @@
 import { json, type RequestHandler } from "@sveltejs/kit"
+import z from "zod"
 import { HTTPError } from "$lib/server/middleware/http-error"
 import { apiRequestMiddleware } from "$lib/server/middleware/http-request"
-import { sendFileToTranscription } from "$lib/server/transcription/transcription"
-import type { TranscriptionMetadata } from "$lib/server/transcription/types"
+import { createPendingJob, listJobsForUpn, markJobProcessing } from "$lib/server/transcription/job-store"
 import type { ApiNextFunction } from "$lib/types/middleware/http-request"
 
-const postTranscription: ApiNextFunction = async ({ requestEvent, user }) => {
-	if (!user.userId) {
-		throw new HTTPError(400, "userId is required")
+const CreateJobSchema = z.object({
+	fileName: z.string().min(1)
+})
+
+const UpdateJobSchema = z.object({
+	id: z.string().min(1),
+	status: z.enum(["processing"])
+})
+
+const getJobs: ApiNextFunction = async ({ user }) => {
+	if (!user.preferredUserName) {
+		throw new HTTPError(400, "preferredUserName is required")
 	}
-
-	const formdata = await requestEvent.request.formData()
-
-	const fileList: Blob = formdata.get("filelist") as Blob
-	const formData: string = (formdata.get("metadata") as string) || ""
-	const metadata: TranscriptionMetadata = JSON.parse(formData) // as unknown as TranscriptionMetadata
-	const response = await sendFileToTranscription(user.preferredUserName, fileList, metadata)
-
-	if (response.responseCode >= 400) {
-		throw new HTTPError(response.responseCode, response.message)
-	}
-
-	return {
-		isAuthorized: true,
-		response: json(response, { status: response.responseCode })
-	}
+	const jobs = listJobsForUpn(user.preferredUserName)
+	return { isAuthorized: true, response: json({ jobs }) }
 }
 
-export const POST: RequestHandler = async (requestEvent) => {
-	return apiRequestMiddleware(requestEvent, postTranscription)
+const createJob: ApiNextFunction = async ({ requestEvent, user }) => {
+	if (!user.preferredUserName) {
+		throw new HTTPError(400, "preferredUserName is required")
+	}
+	const body = await requestEvent.request.json().catch(() => null)
+	const parsed = CreateJobSchema.safeParse(body)
+	if (!parsed.success) {
+		throw new HTTPError(400, "Invalid body", parsed.error.issues)
+	}
+	const job = createPendingJob(user.preferredUserName, parsed.data.fileName)
+	return { isAuthorized: true, response: json({ job }, { status: 201 }) }
 }
+
+const patchJob: ApiNextFunction = async ({ requestEvent, user }) => {
+	if (!user.preferredUserName) {
+		throw new HTTPError(400, "preferredUserName is required")
+	}
+	const body = await requestEvent.request.json().catch(() => null)
+	const parsed = UpdateJobSchema.safeParse(body)
+	if (!parsed.success) {
+		throw new HTTPError(400, "Invalid body", parsed.error.issues)
+	}
+	markJobProcessing(user.preferredUserName, parsed.data.id)
+	return { isAuthorized: true, response: json({ ok: true }) }
+}
+
+export const GET: RequestHandler = async (requestEvent) => apiRequestMiddleware(requestEvent, getJobs)
+export const POST: RequestHandler = async (requestEvent) => apiRequestMiddleware(requestEvent, createJob)
+export const PATCH: RequestHandler = async (requestEvent) => apiRequestMiddleware(requestEvent, patchJob)
