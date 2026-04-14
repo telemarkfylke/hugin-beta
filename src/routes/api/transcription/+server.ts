@@ -1,8 +1,10 @@
 import { json, type RequestHandler } from "@sveltejs/kit"
+import { env } from "$env/dynamic/private"
 import z from "zod"
 import { HTTPError } from "$lib/server/middleware/http-error"
 import { apiRequestMiddleware } from "$lib/server/middleware/http-request"
-import { createPendingJob, listJobsForUpn, markJobProcessing } from "$lib/server/transcription/job-store"
+import { createPendingJob, getJobById, listJobsForUpn, markJobProcessing } from "$lib/server/transcription/job-store"
+import { triggerTranscription } from "$lib/server/transcription/tale-til-notat"
 import type { ApiNextFunction } from "$lib/types/middleware/http-request"
 
 const CreateJobSchema = z.object({
@@ -44,7 +46,21 @@ const patchJob: ApiNextFunction = async ({ requestEvent, user }) => {
 	if (!parsed.success) {
 		throw new HTTPError(400, "Invalid body", parsed.error.issues)
 	}
-	markJobProcessing(user.preferredUserName, parsed.data.id)
+
+	const job = getJobById(user.preferredUserName, parsed.data.id)
+	if (!job) {
+		throw new HTTPError(404, "Job not found")
+	}
+
+	const baseUrl = env.HUGIN_BASE_URL?.replace(/\/$/, "") ?? requestEvent.url.origin
+	const callbackUrl = `${baseUrl}/api/transcription/callback`
+	const taleJobId = await triggerTranscription({
+		upn: user.preferredUserName,
+		fileName: job.fileName,
+		callbackUrl
+	})
+
+	markJobProcessing(user.preferredUserName, parsed.data.id, taleJobId)
 	return { isAuthorized: true, response: json({ ok: true }) }
 }
 

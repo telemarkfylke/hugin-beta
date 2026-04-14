@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { onDestroy, onMount } from "svelte"
-	import { env as publicEnv } from "$env/dynamic/public"
 	import IconSpinner from "$lib/components/IconSpinner.svelte"
 	import InfoBox from "$lib/components/InfoBox.svelte"
 	import type { TranscriptionJob } from "$lib/server/transcription/types"
@@ -9,7 +8,6 @@
 
 	const { data } = $props()
 
-	const COPYPARTY_BASE_URL = publicEnv.PUBLIC_COPYPARTY_BASE_URL ?? ""
 	const upn = $derived(data.authenticatedUser.preferredUserName)
 
 	const MAX_FILE_SIZE_MB = 500
@@ -52,6 +50,9 @@
 	let fileError = $state("")
 	let submitStatus: "idle" | "sending" | "sent" | "error" = $state("idle")
 	let submitMessage = $state("")
+	let uploadProgress: number | null = $state(null) // 0-100 while uploading, null otherwise
+	let uploadedBytes: number = $state(0)
+	let totalBytes: number = $state(0)
 
 	let jobs: TranscriptionJob[] = $state([])
 	let pollInterval: ReturnType<typeof setInterval> | undefined
@@ -179,19 +180,35 @@
 		}
 
 		selectedFileName = selectedFile.name
-		audioBlob = new Blob([selectedFile], { type: selectedFile.type || "application/octet-stream" })
-		audioUrl = URL.createObjectURL(audioBlob)
+		audioBlob = selectedFile // File extends Blob — no copy needed
+		audioUrl = URL.createObjectURL(selectedFile)
 	}
+
+	const xhrPut = (url: string, blob: Blob): Promise<number> =>
+		new Promise((resolve, reject) => {
+			const xhr = new XMLHttpRequest()
+			xhr.open("PUT", url)
+			xhr.setRequestHeader("Content-Type", "application/octet-stream")
+			xhr.upload.onprogress = (e) => {
+				if (e.lengthComputable) {
+					uploadedBytes = e.loaded
+					totalBytes = e.total
+					uploadProgress = Math.round((e.loaded / e.total) * 100)
+				}
+			}
+			xhr.onload = () => resolve(xhr.status)
+			xhr.onerror = () => reject(new Error("Nettverksfeil under opplasting"))
+			xhr.onabort = () => reject(new Error("Opplastingen ble avbrutt"))
+			xhr.send(blob)
+		})
 
 	const sendTilTranscript = async () => {
 		if (!audioBlob || !selectedFileName) return
-		if (!COPYPARTY_BASE_URL) {
-			submitStatus = "error"
-			submitMessage = "Copyparty-URL er ikke konfigurert (PUBLIC_COPYPARTY_BASE_URL)."
-			return
-		}
 		submitStatus = "sending"
 		submitMessage = ""
+		uploadProgress = 0
+		uploadedBytes = 0
+		totalBytes = audioBlob.size
 
 		let localJobId: string | undefined
 		try {
@@ -208,27 +225,29 @@
 			localJobId = created.job.id
 			await refreshJobs()
 
-			const uploadUrl = `${COPYPARTY_BASE_URL.replace(/\/$/, "")}/${encodeURIComponent(upn)}/${encodeURIComponent(selectedFileName)}`
-			const putRes = await fetch(uploadUrl, {
-				method: "PUT",
-				body: audioBlob,
-				headers: { "Content-Type": "application/octet-stream" }
-			})
-			if (putRes.status !== 200 && putRes.status !== 201 && putRes.status !== 204) {
-				throw new Error(`Opplasting feilet (${putRes.status})`)
+			const uploadUrl = `/api/transcription/upload/${encodeURIComponent(upn)}/${encodeURIComponent(selectedFileName)}`
+			const status = await xhrPut(uploadUrl, audioBlob)
+			uploadProgress = null
+			if (status !== 200 && status !== 201 && status !== 204) {
+				throw new Error(`Opplasting feilet (${status})`)
 			}
 
-			await fetch("/api/transcription", {
+			const patchRes = await fetch("/api/transcription", {
 				method: "PATCH",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({ id: localJobId, status: "processing" })
 			})
+			if (!patchRes.ok) {
+				const err = await patchRes.json().catch(() => ({}))
+				throw new Error(err.message || `Kunne ikke starte transkripsjon (${patchRes.status})`)
+			}
 
 			submitStatus = "sent"
 			submitMessage = "Filen er lastet opp. Transkripsjonen kjører nå – resultatet vises i listen under når den er ferdig."
 			await refreshJobs()
 			ensurePolling()
 		} catch (error) {
+			uploadProgress = null
 			submitStatus = "error"
 			submitMessage = `Noe gikk galt: ${(error as Error).message}`
 		}
@@ -243,7 +262,7 @@
 	<div class="transcription-page">
 		<h1>Eksperimentell selvbetjeningsløsning for transkripsjon av tale</h1>
 		<p class="lead">
-			Spill inn eller last opp lyd. Filen lastes opp direkte til Copyparty, og resultatet dukker opp i listen under når transkripsjonen er ferdig.
+			Spill inn eller last opp lyd. Filen lastes opp og resultatet dukker opp i listen under når transkripsjonen er ferdig.
 		</p>
 
 		<div class="mode-grid" role="radiogroup" aria-label="Velg transkripsjonsmodus">
@@ -392,6 +411,14 @@
 						Last ned opptak
 					</a>
 				</div>
+				{#if uploadProgress !== null}
+					<div class="upload-progress" aria-label="Opplastingsstatus">
+						<div class="upload-progress-bar" style="width: {uploadProgress}%"></div>
+					</div>
+					<p class="upload-progress-label">
+						{uploadProgress}% — {(uploadedBytes / 1024 / 1024).toFixed(1)} / {(totalBytes / 1024 / 1024).toFixed(1)} MB
+					</p>
+				{/if}
 				{#if submitMessage}
 					<p class:error-text={submitStatus === "error"} class:success-text={submitStatus === "sent"}>
 						{submitMessage}
@@ -803,6 +830,26 @@
 		display: flex;
 		gap: 0.75rem;
 		flex-wrap: wrap;
+	}
+
+	.upload-progress {
+		height: 6px;
+		background-color: var(--color-primary-20);
+		border-radius: 999px;
+		overflow: hidden;
+	}
+
+	.upload-progress-bar {
+		height: 100%;
+		background-color: var(--color-primary);
+		border-radius: 999px;
+		transition: width 0.2s ease;
+	}
+
+	.upload-progress-label {
+		font-size: 0.8rem;
+		color: var(--color-primary-80);
+		margin: 0;
 	}
 
 	.download-button {

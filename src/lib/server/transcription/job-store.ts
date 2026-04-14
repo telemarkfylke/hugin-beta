@@ -22,11 +22,12 @@ export const createPendingJob = (upn: string, fileName: string): TranscriptionJo
 	return job
 }
 
-export const markJobProcessing = (upn: string, jobId: string): void => {
+export const markJobProcessing = (upn: string, jobId: string, taleJobId?: string): void => {
 	const job = getJobById(upn, jobId)
 	if (!job) return
 	job.status = "processing"
 	job.updatedAt = new Date().toISOString()
+	if (taleJobId) job.jobId = taleJobId
 }
 
 export const listJobsForUpn = (upn: string): TranscriptionJob[] => {
@@ -38,7 +39,7 @@ export const getJobById = (upn: string, id: string): TranscriptionJob | undefine
 }
 
 export const applyCallback = (payload: TranscriptionCallback): TranscriptionJob | undefined => {
-	const list = listJobsForUpn(payload.upn)
+	const list = listJobsForUpn(normalizeUpn(payload.upn))
 	// Prefer matching an already-linked job_id, otherwise take the oldest non-terminal job for this user.
 	let job = list.find((j) => j.jobId === payload.job_id)
 	if (!job) {

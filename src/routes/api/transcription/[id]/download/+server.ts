@@ -1,3 +1,4 @@
+import { env } from "$env/dynamic/private"
 import type { RequestHandler } from "@sveltejs/kit"
 import { HTTPError } from "$lib/server/middleware/http-error"
 import { apiRequestMiddleware } from "$lib/server/middleware/http-request"
@@ -24,6 +25,12 @@ const downloadDocx: ApiNextFunction = async ({ requestEvent, user }) => {
 	}
 	if (job.status !== "completed" || !job.result?.docx_url) {
 		throw new HTTPError(404, "Transkripsjonen har ingen nedlastbar fil")
+	}
+
+	// Guard against SSRF — only fetch from the configured Copyparty base URL
+	const copypartyBase = env.COPYPARTY_BASE_URL
+	if (copypartyBase && !job.result.docx_url.startsWith(copypartyBase)) {
+		throw new HTTPError(502, "Ugyldig dokument-URL")
 	}
 
 	let upstream: Response
