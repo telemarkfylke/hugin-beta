@@ -1,5 +1,5 @@
-import { env } from "$env/dynamic/private"
 import type { RequestHandler } from "@sveltejs/kit"
+import { env } from "$env/dynamic/private"
 import { HTTPError } from "$lib/server/middleware/http-error"
 import { apiRequestMiddleware } from "$lib/server/middleware/http-request"
 import type { ApiNextFunction } from "$lib/types/middleware/http-request"

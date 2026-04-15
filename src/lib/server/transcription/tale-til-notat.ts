@@ -39,11 +39,11 @@ export const triggerTranscription = async ({ userId, fileName, callbackUrl }: Tr
 	}
 
 	if (!res.ok) {
-		const body = await res.json().catch(() => ({})) as Record<string, unknown>
+		const body = (await res.json().catch(() => ({}))) as Record<string, unknown>
 		const detail = (body.detail as string) || (body.message as string) || `HTTP ${res.status}`
 		throw new HTTPError(502, `tale-til-notat avviste jobben: ${detail}`)
 	}
 
-	const data = await res.json() as { job_id: string }
+	const data = (await res.json()) as { job_id: string }
 	return data.job_id
 }

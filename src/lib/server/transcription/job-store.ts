@@ -35,6 +35,14 @@ export const getJobById = (userId: string, id: string): TranscriptionJob | undef
 	return listJobsForUser(userId).find((j) => j.id === id)
 }
 
+export const removeJob = (userId: string, id: string): void => {
+	const list = jobsByUserId.get(userId) ?? []
+	jobsByUserId.set(
+		userId,
+		list.filter((j) => j.id !== id)
+	)
+}
+
 export const applyCallback = (payload: TranscriptionCallback): TranscriptionJob | undefined => {
 	const list = listJobsForUser(payload.upn)
 	// Prefer matching an already-linked job_id, otherwise take the oldest non-terminal job for this user.
