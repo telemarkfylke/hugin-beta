@@ -242,6 +242,12 @@
 				throw new Error(err.message || `Kunne ikke starte transkripsjon (${patchRes.status})`)
 			}
 
+			await fetch("/api/transcription", {
+				method: "PATCH",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ id: localJobId, status: "processing" })
+			})
+
 			submitStatus = "sent"
 			submitMessage = "Filen er lastet opp. Transkripsjonen kjører nå – resultatet vises i listen under når den er ferdig."
 			await refreshJobs()
