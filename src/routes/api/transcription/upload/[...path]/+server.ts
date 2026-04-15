@@ -9,22 +9,19 @@ const proxyUpload: ApiNextFunction = async ({ requestEvent, user }) => {
 	if (!copypartyBase) {
 		throw new HTTPError(500, "COPYPARTY_BASE_URL is not configured")
 	}
-	if (!user.preferredUserName) {
-		throw new HTTPError(400, "preferredUserName is required")
-	}
 
-	const { request, url } = requestEvent
+	const { request } = requestEvent
 
-	// Extract the two expected segments: /<upn>/<filename>
-	const suffix = url.pathname.replace(/^\/api\/transcription\/upload\//, "")
+	// Extract the two expected segments: <userId>/<filename>
+	const suffix = requestEvent.params.path ?? ""
 	const slashIdx = suffix.indexOf("/")
 	if (slashIdx === -1) {
-		throw new HTTPError(400, "Invalid upload path — expected /<upn>/<filename>")
+		throw new HTTPError(400, "Invalid upload path — expected /<userId>/<filename>")
 	}
 
-	// Validate UPN from URL against the authenticated user — prevents writing to other users' folders
-	const upnFromUrl = decodeURIComponent(suffix.slice(0, slashIdx))
-	if (upnFromUrl !== user.preferredUserName) {
+	// Validate userId from URL against the authenticated user — prevents writing to other users' folders
+	const userIdFromUrl = decodeURIComponent(suffix.slice(0, slashIdx))
+	if (userIdFromUrl !== user.userId) {
 		throw new HTTPError(403, "Upload path does not match authenticated user")
 	}
 
@@ -35,8 +32,8 @@ const proxyUpload: ApiNextFunction = async ({ requestEvent, user }) => {
 		throw new HTTPError(400, "Invalid filename")
 	}
 
-	// Reconstruct the target URL from trusted data only (UPN from auth, sanitized filename)
-	const targetUrl = `${copypartyBase.replace(/\/$/, "")}/${encodeURIComponent(user.preferredUserName)}/${encodeURIComponent(decodedFileName)}`
+	// Reconstruct the target URL from trusted data only (userId from auth, sanitized filename)
+	const targetUrl = `${copypartyBase}/${encodeURIComponent(user.userId)}/${encodeURIComponent(decodedFileName)}`
 
 	// Forward Content-Length if present so Copyparty gets the size upfront (avoids chunked encoding)
 	const headers: Record<string, string> = { "Content-Type": "application/octet-stream" }

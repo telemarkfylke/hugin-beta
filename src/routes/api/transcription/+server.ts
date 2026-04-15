@@ -3,7 +3,7 @@ import { env } from "$env/dynamic/private"
 import z from "zod"
 import { HTTPError } from "$lib/server/middleware/http-error"
 import { apiRequestMiddleware } from "$lib/server/middleware/http-request"
-import { createPendingJob, getJobById, listJobsForUpn, markJobProcessing } from "$lib/server/transcription/job-store"
+import { createPendingJob, getJobById, listJobsForUser, markJobProcessing } from "$lib/server/transcription/job-store"
 import { triggerTranscription } from "$lib/server/transcription/tale-til-notat"
 import type { ApiNextFunction } from "$lib/types/middleware/http-request"
 
@@ -17,50 +17,44 @@ const UpdateJobSchema = z.object({
 })
 
 const getJobs: ApiNextFunction = async ({ user }) => {
-	if (!user.preferredUserName) {
-		throw new HTTPError(400, "preferredUserName is required")
-	}
-	const jobs = listJobsForUpn(user.preferredUserName)
+	const jobs = listJobsForUser(user.userId)
 	return { isAuthorized: true, response: json({ jobs }) }
 }
 
 const createJob: ApiNextFunction = async ({ requestEvent, user }) => {
-	if (!user.preferredUserName) {
-		throw new HTTPError(400, "preferredUserName is required")
-	}
 	const body = await requestEvent.request.json().catch(() => null)
 	const parsed = CreateJobSchema.safeParse(body)
 	if (!parsed.success) {
 		throw new HTTPError(400, "Invalid body", parsed.error.issues)
 	}
-	const job = createPendingJob(user.preferredUserName, parsed.data.fileName)
+	const job = createPendingJob(user.userId, parsed.data.fileName)
 	return { isAuthorized: true, response: json({ job }, { status: 201 }) }
 }
 
 const patchJob: ApiNextFunction = async ({ requestEvent, user }) => {
-	if (!user.preferredUserName) {
-		throw new HTTPError(400, "preferredUserName is required")
-	}
 	const body = await requestEvent.request.json().catch(() => null)
 	const parsed = UpdateJobSchema.safeParse(body)
 	if (!parsed.success) {
 		throw new HTTPError(400, "Invalid body", parsed.error.issues)
 	}
 
-	const job = getJobById(user.preferredUserName, parsed.data.id)
+	const job = getJobById(user.userId, parsed.data.id)
 	if (!job) {
 		throw new HTTPError(404, "Job not found")
 	}
 
-	const baseUrl = env.HUGIN_BASE_URL?.replace(/\/$/, "") ?? requestEvent.url.origin
-	const callbackUrl = `${baseUrl}/api/transcription/callback`
+	const secret = env.TRANSCRIPTION_CALLBACK_SECRET
+	if (!secret) {
+		throw new HTTPError(500, "TRANSCRIPTION_CALLBACK_SECRET is not configured")
+	}
+	const callbackUrl = `${requestEvent.url.origin}/api/transcription/callback?secret=${encodeURIComponent(secret)}`
 	const taleJobId = await triggerTranscription({
-		upn: user.preferredUserName,
+		userId: user.userId,
 		fileName: job.fileName,
 		callbackUrl
 	})
 
-	markJobProcessing(user.preferredUserName, parsed.data.id, taleJobId)
+	markJobProcessing(user.userId, parsed.data.id, taleJobId)
 	return { isAuthorized: true, response: json({ ok: true }) }
 }
 

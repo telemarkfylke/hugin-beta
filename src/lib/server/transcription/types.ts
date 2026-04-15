@@ -33,7 +33,7 @@ export type TranscriptionJobStatus = "uploading" | "processing" | "completed" | 
 
 export type TranscriptionJob = {
 	id: string
-	upn: string
+	userId: string
 	fileName: string
 	status: TranscriptionJobStatus
 	createdAt: string

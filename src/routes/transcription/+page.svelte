@@ -8,7 +8,7 @@
 
 	const { data } = $props()
 
-	const upn = $derived(data.authenticatedUser.preferredUserName)
+	const userId = $derived(data.authenticatedUser.userId)
 
 	const MAX_FILE_SIZE_MB = 500
 	const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024
@@ -225,7 +225,7 @@
 			localJobId = created.job.id
 			await refreshJobs()
 
-			const uploadUrl = `/api/transcription/upload/${encodeURIComponent(upn)}/${encodeURIComponent(selectedFileName)}`
+			const uploadUrl = `/api/transcription/upload/${encodeURIComponent(userId)}/${encodeURIComponent(selectedFileName)}`
 			const status = await xhrPut(uploadUrl, audioBlob)
 			uploadProgress = null
 			if (status !== 200 && status !== 201 && status !== 204) {

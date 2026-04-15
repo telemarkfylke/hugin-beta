@@ -2,7 +2,7 @@ import { env } from "$env/dynamic/private"
 import { HTTPError } from "$lib/server/middleware/http-error"
 
 type TriggerParams = {
-	upn: string
+	userId: string
 	fileName: string
 	callbackUrl: string
 }
@@ -13,7 +13,7 @@ type TriggerParams = {
  * the file directly — no shared volume required.
  * Returns the tale-til-notat job_id.
  */
-export const triggerTranscription = async ({ upn, fileName, callbackUrl }: TriggerParams): Promise<string> => {
+export const triggerTranscription = async ({ userId, fileName, callbackUrl }: TriggerParams): Promise<string> => {
 	const taleUrl = env.TALE_TIL_NOTAT_URL
 	if (!taleUrl) {
 		throw new HTTPError(500, "TALE_TIL_NOTAT_URL is not configured")
@@ -23,18 +23,17 @@ export const triggerTranscription = async ({ upn, fileName, callbackUrl }: Trigg
 		throw new HTTPError(500, "COPYPARTY_BASE_URL is not configured")
 	}
 
-	const sourceUrl = `${copypartyBase.replace(/\/$/, "")}/${encodeURIComponent(upn)}/${encodeURIComponent(fileName)}`
+	const sourceUrl = `${copypartyBase}/${encodeURIComponent(userId)}/${encodeURIComponent(fileName)}`
 
 	const form = new FormData()
 	form.append("source_url", sourceUrl)
 	form.append("callback_url", callbackUrl)
-	form.append("upn", upn)
-	form.append("user_email", upn)
+	form.append("upn", userId)
 	form.append("language", "no")
 
 	let res: Response
 	try {
-		res = await fetch(`${taleUrl.replace(/\/$/, "")}/transcribe`, { method: "POST", body: form })
+		res = await fetch(`${taleUrl}/transcribe`, { method: "POST", body: form })
 	} catch (err) {
 		throw new HTTPError(502, `Kunne ikke nå tale-til-notat: ${(err as Error).message}`)
 	}

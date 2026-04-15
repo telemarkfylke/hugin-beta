@@ -1,9 +1,14 @@
 import { json, type RequestHandler } from "@sveltejs/kit"
+import { env } from "$env/dynamic/private"
 import { logger } from "@vestfoldfylke/loglady"
 import { applyCallback } from "$lib/server/transcription/job-store"
 import { TranscriptionCallbackSchema } from "$lib/server/transcription/types"
 
-export const POST: RequestHandler = async ({ request }) => {
+export const POST: RequestHandler = async ({ request, url }) => {
+	const secret = env.TRANSCRIPTION_CALLBACK_SECRET
+	if (secret && url.searchParams.get("secret") !== secret) {
+		return json({ message: "Unauthorized" }, { status: 401 })
+	}
 	let body: unknown
 	try {
 		body = await request.json()

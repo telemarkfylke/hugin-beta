@@ -11,15 +11,12 @@ const sanitizeFileName = (name: string): string => {
 }
 
 const downloadDocx: ApiNextFunction = async ({ requestEvent, user }) => {
-	if (!user.preferredUserName) {
-		throw new HTTPError(400, "preferredUserName is required")
-	}
 	const id = requestEvent.params.id
 	if (!id) {
 		throw new HTTPError(400, "Missing job id")
 	}
 
-	const job = getJobById(user.preferredUserName, id)
+	const job = getJobById(user.userId, id)
 	if (!job) {
 		throw new HTTPError(404, "Transkripsjonen ble ikke funnet")
 	}
