@@ -57,6 +57,25 @@
 	let jobs: TranscriptionJob[] = $state([])
 	let pollInterval: ReturnType<typeof setInterval> | undefined
 
+	const localStorageKey = $derived(`transcription_jobs_${userId}`)
+
+	const persistJobs = (list: TranscriptionJob[]) => {
+		const slim = list.map((j) => ({
+			...j,
+			result: j.result ? { docx_url: j.result.docx_url ?? null } : null
+		}))
+		localStorage.setItem(localStorageKey, JSON.stringify(slim))
+	}
+
+	const mergeJobs = (local: TranscriptionJob[], server: TranscriptionJob[]): TranscriptionJob[] => {
+		const serverMap = new Map(server.map((j) => [j.id, j]))
+		const merged = local.map((j) => serverMap.get(j.id) ?? j)
+		for (const j of server) {
+			if (!merged.find((m) => m.id === j.id)) merged.unshift(j)
+		}
+		return merged
+	}
+
 	const formatTimer = (seconds: number) => {
 		const m = Math.floor(seconds / 60)
 			.toString()
@@ -80,9 +99,9 @@
 			const res = await fetch("/api/transcription")
 			if (!res.ok) return
 			const body = (await res.json()) as { jobs: TranscriptionJob[] }
-			jobs = body.jobs ?? []
+			jobs = mergeJobs(jobs, body.jobs ?? [])
+			persistJobs(jobs)
 
-			// Stop polling when all jobs are terminal
 			if (!hasActiveJobs() && pollInterval) {
 				clearInterval(pollInterval)
 				pollInterval = undefined
@@ -102,7 +121,41 @@
 		if (mockApi && mockApi === "true") {
 			await new Promise((resolve) => setTimeout(resolve, 500))
 		}
-		await refreshJobs()
+
+		// Load and prune localStorage (30-day retention)
+		const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
+		let localJobs: TranscriptionJob[] = []
+		try {
+			const raw = localStorage.getItem(localStorageKey)
+			if (raw) localJobs = (JSON.parse(raw) as TranscriptionJob[]).filter((j) => j.createdAt > cutoff)
+		} catch {
+			/* ignore parse errors */
+		}
+
+		// Fetch server state
+		let serverJobs: TranscriptionJob[] = []
+		try {
+			const res = await fetch("/api/transcription")
+			if (res.ok) {
+				const body = (await res.json()) as { jobs: TranscriptionJob[] }
+				serverJobs = body.jobs ?? []
+			}
+		} catch {
+			/* ignore */
+		}
+
+		// Mark stale active jobs as failed (server restarted mid-job)
+		const serverIds = new Set(serverJobs.map((j) => j.id))
+		for (const j of localJobs) {
+			if ((j.status === "uploading" || j.status === "processing") && !serverIds.has(j.id)) {
+				j.status = "failed"
+				j.error = "Serveren ble restartet under behandling"
+			}
+		}
+
+		jobs = mergeJobs(localJobs, serverJobs)
+		persistJobs(jobs)
+
 		if (hasActiveJobs()) {
 			pollInterval = setInterval(refreshJobs, 5000)
 		}
@@ -112,6 +165,17 @@
 	onDestroy(() => {
 		if (pollInterval) clearInterval(pollInterval)
 	})
+
+	const deleteJobEntry = async (job: TranscriptionJob) => {
+		if (!confirm("Er du sikker på at du vil slette?")) return
+		await fetch("/api/transcription", {
+			method: "DELETE",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ id: job.id, fileName: job.fileName, docxUrl: job.result?.docx_url ?? null })
+		})
+		jobs = jobs.filter((j) => j.id !== job.id)
+		persistJobs(jobs)
+	}
 
 	const selectMode = (mode: TranscriptionMode) => {
 		if (mode === "closed") return
@@ -453,6 +517,14 @@
 									{:else}Feilet
 									{/if}
 								</span>
+								<button
+									type="button"
+									class="job-delete"
+									aria-label="Slett jobb"
+									onclick={() => deleteJobEntry(job)}
+								>
+									<span class="material-symbols-outlined">delete</span>
+								</button>
 							</div>
 							<div class="job-meta">
 								Opprettet: {formatDateTime(job.createdAt)}
@@ -968,6 +1040,26 @@
 		display: flex;
 		gap: 0.5rem;
 		flex-wrap: wrap;
+	}
+
+	.job-delete {
+		background: none;
+		border: none;
+		cursor: pointer;
+		color: var(--color-primary-80);
+		padding: 0;
+		line-height: 1;
+		margin-left: auto;
+		display: flex;
+		align-items: center;
+	}
+
+	.job-delete:hover {
+		color: var(--color-danger);
+	}
+
+	.job-delete .material-symbols-outlined {
+		font-size: 1.1rem;
 	}
 
 	.model-info {
