@@ -19,6 +19,7 @@ const UpdateJobSchema = z.object({
 const DeleteJobSchema = z.object({
 	id: z.string().min(1),
 	fileName: z.string().min(1),
+	audioUrl: z.string().url().nullable().optional(),
 	docxUrl: z.string().url().nullable().optional()
 })
 
@@ -49,18 +50,26 @@ const patchJob: ApiNextFunction = async ({ requestEvent, user }) => {
 		throw new HTTPError(404, "Job not found")
 	}
 
+	const copypartyBase = env.COPYPARTY_BASE_URL
+	if (!copypartyBase) throw new HTTPError(500, "COPYPARTY_BASE_URL is not configured")
+
 	const secret = env.TRANSCRIPTION_CALLBACK_SECRET
 	if (!secret) {
 		throw new HTTPError(500, "TRANSCRIPTION_CALLBACK_SECRET is not configured")
 	}
 	const callbackUrl = `${requestEvent.url.origin}/api/transcription/callback?secret=${encodeURIComponent(secret)}`
+
+	// Construct the canonical audio URL using the job id in the path — this is what was
+	// uploaded to (via the upload proxy), so it is guaranteed to be unique and never renamed by Copyparty.
+	const audioUrl = `${copypartyBase}/${encodeURIComponent(user.userId)}/${encodeURIComponent(job.id)}/${encodeURIComponent(job.fileName)}`
+
 	const taleJobId = await triggerTranscription({
 		userId: user.userId,
-		fileName: job.fileName,
+		audioUrl,
 		callbackUrl
 	})
 
-	markJobProcessing(user.userId, parsed.data.id, taleJobId)
+	markJobProcessing(user.userId, parsed.data.id, taleJobId, audioUrl)
 	return { isAuthorized: true, response: json({ ok: true }) }
 }
 
@@ -72,17 +81,27 @@ const deleteJob: ApiNextFunction = async ({ requestEvent, user }) => {
 	const parsed = DeleteJobSchema.safeParse(body)
 	if (!parsed.success) throw new HTTPError(400, "Invalid body", parsed.error.issues)
 
-	const { id, fileName, docxUrl } = parsed.data
+	const { id, fileName, audioUrl: clientAudioUrl, docxUrl } = parsed.data
 
-	if (fileName.includes("/") || fileName.includes("\\") || fileName.includes("..")) {
-		throw new HTTPError(400, "Invalid fileName")
+	const job = getJobById(user.userId, id)
+
+	// Priority: in-memory job's audioUrl → client-provided audioUrl (survives server restarts via
+	// localStorage) → legacy fallback: construct from fileName (for jobs created before this change).
+	// Guard against SSRF — only delete from the configured Copyparty base URL.
+	const effectiveAudioUrl = job?.audioUrl ?? (clientAudioUrl?.startsWith(copypartyBase) ? clientAudioUrl : null)
+	if (effectiveAudioUrl) {
+		await fetch(`${effectiveAudioUrl}?delete`, { method: "POST" }).catch(() => null)
+	} else {
+		if (fileName.includes("/") || fileName.includes("\\") || fileName.includes("..")) {
+			throw new HTTPError(400, "Invalid fileName")
+		}
+		await fetch(`${copypartyBase}/${encodeURIComponent(user.userId)}/${encodeURIComponent(fileName)}?delete`, { method: "POST" }).catch(() => null)
 	}
 
-	const audioUrl = `${copypartyBase}/${encodeURIComponent(user.userId)}/${encodeURIComponent(fileName)}`
-	await fetch(audioUrl, { method: "DELETE" }).catch(() => null)
-
-	if (docxUrl && docxUrl.startsWith(copypartyBase)) {
-		await fetch(docxUrl, { method: "DELETE" }).catch(() => null)
+	// Same priority for docx: in-memory job result → client-provided value.
+	const effectiveDocxUrl = job?.result?.docx_url ?? docxUrl
+	if (effectiveDocxUrl && effectiveDocxUrl.startsWith(copypartyBase)) {
+		await fetch(`${effectiveDocxUrl}?delete`, { method: "POST" }).catch(() => null)
 	}
 
 	removeJob(user.userId, id)

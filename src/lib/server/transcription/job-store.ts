@@ -19,12 +19,13 @@ export const createPendingJob = (userId: string, fileName: string): Transcriptio
 	return job
 }
 
-export const markJobProcessing = (userId: string, jobId: string, taleJobId?: string): void => {
+export const markJobProcessing = (userId: string, jobId: string, taleJobId?: string, audioUrl?: string): void => {
 	const job = getJobById(userId, jobId)
 	if (!job) return
 	job.status = "processing"
 	job.updatedAt = new Date().toISOString()
 	if (taleJobId) job.jobId = taleJobId
+	if (audioUrl) job.audioUrl = audioUrl
 }
 
 export const listJobsForUser = (userId: string): TranscriptionJob[] => {

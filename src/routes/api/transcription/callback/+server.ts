@@ -6,7 +6,10 @@ import { TranscriptionCallbackSchema } from "$lib/server/transcription/types"
 
 export const POST: RequestHandler = async ({ request, url }) => {
 	const secret = env.TRANSCRIPTION_CALLBACK_SECRET
-	if (secret && url.searchParams.get("secret") !== secret) {
+	if (!secret) {
+		return json({ message: "Server misconfiguration: TRANSCRIPTION_CALLBACK_SECRET is not set" }, { status: 500 })
+	}
+	if (url.searchParams.get("secret") !== secret) {
 		return json({ message: "Unauthorized" }, { status: 401 })
 	}
 	let body: unknown

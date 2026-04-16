@@ -35,6 +35,7 @@ export type TranscriptionJob = {
 	id: string
 	userId: string
 	fileName: string
+	audioUrl?: string
 	status: TranscriptionJobStatus
 	createdAt: string
 	updatedAt: string

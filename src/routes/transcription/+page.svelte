@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onDestroy, onMount } from "svelte"
+	import ConfirmDeleteDialog from "$lib/components/ConfirmDeleteDialog.svelte"
 	import IconSpinner from "$lib/components/IconSpinner.svelte"
 	import InfoBox from "$lib/components/InfoBox.svelte"
 	import type { TranscriptionJob } from "$lib/server/transcription/types"
@@ -56,6 +57,9 @@
 
 	let jobs: TranscriptionJob[] = $state([])
 	let pollInterval: ReturnType<typeof setInterval> | undefined
+	let deleteDialogShow = $state(false)
+	let deleteDialogJob: TranscriptionJob | null = $state(null)
+	let deleteErrors: Record<string, string> = $state({})
 
 	const localStorageKey = $derived(`transcription_jobs_${userId}`)
 
@@ -166,15 +170,29 @@
 		if (pollInterval) clearInterval(pollInterval)
 	})
 
-	const deleteJobEntry = async (job: TranscriptionJob) => {
-		if (!confirm("Er du sikker på at du vil slette?")) return
-		await fetch("/api/transcription", {
+	const openDeleteDialog = (job: TranscriptionJob) => {
+		deleteDialogJob = job
+		deleteDialogShow = true
+	}
+
+	const confirmDelete = async () => {
+		const job = deleteDialogJob
+		if (!job) return
+		const res = await fetch("/api/transcription", {
 			method: "DELETE",
 			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ id: job.id, fileName: job.fileName, docxUrl: job.result?.docx_url ?? null })
+			body: JSON.stringify({ id: job.id, fileName: job.fileName, audioUrl: job.audioUrl ?? null, docxUrl: job.result?.docx_url ?? null })
 		})
-		jobs = jobs.filter((j) => j.id !== job.id)
-		persistJobs(jobs)
+		if (res.ok) {
+			jobs = jobs.filter((j) => j.id !== job.id)
+			persistJobs(jobs)
+			const { [job.id]: _, ...rest } = deleteErrors
+			deleteErrors = rest
+		} else {
+			const body = await res.json().catch(() => ({}))
+			deleteErrors = { ...deleteErrors, [job.id]: body.message ?? "Kunne ikke slette jobben" }
+		}
+		deleteDialogJob = null
 	}
 
 	const selectMode = (mode: TranscriptionMode) => {
@@ -289,7 +307,7 @@
 			localJobId = created.job.id
 			await refreshJobs()
 
-			const uploadUrl = `/api/transcription/upload/${encodeURIComponent(userId)}/${encodeURIComponent(selectedFileName)}`
+			const uploadUrl = `/api/transcription/upload/${encodeURIComponent(userId)}/${encodeURIComponent(localJobId)}/${encodeURIComponent(selectedFileName)}`
 			const status = await xhrPut(uploadUrl, audioBlob)
 			uploadProgress = null
 			if (status !== 200 && status !== 201 && status !== 204) {
@@ -305,12 +323,6 @@
 				const err = await patchRes.json().catch(() => ({}))
 				throw new Error(err.message || `Kunne ikke starte transkripsjon (${patchRes.status})`)
 			}
-
-			await fetch("/api/transcription", {
-				method: "PATCH",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ id: localJobId, status: "processing" })
-			})
 
 			submitStatus = "sent"
 			submitMessage = "Filen er lastet opp. Transkripsjonen kjører nå – resultatet vises i listen under når den er ferdig."
@@ -521,7 +533,7 @@
 									type="button"
 									class="job-delete"
 									aria-label="Slett jobb"
-									onclick={() => deleteJobEntry(job)}
+									onclick={() => openDeleteDialog(job)}
 								>
 									<span class="material-symbols-outlined">delete</span>
 								</button>
@@ -544,6 +556,9 @@
 										</a>
 									</div>
 								{/if}
+							{/if}
+							{#if deleteErrors[job.id]}
+								<p class="error-text">{deleteErrors[job.id]}</p>
 							{/if}
 						</li>
 					{/each}
@@ -639,6 +654,8 @@
 		</InfoBox>
 	</div>
 {/if}
+
+<ConfirmDeleteDialog bind:show={deleteDialogShow} jobName={deleteDialogJob?.fileName ?? ""} onConfirm={confirmDelete} />
 
 <style>
 	.transcription-page {

@@ -12,28 +12,44 @@ const proxyUpload: ApiNextFunction = async ({ requestEvent, user }) => {
 
 	const { request } = requestEvent
 
-	// Extract the two expected segments: <userId>/<filename>
+	// Extract the three expected segments: <userId>/<jobId>/<filename>
 	const suffix = requestEvent.params.path ?? ""
-	const slashIdx = suffix.indexOf("/")
-	if (slashIdx === -1) {
-		throw new HTTPError(400, "Invalid upload path — expected /<userId>/<filename>")
+	const firstSlash = suffix.indexOf("/")
+	if (firstSlash === -1) {
+		throw new HTTPError(400, "Invalid upload path — expected /<userId>/<jobId>/<filename>")
+	}
+	const secondSlash = suffix.indexOf("/", firstSlash + 1)
+	if (secondSlash === -1) {
+		throw new HTTPError(400, "Invalid upload path — expected /<userId>/<jobId>/<filename>")
 	}
 
 	// Validate userId from URL against the authenticated user — prevents writing to other users' folders
-	const userIdFromUrl = decodeURIComponent(suffix.slice(0, slashIdx))
+	const userIdFromUrl = decodeURIComponent(suffix.slice(0, firstSlash))
 	if (userIdFromUrl !== user.userId) {
 		throw new HTTPError(403, "Upload path does not match authenticated user")
 	}
 
+	// Decode and sanitize the jobId — must not contain path traversal characters
+	const jobId = decodeURIComponent(suffix.slice(firstSlash + 1, secondSlash))
+	if (jobId.includes("/") || jobId.includes("\\") || jobId.includes("..")) {
+		throw new HTTPError(400, "Invalid jobId")
+	}
+
 	// Decode and sanitize the filename — reject path traversal attempts (%2F, %5C, ..)
-	const rawFileName = suffix.slice(slashIdx + 1)
+	const rawFileName = suffix.slice(secondSlash + 1)
 	const decodedFileName = decodeURIComponent(rawFileName)
 	if (decodedFileName.includes("/") || decodedFileName.includes("\\") || decodedFileName.includes("..")) {
 		throw new HTTPError(400, "Invalid filename")
 	}
 
-	// Reconstruct the target URL from trusted data only (userId from auth, sanitized filename)
-	const targetUrl = `${copypartyBase}/${encodeURIComponent(user.userId)}/${encodeURIComponent(decodedFileName)}`
+	const ACCEPTED_EXTENSIONS = [".mp3", ".mp4", ".wav", ".m4a", ".ogg", ".webm", ".flac", ".mkv", ".avi", ".wma"]
+	if (!ACCEPTED_EXTENSIONS.some((ext) => decodedFileName.toLowerCase().endsWith(ext))) {
+		throw new HTTPError(400, "File type not allowed")
+	}
+
+	// Reconstruct the target URL from trusted data only (userId from auth, sanitized jobId and filename)
+	// Using jobId in the path ensures each upload is unique — Copyparty will never rename/deduplicate it
+	const targetUrl = `${copypartyBase}/${encodeURIComponent(user.userId)}/${encodeURIComponent(jobId)}/${encodeURIComponent(decodedFileName)}`
 
 	// Forward Content-Length if present so Copyparty gets the size upfront (avoids chunked encoding)
 	const headers: Record<string, string> = { "Content-Type": "application/octet-stream" }

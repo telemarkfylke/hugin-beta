@@ -3,30 +3,24 @@ import { HTTPError } from "$lib/server/middleware/http-error"
 
 type TriggerParams = {
 	userId: string
-	fileName: string
+	audioUrl: string
 	callbackUrl: string
 }
 
 /**
  * Trigger a transcription job on tale-til-notat.
- * Passes a source_url (internal Copyparty HTTP URL) so tale-til-notat downloads
+ * Passes the exact audioUrl (Copyparty path including jobId) so tale-til-notat downloads
  * the file directly — no shared volume required.
  * Returns the tale-til-notat job_id.
  */
-export const triggerTranscription = async ({ userId, fileName, callbackUrl }: TriggerParams): Promise<string> => {
+export const triggerTranscription = async ({ userId, audioUrl, callbackUrl }: TriggerParams): Promise<string> => {
 	const taleUrl = env.TALE_TIL_NOTAT_URL
 	if (!taleUrl) {
 		throw new HTTPError(500, "TALE_TIL_NOTAT_URL is not configured")
 	}
-	const copypartyBase = env.COPYPARTY_BASE_URL
-	if (!copypartyBase) {
-		throw new HTTPError(500, "COPYPARTY_BASE_URL is not configured")
-	}
-
-	const sourceUrl = `${copypartyBase}/${encodeURIComponent(userId)}/${encodeURIComponent(fileName)}`
 
 	const form = new FormData()
-	form.append("source_url", sourceUrl)
+	form.append("source_url", audioUrl)
 	form.append("callback_url", callbackUrl)
 	form.append("upn", userId)
 	form.append("language", "no")
