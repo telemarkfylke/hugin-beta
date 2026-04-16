@@ -33,8 +33,9 @@ export type TranscriptionJobStatus = "uploading" | "processing" | "completed" | 
 
 export type TranscriptionJob = {
 	id: string
-	upn: string
+	userId: string
 	fileName: string
+	audioUrl?: string
 	status: TranscriptionJobStatus
 	createdAt: string
 	updatedAt: string

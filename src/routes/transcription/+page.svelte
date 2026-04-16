@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onDestroy, onMount } from "svelte"
-	import { env as publicEnv } from "$env/dynamic/public"
+	import ConfirmDeleteDialog from "$lib/components/ConfirmDeleteDialog.svelte"
 	import IconSpinner from "$lib/components/IconSpinner.svelte"
 	import InfoBox from "$lib/components/InfoBox.svelte"
 	import type { TranscriptionJob } from "$lib/server/transcription/types"
@@ -9,8 +9,7 @@
 
 	const { data } = $props()
 
-	const COPYPARTY_BASE_URL = publicEnv.PUBLIC_COPYPARTY_BASE_URL ?? ""
-	const upn = $derived(data.authenticatedUser.preferredUserName)
+	const userId = $derived(data.authenticatedUser.userId)
 
 	const MAX_FILE_SIZE_MB = 500
 	const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024
@@ -52,9 +51,34 @@
 	let fileError = $state("")
 	let submitStatus: "idle" | "sending" | "sent" | "error" = $state("idle")
 	let submitMessage = $state("")
+	let uploadProgress: number | null = $state(null) // 0-100 while uploading, null otherwise
+	let uploadedBytes: number = $state(0)
+	let totalBytes: number = $state(0)
 
 	let jobs: TranscriptionJob[] = $state([])
 	let pollInterval: ReturnType<typeof setInterval> | undefined
+	let deleteDialogShow = $state(false)
+	let deleteDialogJob: TranscriptionJob | null = $state(null)
+	let deleteErrors: Record<string, string> = $state({})
+
+	const localStorageKey = $derived(`transcription_jobs_${userId}`)
+
+	const persistJobs = (list: TranscriptionJob[]) => {
+		const slim = list.map((j) => ({
+			...j,
+			result: j.result ? { docx_url: j.result.docx_url ?? null } : null
+		}))
+		localStorage.setItem(localStorageKey, JSON.stringify(slim))
+	}
+
+	const mergeJobs = (local: TranscriptionJob[], server: TranscriptionJob[]): TranscriptionJob[] => {
+		const serverMap = new Map(server.map((j) => [j.id, j]))
+		const merged = local.map((j) => serverMap.get(j.id) ?? j)
+		for (const j of server) {
+			if (!merged.find((m) => m.id === j.id)) merged.unshift(j)
+		}
+		return merged
+	}
 
 	const formatTimer = (seconds: number) => {
 		const m = Math.floor(seconds / 60)
@@ -79,9 +103,9 @@
 			const res = await fetch("/api/transcription")
 			if (!res.ok) return
 			const body = (await res.json()) as { jobs: TranscriptionJob[] }
-			jobs = body.jobs ?? []
+			jobs = mergeJobs(jobs, body.jobs ?? [])
+			persistJobs(jobs)
 
-			// Stop polling when all jobs are terminal
 			if (!hasActiveJobs() && pollInterval) {
 				clearInterval(pollInterval)
 				pollInterval = undefined
@@ -101,7 +125,41 @@
 		if (mockApi && mockApi === "true") {
 			await new Promise((resolve) => setTimeout(resolve, 500))
 		}
-		await refreshJobs()
+
+		// Load and prune localStorage (30-day retention)
+		const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
+		let localJobs: TranscriptionJob[] = []
+		try {
+			const raw = localStorage.getItem(localStorageKey)
+			if (raw) localJobs = (JSON.parse(raw) as TranscriptionJob[]).filter((j) => j.createdAt > cutoff)
+		} catch {
+			/* ignore parse errors */
+		}
+
+		// Fetch server state
+		let serverJobs: TranscriptionJob[] = []
+		try {
+			const res = await fetch("/api/transcription")
+			if (res.ok) {
+				const body = (await res.json()) as { jobs: TranscriptionJob[] }
+				serverJobs = body.jobs ?? []
+			}
+		} catch {
+			/* ignore */
+		}
+
+		// Mark stale active jobs as failed (server restarted mid-job)
+		const serverIds = new Set(serverJobs.map((j) => j.id))
+		for (const j of localJobs) {
+			if ((j.status === "uploading" || j.status === "processing") && !serverIds.has(j.id)) {
+				j.status = "failed"
+				j.error = "Serveren ble restartet under behandling"
+			}
+		}
+
+		jobs = mergeJobs(localJobs, serverJobs)
+		persistJobs(jobs)
+
 		if (hasActiveJobs()) {
 			pollInterval = setInterval(refreshJobs, 5000)
 		}
@@ -111,6 +169,31 @@
 	onDestroy(() => {
 		if (pollInterval) clearInterval(pollInterval)
 	})
+
+	const openDeleteDialog = (job: TranscriptionJob) => {
+		deleteDialogJob = job
+		deleteDialogShow = true
+	}
+
+	const confirmDelete = async () => {
+		const job = deleteDialogJob
+		if (!job) return
+		const res = await fetch("/api/transcription", {
+			method: "DELETE",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ id: job.id, fileName: job.fileName, audioUrl: job.audioUrl ?? null, docxUrl: job.result?.docx_url ?? null })
+		})
+		if (res.ok) {
+			jobs = jobs.filter((j) => j.id !== job.id)
+			persistJobs(jobs)
+			const { [job.id]: _, ...rest } = deleteErrors
+			deleteErrors = rest
+		} else {
+			const body = await res.json().catch(() => ({}))
+			deleteErrors = { ...deleteErrors, [job.id]: body.message ?? "Kunne ikke slette jobben" }
+		}
+		deleteDialogJob = null
+	}
 
 	const selectMode = (mode: TranscriptionMode) => {
 		if (mode === "closed") return
@@ -179,19 +262,35 @@
 		}
 
 		selectedFileName = selectedFile.name
-		audioBlob = new Blob([selectedFile], { type: selectedFile.type || "application/octet-stream" })
-		audioUrl = URL.createObjectURL(audioBlob)
+		audioBlob = selectedFile // File extends Blob — no copy needed
+		audioUrl = URL.createObjectURL(selectedFile)
 	}
+
+	const xhrPut = (url: string, blob: Blob): Promise<number> =>
+		new Promise((resolve, reject) => {
+			const xhr = new XMLHttpRequest()
+			xhr.open("PUT", url)
+			xhr.setRequestHeader("Content-Type", "application/octet-stream")
+			xhr.upload.onprogress = (e) => {
+				if (e.lengthComputable) {
+					uploadedBytes = e.loaded
+					totalBytes = e.total
+					uploadProgress = Math.round((e.loaded / e.total) * 100)
+				}
+			}
+			xhr.onload = () => resolve(xhr.status)
+			xhr.onerror = () => reject(new Error("Nettverksfeil under opplasting"))
+			xhr.onabort = () => reject(new Error("Opplastingen ble avbrutt"))
+			xhr.send(blob)
+		})
 
 	const sendTilTranscript = async () => {
 		if (!audioBlob || !selectedFileName) return
-		if (!COPYPARTY_BASE_URL) {
-			submitStatus = "error"
-			submitMessage = "Copyparty-URL er ikke konfigurert (PUBLIC_COPYPARTY_BASE_URL)."
-			return
-		}
 		submitStatus = "sending"
 		submitMessage = ""
+		uploadProgress = 0
+		uploadedBytes = 0
+		totalBytes = audioBlob.size
 
 		let localJobId: string | undefined
 		try {
@@ -208,27 +307,29 @@
 			localJobId = created.job.id
 			await refreshJobs()
 
-			const uploadUrl = `${COPYPARTY_BASE_URL.replace(/\/$/, "")}/${encodeURIComponent(upn)}/${encodeURIComponent(selectedFileName)}`
-			const putRes = await fetch(uploadUrl, {
-				method: "PUT",
-				body: audioBlob,
-				headers: { "Content-Type": "application/octet-stream" }
-			})
-			if (putRes.status !== 200 && putRes.status !== 201 && putRes.status !== 204) {
-				throw new Error(`Opplasting feilet (${putRes.status})`)
+			const uploadUrl = `/api/transcription/upload/${encodeURIComponent(userId)}/${encodeURIComponent(localJobId)}/${encodeURIComponent(selectedFileName)}`
+			const status = await xhrPut(uploadUrl, audioBlob)
+			uploadProgress = null
+			if (status !== 200 && status !== 201 && status !== 204) {
+				throw new Error(`Opplasting feilet (${status})`)
 			}
 
-			await fetch("/api/transcription", {
+			const patchRes = await fetch("/api/transcription", {
 				method: "PATCH",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({ id: localJobId, status: "processing" })
 			})
+			if (!patchRes.ok) {
+				const err = await patchRes.json().catch(() => ({}))
+				throw new Error(err.message || `Kunne ikke starte transkripsjon (${patchRes.status})`)
+			}
 
 			submitStatus = "sent"
 			submitMessage = "Filen er lastet opp. Transkripsjonen kjører nå – resultatet vises i listen under når den er ferdig."
 			await refreshJobs()
 			ensurePolling()
 		} catch (error) {
+			uploadProgress = null
 			submitStatus = "error"
 			submitMessage = `Noe gikk galt: ${(error as Error).message}`
 		}
@@ -243,7 +344,7 @@
 	<div class="transcription-page">
 		<h1>Eksperimentell selvbetjeningsløsning for transkripsjon av tale</h1>
 		<p class="lead">
-			Spill inn eller last opp lyd. Filen lastes opp direkte til Copyparty, og resultatet dukker opp i listen under når transkripsjonen er ferdig.
+			Spill inn eller last opp lyd. Filen lastes opp og resultatet dukker opp i listen under når transkripsjonen er ferdig.
 		</p>
 
 		<div class="mode-grid" role="radiogroup" aria-label="Velg transkripsjonsmodus">
@@ -392,6 +493,14 @@
 						Last ned opptak
 					</a>
 				</div>
+				{#if uploadProgress !== null}
+					<div class="upload-progress" aria-label="Opplastingsstatus">
+						<div class="upload-progress-bar" style="width: {uploadProgress}%"></div>
+					</div>
+					<p class="upload-progress-label">
+						{uploadProgress}% — {(uploadedBytes / 1024 / 1024).toFixed(1)} / {(totalBytes / 1024 / 1024).toFixed(1)} MB
+					</p>
+				{/if}
 				{#if submitMessage}
 					<p class:error-text={submitStatus === "error"} class:success-text={submitStatus === "sent"}>
 						{submitMessage}
@@ -420,6 +529,14 @@
 									{:else}Feilet
 									{/if}
 								</span>
+								<button
+									type="button"
+									class="job-delete"
+									aria-label="Slett jobb"
+									onclick={() => openDeleteDialog(job)}
+								>
+									<span class="material-symbols-outlined">delete</span>
+								</button>
 							</div>
 							<div class="job-meta">
 								Opprettet: {formatDateTime(job.createdAt)}
@@ -439,6 +556,9 @@
 										</a>
 									</div>
 								{/if}
+							{/if}
+							{#if deleteErrors[job.id]}
+								<p class="error-text">{deleteErrors[job.id]}</p>
 							{/if}
 						</li>
 					{/each}
@@ -534,6 +654,8 @@
 		</InfoBox>
 	</div>
 {/if}
+
+<ConfirmDeleteDialog bind:show={deleteDialogShow} jobName={deleteDialogJob?.fileName ?? ""} onConfirm={confirmDelete} />
 
 <style>
 	.transcription-page {
@@ -805,6 +927,26 @@
 		flex-wrap: wrap;
 	}
 
+	.upload-progress {
+		height: 6px;
+		background-color: var(--color-primary-20);
+		border-radius: 999px;
+		overflow: hidden;
+	}
+
+	.upload-progress-bar {
+		height: 100%;
+		background-color: var(--color-primary);
+		border-radius: 999px;
+		transition: width 0.2s ease;
+	}
+
+	.upload-progress-label {
+		font-size: 0.8rem;
+		color: var(--color-primary-80);
+		margin: 0;
+	}
+
 	.download-button {
 		display: inline-flex;
 		align-items: center;
@@ -915,6 +1057,26 @@
 		display: flex;
 		gap: 0.5rem;
 		flex-wrap: wrap;
+	}
+
+	.job-delete {
+		background: none;
+		border: none;
+		cursor: pointer;
+		color: var(--color-primary-80);
+		padding: 0;
+		line-height: 1;
+		margin-left: auto;
+		display: flex;
+		align-items: center;
+	}
+
+	.job-delete:hover {
+		color: var(--color-danger);
+	}
+
+	.job-delete .material-symbols-outlined {
+		font-size: 1.1rem;
 	}
 
 	.model-info {

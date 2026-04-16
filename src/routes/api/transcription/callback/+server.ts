@@ -1,9 +1,17 @@
 import { json, type RequestHandler } from "@sveltejs/kit"
 import { logger } from "@vestfoldfylke/loglady"
+import { env } from "$env/dynamic/private"
 import { applyCallback } from "$lib/server/transcription/job-store"
 import { TranscriptionCallbackSchema } from "$lib/server/transcription/types"
 
-export const POST: RequestHandler = async ({ request }) => {
+export const POST: RequestHandler = async ({ request, url }) => {
+	const secret = env.TRANSCRIPTION_CALLBACK_SECRET
+	if (!secret) {
+		return json({ message: "Server misconfiguration: TRANSCRIPTION_CALLBACK_SECRET is not set" }, { status: 500 })
+	}
+	if (url.searchParams.get("secret") !== secret) {
+		return json({ message: "Unauthorized" }, { status: 401 })
+	}
 	let body: unknown
 	try {
 		body = await request.json()

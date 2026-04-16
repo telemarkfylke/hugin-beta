@@ -1,44 +1,51 @@
 import { randomUUID } from "node:crypto"
 import type { TranscriptionCallback, TranscriptionJob } from "./types"
 
-const jobsByUpn = new Map<string, TranscriptionJob[]>()
+const jobsByUserId = new Map<string, TranscriptionJob[]>()
 
-const normalizeUpn = (upn: string) => upn.trim().toLowerCase()
-
-export const createPendingJob = (upn: string, fileName: string): TranscriptionJob => {
+export const createPendingJob = (userId: string, fileName: string): TranscriptionJob => {
 	const now = new Date().toISOString()
 	const job: TranscriptionJob = {
 		id: randomUUID(),
-		upn,
+		userId,
 		fileName,
 		status: "uploading",
 		createdAt: now,
 		updatedAt: now
 	}
-	const key = normalizeUpn(upn)
-	const list = jobsByUpn.get(key) ?? []
+	const list = jobsByUserId.get(userId) ?? []
 	list.unshift(job)
-	jobsByUpn.set(key, list)
+	jobsByUserId.set(userId, list)
 	return job
 }
 
-export const markJobProcessing = (upn: string, jobId: string): void => {
-	const job = getJobById(upn, jobId)
+export const markJobProcessing = (userId: string, jobId: string, taleJobId?: string, audioUrl?: string): void => {
+	const job = getJobById(userId, jobId)
 	if (!job) return
 	job.status = "processing"
 	job.updatedAt = new Date().toISOString()
+	if (taleJobId) job.jobId = taleJobId
+	if (audioUrl) job.audioUrl = audioUrl
 }
 
-export const listJobsForUpn = (upn: string): TranscriptionJob[] => {
-	return jobsByUpn.get(normalizeUpn(upn)) ?? []
+export const listJobsForUser = (userId: string): TranscriptionJob[] => {
+	return jobsByUserId.get(userId) ?? []
 }
 
-export const getJobById = (upn: string, id: string): TranscriptionJob | undefined => {
-	return listJobsForUpn(upn).find((j) => j.id === id)
+export const getJobById = (userId: string, id: string): TranscriptionJob | undefined => {
+	return listJobsForUser(userId).find((j) => j.id === id)
+}
+
+export const removeJob = (userId: string, id: string): void => {
+	const list = jobsByUserId.get(userId) ?? []
+	jobsByUserId.set(
+		userId,
+		list.filter((j) => j.id !== id)
+	)
 }
 
 export const applyCallback = (payload: TranscriptionCallback): TranscriptionJob | undefined => {
-	const list = listJobsForUpn(payload.upn)
+	const list = listJobsForUser(payload.upn)
 	// Prefer matching an already-linked job_id, otherwise take the oldest non-terminal job for this user.
 	let job = list.find((j) => j.jobId === payload.job_id)
 	if (!job) {
@@ -49,16 +56,15 @@ export const applyCallback = (payload: TranscriptionCallback): TranscriptionJob 
 		const now = new Date().toISOString()
 		job = {
 			id: randomUUID(),
-			upn: payload.upn,
+			userId: payload.upn,
 			fileName: "(ukjent fil)",
 			status: "uploading",
 			createdAt: now,
 			updatedAt: now
 		}
-		const key = normalizeUpn(payload.upn)
-		const existing = jobsByUpn.get(key) ?? []
+		const existing = jobsByUserId.get(payload.upn) ?? []
 		existing.unshift(job)
-		jobsByUpn.set(key, existing)
+		jobsByUserId.set(payload.upn, existing)
 	}
 
 	job.jobId = payload.job_id
