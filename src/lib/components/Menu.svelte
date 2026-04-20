@@ -4,6 +4,8 @@
 	import { onNavigate } from "$app/navigation"
 	import { page } from "$app/state"
 	import favicon16 from "$lib/assets/favicon-16x16.png"
+	import type { FeatureMap } from "$lib/features/featuremap"
+	import { checkFeatureMap, getFeatures } from "$lib/features/service"
 	import type { AuthenticatedPrincipal } from "$lib/types/authentication"
 	import type { ChatConfig } from "$lib/types/chat"
 
@@ -15,10 +17,16 @@
 	let { authenticatedUser, appName, isEmployee }: Props = $props()
 
 	let menuOpen = $state(true)
-	let menuAgents: { isLoading: boolean; agents: ChatConfig[]; error: string | null } = $state({ isLoading: false, agents: [], error: null })
+	let menuAgents: {
+		isLoading: boolean
+		agents: ChatConfig[]
+		error: string | null
+	} = $state({ isLoading: false, agents: [], error: null })
 
 	const smallScreenWidth = 1120
 	let screenIsLarge = true
+
+	let featuremap: FeatureMap = $state({})
 
 	$effect(() => {
 		page.url // Track page url changes
@@ -34,6 +42,10 @@
 		}
 		const agentsData = (await agentResponse.json()) as ChatConfig[]
 		return agentsData
+	}
+
+	const loadFeatures = async () => {
+		featuremap = await getFeatures()
 	}
 
 	const loadAgents = async () => {
@@ -66,6 +78,7 @@
 		window.addEventListener("resize", handleResize)
 
 		loadAgents()
+		loadFeatures()
 
 		return () => window.removeEventListener("resize", handleResize)
 	})
@@ -103,17 +116,32 @@
 </script>
 
 {#if !menuOpen}
-	<div class="open-menu-container" transition:fade={{ duration: 100, delay: 100 }}>
+	<div
+		class="open-menu-container"
+		transition:fade={{ duration: 100, delay: 100 }}
+	>
 		<button class="icon-button" onclick={toggleMenu} title="Åpne meny">
 			<span class="material-symbols-rounded">left_panel_open</span>
 		</button>
 	</div>
 {:else}
-	<div class="app-overlay" transition:fade={{ duration: 100 }} onclick={() => { menuOpen = false }}></div>
-	<div class ="menu large-screen-space-stealer" transition:slide={{ axis: 'x', duration: 100 }}></div> 
-	<div class="menu" transition:slide={{ axis: 'x', duration: 100 }}>
+	<div
+		class="app-overlay"
+		transition:fade={{ duration: 100 }}
+		onclick={() => {
+			menuOpen = false;
+		}}
+	></div>
+	<div
+		class="menu large-screen-space-stealer"
+		transition:slide={{ axis: "x", duration: 100 }}
+	></div>
+	<div class="menu" transition:slide={{ axis: "x", duration: 100 }}>
 		<div class="menu-header">
-			<div class="app-title"><img src={favicon16} alt="{appName} logo" /> {appName}</div>
+			<div class="app-title">
+				<img src={favicon16} alt="{appName} logo" />
+				{appName}
+			</div>
 			<button class="icon-button" onclick={toggleMenu} title="Lukk meny">
 				<span class="material-symbols-rounded">left_panel_close</span>
 			</button>
@@ -121,7 +149,11 @@
 		<div class="menu-content">
 			<div class="menu-section">
 				<div class="menu-items">
-					<a class="menu-item" class:active={page.url.pathname === "/"} href="/">
+					<a
+						class="menu-item"
+						class:active={page.url.pathname === "/"}
+						href="/"
+					>
 						<span class="material-symbols-outlined">home</span>Hjem
 					</a>
 				</div>
@@ -149,42 +181,71 @@
 					<div class="menu-section">
 						<div class="menu-section-title">Agenter</div>
 						<div class="menu-items">
-							{#each menuAgents.agents.filter(agent => agent.type === "published").slice(0,5) as agent}
-								<a class="menu-item" class:active={page.url.pathname === "/agents/" + agent._id} href={"/agents/" + agent._id}>
+							{#each menuAgents.agents
+								.filter((agent) => agent.type === "published")
+								.slice(0, 5) as agent}
+								<a
+									class="menu-item"
+									class:active={page.url.pathname === "/agents/" + agent._id}
+									href={"/agents/" + agent._id}
+								>
 									{agent.name}
 								</a>
 							{/each}
-							<a class="menu-item" class:active={page.url.pathname === "/agents"} href="/agents">
-								<span class="material-symbols-outlined">more_horiz</span>Se alle agenter
+							<a
+								class="menu-item"
+								class:active={page.url.pathname === "/agents"}
+								href="/agents"
+							>
+								<span class="material-symbols-outlined">more_horiz</span>Se alle
+								agenter
 							</a>
 						</div>
 					</div>
 					<div class="menu-section">
 						<div class="menu-section-title">Dine agenter</div>
 						<div class="menu-items">
-							{#each menuAgents.agents.filter(agent => agent.type === "private" && agent.created.by.id === authenticatedUser.userId).slice(0,5) as agent}
-								<a class="menu-item" class:active={page.url.pathname === "/agents/" + agent._id} href={"/agents/" + agent._id}>
+							{#each menuAgents.agents
+								.filter((agent) => agent.type === "private" && agent.created.by.id === authenticatedUser.userId)
+								.slice(0, 5) as agent}
+								<a
+									class="menu-item"
+									class:active={page.url.pathname === "/agents/" + agent._id}
+									href={"/agents/" + agent._id}
+								>
 									{agent.name}
 								</a>
 							{/each}
-							<a class="menu-item" class:active={page.url.pathname === "/agents/create"} href="/agents/create">
+							<a
+								class="menu-item"
+								class:active={page.url.pathname === "/agents/create"}
+								href="/agents/create"
+							>
 								<span class="material-symbols-outlined">add</span>Lag ny agent
 							</a>
-						</div>	
+						</div>
 					</div>
 				{/if}
 			</div>
-			{#if appName === "Hugin" && isEmployee}
+			{#if checkFeatureMap("TRANSCRIPTION", featuremap) && isEmployee}
 				<div class="menu-section">
 					<div class="menu-section-title">Andre tjenester</div>
 					<div class="menu-items">
-						<a class="menu-item" class:active={page.url.pathname === "/transcription"} href="/transcription">Tale-til-notat</a>
+						<a
+							class="menu-item"
+							class:active={page.url.pathname === "/transcription"}
+							href="/transcription">Tale-til-notat</a
+						>
 					</div>
 				</div>
 			{/if}
 		</div>
 		<div class="menu-footer">
-			<button class="icon-button logged-in-user" onclick={openUserSettings} title="Brukerinnstillinger">
+			<button
+				class="icon-button logged-in-user"
+				onclick={openUserSettings}
+				title="Brukerinnstillinger"
+			>
 				<span class="material-symbols-outlined">account_circle</span>
 				{authenticatedUser.name}
 			</button>
@@ -194,7 +255,7 @@
 
 {#if showUserSettings}
 	<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
-	<div class="settings-backdrop" onclick={() => showUserSettings = false}>
+	<div class="settings-backdrop" onclick={() => (showUserSettings = false)}>
 		<div class="settings-modal" onclick={(e) => e.stopPropagation()}>
 			<div class="settings-hero">
 				<p class="settings-tagline">Ikke mye her ennå…</p>
@@ -206,12 +267,13 @@
 				</label>
 			</div>
 			<div class="settings-actions">
-				<button onclick={() => showUserSettings = false}>Avbryt</button>
+				<button onclick={() => (showUserSettings = false)}>Avbryt</button>
 				<button class="filled" onclick={saveUserSettings}>Lagre</button>
 			</div>
 		</div>
 	</div>
 {/if}
+
 <style>
 	.app-overlay {
 		position: fixed;
@@ -222,7 +284,8 @@
 		background-color: rgba(0, 0, 0, 0.3);
 		z-index: 50;
 	}
-	.open-menu-container, .menu-header {
+	.open-menu-container,
+	.menu-header {
 		height: var(--header-height);
 		display: flex;
 		align-items: center;
@@ -257,7 +320,8 @@
 	.menu-section {
 		margin: 2rem 0rem;
 	}
-	.menu-section-title, .menu-item {
+	.menu-section-title,
+	.menu-item {
 		padding: 0.25rem 0.5rem;
 		display: flex;
 		align-items: center;
@@ -276,7 +340,8 @@
 		margin-bottom: 0.2rem;
 		border-radius: 0.5rem;
 	}
-	.menu-item:hover, .menu-item.active {
+	.menu-item:hover,
+	.menu-item.active {
 		background-color: var(--color-secondary-30);
 	}
 	.menu-item.active {
@@ -334,7 +399,7 @@
 		align-items: center;
 		gap: 0.75rem;
 	}
-.settings-tagline {
+	.settings-tagline {
 		margin: 0;
 		color: #999;
 		font-size: 0.9rem;
@@ -381,5 +446,4 @@
 			width: calc(100% - 1rem);
 		}
 	}
-
 </style>

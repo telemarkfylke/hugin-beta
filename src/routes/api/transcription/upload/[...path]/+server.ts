@@ -1,10 +1,15 @@
 import type { RequestHandler } from "@sveltejs/kit"
 import { env } from "$env/dynamic/private"
+import { checkFeature } from "$lib/features/featuremap"
 import { HTTPError } from "$lib/server/middleware/http-error"
 import { apiRequestMiddleware } from "$lib/server/middleware/http-request"
 import type { ApiNextFunction } from "$lib/types/middleware/http-request"
 
 const proxyUpload: ApiNextFunction = async ({ requestEvent, user }) => {
+	if (!checkFeature("TRANSCRIPTION")) {
+		throw new HTTPError(423, "Feature is locked")
+	}
+
 	const copypartyBase = env.COPYPARTY_BASE_URL
 	if (!copypartyBase) {
 		throw new HTTPError(500, "COPYPARTY_BASE_URL is not configured")

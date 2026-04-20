@@ -3,6 +3,8 @@
 	import ConfirmDeleteDialog from "$lib/components/ConfirmDeleteDialog.svelte"
 	import IconSpinner from "$lib/components/IconSpinner.svelte"
 	import InfoBox from "$lib/components/InfoBox.svelte"
+	import type { FeatureMap } from "$lib/features/featuremap.js"
+	import { checkFeatureMap, getFeatures } from "$lib/features/service.js"
 	import type { TranscriptionJob } from "$lib/server/transcription/types"
 
 	type TranscriptionMode = "open" | "closed"
@@ -34,6 +36,8 @@
 	const ACCEPT_ATTR = [...ACCEPTED_EXTENSIONS, ...ACCEPTED_MIME_TYPES].join(",")
 
 	const { VITE_MOCK_API: mockApi } = import.meta.env
+
+	let featuremap: FeatureMap = $state({})
 
 	let selectedMode: TranscriptionMode = $state("open")
 	let isLoading = $state(true)
@@ -125,6 +129,8 @@
 		if (mockApi && mockApi === "true") {
 			await new Promise((resolve) => setTimeout(resolve, 500))
 		}
+
+		featuremap = await getFeatures()
 
 		// Load and prune localStorage (30-day retention)
 		const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
@@ -335,8 +341,12 @@
 		}
 	}
 </script>
+{#if !checkFeatureMap("TRANSCRIPTION", featuremap)}
+<div class="loading">
+	Transcription is not enabled
+</div>
 
-{#if isLoading}
+{:else if isLoading}
 	<div class="loading">
 		<IconSpinner width="32px" />
 	</div>

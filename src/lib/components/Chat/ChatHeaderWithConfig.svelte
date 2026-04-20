@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { slide } from "svelte/transition"
 	import { canEditChatConfig } from "$lib/authorization"
+	import type { FeatureMap } from "$lib/features/featuremap"
+	import { checkFeatureMap } from "$lib/features/service"
 	import ChatConfigPanel from "./ChatConfigPanel.svelte"
 	import type { ChatState } from "./ChatState.svelte"
 	import ConversationExport from "./ConversationExport.svelte"
@@ -8,9 +10,10 @@
 
 	type Props = {
 		chatState: ChatState
+		featureMap: FeatureMap
 	}
 
-	let { chatState = $bindable() }: Props = $props()
+	let { chatState = $bindable(), featureMap }: Props = $props()
 
 	let showDescription: boolean = $state(false)
 	let showNewChatDialog: boolean = $state(false)
@@ -62,7 +65,7 @@
 					<span class="material-symbols-rounded">edit_square</span>
 					Ny samtale
 				</button>
-				{#if !chatState.APP_CONFIG.CONVERSATION_EXPORT_DISABLED}
+				{#if checkFeatureMap("IMPORT_EXPORT",featureMap)}
 					<ConversationExport bind:chat={chatState.chat} />
 				{/if}
 				{#if userCanEditConfig}

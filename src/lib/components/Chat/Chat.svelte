@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { tick } from "svelte"
 	import { beforeNavigate } from "$app/navigation"
+	import type { FeatureMap } from "$lib/features/featuremap"
 	import ChatHeaderWithConfig from "./ChatHeaderWithConfig.svelte"
 	import ChatHistoryItem from "./ChatHistoryItem.svelte"
 	import ChatInput from "./ChatInput.svelte"
@@ -8,9 +9,10 @@
 
 	type Props = {
 		chatState: ChatState
+		featureMap: FeatureMap
 	}
 
-	let { chatState }: Props = $props()
+	let { chatState, featureMap }: Props = $props()
 
 	let lastChatItem: HTMLDivElement
 
@@ -47,7 +49,7 @@
 </script>
 
 <div class="chat-container">
-	<ChatHeaderWithConfig bind:chatState={chatState} />
+	<ChatHeaderWithConfig bind:chatState={chatState} featureMap={featureMap} />
 	<div class="chat-items-container" class:mobile-hidden={chatState.configMode}  class:empty={chatState.chat.history.length === 0}>
 		<div class="chat-items">
 			{#each chatState.chat.history as chatHistoryItem}
