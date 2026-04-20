@@ -25,7 +25,6 @@ export type AppConfig = {
 	NAME: string
 	BODY_SIZE_LIMIT_BYTES: number
 	APP_ROLES: AppRoles
-	CONVERSATION_EXPORT_DISABLED: boolean
 	NEW_CHAT_CONFIRM_DISABLED: boolean
 	VENDORS: {
 		MISTRAL: VendorInfo
