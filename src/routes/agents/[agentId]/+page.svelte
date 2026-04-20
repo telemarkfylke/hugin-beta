@@ -1,7 +1,10 @@
 <script lang="ts">
+	import { onMount } from "svelte"
 	import { page } from "$app/state"
 	import ChatComponent from "$lib/components/Chat/Chat.svelte"
 	import { ChatState } from "$lib/components/Chat/ChatState.svelte"
+	import type { FeatureMap } from "$lib/features/featuremap"
+	import { getFeatures } from "$lib/features/service"
 	import type { Chat } from "$lib/types/chat"
 	import type { PageProps } from "./$types"
 
@@ -38,8 +41,13 @@
 		}
 		agentChatState.changeChat(initialChat)
 	})
+
+	let featureMap: FeatureMap = $state({})
+	onMount(async () => {
+		featureMap = await getFeatures()
+	})
 </script>
-  <ChatComponent chatState={agentChatState} />
+  <ChatComponent chatState={agentChatState} {featureMap} />
 <style>
   
 </style>

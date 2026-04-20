@@ -1,6 +1,7 @@
 import { json, type RequestHandler } from "@sveltejs/kit"
 import z from "zod"
 import { env } from "$env/dynamic/private"
+import { checkFeature } from "$lib/features/featuremap"
 import { HTTPError } from "$lib/server/middleware/http-error"
 import { apiRequestMiddleware } from "$lib/server/middleware/http-request"
 import { createPendingJob, getJobById, listJobsForUser, markJobProcessing, removeJob } from "$lib/server/transcription/job-store"
@@ -24,11 +25,17 @@ const DeleteJobSchema = z.object({
 })
 
 const getJobs: ApiNextFunction = async ({ user }) => {
+	if (!checkFeature("TRANSCRIPTION")) {
+		throw new HTTPError(423, "Feature is locked")
+	}
 	const jobs = listJobsForUser(user.userId)
 	return { isAuthorized: true, response: json({ jobs }) }
 }
 
 const createJob: ApiNextFunction = async ({ requestEvent, user }) => {
+	if (!checkFeature("TRANSCRIPTION")) {
+		throw new HTTPError(423, "Feature is locked")
+	}
 	const body = await requestEvent.request.json().catch(() => null)
 	const parsed = CreateJobSchema.safeParse(body)
 	if (!parsed.success) {
@@ -39,6 +46,9 @@ const createJob: ApiNextFunction = async ({ requestEvent, user }) => {
 }
 
 const patchJob: ApiNextFunction = async ({ requestEvent, user }) => {
+	if (!checkFeature("TRANSCRIPTION")) {
+		throw new HTTPError(423, "Feature is locked")
+	}
 	const body = await requestEvent.request.json().catch(() => null)
 	const parsed = UpdateJobSchema.safeParse(body)
 	if (!parsed.success) {
@@ -74,6 +84,9 @@ const patchJob: ApiNextFunction = async ({ requestEvent, user }) => {
 }
 
 const deleteJob: ApiNextFunction = async ({ requestEvent, user }) => {
+	if (!checkFeature("TRANSCRIPTION")) {
+		throw new HTTPError(423, "Feature is locked")
+	}
 	const copypartyBase = env.COPYPARTY_BASE_URL
 	if (!copypartyBase) throw new HTTPError(500, "COPYPARTY_BASE_URL is not configured")
 

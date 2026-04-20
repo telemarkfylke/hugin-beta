@@ -1,8 +1,11 @@
 <script lang="ts">
+	import { onMount } from "svelte"
 	import { page } from "$app/stores"
 	import ChatComponent from "$lib/components/Chat/Chat.svelte"
 	import { ChatState } from "$lib/components/Chat/ChatState.svelte.js"
 	import WelcomeSplash from "$lib/components/WelcomeSplash.svelte"
+	import type { FeatureMap } from "$lib/features/featuremap"
+	import { getFeatures } from "$lib/features/service"
 	import type { Chat } from "$lib/types/chat"
 	import type { PageProps } from "./$types"
 
@@ -25,9 +28,15 @@
 	const chatState = new ChatState(defaultChat, data.authenticatedUser, data.APP_CONFIG)
 
 	let showSplash = $state($page.url.searchParams.has("splash"))
+
+	let featureMap: FeatureMap = $state({})
+
+	onMount(async () => {
+		featureMap = await getFeatures()
+	})
 </script>
 
-<ChatComponent {chatState} />
+<ChatComponent {chatState} {featureMap} />
 <WelcomeSplash bind:show={showSplash} />
 
 <!--<button onclick={() => chatState.loadChat('hahah')}>Load chat 'hahah'</button>-->
