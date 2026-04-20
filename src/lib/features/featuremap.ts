@@ -7,7 +7,7 @@ export type FeatureMap = {
 	LOCAL_MODELS?: boolean
 }
 
-const features: string[] = (env.FEATURES || "").toUpperCase().split(";")
+const features: string[] = (env.FEATURES || "").toUpperCase().split(/[,; ]/)
 
 const featureMap: FeatureMap = {
 	TRANSCRIPTION: features.includes("TRANSCRIPTION"),
