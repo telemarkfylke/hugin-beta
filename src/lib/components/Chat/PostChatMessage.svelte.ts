@@ -3,7 +3,7 @@ import type { Chat, ChatRequest, ChatResponseObject } from "$lib/types/chat"
 import type { ChatOutputMessage } from "$lib/types/chat-item"
 
 export const addMessageDeltaToChatItem = (chatResponseObject: ChatResponseObject, itemId: string, messageDelta: string): ChatOutputMessage => {
-	if (!chatResponseObject || !chatResponseObject.outputs || !Array.isArray(chatResponseObject.outputs)) {
+	if (!chatResponseObject?.outputs || !Array.isArray(chatResponseObject.outputs)) {
 		throw new Error("No chatResponseObject.outputs to add message delta to")
 	}
 	if (!itemId) {
