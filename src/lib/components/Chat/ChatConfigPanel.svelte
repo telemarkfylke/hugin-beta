@@ -45,7 +45,7 @@
 	const copyAgentUrl = async () => {
 		await navigator.clipboard.writeText(page.url.href)
 		chatState.chat.config.shared = true
-		alert("Agentens adresse er kopiert til utklippstavlen og kan limes inn i en mail eller melding for å deles med andre.\n\nNB: Alle med lenken kan bruke agenten.")
+		alert("Assistentens adresse er kopiert til utklippstavlen og kan limes inn i en mail eller melding for å deles med andre.\n\nNB: Alle med lenken kan bruke assistenten.")
 	}
 
 	// Almost illegal effect, but we need to auto-select first available model when changing vendor in manual config
@@ -113,7 +113,7 @@
 						class="name-input"
 						id="agent-name"
 						rows="1"
-						placeholder="Gi agenten et navn"
+						placeholder="Gi assistenten et navn"
 						bind:value={chatState.chat.config.name}
 						onkeydown={(e) => { if (e.key === "Enter") e.preventDefault() }}
 					></textarea>
@@ -123,8 +123,8 @@
 			<!-- Description -->
 			<div class="config-section">
 				<div class="config-item">
-					<label for="description">Beskrivelse av agent</label>
-					<GrowingTextArea id="description" style="textarea" initialRows={1} placeholder="Skriv en beskrivelse av agenten her" bind:value={chatState.chat.config.description} />
+					<label for="description">Beskrivelse av assistent</label>
+					<GrowingTextArea id="description" style="textarea" initialRows={1} placeholder="Skriv en beskrivelse av assistenten her" bind:value={chatState.chat.config.description} />
 				</div>
 			</div>
 
@@ -132,7 +132,7 @@
 			<div class="config-section">
 				<div class="share-row">
 					<label class="toggle-label">
-						<span>Del agent</span>
+						<span>Del assistent</span>
 						<span class="toggle">
 							<input type="checkbox" bind:checked={chatState.chat.config.shared} />
 							<span class="toggle-track"></span>
@@ -143,7 +143,7 @@
 					</button>
 				</div>
 				<div class="share-description">
-					Ved å dele din agent kan de som har lenken bruke den, men den blir ikke listet opp noe sted.
+					Ved å dele din assistent kan de som har lenken bruke den, men den blir ikke listet opp noe sted.
 				</div>
 			</div>
 
@@ -233,7 +233,7 @@
 			{#if chatState.chat.config.vendorAgent}
 				<div class="config-section">
 					<div class="config-item">
-						<label for="vendorAgentId">Agent-id</label>
+						<label for="vendorAgentId">Assistent-id</label>
 						<input id="vendorAgentId" placeholder="agent/prompt-id" type="text" bind:value={chatState.chat.config.vendorAgent.id} />
 					</div>
 				</div>
@@ -244,7 +244,7 @@
 		<div class="config-actions">
 			<div class="config-action-item">
 				{#if chatState.chat.config._id}
-					<button class="filled danger" onclick={chatState.deleteChatConfig}><span class="material-symbols-outlined">delete</span>Slett agent</button>
+					<button class="filled danger" onclick={chatState.deleteChatConfig}><span class="material-symbols-outlined">delete</span>Slett assistent</button>
 				{:else}
 					&nbsp;
 				{/if}
@@ -253,14 +253,14 @@
 				{#if chatState.configEdited}
 					<button onclick={() => chatState.configMode = false} title="Test endringer i samtalen">
 						<span class="material-symbols-rounded">experiment</span>
-						Test agent
+						Test assistent
 					</button>
 				{/if}
 				<button onclick={() => { chatState.chat.config = JSON.parse(JSON.stringify(chatState.initialConfig)); chatState.configMode = false; }}>Avbryt</button>
 				{#if chatState.chat.config._id}
 					<button disabled={!chatState.configEdited} class="filled" onclick={chatState.updateChatConfig}><span class="material-symbols-outlined">save</span>Lagre endringer</button>
 				{:else}
-					<button disabled={!chatState.configEdited} class="filled" onclick={chatState.saveChatConfig}><span class="material-symbols-outlined">save</span>Lagre som ny agent</button>
+					<button disabled={!chatState.configEdited} class="filled" onclick={chatState.saveChatConfig}><span class="material-symbols-outlined">save</span>Lagre som ny assistent</button>
 				{/if}
 			</div>
 		</div>

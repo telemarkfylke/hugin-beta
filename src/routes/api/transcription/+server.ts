@@ -100,7 +100,7 @@ const deleteJob: ApiNextFunction = async ({ requestEvent, user }) => {
 
 	// Same priority for docx: in-memory job result → client-provided value.
 	const effectiveDocxUrl = job?.result?.docx_url ?? docxUrl
-	if (effectiveDocxUrl && effectiveDocxUrl.startsWith(copypartyBase)) {
+	if (effectiveDocxUrl?.startsWith(copypartyBase)) {
 		await fetch(`${effectiveDocxUrl}?delete`, { method: "POST" }).catch(() => null)
 	}
 
