@@ -20,7 +20,7 @@ const agentPageLoad: ServerLoadNextFunction<{ agent: ChatConfig }> = async ({ re
 	}
 
 	if (!canPromptConfig(user, APP_CONFIG, agent)) {
-		throw new HTTPError(403, "Du har ikke tilgang til denne agenten")
+		throw new HTTPError(403, "Du har ikke tilgang til denne assistenten")
 	}
 
 	return {

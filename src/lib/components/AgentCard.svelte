@@ -32,11 +32,11 @@
 		<div class="agent-card-header">
 			<h2 class="agent-name">{agent.name || "Uten navn"}</h2>
 			{#if agent.type === "published"}
-				<span class="badge published" title="Publisert agent">
+				<span class="badge published" title="Publisert assistent">
 					<span class="material-symbols-outlined">public</span>
 				</span>
 			{:else}
-				<span class="badge private" title="Privat agent">
+				<span class="badge private" title="Privat assistent">
 					<span class="material-symbols-outlined">lock</span>
 				</span>
 			{/if}
@@ -45,7 +45,7 @@
 		{#if agent.description}
 			<p class="agent-description">{agent.description}</p>
 		{:else}
-			<p class="agent-description empty">Ingen beskrivelse</p>
+			<p class="agent-description empty">Ingen beskrivelse tilgjengelig for denne assistenten.</p>
 		{/if}
 
 		<div class="agent-meta">
