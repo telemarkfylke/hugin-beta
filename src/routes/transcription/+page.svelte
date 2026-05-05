@@ -342,7 +342,8 @@
 	</div>
 {:else}
 	<div class="transcription-page">
-		<h1>Eksperimentell selvbetjeningsløsning for transkripsjon av tale</h1>
+		<h1>Tale til notat</h1>
+		<h3>En selvbetjeningsløsning for transkripsjon av tale med språkmodell som er trent på norsk</h3>
 		<p class="lead">
 			Spill inn eller last opp lyd. Filen lastes opp og resultatet dukker opp i listen under når transkripsjonen er ferdig.
 		</p>
