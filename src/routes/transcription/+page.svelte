@@ -36,6 +36,7 @@
 	const { VITE_MOCK_API: mockApi } = import.meta.env
 
 	let selectedMode: TranscriptionMode = $state("open")
+	let modeConfirmed = $state(false)
 	let isLoading = $state(true)
 
 	let mediaRecorder: MediaRecorder | undefined
@@ -198,6 +199,7 @@
 	const selectMode = (mode: TranscriptionMode) => {
 		if (mode === "closed") return
 		selectedMode = mode
+		modeConfirmed = true
 	}
 
 	async function startRecording() {
@@ -400,6 +402,7 @@
 			</button>
 		</div>
 
+		{#if modeConfirmed}
 		<div class="action-grid">
 			<section class="action-card" aria-labelledby="upload-title">
 				<h3 id="upload-title">
@@ -653,6 +656,7 @@
 				<a href="mailto:noen@telemarkfylke.no">noen@telemarkfylke.no</a>.
 			</p>
 		</InfoBox>
+		{/if}
 	</div>
 {/if}
 
