@@ -24,7 +24,7 @@
 
 	$effect(() => {
 		if (isEditing && documentEditor) {
-			documentEditor.style.height = documentEditor.scrollHeight + "px"
+			documentEditor.style.height = `${documentEditor.scrollHeight}px`
 		}
 	})
 
@@ -86,7 +86,7 @@
 			}
 
 			if (citations.length > 0) {
-				const sourcesSection = "\n\n---\n\n## Kilder\n\n" + citations.map((c, i) => `${i + 1}. [${c.title}](${c.url})`).join("\n")
+				const sourcesSection = `\n\n---\n\n## Kilder\n\n${citations.map((c, i) => `${i + 1}. [${c.title}](${c.url})`).join("\n")}`
 				document += sourcesSection
 			}
 		} catch (e) {
@@ -118,13 +118,14 @@
 		const runs: TextRun[] = []
 		const re = /\*\*(.+?)\*\*|_(.+?)_|\*(.+?)\*/g
 		let last = 0
-		let match: RegExpExecArray | null
-		while ((match = re.exec(text)) !== null) {
+		let match = re.exec(text)
+		while (match !== null) {
 			if (match.index > last) runs.push(new TextRun(text.slice(last, match.index)))
 			if (match[1] !== undefined) runs.push(new TextRun({ text: match[1], bold: true }))
 			else if (match[2] !== undefined) runs.push(new TextRun({ text: match[2], italics: true }))
 			else if (match[3] !== undefined) runs.push(new TextRun({ text: match[3], italics: true }))
 			last = match.index + match[0].length
+			match = re.exec(text)
 		}
 		if (last < text.length) runs.push(new TextRun(text.slice(last)))
 		return runs
