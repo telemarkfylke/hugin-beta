@@ -36,6 +36,7 @@
 	const { VITE_MOCK_API: mockApi } = import.meta.env
 
 	let selectedMode: TranscriptionMode = $state("open")
+	let modeConfirmed = $state(false)
 	let isLoading = $state(true)
 
 	let mediaRecorder: MediaRecorder | undefined
@@ -198,6 +199,7 @@
 	const selectMode = (mode: TranscriptionMode) => {
 		if (mode === "closed") return
 		selectedMode = mode
+		modeConfirmed = true
 	}
 
 	async function startRecording() {
@@ -342,7 +344,8 @@
 	</div>
 {:else}
 	<div class="transcription-page">
-		<h1>Eksperimentell selvbetjeningsløsning for transkripsjon av tale</h1>
+		<h1>Tale til notat</h1>
+		<h3>En selvbetjeningsløsning for transkripsjon av tale med <a href="https://www.nb.no/pressemeldinger/nasjonalbiblioteket-deler-kunstig-intelligens-som-skjoner-norske-dialekter-og-gjer-tale-om-til-tekst/" target="_blank" rel="noopener noreferrer">norsktrent språkmodell</a></h3>
 		<p class="lead">
 			Spill inn eller last opp lyd. Filen lastes opp og resultatet dukker opp i listen under når transkripsjonen er ferdig.
 		</p>
@@ -399,6 +402,7 @@
 			</button>
 		</div>
 
+		{#if modeConfirmed}
 		<div class="action-grid">
 			<section class="action-card" aria-labelledby="upload-title">
 				<h3 id="upload-title">
@@ -652,6 +656,7 @@
 				<a href="mailto:noen@telemarkfylke.no">noen@telemarkfylke.no</a>.
 			</p>
 		</InfoBox>
+		{/if}
 	</div>
 {/if}
 
