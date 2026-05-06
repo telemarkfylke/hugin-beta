@@ -17,6 +17,7 @@ Hugin Beta is an internal AI-agent web application designed to provide a democra
 - **Real-Time Streaming** - Server-Sent Events (SSE) for incremental AI responses
 - **Enterprise Authentication** - Microsoft Entra ID integration with role-based access control
 - **Multi-Modal Input** - Support for text, images, and document uploads
+- **Canvas** - AI-assisted document editor with web search, manual editing, and export to text and Word
 - **Modern UI** - Svelte 5 Runes for reactive state management with markdown and LaTeX rendering
 
 ---
@@ -28,6 +29,8 @@ Hugin Beta is an internal AI-agent web application designed to provide a democra
   - [Vendor Abstraction](#vendor-abstraction)
   - [Authentication Flow](#authentication-flow)
   - [Streaming Architecture](#streaming-architecture)
+- [Features](#features)
+  - [Canvas](#canvas)
 - [Getting Started](#getting-started)
   - [Prerequisites](#prerequisites)
   - [Installation](#installation)
@@ -117,9 +120,11 @@ Real-time AI responses use Server-Sent Events with the following event types:
 
 | Event | Description |
 |-------|-------------|
-| `response.config` | Chat configuration metadata nobody uses? |
+| `response.config` | Chat configuration metadata |
 | `response.started` | Response initiated with responseId |
 | `response.output_text.delta` | Incremental text chunk |
+| `response.searching` | Web search in progress |
+| `response.annotations` | URL citations from web search |
 | `response.done` | Completion with token usage statistics |
 | `response.error` | Error information |
 | `conversation.created` | New conversation identifier |
@@ -133,6 +138,44 @@ All events are validated using Zod discriminated unions for type-safe handling.
 - Regular users can define their own chatConfigs and test basically any config against the api/chat endpoint
   - But they cannot define chatconfigs with predefined agent/prompt-ids where the config is set up in a vendor.
   - They can use predefined chatconfigs only if they have access to the agentId in some defined chatconfig in db - which is created by a user with more permissions.
+
+---
+
+## Features
+
+### Canvas
+
+Canvas is an AI-assisted document editor available at `/canvas`. It lets users create and refine markdown documents through natural language prompts, with optional web search for sourcing content.
+
+**How it works:**
+
+1. User writes a prompt describing what they want (e.g. "Write a job application for a summer position at a campsite")
+2. The AI generates or modifies the document and streams the result back in real time
+3. User can continue refining via further prompts, or switch to manual edit mode to edit the raw markdown directly
+4. Sources from web search are automatically appended as a `## Kilder` section with numbered links
+
+**Features:**
+
+- Real-time streaming response via SSE
+- Toggle between rendered preview and raw markdown editing
+- Web search toggle — enables live internet sourcing, with citations appended to the document
+- Export to `.txt` or `.docx` (with proper heading, bold, italic, bullet, and horizontal rule formatting)
+- Hardcoded to OpenAI `gpt-5.4` — no model selection needed
+
+**Access control:**
+
+Canvas is gated behind the `CANVAS_ENABLED` environment variable and requires the `EMPLOYEE` or `ADMIN` role. Both the page load and the API endpoint enforce this independently.
+
+**Relevant files:**
+
+| File | Purpose |
+|------|---------|
+| `src/routes/canvas/+page.svelte` | Canvas UI — editor, prompt bar, export |
+| `src/routes/canvas/+page.server.ts` | Page load with auth/feature-flag check |
+| `src/routes/api/canvas/+server.ts` | POST endpoint — streams AI response |
+| `src/lib/types/canvas.ts` | Zod request schema |
+
+---
 
 ## Getting Started
 
@@ -178,6 +221,9 @@ APP_ROLE_EMPLOYEE="Employee"
 APP_ROLE_STUDENT="Student"
 APP_ROLE_ADMIN="Admin"
 APP_ROLE_AGENT_MAINTAINER="AgentMaintainer"
+
+# Feature flags
+CANVAS_ENABLED="true"             # Enable the Canvas document editor
 ```
 
 ---
@@ -210,6 +256,7 @@ src/
 │   │   ├── chat-item.ts         # Message types
 │   │   ├── chat-item-content.ts # Content types (text, file, image)
 │   │   ├── streaming.ts         # SSE event types
+│   │   ├── canvas.ts            # Canvas request schema
 │   │   └── authentication.ts    # Auth types
 │   ├── server/                   # Server-only code
 │   │   ├── ai-vendors.ts        # Vendor factory
@@ -226,7 +273,9 @@ src/
 │   ├── +page.svelte             # Home page
 │   ├── api/
 │   │   ├── chat/+server.ts      # Chat streaming endpoint
+│   │   ├── canvas/+server.ts    # Canvas streaming endpoint
 │   │   └── chatconfigs/         # Config CRUD endpoints
+│   ├── canvas/                  # Canvas document editor
 │   └── agents/                  # Agent management pages
 └── app.d.ts                     # Global type definitions
 ```
@@ -261,6 +310,25 @@ Send a message and receive an AI response (streaming or non-streaming).
 **Response:**
 - **Streaming:** `ReadableStream` with `Content-Type: text/event-stream`
 - **Non-streaming:** `ChatResponseObject` as JSON
+
+### POST `/api/canvas`
+
+Submit a prompt (and optionally the current document) to the AI document editor. Returns a streaming SSE response.
+
+**Access:** Requires `CANVAS_ENABLED=true` and `EMPLOYEE` or `ADMIN` role.
+
+**Request Body:**
+```typescript
+{
+  document: string,       // Current document content (markdown). Empty string for new documents.
+  prompt: string,         // Instruction for the AI (required, non-empty)
+  webSearch?: boolean     // Enable web search (OpenAI vendor must be configured)
+}
+```
+
+**Response:** `ReadableStream` with `Content-Type: text/event-stream`
+
+Emits `response.output_text.delta` events with the updated document, and `response.annotations` events with URL citations when web search is used.
 
 ### POST `/api/chatconfigs`
 
@@ -368,6 +436,9 @@ APP_ROLE_EMPLOYEE="Employee"
 APP_ROLE_STUDENT="Student"
 APP_ROLE_ADMIN="Admin"
 APP_ROLE_AGENT_MAINTAINER="AgentMaintainer"
+
+# Feature flags
+CANVAS_ENABLED="true"
 ```
 
 ### Azure Deployment

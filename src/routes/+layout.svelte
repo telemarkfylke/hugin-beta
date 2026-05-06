@@ -23,7 +23,7 @@
 </svelte:head>
 
 <main>
-	<Menu authenticatedUser={data.authenticatedUser} appName={data.APP_CONFIG.NAME} isEmployee={data.authenticatedUser.roles.includes(data.APP_CONFIG.APP_ROLES.EMPLOYEE)} />
+	<Menu authenticatedUser={data.authenticatedUser} appName={data.APP_CONFIG.NAME} isEmployee={data.authenticatedUser.roles.includes(data.APP_CONFIG.APP_ROLES.EMPLOYEE)} canvasEnabled={data.APP_CONFIG.CANVAS_ENABLED} />
 	<div class="page-content">
 		{#if children}
 			{@render children()}
