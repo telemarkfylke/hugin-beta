@@ -362,6 +362,7 @@
 				<div class="mode-header">
 					<span class="material-symbols-outlined">lock_open</span>
 					<h2>Åpen transkripsjon</h2>
+					<span class="badge-select">Velg</span>
 				</div>
 				<p class="mode-subtitle">Bruk denne hvis samtalen inneholder:</p>
 				<ul>
@@ -369,8 +370,7 @@
 					<li>Ikke-sensitivt innhold</li>
 				</ul>
 				<p class="mode-detail">
-					Det er mulig å laste opp en fil for transkripsjon. Innholdet i samtalen må være åpent.
-					Informasjonen kan bli behandlet av eksterne tjenester som OpenAI, Mistral eller Nasjonalbibliotekets whisper.
+					Det er mulig å laste opp en fil for transkripsjon eller gjøre opptak direkte i nettleseren.
 				</p>
 			</button>
 
@@ -700,7 +700,7 @@
 		border-radius: 8px;
 		padding: 1.25rem;
 		cursor: pointer;
-		transition: all 0.2s ease;
+		transition: all 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
 		display: flex;
 		flex-direction: column;
 		gap: 0.5rem;
@@ -712,6 +712,13 @@
 	.mode-card.open:hover {
 		background-color: var(--color-secondary-20);
 		border-color: var(--color-primary);
+		box-shadow: 0 6px 20px rgba(0, 82, 96, 0.18);
+		transform: translateY(-2px);
+	}
+
+	.mode-card.open:hover .badge-select {
+		background-color: var(--color-primary);
+		color: white;
 	}
 
 	.mode-card.open.selected {
@@ -755,6 +762,23 @@
 		border-radius: 999px;
 		margin-left: auto;
 	}
+
+	.badge-select {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.2rem;
+		font-size: 0.75rem;
+		font-weight: 600;
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
+		background-color: var(--color-secondary-30);
+		color: var(--color-primary);
+		padding: 0.15rem 0.5rem 0.15rem 0.6rem;
+		border-radius: 999px;
+		margin-left: auto;
+		transition: background-color 0.2s ease, color 0.2s ease;
+	}
+
 
 	.mode-card p,
 	.mode-card ul {
