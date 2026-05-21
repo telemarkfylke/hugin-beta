@@ -1,12 +1,19 @@
 import { HTTPError } from "../server/middleware/http-error"
 import type { AppConfig } from "../types/app-config"
-import { type ChatConfig, ChatConfigSchema } from "../types/chat"
+import type { ChatConfig } from "../types/chat"
+import { ChatConfigSchema } from "./chat-config-schema"
+
+export { ChatConfigSchema }
 
 export const parseChatConfig = (input: unknown, APP_CONFIG: AppConfig): ChatConfig => {
 	if (!input || typeof input !== "object") {
-		throw new Error("Invalid chat config input")
+		throw new HTTPError(400, "Invalid chat config input")
 	}
-	const parsedConfig = ChatConfigSchema.parse(input)
+	const parseResult = ChatConfigSchema.safeParse(input)
+	if (!parseResult.success) {
+		throw new HTTPError(400, "Invalid chat config", parseResult.error.issues)
+	}
+	const parsedConfig = parseResult.data
 
 	const VENDOR = APP_CONFIG.VENDORS[parsedConfig.vendorId]
 	if (!VENDOR) {

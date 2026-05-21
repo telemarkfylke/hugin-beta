@@ -1,75 +1,27 @@
 import { json, type RequestHandler } from "@sveltejs/kit"
-import { canPublishChatConfig } from "$lib/authorization"
 import { APP_CONFIG } from "$lib/server/app-config/app-config"
 import { getChatConfigStore } from "$lib/server/db/get-db"
-import { HTTPError } from "$lib/server/middleware/http-error"
 import { apiRequestMiddleware } from "$lib/server/middleware/http-request"
-import type { ChatConfig, NewChatConfig } from "$lib/types/chat"
+import { createChatConfig, listChatConfigs } from "$lib/server/services/chat-config-service"
 import type { ApiNextFunction } from "$lib/types/middleware/http-request"
-import { parseChatConfig } from "$lib/validation/parse-chat-config"
 
 const chatConfigStore = getChatConfigStore()
 
 const getChatConfigs: ApiNextFunction = async ({ user }) => {
-	const chatConfigs = await chatConfigStore.getChatConfigs(user)
-	return {
-		isAuthorized: true,
-		response: json(chatConfigs)
-	}
+	const chatConfigs = await listChatConfigs(user, chatConfigStore)
+	return { isAuthorized: true, response: json(chatConfigs) }
 }
 
 export const GET: RequestHandler = async (requestEvent) => {
 	return apiRequestMiddleware(requestEvent, getChatConfigs)
 }
 
-const createChatConfig: ApiNextFunction = async ({ requestEvent, user }) => {
-	if (!user.userId) {
-		throw new HTTPError(400, "userId is required")
-	}
-
-	if (!requestEvent) {
-		throw new HTTPError(400, "No request event")
-	}
-
+const createChatConfigHandler: ApiNextFunction = async ({ requestEvent, user }) => {
 	const body = await requestEvent.request.json()
-
-	const chatConfig: ChatConfig = parseChatConfig(body, APP_CONFIG)
-
-	if (chatConfig.type === "published" && !canPublishChatConfig(user, APP_CONFIG.APP_ROLES)) {
-		throw new HTTPError(403, "User is not authorized to create published chat configs")
-	}
-
-	const chatConfigToCreate: NewChatConfig = {
-		...chatConfig,
-		name: chatConfig.name || "Ny agent",
-		type: chatConfig.type,
-		accessGroups: chatConfig.accessGroups,
-		created: {
-			at: new Date().toISOString(),
-			by: {
-				id: user.userId,
-				name: user.name
-			}
-		},
-		updated: {
-			at: new Date().toISOString(),
-			by: {
-				id: user.userId,
-				name: user.name
-			}
-		}
-	}
-	// @ts-expect-error (_id må fjernes, men jeg orker ikke fikse det på en annen måte nå)
-	delete chatConfigToCreate._id
-
-	const newChatConfig = await chatConfigStore.createChatConfig(chatConfigToCreate)
-
-	return {
-		isAuthorized: true,
-		response: json(newChatConfig)
-	}
+	const newConfig = await createChatConfig(body, user, APP_CONFIG, chatConfigStore)
+	return { isAuthorized: true, response: json(newConfig) }
 }
 
 export const POST: RequestHandler = async (requestEvent) => {
-	return apiRequestMiddleware(requestEvent, createChatConfig)
+	return apiRequestMiddleware(requestEvent, createChatConfigHandler)
 }

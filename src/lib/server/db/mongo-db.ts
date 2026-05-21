@@ -1,10 +1,11 @@
 import { logger } from "@vestfoldfylke/loglady"
 import { type Collection, type Db, type Filter, type MongoClient, ObjectId } from "mongodb"
 import { env } from "$env/dynamic/private"
-import { canViewAllChatConfigs } from "$lib/authorization"
+import { canViewAllChatConfigs, getUserRoleAccessGroups } from "$lib/authorization"
 import type { AuthenticatedPrincipal } from "$lib/types/authentication"
-import type { ChatConfig, DbChatConfig, NewChatConfig, RoleAccessGroups } from "$lib/types/chat"
+import type { ChatConfig, DbChatConfig, NewChatConfig } from "$lib/types/chat"
 import type { IChatConfigStore } from "$lib/types/db/db-interface"
+import { isValidObjectId } from "$lib/validation/object-id"
 import { APP_CONFIG } from "../app-config/app-config"
 
 export class MongoChatConfigStore implements IChatConfigStore {
@@ -38,6 +39,9 @@ export class MongoChatConfigStore implements IChatConfigStore {
 	}
 
 	async getChatConfig(configId: string): Promise<ChatConfig | null> {
+		if (!isValidObjectId(configId)) {
+			return null
+		}
 		const db = await this.getDb()
 		const chatConfig = await db.collection<DbChatConfig>(this.collectionName).findOne({ _id: new ObjectId(configId) })
 		if (!chatConfig) {
@@ -54,17 +58,7 @@ export class MongoChatConfigStore implements IChatConfigStore {
 			return (await collection.find({}).toArray()).map((config) => ({ ...config, _id: config._id.toString() }))
 		}
 
-		const roleAccessGroups: RoleAccessGroups[] = ["all"]
-		if (principal.roles.includes(APP_CONFIG.APP_ROLES.EMPLOYEE)) {
-			roleAccessGroups.push("employee")
-		}
-		if (principal.roles.includes(APP_CONFIG.APP_ROLES.EDU_EMPLOYEE)) {
-			roleAccessGroups.push("edu_employee")
-			roleAccessGroups.push("student") // EDU_EMPLOYEE should also have access to "student" configs
-		}
-		if (principal.roles.includes(APP_CONFIG.APP_ROLES.STUDENT)) {
-			roleAccessGroups.push("student")
-		}
+		const roleAccessGroups = getUserRoleAccessGroups(principal, APP_CONFIG.APP_ROLES)
 
 		const query: Filter<DbChatConfig> = {
 			$or: [
@@ -85,6 +79,9 @@ export class MongoChatConfigStore implements IChatConfigStore {
 	}
 
 	async replaceChatConfig(configId: string, chatConfig: NewChatConfig): Promise<ChatConfig> {
+		if (!isValidObjectId(configId)) {
+			throw new Error("Invalid ObjectId")
+		}
 		const db = await this.getDb()
 		const collection: Collection<DbChatConfig> = db.collection(this.collectionName)
 		await collection.replaceOne({ _id: new ObjectId(configId) }, chatConfig)
@@ -92,6 +89,9 @@ export class MongoChatConfigStore implements IChatConfigStore {
 	}
 
 	async deleteChatConfig(configId: string): Promise<void> {
+		if (!isValidObjectId(configId)) {
+			throw new Error("Invalid ObjectId")
+		}
 		const db = await this.getDb()
 		const collection: Collection<DbChatConfig> = db.collection(this.collectionName)
 		await collection.deleteOne({ _id: new ObjectId(configId) })

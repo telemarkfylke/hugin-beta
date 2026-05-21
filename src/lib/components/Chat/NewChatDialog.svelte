@@ -21,9 +21,9 @@
 </script>
 
 {#if show}
-	<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
-	<div class="dialog-backdrop" onclick={() => show = false}>
-		<div class="dialog" onclick={(e) => e.stopPropagation()}>
+	<div class="dialog-layer">
+		<button class="dialog-backdrop" type="button" aria-label="Lukk dialog" onclick={() => show = false}></button>
+		<div class="dialog" role="dialog" aria-modal="true">
 			<p>Er du sikker på at du vil starte en ny samtale? Velg import/eksport for å lagre samtalen din lokalt.</p>
 			<label class="checkbox-label">
 				<input type="checkbox" bind:checked={dontShow} />
@@ -38,16 +38,24 @@
 {/if}
 
 <style>
-	.dialog-backdrop {
+	.dialog-layer {
 		position: fixed;
 		inset: 0;
-		background-color: rgba(0, 0, 0, 0.35);
 		display: flex;
 		align-items: center;
 		justify-content: center;
 		z-index: 100;
 	}
+	.dialog-backdrop {
+		position: absolute;
+		inset: 0;
+		border: 0;
+		padding: 0;
+		background-color: rgba(0, 0, 0, 0.35);
+		cursor: default;
+	}
 	.dialog {
+		position: relative;
 		background: white;
 		border-radius: 8px;
 		padding: 1.5rem;

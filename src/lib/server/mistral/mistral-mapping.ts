@@ -1,9 +1,11 @@
+import type { Mistral } from "@mistralai/mistralai"
 import type { ConversationResponse, InputEntries, MessageInputEntry, MessageOutputEntry } from "@mistralai/mistralai/models/components"
 import { logger } from "@vestfoldfylke/loglady"
 import type { ChatConfig, ChatResponseObject } from "$lib/types/chat"
 import type { ChatInputItem, ChatInputMessage, ChatOutputItem, ChatOutputMessage } from "$lib/types/chat-item"
+import { uploadMistralDataUrlAndGetSignedUrl } from "./mistral-files"
 
-const chatInputMessageToMistralInputMessage = (inputItem: ChatInputMessage): MessageInputEntry => {
+const chatInputMessageToMistralInputMessage = async (mistral: Mistral, inputItem: ChatInputMessage): Promise<MessageInputEntry> => {
 	const mistralItem: MessageInputEntry = {
 		type: "message.input",
 		role: "user",
@@ -22,9 +24,10 @@ const chatInputMessageToMistralInputMessage = (inputItem: ChatInputMessage): Mes
 				break
 			}
 			case "input_file": {
+				const documentUrl = contentItem.fileUrl.startsWith("data:") ? await uploadMistralDataUrlAndGetSignedUrl(mistral, contentItem.fileUrl, contentItem.fileName) : contentItem.fileUrl
 				mistralItem.content.push({
 					type: "document_url",
-					documentUrl: contentItem.fileUrl,
+					documentUrl,
 					documentName: contentItem.fileName
 				})
 				break
@@ -72,10 +75,10 @@ const chatOutputMessageToMistralOutputMessage = (outputItem: ChatOutputMessage):
 	return mistralItem
 }
 
-export const chatInputToMistralInput = (inputItem: ChatInputItem): InputEntries => {
+export const chatInputToMistralInput = async (mistral: Mistral, inputItem: ChatInputItem): Promise<InputEntries> => {
 	switch (inputItem.type) {
 		case "message.input": {
-			return chatInputMessageToMistralInputMessage(inputItem)
+			return chatInputMessageToMistralInputMessage(mistral, inputItem)
 		}
 		case "message.output": {
 			return chatOutputMessageToMistralOutputMessage(inputItem)
@@ -93,7 +96,6 @@ const mistralOutputMessageToChatOutputMessage = (outputItem: MessageOutputEntry)
 		role: "assistant",
 		content: []
 	}
-	console.log("Mistral Output Item:", outputItem)
 	if (typeof outputItem.content === "string") {
 		chatOutputItem.content.push({
 			type: "output_text",
@@ -111,7 +113,7 @@ const mistralOutputMessageToChatOutputMessage = (outputItem: MessageOutputEntry)
 				break
 			}
 			default: {
-				logger.warn("Unsupported OpenAI OutputItem Content: {@contentItem}", contentItem)
+				logger.warn("Unsupported Mistral OutputItem Content: {@contentItem}", contentItem)
 			}
 		}
 	}
@@ -124,7 +126,7 @@ const MistralOutputToChatOutput = (outputItem: ConversationResponse["outputs"][n
 			return mistralOutputMessageToChatOutputMessage(outputItem)
 		}
 		default: {
-			logger.warn("Unsupported OpenAI OutputItem: {@outputItem}", outputItem)
+			logger.warn("Unsupported Mistral OutputItem: {@outputItem}", outputItem)
 			return {
 				id: `unsupported_output_${Date.now()}`,
 				type: "message.output",

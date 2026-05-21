@@ -5,40 +5,8 @@ import { APP_CONFIG } from "$lib/server/app-config/app-config"
 import { HTTPError } from "$lib/server/middleware/http-error"
 import { apiRequestMiddleware } from "$lib/server/middleware/http-request"
 import { responseStream } from "$lib/streaming"
-import type { ChatRequest } from "$lib/types/chat"
 import type { ApiNextFunction } from "$lib/types/middleware/http-request"
-import { validateFileInputs } from "$lib/validation/file-input"
-import { parseChatConfig } from "$lib/validation/parse-chat-config"
-
-const parseChatRequest = (body: unknown): ChatRequest => {
-	if (typeof body !== "object" || body === null) {
-		throw new HTTPError(400, "Invalid chat config")
-	}
-	const incomingChatRequest: ChatRequest = body as ChatRequest
-
-	const config = parseChatConfig(incomingChatRequest.config, APP_CONFIG)
-
-	if (!Array.isArray(incomingChatRequest.inputs) || incomingChatRequest.inputs.length === 0) {
-		throw new HTTPError(400, "inputs must be a non-empty array")
-	}
-	if (config.vendorAgent) {
-		return {
-			config,
-			inputs: incomingChatRequest.inputs,
-			stream: Boolean(incomingChatRequest.stream)
-		}
-	}
-
-	const manualChatRequest: ChatRequest = {
-		config,
-		inputs: incomingChatRequest.inputs,
-		stream: Boolean(incomingChatRequest.stream)
-	}
-
-	validateFileInputs(manualChatRequest, APP_CONFIG)
-
-	return manualChatRequest
-}
+import { parseChatRequest } from "$lib/validation/parse-chat-request"
 
 const supahChat: ApiNextFunction = async ({ requestEvent, user }) => {
 	if (!user.userId) {
@@ -49,9 +17,22 @@ const supahChat: ApiNextFunction = async ({ requestEvent, user }) => {
 		throw new HTTPError(400, "No request event")
 	}
 
-	const body = await requestEvent.request.json()
+	const contentLength = Number(requestEvent.request.headers.get("content-length") || 0)
+	if (contentLength > APP_CONFIG.BODY_SIZE_LIMIT_BYTES) {
+		throw new HTTPError(413, `Request body is too large. Limit is ${APP_CONFIG.BODY_SIZE_LIMIT_BYTES} bytes.`)
+	}
 
-	const chatRequest = parseChatRequest(body)
+	let body: unknown
+	try {
+		body = await requestEvent.request.json()
+	} catch (error) {
+		if (error instanceof Error && /too large|body size|request entity|payload/i.test(error.message)) {
+			throw new HTTPError(413, `Request body is too large. Limit is ${APP_CONFIG.BODY_SIZE_LIMIT_BYTES} bytes.`)
+		}
+		throw new HTTPError(400, "Invalid JSON request body")
+	}
+
+	const chatRequest = parseChatRequest(body, APP_CONFIG)
 
 	if (!canPromptConfig(user, APP_CONFIG, chatRequest.config)) {
 		throw new HTTPError(403, "Not authorized to use this chat configuration")

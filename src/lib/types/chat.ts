@@ -1,5 +1,4 @@
 import type { ObjectId } from "mongodb"
-import z from "zod"
 import type { AppConfig } from "./app-config"
 import type { ChatInputItem, ChatOutputItem } from "./chat-item"
 
@@ -94,51 +93,3 @@ export type Chat = {
 		name?: string | undefined
 	}
 }
-
-/**
- *
- * @link https://github.com/colinhacks/zod/issues/372#issuecomment-826380330
- */
-
-export const schemaForType =
-	<T>() =>
-	// biome-ignore lint: Unexpected any
-	<S extends z.ZodType<T, any>>(arg: S) => {
-		return arg
-	}
-
-// New and better
-export const ChatConfigSchema = schemaForType<ChatConfig>()(
-	z.object({
-		_id: z.string(),
-		name: z.string(),
-		description: z.string(),
-		vendorId: z.enum(["MISTRAL", "OPENAI", "OLLAMA", "LITELLM"]), // Update as per AppConfig Vendor keys for now
-		project: z.string(),
-		vendorAgent: z.object({ id: z.string() }).optional(),
-		model: z.string().optional(),
-		tools: z
-			.array(z.object({ type: z.enum(["web_search"]) }))
-			.nullable()
-			.optional(), // Update as per ChatTool for now
-		shared: z.boolean().optional(),
-		instructions: z.string().optional(),
-		conversationId: z.string().optional(),
-		type: z.enum(["published", "private"]), // Update as per ChatConfig for now
-		accessGroups: z.array(z.union([z.literal("all"), z.literal("employee"), z.literal("edu_employee"), z.literal("student"), z.object({ id: z.string(), displayName: z.string() })])),
-		created: z.object({
-			at: z.string(),
-			by: z.object({
-				id: z.string(),
-				name: z.string().optional()
-			})
-		}),
-		updated: z.object({
-			at: z.string(),
-			by: z.object({
-				id: z.string(),
-				name: z.string().optional()
-			})
-		})
-	})
-)

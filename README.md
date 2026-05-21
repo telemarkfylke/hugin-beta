@@ -104,7 +104,7 @@ ChatRequest → Mapping Layer → Vendor SDK → Vendor Response → Mapping Lay
 **Production (Microsoft Entra ID):**
 1. Azure App Service EasyAuth validates JWT token
 2. Claims passed via `X-MS-CLIENT-PRINCIPAL` header (base64-encoded)
-3. Middleware extracts and validates claims with Zod
+3. Middleware extracts and validates claims using plain type guards in `src/lib/validation/auth-principal.ts`
 4. `AuthenticatedPrincipal` object created with userId, name, roles, and groups
 
 **Development (Mock Authentication):**
@@ -129,10 +129,19 @@ All events are validated using Zod discriminated unions for type-safe handling.
 ---
 
 ### Authorization
-- Uses the functions in authorization.ts
-- Regular users can define their own chatConfigs and test basically any config against the api/chat endpoint
-  - But they cannot define chatconfigs with predefined agent/prompt-ids where the config is set up in a vendor.
-  - They can use predefined chatconfigs only if they have access to the agentId in some defined chatconfig in db - which is created by a user with more permissions.
+
+Authorization uses role-based and group-based access control via functions in `src/lib/authorization.ts`:
+
+| Function | Who can call it |
+|----------|----------------|
+| `canViewAllChatConfigs` | Admin |
+| `canPublishChatConfig` | Admin, AgentMaintainer |
+| `canUpdateChatConfig` | Owner, Admin, AgentMaintainer (for published configs) |
+| `canPromptConfig` | Admin, config owner, matching role/group, or `shared: true` |
+
+**Roles** are Azure app roles defined in environment variables (`APP_ROLE_*`).
+**Groups** are Entra group IDs passed in the EasyAuth claims.
+**Shared configs:** Any authenticated user can prompt a config with `shared: true`, regardless of type or ownership. This is intentional — see `docs/adr/0002-shared-link-policy.md`.
 
 ## Getting Started
 
@@ -203,95 +212,100 @@ APP_ROLE_AGENT_MAINTAINER="AgentMaintainer"
 
 ```
 src/
-├── lib/                          # Shared library code
-│   ├── types/                    # Zod schemas and TypeScript types
-│   │   ├── AIVendor.ts          # Core vendor interface
-│   │   ├── chat.ts              # Chat request/response types
-│   │   ├── chat-item.ts         # Message types
-│   │   ├── chat-item-content.ts # Content types (text, file, image)
-│   │   ├── streaming.ts         # SSE event types
-│   │   └── authentication.ts    # Auth types
+├── lib/
+│   ├── types/                    # Plain TypeScript domain types
+│   │   ├── AIVendor.ts           # Vendor interface
+│   │   ├── chat.ts               # Chat request/response types
+│   │   ├── chat-item.ts          # Message types
+│   │   ├── chat-item-content.ts  # Content types (text, file, image)
+│   │   ├── streaming.ts          # SSE event types (Zod discriminated union)
+│   │   └── authentication.ts     # Auth types
+│   ├── validation/               # Runtime validators (called at trust boundaries only)
+│   │   ├── parse-chat-config.ts  # Chat config body parser
+│   │   ├── parse-chat-request.ts # /api/chat body parser
+│   │   ├── auth-principal.ts     # EasyAuth claim parser
+│   │   ├── transcription.ts      # Transcription route body schemas
+│   │   └── env.ts                # Startup env validation
 │   ├── server/                   # Server-only code
-│   │   ├── ai-vendors.ts        # Vendor factory
-│   │   ├── openai/              # OpenAI implementation
-│   │   ├── mistral/             # Mistral implementation
-│   │   ├── auth/                # Authentication handlers
-│   │   ├── middleware/          # HTTP middleware
-│   │   └── db/                  # Database abstraction
-│   ├── components/              # Svelte components
-│   │   └── Chat/                # Chat UI components
-│   └── streaming.ts             # SSE utilities
-├── routes/                       # SvelteKit routes
-│   ├── +layout.server.ts        # Root auth middleware
-│   ├── +page.svelte             # Home page
+│   │   ├── ai-vendors.ts         # Vendor factory (lazy singletons)
+│   │   ├── services/             # Business logic orchestration
+│   │   │   └── chat-config-service.ts
+│   │   ├── openai/               # OpenAI vendor implementation
+│   │   ├── mistral/              # Mistral vendor implementation
+│   │   ├── ollama/               # Ollama vendor implementation
+│   │   ├── litellm/              # LiteLLM vendor implementation
+│   │   ├── transcription/        # Transcription job management
+│   │   ├── auth/                 # EasyAuth integration
+│   │   ├── middleware/           # HTTP middleware (auth, error handling)
+│   │   └── db/                   # Database abstraction (mock + MongoDB)
+│   ├── client/                   # Client-only utilities
+│   │   └── chat/                 # Chat API client and request builders
+│   ├── components/               # Svelte components
+│   │   └── Chat/                 # Chat UI (ChatState, PostChatMessage, etc.)
+│   ├── authorization.ts          # Access control functions
+│   └── streaming.ts              # SSE utilities (buffered parser)
+├── routes/
+│   ├── +layout.server.ts         # Root auth injection
 │   ├── api/
-│   │   ├── chat/+server.ts      # Chat streaming endpoint
-│   │   └── chatconfigs/         # Config CRUD endpoints
-│   └── agents/                  # Agent management pages
-└── app.d.ts                     # Global type definitions
+│   │   ├── chat/+server.ts       # POST /api/chat (streaming + non-streaming)
+│   │   ├── chatconfigs/          # GET, POST, PUT, DELETE chat configs
+│   │   └── transcription/        # Transcription job lifecycle
+│   ├── agents/                   # Agent management pages
+│   └── transcription/            # Transcription UI page
 ```
 
 ---
 
 ## API Reference
 
-### POST `/api/chat`
+### Chat
 
-Send a message and receive an AI response (streaming or non-streaming).
+**`POST /api/chat`** — Send a message and receive an AI response.
 
-**Request Body:**
-```typescript
-{
-  config: {
-    _id: string,
-    name: string,
-    description: string,
-    vendorId: "openai" | "mistral",
-    project: string,
-    model?: string,
-    instructions?: string,
-    conversationId?: string
-  },
-  inputs: ChatInputItem[],
-  stream?: boolean,
-  store?: boolean
-}
-```
+Request body: `ChatRequest` (see `src/lib/types/chat.ts`).
+Response: `ReadableStream` (SSE) when `stream: true`, or `ChatResponseObject` JSON.
 
-**Response:**
-- **Streaming:** `ReadableStream` with `Content-Type: text/event-stream`
-- **Non-streaming:** `ChatResponseObject` as JSON
+### Chat Configs
 
-### POST `/api/chatconfigs`
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/api/chatconfigs` | List accessible chat configs |
+| `POST` | `/api/chatconfigs` | Create a new chat config |
+| `PUT` | `/api/chatconfigs/[_id]` | Replace a chat config |
+| `DELETE` | `/api/chatconfigs/[_id]` | Delete a chat config |
 
-Create a new chat configuration.
+### Transcription
 
-### PATCH `/api/chatconfigs/[_id]`
-
-Update an existing chat configuration.
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/api/transcription` | List transcription jobs for the authenticated user |
+| `POST` | `/api/transcription` | Create a pending transcription job |
+| `PATCH` | `/api/transcription` | Trigger processing of a pending job |
+| `DELETE` | `/api/transcription` | Delete a job and its uploaded files |
+| `PUT` | `/api/transcription/upload/[userId]/[jobId]/[filename]` | Upload audio file to Copyparty |
+| `GET` | `/api/transcription/[id]/download` | Download completed transcription docx |
+| `POST` | `/api/transcription/callback` | Webhook for tale-til-notat completion events |
 
 ---
 
 ## Type System
 
-The application uses a **Zod-first** approach where all types are defined as Zod schemas, then TypeScript types are inferred:
+Domain types are plain TypeScript. Runtime validation lives only at external trust boundaries.
 
-```typescript
-// Schema definition
-const ChatConfigSchema = z.object({
-  _id: z.string(),
-  name: z.string(),
-  vendorId: z.enum(["openai", "mistral", "ollama"]),
-  model: z.string().optional(),
-  // ...
-})
+**Plain TypeScript types** (`src/lib/types/`):
+- `ChatConfig`, `ChatRequest`, `Chat` — core domain types
+- `AuthenticatedPrincipal` — user identity
+- `ChatInputItem`, `ChatOutputItem` — message types
+- `MuginSse` — SSE event discriminated union (Zod, used for stream validation)
 
-// Type inference
-type ChatConfig = z.infer<typeof ChatConfigSchema>
+**Validation layer** (`src/lib/validation/`):
+- `parse-chat-config.ts` — validates incoming chat config bodies (uses `ChatConfigSchema`)
+- `parse-chat-request.ts` — validates `/api/chat` request bodies (plain type guards)
+- `auth-principal.ts` — validates EasyAuth claims (plain type guards)
+- `transcription.ts` — validates transcription route request bodies (Zod)
+- `env.ts` — validates required environment variables at startup
 
-// Runtime validation
-const result = ChatConfigSchema.safeParse(data)
-```
+**Principle:** TypeScript is sufficient for internal code once inputs are validated. Zod is used only where a structured schema adds real value. See `docs/adr/0001-validation-strategy.md`.
 
 ### Core Types
 
@@ -355,19 +369,31 @@ The build uses `@sveltejs/adapter-node` for Node.js deployment.
 ### Production Environment Variables
 
 ```bash
-# Required
-MONGO_DB_URI="mongodb+srv://..."
-MISTRAL_API_KEY_PROJECT_DEFAULT="sk-..."
-OPENAI_API_KEY_PROJECT_DEFAULT="sk-..."
+# Required: AI provider keys (at least one)
+MISTRAL_API_KEY_PROJECT_DEFAULT="..."
+OPENAI_API_KEY_PROJECT_DEFAULT="..."
 
-# Authentication (Azure App Service)
-MOCK_AUTH="false"
+# Required: Database
+MONGODB_CONNECTION_STRING="mongodb+srv://..."
+MONGODB_DB_NAME="hugin"
 
-# Application Roles
+# Required: Application roles (must match Azure app role values)
 APP_ROLE_EMPLOYEE="Employee"
 APP_ROLE_STUDENT="Student"
+APP_ROLE_EDU_EMPLOYEE="EduEmployee"
 APP_ROLE_ADMIN="Admin"
 APP_ROLE_AGENT_MAINTAINER="AgentMaintainer"
+
+# Required: Transcription (if transcription feature is enabled)
+COPYPARTY_BASE_URL="https://copyparty.example.com"
+TALE_TIL_NOTAT_URL="https://tale-til-notat.example.com"
+TRANSCRIPTION_CALLBACK_SECRET="<random-secret>"
+
+# Optional: Multi-project OpenAI keys
+OPENAI_API_KEY_PROJECT_<NAME>="..."
+
+# Security: MOCK_AUTH must NOT be set in production
+# The app will refuse to start if MOCK_AUTH=true unless BUILD_PLACEHOLDER_CONFIG=true
 ```
 
 ### Azure Deployment

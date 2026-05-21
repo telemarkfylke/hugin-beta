@@ -9,6 +9,7 @@
 	let { data }: PageProps = $props()
 
 	// Defaultchatten
+	// svelte-ignore state_referenced_locally (initial page data is used to create the initial ChatState; server authorization still owns access control)
 	const defaultChat: Chat = {
 		_id: "",
 		createdAt: new Date().toISOString(),

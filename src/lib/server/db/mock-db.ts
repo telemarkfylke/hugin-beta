@@ -1,4 +1,4 @@
-import { canViewAllChatConfigs } from "$lib/authorization"
+import { canViewAllChatConfigs, getUserRoleAccessGroups } from "$lib/authorization"
 import type { AuthenticatedPrincipal } from "$lib/types/authentication"
 import type { ChatConfig, NewChatConfig } from "$lib/types/chat"
 import type { IChatConfigStore } from "$lib/types/db/db-interface"
@@ -85,29 +85,15 @@ export class MockChatConfigStore implements IChatConfigStore {
 		if (canViewAllChatConfigs(principal, APP_CONFIG.APP_ROLES)) {
 			return mockChatConfigs
 		}
+		const roleAccessGroups = getUserRoleAccessGroups(principal, APP_CONFIG.APP_ROLES)
 		return mockChatConfigs.filter((config) => {
 			if (config.type === "private") {
-				if (config.created.by.id === principal.userId) {
-					return true
-				}
-				return false
+				return config.created.by.id === principal.userId
 			}
-			if (config.accessGroups.includes("all")) {
+			if (config.accessGroups.some((g) => typeof g === "string" && roleAccessGroups.includes(g))) {
 				return true
 			}
-			if (config.accessGroups.includes("employee") && principal.roles.includes(APP_CONFIG.APP_ROLES.EMPLOYEE)) {
-				return true
-			}
-			if (config.accessGroups.includes("edu_employee") && principal.roles.includes(APP_CONFIG.APP_ROLES.EDU_EMPLOYEE)) {
-				return true
-			}
-			if (config.accessGroups.includes("student") && (principal.roles.includes(APP_CONFIG.APP_ROLES.STUDENT) || principal.roles.includes(APP_CONFIG.APP_ROLES.EDU_EMPLOYEE))) {
-				return true
-			}
-			if (Array.isArray(config.accessGroups)) {
-				return config.accessGroups.some((group) => typeof group !== "string" && principal.groups.includes(group.id))
-			}
-			return false
+			return config.accessGroups.some((group) => typeof group !== "string" && principal.groups.includes(group.id))
 		})
 	}
 	async createChatConfig(chatConfig: NewChatConfig): Promise<ChatConfig> {

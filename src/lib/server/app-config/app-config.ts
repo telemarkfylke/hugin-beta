@@ -1,5 +1,6 @@
 import { env } from "$env/dynamic/private"
 import type { AppConfig } from "$lib/types/app-config"
+import { assertMockAuthAllowed, parseAppRoles } from "$lib/validation/env"
 import {
 	MISTRAL_DEFAULT_SUPPORTED_MESSAGE_FILE_MIME_TYPES,
 	MISTRAL_DEFAULT_SUPPORTED_MESSAGE_IMAGE_MIME_TYPES,
@@ -7,16 +8,30 @@ import {
 	OPEN_AI_DEFAULT_SUPPORTED_MESSAGE_IMAGE_MIME_TYPES
 } from "./supported-mime-types"
 
+const DEFAULT_BODY_SIZE_LIMIT_BYTES = 10 * 1024 * 1024
+
+export const parseBodySizeLimitBytes = (value: string | undefined, defaultValue = DEFAULT_BODY_SIZE_LIMIT_BYTES): number => {
+	if (!value) {
+		return defaultValue
+	}
+	const trimmed = value.trim().toUpperCase()
+	const megabyteMatch = trimmed.match(/^(\d+)\s*M(B)?$/)
+	if (megabyteMatch?.[1]) {
+		return Number(megabyteMatch[1]) * 1024 * 1024
+	}
+	const bytes = Number(trimmed)
+	if (Number.isInteger(bytes) && bytes > 0) {
+		return bytes
+	}
+	return defaultValue
+}
+
+assertMockAuthAllowed(env)
+
 export const APP_CONFIG: AppConfig = {
 	NAME: env.APP_NAME || "Mugin",
-	BODY_SIZE_LIMIT_BYTES: env.BODY_SIZE_LIMIT?.endsWith("M") ? Number(env.BODY_SIZE_LIMIT.split("M")[0]) * 1024 * 1024 : 10 * 1024 * 1024,
-	APP_ROLES: {
-		ADMIN: env.APP_ROLE_ADMIN as string,
-		AGENT_MAINTAINER: env.APP_ROLE_AGENT_MAINTAINER as string,
-		EMPLOYEE: env.APP_ROLE_EMPLOYEE as string,
-		STUDENT: env.APP_ROLE_STUDENT as string,
-		EDU_EMPLOYEE: env.APP_ROLE_EDU_EMPLOYEE || "eduemployee"
-	},
+	BODY_SIZE_LIMIT_BYTES: parseBodySizeLimitBytes(env.BODY_SIZE_LIMIT),
+	APP_ROLES: parseAppRoles(env),
 	CONVERSATION_EXPORT_DISABLED: env.CONVERSATION_EXPORT_DISABLED === "true",
 	NEW_CHAT_CONFIRM_DISABLED: env.NEW_CHAT_CONFIRM_DISABLED === "true",
 	VENDORS: {

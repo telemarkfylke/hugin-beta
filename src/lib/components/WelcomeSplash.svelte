@@ -7,14 +7,14 @@
 </script>
 
 {#if show}
-	<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
-	<div class="splash-backdrop" onclick={() => (show = false)}>
-		<div class="splash" onclick={(e) => e.stopPropagation()}>
+	<div class="splash-layer">
+		<button class="splash-backdrop" type="button" aria-label="Lukk velkomstvindu" onclick={() => (show = false)}></button>
+		<div class="splash" role="dialog" aria-modal="true" aria-labelledby="welcome-title">
 			<div class="splash-logo">
 				<span class="material-symbols-rounded">smart_toy</span>
 			</div>
 			<div class="splash-text">
-				<h1>Velkommen til Hugin 2.0</h1>
+				<h1 id="welcome-title">Velkommen til Hugin 2.0</h1>
 				<p>Din fylkeskommunale KI-assistent</p>
 			</div>
 			<button class="filled" onclick={() => (show = false)}>Kom i gang</button>
@@ -23,18 +23,27 @@
 {/if}
 
 <style>
-	.splash-backdrop {
+	.splash-layer {
 		position: fixed;
 		inset: 0;
-		background-color: rgba(0, 0, 0, 0.45);
 		display: flex;
 		align-items: center;
 		justify-content: center;
 		z-index: 200;
+	}
+
+	.splash-backdrop {
+		position: absolute;
+		inset: 0;
+		border: 0;
+		padding: 0;
+		background-color: rgba(0, 0, 0, 0.45);
 		backdrop-filter: blur(2px);
+		cursor: default;
 	}
 
 	.splash {
+		position: relative;
 		background: white;
 		border-radius: 12px;
 		padding: 2.5rem 2rem;

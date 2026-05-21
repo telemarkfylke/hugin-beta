@@ -2,7 +2,8 @@
 
 import { logger } from "@vestfoldfylke/loglady"
 import type { AuthenticatedPrincipal, MSPrincipalClaims } from "$lib/types/authentication"
-import { MS_AUTH_PRINCIPAL_CLAIMS_HEADER, MS_PRINCIPAL_CLAIM_TYPS } from "./auth-constants"
+import { getUnknownClaimTypes, parsePrincipalClaimsObject } from "$lib/validation/auth-principal"
+import { MS_AUTH_PRINCIPAL_CLAIMS_HEADER } from "./auth-constants"
 import { injectMockAuthenticatedUserHeaders, MOCK_AUTH } from "./mock-authenticated-user"
 
 export const getPrincipalClaims = (base64EncodedHeaderValue: string): MSPrincipalClaims => {
@@ -16,25 +17,12 @@ export const getPrincipalClaims = (base64EncodedHeaderValue: string): MSPrincipa
 	} catch (error) {
 		throw new Error(`Failed to JSON.parse principal claims from base64 encoded header value: ${error}`)
 	}
-	if (typeof parsedPrincipalClaims !== "object" || parsedPrincipalClaims === null) {
-		throw new Error("Principal claims is not a valid object")
-	}
-	const principalClaims: MSPrincipalClaims = parsedPrincipalClaims as MSPrincipalClaims
-
-	if (!principalClaims.auth_typ || !principalClaims.claims || !principalClaims.name_typ || !principalClaims.role_typ) {
-		logger.error("Principal claims object is missing required properties (auth_typ, claims, name_typ, role_typ): {@principalClaims}", principalClaims)
-		throw new Error("Principal claims object is missing required properties")
-	}
-	if (!Array.isArray(principalClaims.claims)) {
-		throw new Error("Principal claims 'claims' property is not an array")
-	}
-	for (const claim of principalClaims.claims) {
-		if (!MS_PRINCIPAL_CLAIM_TYPS.includes(claim.typ)) {
-			logger.warn("Unknown claim type found in principal claims: {claimType}", claim.typ)
-		}
+	const principalClaims = parsePrincipalClaimsObject(parsedPrincipalClaims)
+	for (const claimType of getUnknownClaimTypes(principalClaims)) {
+		logger.warn("Unknown claim type found in principal claims: {claimType}", claimType)
 	}
 
-	return principalClaims as MSPrincipalClaims
+	return principalClaims
 }
 
 export const getAuthenticatedPrincipal = (headers: Headers): AuthenticatedPrincipal => {

@@ -11,6 +11,7 @@ const wrapInPreCode = (content: string): string => {
 
 // Setup markdown-it with highlighting
 const md = markdownit({
+	html: false,
 	highlight: (str, lang): string => {
 		if (lang && hljs.getLanguage(lang)) {
 			try {
@@ -23,9 +24,8 @@ const md = markdownit({
 	}
 })
 
-// Add katexPlugin to markdown-it
-// @ts-expect-error Somehow Palpatine returned...
-md.use(markdownKatex.default || markdownKatex) // Får se hva som skjer...
+// Add KaTeX plugin to markdown-it
+md.use(markdownKatex)
 
 // Just some bullshit to fix correct formatting for katex - probs badly, but let client handle it
 const addKatexToMathStrings = (text: string): string => {

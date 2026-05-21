@@ -1,6 +1,7 @@
 import OpenAI from "openai"
 import type { ResponseCreateParamsBase } from "openai/resources/responses/responses.mjs"
 import { env } from "$env/dynamic/private"
+import { externalErrorToHTTPError } from "$lib/server/middleware/external-error"
 import type { IAIVendor } from "$lib/types/AIVendor"
 import type { ChatRequest, ChatResponseObject, ChatResponseStream } from "$lib/types/chat"
 import { APP_CONFIG } from "../app-config/app-config"
@@ -26,7 +27,6 @@ const openAiRequest = (chatRequest: ChatRequest): ResponseCreateParamsBase => {
 		if (!chatRequest.config.vendorAgent.id) {
 			throw new Error("vendorAgent with valid id is required for predefined agent chat config")
 		}
-		console.log("OpenAI request tools:", JSON.stringify(tools))
 		return {
 			prompt: {
 				id: chatRequest.config.vendorAgent.id
@@ -62,11 +62,15 @@ export class OpenAIVendor implements IAIVendor {
 		const openai = new OpenAI({
 			apiKey: PROJECT_API_KEY
 		})
-		const response = await openai.responses.create({
-			...openAiRequest(chatRequest),
-			stream: false
-		})
-		return openAiResponseToChatResponseObject(chatRequest.config, response)
+		try {
+			const response = await openai.responses.create({
+				...openAiRequest(chatRequest),
+				stream: false
+			})
+			return openAiResponseToChatResponseObject(chatRequest.config, response)
+		} catch (error) {
+			throw externalErrorToHTTPError(error, "OpenAI") ?? error
+		}
 	}
 
 	public async createChatResponseStream(chatRequest: ChatRequest): Promise<ChatResponseStream> {
@@ -75,10 +79,14 @@ export class OpenAIVendor implements IAIVendor {
 			apiKey: PROJECT_API_KEY
 		})
 
-		const responseStream = await openai.responses.create({
-			...openAiRequest(chatRequest),
-			stream: true
-		})
-		return handleOpenAIResponseStream(chatRequest, responseStream)
+		try {
+			const responseStream = await openai.responses.create({
+				...openAiRequest(chatRequest),
+				stream: true
+			})
+			return handleOpenAIResponseStream(chatRequest, responseStream)
+		} catch (error) {
+			throw externalErrorToHTTPError(error, "OpenAI") ?? error
+		}
 	}
 }

@@ -1,4 +1,4 @@
-import { parseSse } from "$lib/streaming"
+import { createSseParser } from "$lib/streaming"
 import type { Chat, ChatRequest, ChatResponseObject } from "$lib/types/chat"
 import type { ChatOutputMessage } from "$lib/types/chat-item"
 
@@ -59,7 +59,8 @@ export const postChatMessage = async (chatRequest: ChatRequest, chatResponseObje
 			}
 			const errorData = await response.json().catch(() => null)
 			console.error("Error details:", errorData)
-			throw new Error(`Error posting chat message: ${response.statusText}`)
+			const errorMessage = typeof errorData?.message === "string" ? errorData.message : response.statusText
+			throw new Error(`Error posting chat message: ${errorMessage}`)
 		}
 		if (chatRequest.stream) {
 			if (!response.body) {
@@ -70,10 +71,11 @@ export const postChatMessage = async (chatRequest: ChatRequest, chatResponseObje
 			}
 			const reader = response.body.getReader()
 			const decoder = new TextDecoder("utf-8")
+			const sseParser = createSseParser()
 			while (true) {
 				const { value, done } = await reader.read()
-				const chatResponseText = decoder.decode(value, { stream: true })
-				const chatResponse = parseSse(chatResponseText)
+				const chatResponseText = decoder.decode(value, { stream: !done })
+				const chatResponse = done ? [...sseParser.push(chatResponseText), ...sseParser.flush()] : sseParser.push(chatResponseText)
 				for (const chatResult of chatResponse) {
 					switch (chatResult.event) {
 						case "conversation.created": {

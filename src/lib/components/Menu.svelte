@@ -109,7 +109,7 @@
 		</button>
 	</div>
 {:else}
-	<div class="app-overlay" transition:fade={{ duration: 100 }} onclick={() => { menuOpen = false }}></div>
+	<button class="app-overlay" type="button" aria-label="Lukk meny" transition:fade={{ duration: 100 }} onclick={() => { menuOpen = false }}></button>
 	<div class ="menu large-screen-space-stealer" transition:slide={{ axis: 'x', duration: 100 }}></div> 
 	<div class="menu" transition:slide={{ axis: 'x', duration: 100 }}>
 		<div class="menu-header">
@@ -193,9 +193,9 @@
 {/if}
 
 {#if showUserSettings}
-	<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
-	<div class="settings-backdrop" onclick={() => showUserSettings = false}>
-		<div class="settings-modal" onclick={(e) => e.stopPropagation()}>
+	<div class="settings-layer">
+		<button class="settings-backdrop" type="button" aria-label="Lukk brukerinnstillinger" onclick={() => showUserSettings = false}></button>
+		<div class="settings-modal" role="dialog" aria-modal="true">
 			<div class="settings-hero">
 				<p class="settings-tagline">Ikke mye her ennå…</p>
 			</div>
@@ -219,8 +219,11 @@
 		left: 0;
 		width: 100%;
 		height: 100%;
+		border: 0;
+		padding: 0;
 		background-color: rgba(0, 0, 0, 0.3);
 		z-index: 50;
+		cursor: default;
 	}
 	.open-menu-container, .menu-header {
 		height: var(--header-height);
@@ -308,16 +311,24 @@
 		background-color: var(--color-secondary-30);
 	}
 
-	.settings-backdrop {
+	.settings-layer {
 		position: fixed;
 		inset: 0;
-		background-color: rgba(0, 0, 0, 0.35);
 		display: flex;
 		align-items: center;
 		justify-content: center;
 		z-index: 200;
 	}
+	.settings-backdrop {
+		position: absolute;
+		inset: 0;
+		border: 0;
+		padding: 0;
+		background-color: rgba(0, 0, 0, 0.35);
+		cursor: default;
+	}
 	.settings-modal {
+		position: relative;
 		background: white;
 		border-radius: 12px;
 		padding: 2rem 1.75rem 1.5rem;

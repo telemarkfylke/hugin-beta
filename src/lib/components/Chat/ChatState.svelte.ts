@@ -1,7 +1,9 @@
 import { goto } from "$app/navigation"
+import { buildChatRequest } from "$lib/client/chat/build-chat-request"
+import { deleteChatConfig as apiDeleteChatConfig, saveChatConfig as apiSaveChatConfig, updateChatConfig as apiUpdateChatConfig } from "$lib/client/chat/chat-config-client"
 import type { AppConfig } from "$lib/types/app-config"
 import type { AuthenticatedPrincipal } from "$lib/types/authentication"
-import type { Chat, ChatConfig, ChatHistory, ChatRequest, ChatResponseObject } from "$lib/types/chat"
+import type { Chat, ChatConfig, ChatHistory, ChatResponseObject } from "$lib/types/chat"
 import type { ChatInputItem } from "$lib/types/chat-item"
 import type { InputFile, InputImage } from "$lib/types/chat-item-content"
 import { postChatMessage } from "./PostChatMessage.svelte"
@@ -111,7 +113,7 @@ export class ChatState {
 		this.chat.createdAt = chat.createdAt
 		this.chat.updatedAt = chat.updatedAt
 		this.chat.owner = chat.owner
-		this.initialConfig = JSON.parse(JSON.stringify(chat.config))
+		this.initialConfig = structuredClone(chat.config)
 		this.webSearchEnabled = false
 	}
 
@@ -120,109 +122,6 @@ export class ChatState {
 		this.chat._id = ""
 		this.chat.createdAt = new Date().toISOString()
 		this.chat.updatedAt = new Date().toISOString()
-	}
-
-	public loadChat = async (chatId: string): Promise<void> => {
-		// Fetch from API and update state
-		this.isLoading = true
-		// Sleep
-		await new Promise((resolve) => setTimeout(resolve, 1000))
-		this.isLoading = false
-		// Mocked response
-		const response: Chat = {
-			_id: chatId,
-			createdAt: new Date().toISOString(),
-			updatedAt: new Date().toISOString(),
-			owner: {
-				id: "owner-id-123",
-				name: "Owner Name"
-			},
-			config: {
-				_id: "config-id-123",
-				name: "Example Chat Config",
-				description: "This is an example chat configuration.",
-				vendorId: "OPENAI",
-				project: "DEFAULT",
-				model: "gpt-4",
-				accessGroups: ["all"],
-				type: "private",
-				created: {
-					at: new Date().toISOString(),
-					by: {
-						id: "owner-id-123",
-						name: "Owner Name"
-					}
-				},
-				updated: {
-					at: new Date().toISOString(),
-					by: {
-						id: "owner-id-123",
-						name: "Owner Name"
-					}
-				}
-			},
-			history: [
-				{
-					type: "message.input",
-					role: "user",
-					content: [
-						{
-							type: "input_text",
-							text: "Hello, how are you?"
-						}
-					]
-				},
-				{
-					id: "response-id-123",
-					type: "chat_response",
-					config: {
-						_id: "config-id-123",
-						name: "Example Chat Config",
-						description: "This is an example chat configuration.",
-						vendorId: "OPENAI",
-						project: "DEFAULT",
-						model: "gpt-4",
-						accessGroups: ["all"],
-						type: "private",
-						created: {
-							at: new Date().toISOString(),
-							by: {
-								id: "owner-id-123",
-								name: "Owner Name"
-							}
-						},
-						updated: {
-							at: new Date().toISOString(),
-							by: {
-								id: "owner-id-123",
-								name: "Owner Name"
-							}
-						}
-					},
-					createdAt: new Date().toISOString(),
-					outputs: [
-						{
-							id: "output-message-id-123",
-							type: "message.output",
-							role: "assistant",
-							content: [
-								{
-									type: "output_text",
-									text: "I'm doing well, thank you!"
-								}
-							]
-						}
-					],
-					status: "completed",
-					usage: {
-						inputTokens: 5,
-						outputTokens: 7,
-						totalTokens: 12
-					}
-				}
-			]
-		}
-		this.changeChat(response)
 	}
 
 	public promptChat = async (inputText: string, inputFiles: FileList) => {
@@ -257,29 +156,7 @@ export class ChatState {
 			text: inputText
 		})
 
-		const chatInput = this.chat.history
-			.flatMap((chatItem) => {
-				if (chatItem.type === "chat_response") {
-					return chatItem.outputs
-				}
-				return chatItem
-			})
-			.filter((message) => message !== undefined)
-
-		const webSearchTools: typeof this.chat.config.tools = this.webSearchEnabled
-			? [{ type: "web_search" }, ...(this.chat.config.tools?.filter((t) => t.type !== "web_search") ?? [])]
-			: this.chat.config.tools?.filter((t) => t.type !== "web_search")
-
-		const chatRequest: ChatRequest = {
-			config: {
-				...this.chat.config,
-				name: this.chat.config.name || this.chat.config.model || "Ukjent navn",
-				tools: webSearchTools
-			},
-			inputs: [...chatInput, userMessage],
-			stream: this.streamResponse,
-			store: this.storeChat
-		}
+		const chatRequest = buildChatRequest(this.chat, userMessage, this.webSearchEnabled, this.streamResponse, this.storeChat)
 
 		this.chat.history.push(userMessage)
 
@@ -303,68 +180,22 @@ export class ChatState {
 	}
 
 	public saveChatConfig = async (): Promise<void> => {
-		try {
-			const result = await fetch(`/api/chatconfigs`, {
-				method: "POST",
-				headers: {
-					"Content-Type": "application/json"
-				},
-				body: JSON.stringify(this.chat.config)
-			})
-			if (!result.ok) {
-				const errorData = await result.json()
-				throw new Error(`Failed to save chat config: ${result.status} ${result.statusText} - ${errorData.message || JSON.stringify(errorData)}`)
-			}
-			const savedConfig: ChatConfig = await result.json()
-			goto(`/agents/${savedConfig._id}`)
-		} catch (error) {
-			console.error("Error saving chat config:", error)
-			throw error
-		}
+		const savedConfig = await apiSaveChatConfig(this.chat.config)
+		goto(`/agents/${savedConfig._id}`)
 	}
 
 	public updateChatConfig = async (): Promise<void> => {
-		try {
-			const result = await fetch(`/api/chatconfigs/${this.chat.config._id}`, {
-				method: "PUT",
-				headers: {
-					"Content-Type": "application/json"
-				},
-				body: JSON.stringify(this.chat.config)
-			})
-			if (!result.ok) {
-				const errorData = await result.json()
-				throw new Error(`Failed to update chat config: ${result.status} ${result.statusText} - ${errorData.message || JSON.stringify(errorData)}`)
-			}
-			const updatedConfig: ChatConfig = await result.json()
-			this.chat.config = updatedConfig
-			this.initialConfig = JSON.parse(JSON.stringify(updatedConfig))
-			this.configMode = false
-		} catch (error) {
-			console.error("Error updating chat config:", error)
-			throw error
-		}
-		goto(`/agents/${this.chat.config._id}`)
+		const updatedConfig = await apiUpdateChatConfig(this.chat.config)
+		this.chat.config = updatedConfig
+		this.initialConfig = structuredClone(updatedConfig)
+		this.configMode = false
+		goto(`/agents/${updatedConfig._id}`)
 	}
 
 	public deleteChatConfig = async (): Promise<void> => {
-		const confirmDelete = confirm("Er du sikker på at du vil slette denne assistenten? Dette kan ikke angres. 😬")
-		if (!confirmDelete) {
-			return
-		}
-
-		try {
-			const result = await fetch(`/api/chatconfigs/${this.chat.config._id}`, {
-				method: "DELETE"
-			})
-			if (!result.ok) {
-				const errorData = await result.json()
-				throw new Error(`Failed to delete chat config: ${result.status} ${result.statusText} - ${errorData.message || JSON.stringify(errorData)}`)
-			}
-			goto(`/agents`)
-		} catch (error) {
-			console.error("Error deleting chat config:", error)
-			throw error
-		}
+		const confirmed = confirm("Er du sikker på at du vil slette denne assistenten? Dette kan ikke angres. 😬")
+		if (!confirmed) return
+		await apiDeleteChatConfig(this.chat.config._id)
+		goto("/agents")
 	}
 }

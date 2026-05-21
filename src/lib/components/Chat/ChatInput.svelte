@@ -69,9 +69,9 @@
 	}
 
 	// Når noen klikker på "legg ved filer" knappen
-	let fileInput: HTMLInputElement
+	let fileInput = $state<HTMLInputElement>()
 	const triggerFileInput = () => {
-		fileInput.click()
+		fileInput?.click()
 	}
 
 	// Håndtering av filinput endring

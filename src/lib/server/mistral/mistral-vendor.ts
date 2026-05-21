@@ -1,6 +1,7 @@
 import { Mistral } from "@mistralai/mistralai"
 import type { ConversationRequest } from "@mistralai/mistralai/models/components"
 import { env } from "$env/dynamic/private"
+import { externalErrorToHTTPError } from "$lib/server/middleware/external-error"
 import type { IAIVendor } from "$lib/types/AIVendor"
 import type { ChatRequest, ChatResponseObject, ChatResponseStream } from "$lib/types/chat"
 import { APP_CONFIG } from "../app-config/app-config"
@@ -9,7 +10,7 @@ import { handleMistralResponseStream } from "./mistral-stream"
 
 const MISTRAL_SUPPORTED_MODELS = APP_CONFIG.VENDORS.MISTRAL.MODELS.map((model) => model.ID)
 
-const mistralRequest = (chatRequest: ChatRequest): ConversationRequest => {
+const mistralRequest = async (mistral: Mistral, chatRequest: ChatRequest): Promise<ConversationRequest> => {
 	const tools = chatRequest.config.tools?.map((tool) => {
 		if (tool.type === "web_search") {
 			return { type: "web_search" as const }
@@ -18,7 +19,7 @@ const mistralRequest = (chatRequest: ChatRequest): ConversationRequest => {
 	})
 
 	const baseConfig: ConversationRequest = {
-		inputs: chatRequest.inputs.map(chatInputToMistralInput),
+		inputs: await Promise.all(chatRequest.inputs.map((input) => chatInputToMistralInput(mistral, input))),
 		store: false,
 		...(tools ? { tools } : {})
 	}
@@ -59,11 +60,15 @@ export class MistralVendor implements IAIVendor {
 			apiKey: PROJECT_API_KEY
 		})
 
-		const response = await mistral.beta.conversations.start({
-			...mistralRequest(chatRequest),
-			stream: false
-		})
-		return mistralResponseToChatResponseObject(chatRequest.config, response)
+		try {
+			const response = await mistral.beta.conversations.start({
+				...(await mistralRequest(mistral, chatRequest)),
+				stream: false
+			})
+			return mistralResponseToChatResponseObject(chatRequest.config, response)
+		} catch (error) {
+			throw externalErrorToHTTPError(error, "Mistral") ?? error
+		}
 	}
 
 	public async createChatResponseStream(chatRequest: ChatRequest): Promise<ChatResponseStream> {
@@ -72,10 +77,14 @@ export class MistralVendor implements IAIVendor {
 			apiKey: PROJECT_API_KEY
 		})
 
-		const responseStream = await mistral.beta.conversations.startStream({
-			...mistralRequest(chatRequest),
-			stream: true
-		})
-		return handleMistralResponseStream(chatRequest, responseStream)
+		try {
+			const responseStream = await mistral.beta.conversations.startStream({
+				...(await mistralRequest(mistral, chatRequest)),
+				stream: true
+			})
+			return handleMistralResponseStream(chatRequest, responseStream)
+		} catch (error) {
+			throw externalErrorToHTTPError(error, "Mistral") ?? error
+		}
 	}
 }

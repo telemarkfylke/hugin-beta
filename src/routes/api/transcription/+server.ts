@@ -1,27 +1,12 @@
 import { json, type RequestHandler } from "@sveltejs/kit"
-import z from "zod"
 import { env } from "$env/dynamic/private"
 import { HTTPError } from "$lib/server/middleware/http-error"
 import { apiRequestMiddleware } from "$lib/server/middleware/http-request"
+import { isTrustedCopypartyUrl } from "$lib/server/transcription/copyparty-url"
 import { createPendingJob, getJobById, listJobsForUser, markJobProcessing, removeJob } from "$lib/server/transcription/job-store"
 import { triggerTranscription } from "$lib/server/transcription/tale-til-notat"
 import type { ApiNextFunction } from "$lib/types/middleware/http-request"
-
-const CreateJobSchema = z.object({
-	fileName: z.string().min(1)
-})
-
-const UpdateJobSchema = z.object({
-	id: z.string().min(1),
-	status: z.enum(["processing"])
-})
-
-const DeleteJobSchema = z.object({
-	id: z.string().min(1),
-	fileName: z.string().min(1),
-	audioUrl: z.string().url().nullable().optional(),
-	docxUrl: z.string().url().nullable().optional()
-})
+import { CreateJobSchema, DeleteJobSchema, UpdateJobSchema } from "$lib/validation/transcription"
 
 const getJobs: ApiNextFunction = async ({ user }) => {
 	const jobs = listJobsForUser(user.userId)
@@ -88,7 +73,7 @@ const deleteJob: ApiNextFunction = async ({ requestEvent, user }) => {
 	// Priority: in-memory job's audioUrl → client-provided audioUrl (survives server restarts via
 	// localStorage) → legacy fallback: construct from fileName (for jobs created before this change).
 	// Guard against SSRF — only delete from the configured Copyparty base URL.
-	const effectiveAudioUrl = job?.audioUrl ?? (clientAudioUrl?.startsWith(copypartyBase) ? clientAudioUrl : null)
+	const effectiveAudioUrl = job?.audioUrl ?? (clientAudioUrl && isTrustedCopypartyUrl(clientAudioUrl, copypartyBase) ? clientAudioUrl : null)
 	if (effectiveAudioUrl) {
 		await fetch(`${effectiveAudioUrl}?delete`, { method: "POST" }).catch(() => null)
 	} else {
@@ -100,7 +85,7 @@ const deleteJob: ApiNextFunction = async ({ requestEvent, user }) => {
 
 	// Same priority for docx: in-memory job result → client-provided value.
 	const effectiveDocxUrl = job?.result?.docx_url ?? docxUrl
-	if (effectiveDocxUrl?.startsWith(copypartyBase)) {
+	if (effectiveDocxUrl && isTrustedCopypartyUrl(effectiveDocxUrl, copypartyBase)) {
 		await fetch(`${effectiveDocxUrl}?delete`, { method: "POST" }).catch(() => null)
 	}
 

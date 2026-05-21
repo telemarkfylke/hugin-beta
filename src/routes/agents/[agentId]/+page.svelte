@@ -7,6 +7,7 @@
 
 	let { data }: PageProps = $props()
 
+	// svelte-ignore state_referenced_locally (initial page data is used to create the initial ChatState; route updates are handled below)
 	const initialChat: Chat = {
 		_id: "",
 		createdAt: new Date().toISOString(),
@@ -19,6 +20,7 @@
 		history: []
 	}
 
+	// svelte-ignore state_referenced_locally (authenticated user and app config are stable for this page instance)
 	const agentChatState = new ChatState(initialChat, data.authenticatedUser, data.APP_CONFIG)
 
 	// Get url param agentId and update chat config when it changes

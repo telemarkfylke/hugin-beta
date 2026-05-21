@@ -1,5 +1,5 @@
 import z from "zod"
-import { ChatConfigSchema } from "./chat"
+import { ChatConfigSchema } from "../validation/chat-config-schema"
 
 const ResponseConfig = z.object({
 	event: z.literal("response.config"),

@@ -1,5 +1,3 @@
-import z from "zod"
-
 /**
  * @links
  * https://learn.microsoft.com/en-us/azure/app-service/configure-authentication-user-identities
@@ -40,16 +38,14 @@ export type MSPrincipalClaims = {
 	role_typ: string
 }
 
-export const AuthenticatedPrincipalSchema = z.object({
+export type AuthenticatedPrincipal = {
 	/** ObjectId in EntraID */
-	userId: z.string(),
-	name: z.string(),
+	userId: string
+	name: string
 	/** Whatever the preferred username is, don't rely on this for unique identification */
-	preferredUserName: z.string(),
+	preferredUserName: string
 	/** list of roles (values) the user has */
-	roles: z.array(z.string()),
+	roles: string[]
 	/** list of groupIds the user is a member of */
-	groups: z.array(z.string())
-})
-
-export type AuthenticatedPrincipal = z.infer<typeof AuthenticatedPrincipalSchema>
+	groups: string[]
+}

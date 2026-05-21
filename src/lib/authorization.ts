@@ -1,6 +1,6 @@
 import type { AppConfig, AppRoles } from "./types/app-config"
 import type { AuthenticatedPrincipal } from "./types/authentication"
-import type { Chat, ChatConfig } from "./types/chat"
+import type { Chat, ChatConfig, RoleAccessGroups } from "./types/chat"
 
 export const canViewAllChatConfigs = (user: AuthenticatedPrincipal, appRoles: AppRoles): boolean => {
 	return user.roles.includes(appRoles.ADMIN)
@@ -32,7 +32,7 @@ export const canEditChatConfig = (chat: Chat, user: AuthenticatedPrincipal, appR
 
 export const canUpdateChatConfig = (user: AuthenticatedPrincipal, appRoles: AppRoles, chatConfigToUpdate: ChatConfig, chatConfigInput: ChatConfig): boolean => {
 	if (chatConfigToUpdate._id !== chatConfigInput._id) {
-		throw new Error("canUpdateChatConfig: chatConfigToUpdate._id does not match chatConfigInput._id - please provide the correct chatConfigToUpdate")
+		throw new Error("canUpdateChatConfig: ID mismatch between existing and input config")
 	}
 	if (user.roles.includes(appRoles.ADMIN)) {
 		return true
@@ -44,6 +44,21 @@ export const canUpdateChatConfig = (user: AuthenticatedPrincipal, appRoles: AppR
 		return true
 	}
 	return false
+}
+
+/**
+ * Returns the set of role-based access group keys that the given user qualifies for.
+ * Used by both the mock and Mongo stores to build access queries without duplicating logic.
+ */
+export const getUserRoleAccessGroups = (user: AuthenticatedPrincipal, appRoles: AppRoles): RoleAccessGroups[] => {
+	const groups: RoleAccessGroups[] = ["all"]
+	if (user.roles.includes(appRoles.EMPLOYEE)) groups.push("employee")
+	if (user.roles.includes(appRoles.EDU_EMPLOYEE)) {
+		groups.push("edu_employee")
+		groups.push("student")
+	}
+	if (user.roles.includes(appRoles.STUDENT)) groups.push("student")
+	return groups
 }
 
 export const canPromptConfig = (user: AuthenticatedPrincipal, appConfig: AppConfig, chatConfig: ChatConfig): boolean => {

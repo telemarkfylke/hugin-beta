@@ -48,7 +48,7 @@
 
 <div class="chat-container">
 	<ChatHeaderWithConfig bind:chatState={chatState} />
-	<div class="chat-items-container" class:mobile-hidden={chatState.configMode}  class:empty={chatState.chat.history.length === 0}>
+	<div class="chat-items-container" class:mobile-hidden={chatState.configMode}>
 		<div class="chat-items">
 			{#each chatState.chat.history as chatHistoryItem}
 				<ChatHistoryItem {chatHistoryItem} />
@@ -86,9 +86,6 @@
 		display: flex;
 		flex-direction: column;
 		gap: 0.5rem;
-	}
-	.chat-items.empty {
-		/* display: none; */ /* hvis man vil ha de skjult når tom */
 	}
 	.chat-input-container {
 		max-width: 50rem;
