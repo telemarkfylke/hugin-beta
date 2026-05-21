@@ -5,7 +5,7 @@ Created after analysis. Implementation progress is tracked at the end of this do
 
 ## How this refactor was done
 
-This refactor was carried out entirely by Claude Code using a multi-agent workflow powered by the [Superpowers plugin](https://github.com/anthropics/claude-code-superpowers).
+This refactor was carried out entirely by Claude Code using a multi-agent workflow powered by the [Superpowers plugin](https://claude.com/plugins/superpowers).
 
 Rather than having a single AI session make all changes, the work was broken into focused implementation plans and executed using **subagent-driven development**: each task was dispatched to a fresh subagent with isolated context, followed by two independent review stages — first a spec compliance reviewer (did the implementation match the plan?), then a code quality reviewer (is the code well-written?). Issues found in review were fixed and re-reviewed before the task was marked complete.
 
