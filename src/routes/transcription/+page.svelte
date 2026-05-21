@@ -362,6 +362,7 @@
 				<div class="mode-header">
 					<span class="material-symbols-outlined">lock_open</span>
 					<h2>Åpen transkripsjon</h2>
+					<span class="badge-select">Velg</span>
 				</div>
 				<p class="mode-subtitle">Bruk denne hvis samtalen inneholder:</p>
 				<ul>
@@ -369,8 +370,7 @@
 					<li>Ikke-sensitivt innhold</li>
 				</ul>
 				<p class="mode-detail">
-					Det er mulig å laste opp en fil for transkripsjon. Innholdet i samtalen må være åpent.
-					Informasjonen kan bli behandlet av eksterne tjenester som OpenAI, Mistral eller Nasjonalbibliotekets whisper.
+					Det er mulig å laste opp en fil for transkripsjon eller gjøre opptak direkte i nettleseren.
 				</p>
 			</button>
 
@@ -401,6 +401,52 @@
 				</p>
 			</button>
 		</div>
+
+		<InfoBox title="Personvernerklæring">
+			<h2>Personvernerklæring – Hugin - tale til notat</h2>
+
+			<h3>1. Formål</h3>
+			<p>
+				Hugin brukes til å gjøre muntlig tale om til skriftlige notater, og eventuelt sammendrag, ved hjelp av KI. Formålet er å effektivisere og kvalitetssikre referat- og notatføring.
+			</p>
+			<p>
+				Opplysningene kommer fra lydopptak som brukeren enten laster opp eller tar opp direkte i løsningen. Opplysningene brukes kun til å lage og ferdigstille notatet.
+			</p>
+			<p>
+				Opplysninger deles ikke med eksterne behandlingsansvarlige. Tekniske ressurser kan behandle opplysninger når det er nødvendig for å levere tjenesten.
+			</p>
+
+			<h3>2. Lovgrunnlag</h3>
+			<p>
+				Behandlingsgrunnlaget er samtykke, jf. personvernforordningen artikkel 6 nr. 1 bokstav a.
+				Alle deltakere skal informeres og samtykke før opptak starter. Hvis noen ikke samtykker, skal Hugin ikke brukes.
+				Løsningen skal ikke brukes til særlige kategorier personopplysninger etter artikkel 9, for eksempel helseopplysninger, dersom opplysningene kan knyttes til en identifiserbar person.
+			</p>
+
+			<h3>3. Kategorier personopplysninger</h3>
+			<p>Det kan behandles:</p>
+			<ul>
+				<li>lydopptak</li>
+				<li>transkribert tekst</li>
+				<li>KI-generert sammendrag</li>
+				<li>bruker-ID/brukernavn</li>
+				<li>personopplysninger som blir sagt i opptaket</li>
+			</ul>
+			<p>Registrerte kan være ansatte, elever, studenter, møtedeltakere og personer som omtales i opptaket.</p>
+
+			<h3>4. Sikkerhet</h3>
+			<p>
+				Løsningen er tilgangsstyrt. Bare innlogget bruker som har lastet opp eller gjort opptaket, får tilgang til lenke og dokument.
+				Transkribering skjer på lokal server i sikret nettverk. KI-resultatet skal kontrolleres av et menneske før det brukes som ferdig dokumentasjon. KI-genererte dokumenter merkes som KI-generert.
+			</p>
+
+			<h3>5. Lagring og sletting</h3>
+			<p>
+				Lydopptak slettes umiddelbart etter transkribering.
+				Transkribert dokument, sammendrag og nedlastningslenke lagres i Hugin/server i 14 dager, og slettes deretter automatisk.
+				Hvis brukeren laster ned dokumentet, må brukeren selv sørge for riktig lagring og sletting videre.
+			</p>
+		</InfoBox>
 
 		{#if modeConfirmed}
 		<div class="action-grid">
@@ -587,75 +633,6 @@
 			</ul>
 		</section>
 		<p class="model-info">Modell: Nasjonalbibliotekets nb-whisper-medium</p>
-
-		<InfoBox title="Personvernerklæring">
-			<h1>Personvernerklæring for Selvbetjeningsløsning for transkribering i Hugin</h1>
-
-			<h2>Innledning</h2>
-			<p>
-				Denne personvernerklæringen beskriver hvordan selvbetjeningsløsning for transkribering i Hugin
-				samler inn og bruker personopplysninger når du bruker vår tjeneste for transkribering av lydopptak.
-				Ved å benytte tjenesten, godtar du behandling av dine personopplysninger i henhold til denne erklæringen.
-			</p>
-
-			<h2>Hvor lagres dataene?</h2>
-			<ul>
-				<li>
-					<strong>Telemark fylkeskommunes Azure-installasjon</strong> (datasenter i Norge):<br />
-					Her lagres kun lydklippet som sendes inn.
-				</li>
-				<li>
-					<strong>Lokal server på fylkeshuset:</strong><br />
-					Her lages transkriberingen midlertidig før den sendes til bruker. Transkripsjonen slettes etter at den er sendt.
-				</li>
-			</ul>
-
-			<h2>Hva samles inn</h2>
-			<ul>
-				<li><strong>Lydopptak:</strong> Når du laster opp eller leser inn lydfiler for transkribering.</li>
-				<li><strong>Personlige opplysninger:</strong> Navn og e-postadresse som er nødvendig for å sende deg transkriberte tekster.</li>
-				<li><strong>Bruksinformasjon:</strong> Statistikk over bruk og feillogger som lagres på lokal server. Disse dataene er anonymisert.</li>
-			</ul>
-
-			<h2>Formål</h2>
-			<ul>
-				<li><strong>Transkribering:</strong> For å transkribere lydopptakene du sender inn med norsk språkmodell.</li>
-				<li><strong>Forbedring av tjenesten:</strong> For å analysere bruken av vår tjeneste og forbedre våre tjenester.</li>
-			</ul>
-
-			<h2>Deling av informasjon</h2>
-			<p>
-				Ingen informasjon deles eller gjenbrukes til andre eller i andre sammenhenger. Det logges kun
-				statistikk for bruk, men denne inneholder ingen informasjon om innhold.
-			</p>
-
-			<h2>Sikkerhet</h2>
-			<p>
-				Innlogging skjer på fylkeskommunens tjenester. All dataoverføring skjer enten med HTTPS
-				og/eller kryptert kommunikasjon.
-			</p>
-
-			<h2>Lagring av data</h2>
-			<p>
-				Dine lydopptak og transkriberte dokumenter blir mellomlagret i inntil en time for prosessering.
-				Alle data blir umiddelbart slettet når transkriberingen er gjort. Lydopptaket blir slettet i det
-				det blir sendt til prosessering. Det kan være retention-policyer på tenant-nivå som muliggjør
-				gjenoppretting av filer innen en viss tidsperiode.
-			</p>
-
-			<h2>Dine rettigheter</h2>
-			<ul>
-				<li><strong>Innsyn:</strong> Du har rett til å be om innsyn i hvilke personopplysninger vi har lagret om deg.</li>
-				<li><strong>Rettelse:</strong> Du kan be om å få korrigert feilaktige personopplysninger.</li>
-				<li><strong>Sletting:</strong> Du kan be om sletting av dine personopplysninger, med visse unntak som kreves ved lov.</li>
-			</ul>
-
-			<h2>Kontaktinformasjon</h2>
-			<p>
-				Hvis du har spørsmål eller bekymringer om denne personvernerklæringen, vennligst kontakt oss på
-				<a href="mailto:noen@telemarkfylke.no">noen@telemarkfylke.no</a>.
-			</p>
-		</InfoBox>
 		{/if}
 	</div>
 {/if}
@@ -700,7 +677,7 @@
 		border-radius: 8px;
 		padding: 1.25rem;
 		cursor: pointer;
-		transition: all 0.2s ease;
+		transition: all 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
 		display: flex;
 		flex-direction: column;
 		gap: 0.5rem;
@@ -712,6 +689,13 @@
 	.mode-card.open:hover {
 		background-color: var(--color-secondary-20);
 		border-color: var(--color-primary);
+		box-shadow: 0 6px 20px rgba(0, 82, 96, 0.18);
+		transform: translateY(-2px);
+	}
+
+	.mode-card.open:hover .badge-select {
+		background-color: var(--color-primary);
+		color: white;
 	}
 
 	.mode-card.open.selected {
@@ -755,6 +739,23 @@
 		border-radius: 999px;
 		margin-left: auto;
 	}
+
+	.badge-select {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.2rem;
+		font-size: 0.75rem;
+		font-weight: 600;
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
+		background-color: var(--color-secondary-30);
+		color: var(--color-primary);
+		padding: 0.15rem 0.5rem 0.15rem 0.6rem;
+		border-radius: 999px;
+		margin-left: auto;
+		transition: background-color 0.2s ease, color 0.2s ease;
+	}
+
 
 	.mode-card p,
 	.mode-card ul {
