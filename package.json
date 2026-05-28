@@ -31,7 +31,7 @@
 	},
 	"dependencies": {
 		"@mistralai/mistralai": "^2.2.0",
-		"@vestfoldfylke/loglady": "^1.5.3",
+		"@vestfoldfylke/loglady": "^2.0.0",
 		"@vscode/markdown-it-katex": "^1.1.2",
 		"highlight.js": "^11.11.1",
 		"jwt-decode": "^4.0.0",

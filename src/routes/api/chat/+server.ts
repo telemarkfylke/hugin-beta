@@ -2,11 +2,14 @@ import { json, type RequestHandler } from "@sveltejs/kit"
 import { canPromptConfig } from "$lib/authorization"
 import { getVendor } from "$lib/server/ai-vendors"
 import { APP_CONFIG } from "$lib/server/app-config/app-config"
+import { getChatConfigStore } from "$lib/server/db/get-db"
 import { HTTPError } from "$lib/server/middleware/http-error"
 import { apiRequestMiddleware } from "$lib/server/middleware/http-request"
 import { responseStream } from "$lib/streaming"
 import type { ApiNextFunction } from "$lib/types/middleware/http-request"
 import { parseChatRequest } from "$lib/validation/parse-chat-request"
+
+const chatConfigStore = getChatConfigStore()
 
 const supahChat: ApiNextFunction = async ({ requestEvent, user }) => {
 	if (!user.userId) {
@@ -34,25 +37,33 @@ const supahChat: ApiNextFunction = async ({ requestEvent, user }) => {
 
 	const chatRequest = parseChatRequest(body, APP_CONFIG)
 
-	if (!canPromptConfig(user, APP_CONFIG, chatRequest.config)) {
+	// Always verify authorization against the database record, not the client-supplied config.
+	// The client must not be trusted to supply correct shared/accessGroups/type values.
+	const dbConfig = await chatConfigStore.getChatConfig(chatRequest.config._id)
+	if (!dbConfig) {
+		throw new HTTPError(404, "Chat configuration not found")
+	}
+
+	if (!canPromptConfig(user, APP_CONFIG, dbConfig)) {
 		throw new HTTPError(403, "Not authorized to use this chat configuration")
 	}
 
-	const vendor = getVendor(chatRequest.config.vendorId)
+	// Use the DB config as authoritative. Carry over only conversationId — session state
+	// maintained by the client across turns.
+	const resolvedConfig = { ...dbConfig, conversationId: chatRequest.config.conversationId }
+	const resolvedRequest = { ...chatRequest, config: resolvedConfig }
 
-	if (chatRequest.stream) {
-		const stream = await vendor.createChatResponseStream(chatRequest)
+	const vendor = getVendor(resolvedRequest.config.vendorId)
 
-		// Så kan vi sikkert lage en kopi av streamen for å lagre i db eller noe også her (hvis det er en conversatonId eller noe sånt og store ikke er false)
+	if (resolvedRequest.stream) {
+		const stream = await vendor.createChatResponseStream(resolvedRequest)
 		return {
 			isAuthorized: true,
 			response: responseStream(stream)
 		}
 	}
 
-	const response = await vendor.createChatResponse(chatRequest)
-
-	// Save to db and check stuff or whatever here
+	const response = await vendor.createChatResponse(resolvedRequest)
 
 	return {
 		isAuthorized: true,

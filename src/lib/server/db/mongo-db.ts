@@ -2,6 +2,7 @@ import { logger } from "@vestfoldfylke/loglady"
 import { type Collection, type Db, type Filter, type MongoClient, ObjectId } from "mongodb"
 import { env } from "$env/dynamic/private"
 import { canViewAllChatConfigs, getUserRoleAccessGroups } from "$lib/authorization"
+import { HTTPError } from "$lib/server/middleware/http-error"
 import type { AuthenticatedPrincipal } from "$lib/types/authentication"
 import type { ChatConfig, DbChatConfig, NewChatConfig } from "$lib/types/chat"
 import type { IChatConfigStore } from "$lib/types/db/db-interface"
@@ -84,7 +85,10 @@ export class MongoChatConfigStore implements IChatConfigStore {
 		}
 		const db = await this.getDb()
 		const collection: Collection<DbChatConfig> = db.collection(this.collectionName)
-		await collection.replaceOne({ _id: new ObjectId(configId) }, chatConfig)
+		const result = await collection.replaceOne({ _id: new ObjectId(configId) }, chatConfig)
+		if (result.matchedCount === 0) {
+			throw new HTTPError(404, "Chat config not found or was deleted before update could complete")
+		}
 		return { ...chatConfig, _id: configId }
 	}
 

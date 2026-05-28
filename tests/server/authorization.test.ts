@@ -128,10 +128,22 @@ describe("canDeleteChatConfig", () => {
 	})
 
 	it("blocks AgentMaintainer from deleting a published config they do not own", () => {
-		expect(canDeleteChatConfig(user({ roles: ["AgentMaintainer"], userId: "user-1" }), appRoles, config({ type: "published", created: { at: "2026-01-01T00:00:00.000Z", by: { id: "other", name: "Other" } } }))).toBe(false)
+		expect(
+			canDeleteChatConfig(
+				user({ roles: ["AgentMaintainer"], userId: "user-1" }),
+				appRoles,
+				config({ type: "published", created: { at: "2026-01-01T00:00:00.000Z", by: { id: "other", name: "Other" } } })
+			)
+		).toBe(false)
 	})
 
 	it("allows AgentMaintainer to delete their own published config", () => {
-		expect(canDeleteChatConfig(user({ roles: ["AgentMaintainer"], userId: "user-1" }), appRoles, config({ type: "published", created: { at: "2026-01-01T00:00:00.000Z", by: { id: "user-1", name: "User One" } } }))).toBe(true)
+		expect(
+			canDeleteChatConfig(
+				user({ roles: ["AgentMaintainer"], userId: "user-1" }),
+				appRoles,
+				config({ type: "published", created: { at: "2026-01-01T00:00:00.000Z", by: { id: "user-1", name: "User One" } } })
+			)
+		).toBe(true)
 	})
 })

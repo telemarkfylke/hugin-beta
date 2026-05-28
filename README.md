@@ -137,11 +137,12 @@ Authorization uses role-based and group-based access control via functions in `s
 | `canViewAllChatConfigs` | Admin |
 | `canPublishChatConfig` | Admin, AgentMaintainer |
 | `canUpdateChatConfig` | Owner, Admin, AgentMaintainer (for published configs) |
-| `canPromptConfig` | Admin, config owner, matching role/group, or `shared: true` |
+| `canDeleteChatConfig` | Owner, Admin only (AgentMaintainers cannot delete configs they don't own) |
+| `canPromptConfig` | Admin, config owner, matching role/group, or `shared: true` (from DB) |
 
 **Roles** are Azure app roles defined in environment variables (`APP_ROLE_*`).
 **Groups** are Entra group IDs passed in the EasyAuth claims.
-**Shared configs:** Any authenticated user can prompt a config with `shared: true`, regardless of type or ownership. This is intentional — see `docs/adr/0002-shared-link-policy.md`.
+**Shared configs:** Any authenticated user can prompt a config with `shared: true`. The `POST /api/chat` endpoint verifies this against the database record — the client cannot spoof the `shared` flag. See `docs/adr/0002-shared-link-policy.md`.
 
 ## Getting Started
 
@@ -187,7 +188,14 @@ APP_ROLE_EMPLOYEE="Employee"
 APP_ROLE_STUDENT="Student"
 APP_ROLE_ADMIN="Admin"
 APP_ROLE_AGENT_MAINTAINER="AgentMaintainer"
+
+# Logging (BetterStack — optional, logs go to stdout if omitted)
+BETTERSTACK_URL=""           # BetterStack log ingestion URL
+BETTERSTACK_TOKEN=""         # BetterStack source token
+BETTERSTACK_MIN_LOG_LEVEL="" # DEBUG | INFO | WARN | ERROR (default: INFO)
 ```
+
+Logging uses `@vestfoldfylke/loglady`. BetterStack forwarding activates automatically when both `BETTERSTACK_URL` and `BETTERSTACK_TOKEN` are set. If they are absent, all logs go to stdout only.
 
 ---
 

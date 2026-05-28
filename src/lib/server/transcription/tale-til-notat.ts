@@ -1,5 +1,8 @@
+import { logger } from "@vestfoldfylke/loglady"
 import { env } from "$env/dynamic/private"
 import { HTTPError } from "$lib/server/middleware/http-error"
+
+logger.logConfig({ prefix: "hugin - transcription" })
 
 type TriggerParams = {
 	userId: string
@@ -25,10 +28,12 @@ export const triggerTranscription = async ({ userId, audioUrl, callbackUrl }: Tr
 	form.append("upn", userId)
 	form.append("language", "no")
 
+	logger.info(`Calling tale-til-notat for user ${userId} (audioUrl: ${audioUrl})`)
 	let res: Response
 	try {
 		res = await fetch(`${taleUrl}/transcribe`, { method: "POST", body: form })
 	} catch (err) {
+		logger.warn(`tale-til-notat fetch failed for user ${userId}: ${(err as Error).message}`)
 		throw new HTTPError(502, `Kunne ikke nå tale-til-notat: ${(err as Error).message}`)
 	}
 

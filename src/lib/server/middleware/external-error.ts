@@ -1,3 +1,4 @@
+import { logger } from "@vestfoldfylke/loglady"
 import { HTTPError } from "./http-error"
 
 type ErrorLikeWithStatus = Error & {
@@ -24,10 +25,11 @@ export const externalErrorToHTTPError = (error: unknown, providerName: string): 
 	const httpStatus = isLikelySizeError ? 413 : providerStatusToHttpStatus(status)
 	const message = isLikelySizeError ? `${providerName} rejected the request because the uploaded file or request body is too large` : `${providerName} rejected the request`
 
+	// Log detailed error server-side only — do not include in client response
+	logger.warn(`[externalErrorToHTTPError] ${providerName} error ${status}: ${error.message}`)
+
 	return new HTTPError(httpStatus, message, {
 		provider: providerName,
-		providerStatus: status,
-		providerMessage: error.message,
-		providerBody: typeof error.body === "string" ? error.body.slice(0, 2000) : undefined
+		providerStatus: status
 	})
 }

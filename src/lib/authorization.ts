@@ -46,6 +46,8 @@ export const canUpdateChatConfig = (user: AuthenticatedPrincipal, appRoles: AppR
 	return false
 }
 
+// Delete is intentionally more restrictive than update: only the creator or an admin may delete.
+// AgentMaintainers may update published configs they don't own, but they may NOT delete them.
 export const canDeleteChatConfig = (user: AuthenticatedPrincipal, appRoles: AppRoles, chatConfig: ChatConfig): boolean => {
 	if (user.roles.includes(appRoles.ADMIN)) {
 		return true

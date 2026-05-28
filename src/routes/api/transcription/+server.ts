@@ -1,4 +1,5 @@
 import { json, type RequestHandler } from "@sveltejs/kit"
+import { logger } from "@vestfoldfylke/loglady"
 import { env } from "$env/dynamic/private"
 import { HTTPError } from "$lib/server/middleware/http-error"
 import { apiRequestMiddleware } from "$lib/server/middleware/http-request"
@@ -7,6 +8,8 @@ import { createPendingJob, getJobById, listJobsForUser, markJobProcessing, remov
 import { triggerTranscription } from "$lib/server/transcription/tale-til-notat"
 import type { ApiNextFunction } from "$lib/types/middleware/http-request"
 import { CreateJobSchema, DeleteJobSchema, UpdateJobSchema } from "$lib/validation/transcription"
+
+logger.logConfig({ prefix: "hugin - transcription" })
 
 const getJobs: ApiNextFunction = async ({ user }) => {
 	const jobs = listJobsForUser(user.userId)
@@ -20,6 +23,7 @@ const createJob: ApiNextFunction = async ({ requestEvent, user }) => {
 		throw new HTTPError(400, "Invalid body", parsed.error.issues)
 	}
 	const job = createPendingJob(user.userId, parsed.data.fileName)
+	logger.info(`Transcription job created: ${job.id} for user ${user.userId}`)
 	return { isAuthorized: true, response: json({ job }, { status: 201 }) }
 }
 
@@ -48,12 +52,19 @@ const patchJob: ApiNextFunction = async ({ requestEvent, user }) => {
 	// uploaded to (via the upload proxy), so it is guaranteed to be unique and never renamed by Copyparty.
 	const audioUrl = `${copypartyBase}/${encodeURIComponent(user.userId)}/${encodeURIComponent(job.id)}/${encodeURIComponent(job.fileName)}`
 
-	const taleJobId = await triggerTranscription({
-		userId: user.userId,
-		audioUrl,
-		callbackUrl
-	})
+	let taleJobId: string
+	try {
+		taleJobId = await triggerTranscription({
+			userId: user.userId,
+			audioUrl,
+			callbackUrl
+		})
+	} catch (err) {
+		logger.warn(`Transcription trigger failed for job ${job.id} by user ${user.userId}: ${(err as Error).message}`)
+		throw err
+	}
 
+	logger.info(`Transcription triggered for job ${job.id} by user ${user.userId}`)
 	markJobProcessing(user.userId, parsed.data.id, taleJobId, audioUrl)
 	return { isAuthorized: true, response: json({ ok: true }) }
 }
@@ -90,6 +101,7 @@ const deleteJob: ApiNextFunction = async ({ requestEvent, user }) => {
 	}
 
 	removeJob(user.userId, id)
+	logger.info(`Transcription job deleted: ${id} by user ${user.userId}`)
 	return { isAuthorized: true, response: json({ ok: true }) }
 }
 

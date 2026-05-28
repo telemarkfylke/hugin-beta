@@ -1,5 +1,6 @@
 import { Mistral } from "@mistralai/mistralai"
 import type { ConversationRequest } from "@mistralai/mistralai/models/components"
+import { logger } from "@vestfoldfylke/loglady"
 import { env } from "$env/dynamic/private"
 import { externalErrorToHTTPError } from "$lib/server/middleware/external-error"
 import type { IAIVendor } from "$lib/types/AIVendor"
@@ -7,6 +8,8 @@ import type { ChatRequest, ChatResponseObject, ChatResponseStream } from "$lib/t
 import { APP_CONFIG } from "../app-config/app-config"
 import { chatInputToMistralInput, mistralResponseToChatResponseObject } from "./mistral-mapping"
 import { handleMistralResponseStream } from "./mistral-stream"
+
+logger.logConfig({ prefix: "hugin - mistral-vendor" })
 
 const MISTRAL_SUPPORTED_MODELS = APP_CONFIG.VENDORS.MISTRAL.MODELS.map((model) => model.ID)
 
@@ -59,7 +62,7 @@ export class MistralVendor implements IAIVendor {
 		const mistral = new Mistral({
 			apiKey: PROJECT_API_KEY
 		})
-
+		logger.info("Mistral non-streaming request — model: {model}", chatRequest.config.model ?? chatRequest.config.vendorAgent?.id ?? "unknown")
 		try {
 			const response = await mistral.beta.conversations.start({
 				...(await mistralRequest(mistral, chatRequest)),
@@ -76,7 +79,7 @@ export class MistralVendor implements IAIVendor {
 		const mistral = new Mistral({
 			apiKey: PROJECT_API_KEY
 		})
-
+		logger.info("Mistral streaming request — model: {model}", chatRequest.config.model ?? chatRequest.config.vendorAgent?.id ?? "unknown")
 		try {
 			const responseStream = await mistral.beta.conversations.startStream({
 				...(await mistralRequest(mistral, chatRequest)),

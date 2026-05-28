@@ -1,7 +1,7 @@
 # ADR-0002: Shared Config Access Policy
 
 ## Status
-Accepted — behavior documented May 2026, not yet changed
+Accepted — behavior documented May 2026. Security fix applied 2026-05-28: `/api/chat` now fetches the config from DB before calling `canPromptConfig`, so `shared` is read from the database and cannot be spoofed by the client.
 
 ## Context
 `ChatConfig` has an optional `shared: boolean` field. In `src/lib/authorization.ts`, `canPromptConfig` returns `true` for any authenticated user if `chatConfig.shared === true`, regardless of config type (`private` or `published`) or ownership.

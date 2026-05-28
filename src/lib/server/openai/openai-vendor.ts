@@ -1,3 +1,4 @@
+import { logger } from "@vestfoldfylke/loglady"
 import OpenAI from "openai"
 import type { ResponseCreateParamsBase } from "openai/resources/responses/responses.mjs"
 import { env } from "$env/dynamic/private"
@@ -7,6 +8,8 @@ import type { ChatRequest, ChatResponseObject, ChatResponseStream } from "$lib/t
 import { APP_CONFIG } from "../app-config/app-config"
 import { chatInputToOpenAIInput, openAiResponseToChatResponseObject } from "./openai-mapping"
 import { handleOpenAIResponseStream } from "./openai-stream"
+
+logger.logConfig({ prefix: "hugin - openai-vendor" })
 
 const OPEN_AI_SUPPORTED_MODELS = APP_CONFIG.VENDORS.OPENAI.MODELS.map((model) => model.ID)
 
@@ -62,6 +65,7 @@ export class OpenAIVendor implements IAIVendor {
 		const openai = new OpenAI({
 			apiKey: PROJECT_API_KEY
 		})
+		logger.info("OpenAI non-streaming request — model: {model}", chatRequest.config.model ?? chatRequest.config.vendorAgent?.id ?? "unknown")
 		try {
 			const response = await openai.responses.create({
 				...openAiRequest(chatRequest),
@@ -78,7 +82,7 @@ export class OpenAIVendor implements IAIVendor {
 		const openai = new OpenAI({
 			apiKey: PROJECT_API_KEY
 		})
-
+		logger.info("OpenAI streaming request — model: {model}", chatRequest.config.model ?? chatRequest.config.vendorAgent?.id ?? "unknown")
 		try {
 			const responseStream = await openai.responses.create({
 				...openAiRequest(chatRequest),

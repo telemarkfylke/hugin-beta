@@ -75,7 +75,20 @@ export const postChatMessage = async (chatRequest: ChatRequest, chatResponseObje
 			while (true) {
 				const { value, done } = await reader.read()
 				const chatResponseText = decoder.decode(value, { stream: !done })
-				const chatResponse = done ? [...sseParser.push(chatResponseText), ...sseParser.flush()] : sseParser.push(chatResponseText)
+				const chatResponse = sseParser.push(chatResponseText)
+				if (done) {
+					try {
+						chatResponse.push(...sseParser.flush())
+					} catch (flushError) {
+						// A partial event at stream end is non-fatal — log and continue processing
+						// events already parsed from prior chunks. Mark failed so the UI doesn't
+						// hang in a loading state if response.done was the partial event.
+						console.warn("SSE stream ended with incomplete event (ignored):", flushError)
+						if (chatResponseObject.status === "in_progress") {
+							chatResponseObject.status = "failed"
+						}
+					}
+				}
 				for (const chatResult of chatResponse) {
 					switch (chatResult.event) {
 						case "conversation.created": {

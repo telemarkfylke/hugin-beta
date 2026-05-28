@@ -704,6 +704,42 @@ Items still open as of 2026-05-21. Ordered by impact.
 
 ## Progress log additions — Phase 9
 
+### 2026-05-28 — Logging: BetterStack wiring + coverage
+
+- Upgraded `@vestfoldfylke/loglady` from `1.5.3` to `2.0.0` (adds automatic BetterStack transport — activates when `BETTERSTACK_URL` + `BETTERSTACK_TOKEN` env vars are set, no init code required)
+- Added `BETTERSTACK_URL`, `BETTERSTACK_TOKEN`, `BETTERSTACK_MIN_LOG_LEVEL` to `.env.example`
+- Added service-layer logging to `chat-config-service.ts` (list, create, replace, delete with user/config context)
+- Added vendor call logging to `openai-vendor.ts` and `mistral-vendor.ts` (call initiation with model)
+- Added transcription logging to transcription route and `tale-til-notat.ts` (job lifecycle, external service calls)
+- Removed redundant `.claude/CONTEXT.md` (stale subset of `CLAUDE.md`)
+- Updated `.claude/teacher.md`: corrected Zod-first framing (plain TS + boundary-only Zod), updated `/api/chat` flow diagram, updated authorization section
+
+Verified: `npm run test` passes — 128 tests, tsc clean, biome clean, build clean.
+
+---
+
+### 2026-05-28 — Security & Quality Fix Pass
+
+Full branch code review (7 finder angles, verified) surfaced 10 confirmed issues. All fixed:
+
+**Security (Critical/High):**
+- `src/lib/authorization.ts` + `src/routes/api/chat/+server.ts` — Auth bypass via client-supplied `shared: true` closed: `/api/chat` now fetches the config from DB and passes the DB record to `canPromptConfig`. Client cannot self-elevate by sending favorable `shared`/`accessGroups`/`type` values.
+- `src/lib/server/services/chat-config-service.ts` + `src/lib/authorization.ts` — `deleteChatConfig` no longer uses `canUpdateChatConfig`; new `canDeleteChatConfig` restricts delete to config creator and admins only. AgentMaintainers can no longer delete configs they don't own.
+- `src/lib/server/middleware/external-error.ts` — Raw upstream provider error body/message stripped from client-facing responses; logged server-side only.
+
+**Correctness (Medium):**
+- `src/lib/server/services/chat-config-service.ts` — `replaceChatConfig` now reconciles URL `configId` vs body `_id` before calling `canUpdateChatConfig`; mismatch returns `HTTPError(400)` instead of an unhandled 500.
+- `src/lib/components/Chat/PostChatMessage.svelte.ts` — `sseParser.flush()` on stream end is now wrapped in try/catch; partial final SSE chunks are non-fatal; status set to `"failed"` if `response.done` was the dropped event.
+- `src/lib/server/db/mongo-db.ts` — `replaceChatConfig` checks `result.matchedCount === 0` after `replaceOne` and throws `HTTPError(404)` instead of silently returning a phantom config.
+
+**Quality (Low):**
+- `src/lib/authorization.ts` — `getUserRoleAccessGroups` no longer pushes `"student"` twice for EduEmployee+Student users. `canPromptConfig` refactored to use `getUserRoleAccessGroups` (eliminates duplicated role-to-group cascade). `canDeleteChatConfig` documented with a comment explaining the intentional asymmetry with `canUpdateChatConfig`.
+- `src/routes/api/chatconfigs/+server.ts` — POST handler now wraps `request.json()` in try/catch (consistent with all other endpoints).
+
+Verified: `npm run test` passes — 128 tests across 19 files, tsc clean, biome clean, build clean.
+
+---
+
 ### 2026-05-21 — Phase 9: Documentation
 
 Completed:

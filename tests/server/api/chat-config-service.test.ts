@@ -177,6 +177,16 @@ describe("replaceChatConfig", () => {
 	it("throws 400 for invalid body", async () => {
 		await expect(replaceChatConfig("507f1f77bcf86cd799439011", { bad: "body" }, user(), appConfig, makeStore())).rejects.toMatchObject({ status: 400 })
 	})
+
+	it("throws HTTPError(400) when body _id does not match URL configId", async () => {
+		const store = makeStore()
+		const bodyWithWrongId = { ...(validBody() as Record<string, unknown>), _id: "507f1f77bcf86cd799439099" }
+		await expect(replaceChatConfig("507f1f77bcf86cd799439011", bodyWithWrongId, user(), appConfig, store)).rejects.toMatchObject({ status: 400 })
+	})
+
+	it("throws 400 when userId is missing", async () => {
+		await expect(replaceChatConfig("507f1f77bcf86cd799439011", validBody(), user({ userId: "" }), appConfig, makeStore())).rejects.toMatchObject({ status: 400 })
+	})
 })
 
 describe("deleteChatConfig", () => {
@@ -203,11 +213,15 @@ describe("deleteChatConfig", () => {
 		await expect(deleteChatConfig("507f1f77bcf86cd799439011", admin, appConfig, store)).resolves.toBeUndefined()
 	})
 
-	it("allows maintainer to delete a published config", async () => {
-		const publishedConfig: ChatConfig = { ...existingConfig(), type: "published", created: { at: "2026-01-01T00:00:00.000Z", by: { id: "other-owner", name: "Other Owner" } } }
-		const store = makeStore({ getChatConfig: vi.fn().mockResolvedValue(publishedConfig) })
-		const maintainer = user({ roles: ["AgentMaintainer"] })
-		await expect(deleteChatConfig("507f1f77bcf86cd799439011", maintainer, appConfig, store)).resolves.toBeUndefined()
-		expect(store.deleteChatConfig).toHaveBeenCalledWith("507f1f77bcf86cd799439011")
+	it("blocks AgentMaintainer from deleting a published config they do not own", async () => {
+		const publishedConfig = (): ChatConfig => ({ ...existingConfig(), type: "published", created: { at: "2026-01-01T00:00:00.000Z", by: { id: "other-user", name: "Other" } } })
+		const store = makeStore({ getChatConfig: vi.fn().mockResolvedValue(publishedConfig()) })
+		await expect(deleteChatConfig("507f1f77bcf86cd799439011", user({ roles: ["AgentMaintainer"], userId: "user-1" }), appConfig, store)).rejects.toMatchObject({ status: 403 })
+	})
+
+	it("allows AgentMaintainer to delete their own published config", async () => {
+		const ownPublishedConfig = (): ChatConfig => ({ ...existingConfig(), type: "published", created: { at: "2026-01-01T00:00:00.000Z", by: { id: "user-1", name: "User One" } } })
+		const store = makeStore({ getChatConfig: vi.fn().mockResolvedValue(ownPublishedConfig()) })
+		await expect(deleteChatConfig("507f1f77bcf86cd799439011", user({ roles: ["AgentMaintainer"], userId: "user-1" }), appConfig, store)).resolves.toBeUndefined()
 	})
 })
