@@ -46,6 +46,16 @@ export const canUpdateChatConfig = (user: AuthenticatedPrincipal, appRoles: AppR
 	return false
 }
 
+export const canDeleteChatConfig = (user: AuthenticatedPrincipal, appRoles: AppRoles, chatConfig: ChatConfig): boolean => {
+	if (user.roles.includes(appRoles.ADMIN)) {
+		return true
+	}
+	if (chatConfig.created.by.id === user.userId) {
+		return true
+	}
+	return false
+}
+
 /**
  * Returns the set of role-based access group keys that the given user qualifies for.
  * Used by both the mock and Mongo stores to build access queries without duplicating logic.
@@ -57,7 +67,7 @@ export const getUserRoleAccessGroups = (user: AuthenticatedPrincipal, appRoles: 
 		groups.push("edu_employee")
 		groups.push("student")
 	}
-	if (user.roles.includes(appRoles.STUDENT)) groups.push("student")
+	if (user.roles.includes(appRoles.STUDENT) && !groups.includes("student")) groups.push("student")
 	return groups
 }
 
@@ -75,16 +85,8 @@ export const canPromptConfig = (user: AuthenticatedPrincipal, appConfig: AppConf
 		if (user.roles.includes(appConfig.APP_ROLES.AGENT_MAINTAINER)) {
 			return true
 		}
-		if (chatConfig.accessGroups.includes("all")) {
-			return true
-		}
-		if (chatConfig.accessGroups.includes("employee") && user.roles.includes(appConfig.APP_ROLES.EMPLOYEE)) {
-			return true
-		}
-		if (chatConfig.accessGroups.includes("edu_employee") && user.roles.includes(appConfig.APP_ROLES.EDU_EMPLOYEE)) {
-			return true
-		}
-		if (chatConfig.accessGroups.includes("student") && (user.roles.includes(appConfig.APP_ROLES.STUDENT) || user.roles.includes(appConfig.APP_ROLES.EDU_EMPLOYEE))) {
+		const userRoleGroups = getUserRoleAccessGroups(user, appConfig.APP_ROLES)
+		if (chatConfig.accessGroups.some((group) => typeof group === "string" && userRoleGroups.includes(group))) {
 			return true
 		}
 		if (chatConfig.accessGroups.some((group) => typeof group !== "string" && user.groups.includes(group.id))) {
