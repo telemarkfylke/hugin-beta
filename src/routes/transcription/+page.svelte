@@ -5,7 +5,7 @@
 	import InfoBox from "$lib/components/InfoBox.svelte"
 	import type { TranscriptionJob } from "$lib/server/transcription/types"
 
-	type TranscriptionMode = "open" | "red1" | "red2" | "red3"
+	type TranscriptionMode = "open" | "red"
 
 	const { data } = $props()
 
@@ -225,7 +225,7 @@
 
 	const selectRedUseCase = (index: number) => {
 		selectedRedIndex = index
-		selectedMode = `red${index + 1}` as TranscriptionMode
+		selectedMode = "red"
 		modeConfirmed = true
 		// Reset any previous audio state
 		audioBlob = undefined

@@ -7,7 +7,7 @@ import { MS_AUTH_PRINCIPAL_CLAIMS_HEADER } from "./auth-constants"
 
 export const MOCK_AUTH = env.MOCK_AUTH === "true"
 const MOCK_AUTH_ROLES = env.MOCK_AUTH_ROLES ? env.MOCK_AUTH_ROLES.split(",") : []
-const MOCK_AUTH_GROUPS = env.MOCK_AUTH_GROUPS ? env.MOCK_AUTH_GROUPS.split(",") : ["a23d4ddd-8e3a-40ca-b4ce-a32e87508094"]
+const MOCK_AUTH_GROUPS = env.MOCK_AUTH_GROUPS ? env.MOCK_AUTH_GROUPS.split(",") : []
 if (MOCK_AUTH) {
 	if (MOCK_AUTH_ROLES.length === 0) {
 		throw new Error("MOCK_AUTH is enabled but no MOCK_AUTH_ROLES are set. Please set MOCK_AUTH_ROLES to a comma-separated list of roles.")
