@@ -783,14 +783,19 @@
 	.mode-card.closed:hover {
 		background-color: #f7c5cb;
 		border-color: var(--color-danger);
-		box-shadow: 0 6px 20px rgba(192, 57, 43, 0.18);
+		box-shadow: 0 6px 20px rgba(183, 23, 61, 0.18);
 		transform: translateY(-2px);
 	}
 
 	.mode-card.closed.selected {
 		border-color: var(--color-danger);
 		background-color: #f7c5cb;
-		box-shadow: 0 2px 8px rgba(192, 57, 43, 0.15);
+		box-shadow: 0 2px 8px rgba(183, 23, 61, 0.15);
+	}
+
+	.mode-card.closed.selected:hover {
+		transform: none;
+		box-shadow: 0 2px 8px rgba(183, 23, 61, 0.15);
 	}
 
 	.mode-header {
@@ -807,6 +812,8 @@
 	}
 
 	.badge-danger {
+		display: inline-flex;
+		align-items: center;
 		font-size: 0.7rem;
 		text-transform: uppercase;
 		letter-spacing: 0.05em;
@@ -910,49 +917,21 @@
 		font-size: 1rem;
 	}
 
-	/* Red-themed action cards */
-	.action-card-red {
-		background-color: #fdecef;
-		border: 1px solid var(--color-danger-70);
-	}
-
-	.action-card-red h3 {
-		color: var(--color-danger);
-	}
-
-	.action-card-red .action-description,
-	.action-card-red .action-reminder,
-	.action-card-red .file-name {
-		color: var(--color-danger);
-		opacity: 0.85;
-	}
-
 	/* Red-themed filled button */
 	button.filled-red {
 		background-color: var(--color-danger);
 		color: white;
-		border-color: var(--color-danger);
+		border: none;
 	}
 
 	button.filled-red:hover:not(:disabled) {
-		background-color: #a93226;
-		border-color: #a93226;
+		background-color: var(--color-danger-80);
 	}
 
 	/* Red-themed info callout */
 	.info-callout-red {
 		background-color: #fff0f0;
 		border-left-color: var(--color-danger);
-		color: #7b1c1c;
-	}
-
-	/* Red preview card */
-	.preview-card-red {
-		background-color: #fdecef;
-		border: 1px solid var(--color-danger-70);
-	}
-
-	.preview-card-red h3 {
 		color: var(--color-danger);
 	}
 
@@ -1048,6 +1027,23 @@
 		font-size: 1.05rem;
 	}
 
+	/* Red-themed action cards — placed after .action-card to win the cascade */
+	.action-card-red {
+		background-color: #fdecef;
+		border: 1px solid var(--color-danger-70);
+	}
+
+	.action-card-red h3 {
+		color: var(--color-danger);
+	}
+
+	.action-card-red .action-description,
+	.action-card-red .action-reminder,
+	.action-card-red .file-name {
+		color: var(--color-danger);
+		opacity: 0.85;
+	}
+
 	.action-description {
 		margin: 0;
 		font-size: 0.9rem;
@@ -1137,6 +1133,16 @@
 		gap: 0.5rem;
 		color: var(--color-primary);
 		font-size: 1.05rem;
+	}
+
+	/* Red preview card — placed after .preview-card to win the cascade */
+	.preview-card-red {
+		background-color: #fdecef;
+		border: 1px solid var(--color-danger-70);
+	}
+
+	.preview-card-red h3 {
+		color: var(--color-danger);
 	}
 
 	.preview-card audio {
