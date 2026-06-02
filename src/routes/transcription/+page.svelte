@@ -928,6 +928,12 @@
 		background-color: var(--color-danger-80);
 	}
 
+	button.filled-red:disabled {
+		background-color: var(--color-primary-10);
+		color: gray;
+		cursor: not-allowed;
+	}
+
 	/* Red-themed info callout */
 	.info-callout-red {
 		background-color: #fff0f0;
