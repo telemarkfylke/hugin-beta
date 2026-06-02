@@ -5,7 +5,7 @@
 	import InfoBox from "$lib/components/InfoBox.svelte"
 	import type { TranscriptionJob } from "$lib/server/transcription/types"
 
-	type TranscriptionMode = "open" | "closed"
+	type TranscriptionMode = "open" | "red"
 
 	const { data } = $props()
 
@@ -37,6 +37,8 @@
 
 	let selectedMode: TranscriptionMode = $state("open")
 	let modeConfirmed = $state(false)
+	let redPanelOpen = $state(false) // whether the red sub-panel is visible
+	let selectedRedIndex: number | null = $state(null) // index into availableRedGroups
 	let isLoading = $state(true)
 
 	let mediaRecorder: MediaRecorder | undefined
@@ -63,6 +65,12 @@
 	let deleteErrors: Record<string, string> = $state({})
 
 	const localStorageKey = $derived(`transcription_jobs_${userId}`)
+
+	const availableRedGroups = $derived(data.APP_CONFIG.TRANSCRIPTION_GROUPS.filter((g) => data.authenticatedUser.groups.includes(g.id)))
+
+	const hasAnyRedAccess = $derived(availableRedGroups.length > 0)
+
+	const isRedMode = $derived(selectedMode !== "open")
 
 	const persistJobs = (list: TranscriptionJob[]) => {
 		const slim = list.map((j) => ({
@@ -196,10 +204,36 @@
 		deleteDialogJob = null
 	}
 
-	const selectMode = (mode: TranscriptionMode) => {
-		if (mode === "closed") return
-		selectedMode = mode
+	const selectMode = (mode: "open" | "red") => {
+		if (mode === "open") {
+			selectedMode = "open"
+			modeConfirmed = true
+			redPanelOpen = false
+			selectedRedIndex = null
+		} else {
+			// Toggle red sub-panel; don't confirm yet
+			redPanelOpen = !redPanelOpen
+			if (!redPanelOpen) {
+				// Collapsed — if no red use case was confirmed, reset to open
+				if (selectedMode !== "open") {
+					selectedMode = "open"
+					modeConfirmed = false
+				}
+			}
+		}
+	}
+
+	const selectRedUseCase = (index: number) => {
+		selectedRedIndex = index
+		selectedMode = "red"
 		modeConfirmed = true
+		// Reset any previous audio state
+		audioBlob = undefined
+		audioUrl = undefined
+		selectedFileName = null
+		submitStatus = "idle"
+		submitMessage = ""
+		fileError = ""
 	}
 
 	async function startRecording() {
@@ -377,17 +411,14 @@
 			<button
 				type="button"
 				class="mode-card closed"
-				class:selected={selectedMode === "closed"}
-				role="radio"
-				aria-checked={selectedMode === "closed"}
-				aria-disabled="true"
-				disabled
-				onclick={() => selectMode("closed")}
+				class:selected={redPanelOpen}
+				aria-expanded={redPanelOpen}
+				onclick={() => selectMode("red")}
 			>
 				<div class="mode-header">
 					<span class="material-symbols-outlined">lock</span>
 					<h2>Lukket transkripsjon</h2>
-					<span class="badge-coming">Kommer snart</span>
+					<span class="badge-danger">{redPanelOpen ? "Åpen ▲" : "Velg ▼"}</span>
 				</div>
 				<p class="mode-subtitle">Bruk denne hvis samtalen inneholder:</p>
 				<ul>
@@ -396,11 +427,39 @@
 					<li>Andre sensitive opplysninger</li>
 				</ul>
 				<p class="mode-detail">
-					Det er ikke mulig å laste opp eller laste ned opptak. Kun opptak i nettleser.
 					Informasjonen behandles internt i Telemark fylkeskommune.
 				</p>
 			</button>
 		</div>
+
+		{#if redPanelOpen}
+			<div class="red-panel" role="region" aria-label="Velg type sensitiv transkripsjon">
+				<p class="red-panel-title">
+					<span class="material-symbols-outlined">lock</span>
+					Velg type sensitiv transkripsjon
+				</p>
+				{#if hasAnyRedAccess}
+					{#each availableRedGroups as group, i}
+						<button
+							type="button"
+							class="use-case-btn"
+							class:active={selectedRedIndex === i}
+							onclick={() => selectRedUseCase(i)}
+						>
+							{group.label}
+							{#if selectedRedIndex === i}
+								<span class="material-symbols-outlined use-case-check">check_circle</span>
+							{/if}
+						</button>
+					{/each}
+				{:else}
+					<div class="no-access-box" role="alert">
+						<span class="material-symbols-outlined">warning</span>
+						Du har ikke tilgang til noen av de sensitive transkripsjonmodiene. Hvis innholdet er sensitivt eller taushetsbelagt, skal ikke tjenesten brukes.
+					</div>
+				{/if}
+			</div>
+		{/if}
 
 		<InfoBox title="Personvernerklæring">
 			<h2>Personvernerklæring – Hugin - tale til notat</h2>
@@ -449,8 +508,15 @@
 		</InfoBox>
 
 		{#if modeConfirmed}
-		<div class="action-grid">
-			<section class="action-card" aria-labelledby="upload-title">
+			{#if isRedMode && selectedRedIndex !== null}
+				<p class="red-mode-label">
+					<span class="material-symbols-outlined">lock</span>
+					{availableRedGroups[selectedRedIndex]?.label ?? ""}
+				</p>
+			{/if}
+
+			<div class="action-grid">
+			<section class="action-card" class:action-card-red={isRedMode} aria-labelledby="upload-title">
 				<h3 id="upload-title">
 					<span class="material-symbols-outlined">upload_file</span>
 					Last opp en lydfil
@@ -466,6 +532,7 @@
 					<button
 						type="button"
 						class="filled"
+						class:filled-red={isRedMode}
 						onclick={() => fileInputEl?.click()}
 						disabled={recording}
 					>
@@ -490,12 +557,12 @@
 				{/if}
 			</section>
 
-			<section class="action-card" aria-labelledby="record-title">
+			<section class="action-card" class:action-card-red={isRedMode} aria-labelledby="record-title">
 				<h3 id="record-title">
 					<span class="material-symbols-outlined">mic</span>
 					…eller spill inn lyd
 				</h3>
-				<div class="info-callout">
+				<div class="info-callout" class:info-callout-red={isRedMode}>
 					<strong>NB!</strong> Husk å laste ned lydopptaket før du sender til transkribering
 					i tilfelle noe går galt eller om du trenger en backup.
 				</div>
@@ -503,6 +570,7 @@
 				<button
 					type="button"
 					class="filled"
+					class:filled-red={isRedMode}
 					class:danger={recording}
 					onclick={recording ? stopRecording : startRecording}
 				>
@@ -522,7 +590,7 @@
 		</div>
 
 		{#if audioUrl && !recording}
-			<section class="preview-card" aria-label="Forhåndsvisning">
+			<section class="preview-card" class:preview-card-red={isRedMode} aria-label="Forhåndsvisning">
 				<h3>
 					<span class="material-symbols-outlined">play_circle</span>
 					Forhåndsvisning
@@ -532,6 +600,7 @@
 					<button
 						type="button"
 						class="filled"
+						class:filled-red={isRedMode}
 						onclick={sendTilTranscript}
 						disabled={submitStatus === "sending" || submitStatus === "sent"}
 					>
@@ -706,14 +775,27 @@
 
 	.mode-card.closed {
 		background-color: #fdecef;
-		border: 2px dashed var(--color-danger-70);
+		border: 2px solid var(--color-danger-70);
 		color: var(--color-danger);
-		cursor: not-allowed;
-		opacity: 0.85;
+		cursor: pointer;
 	}
 
 	.mode-card.closed:hover {
-		background-color: #fdecef;
+		background-color: #f7c5cb;
+		border-color: var(--color-danger);
+		box-shadow: 0 6px 20px rgba(183, 23, 61, 0.18);
+		transform: translateY(-2px);
+	}
+
+	.mode-card.closed.selected {
+		border-color: var(--color-danger);
+		background-color: #f7c5cb;
+		box-shadow: 0 2px 8px rgba(183, 23, 61, 0.15);
+	}
+
+	.mode-card.closed.selected:hover {
+		transform: none;
+		box-shadow: 0 2px 8px rgba(183, 23, 61, 0.15);
 	}
 
 	.mode-header {
@@ -729,7 +811,9 @@
 		color: inherit;
 	}
 
-	.badge-coming {
+	.badge-danger {
+		display: inline-flex;
+		align-items: center;
 		font-size: 0.7rem;
 		text-transform: uppercase;
 		letter-spacing: 0.05em;
@@ -738,6 +822,123 @@
 		padding: 0.15rem 0.5rem;
 		border-radius: 999px;
 		margin-left: auto;
+		transition: background-color 0.2s ease;
+	}
+
+	/* Red sub-panel */
+	.red-panel {
+		background-color: #fdecef;
+		border: 2px solid var(--color-danger-70);
+		border-radius: 8px;
+		padding: 1.25rem;
+		margin-bottom: 1.5rem;
+		color: var(--color-danger);
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+	}
+
+	.red-panel-title {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		font-weight: 700;
+		font-size: 0.95rem;
+		margin: 0 0 0.25rem;
+		color: var(--color-danger);
+	}
+
+	.use-case-btn {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		width: 100%;
+		background: white;
+		border: 2px solid var(--color-danger-70);
+		border-radius: 6px;
+		padding: 0.65rem 1rem;
+		cursor: pointer;
+		text-align: left;
+		color: var(--color-danger);
+		font-size: 0.9rem;
+		font-weight: 600;
+		font-family: var(--font-family);
+		transition: background 0.15s ease, border-color 0.15s ease;
+	}
+
+	.use-case-btn:hover {
+		background: #f7c5cb;
+		border-color: var(--color-danger);
+	}
+
+	.use-case-btn.active {
+		background: #f7c5cb;
+		border-color: var(--color-danger);
+	}
+
+	.use-case-check {
+		font-size: 1rem;
+		color: var(--color-danger);
+	}
+
+	.no-access-box {
+		display: flex;
+		align-items: flex-start;
+		gap: 0.5rem;
+		background: #fff0f0;
+		border: 1px dashed var(--color-danger);
+		border-radius: 6px;
+		padding: 0.75rem 1rem;
+		font-size: 0.85rem;
+		color: var(--color-danger);
+		line-height: 1.4;
+	}
+
+	.no-access-box .material-symbols-outlined {
+		font-size: 1.1rem;
+		flex-shrink: 0;
+		margin-top: 0.05rem;
+	}
+
+	/* Red mode label above action grid */
+	.red-mode-label {
+		display: flex;
+		align-items: center;
+		gap: 0.4rem;
+		font-weight: 700;
+		font-size: 0.85rem;
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
+		color: var(--color-danger);
+		margin: 0 0 0.5rem;
+	}
+
+	.red-mode-label .material-symbols-outlined {
+		font-size: 1rem;
+	}
+
+	/* Red-themed filled button */
+	button.filled-red {
+		background-color: var(--color-danger);
+		color: white;
+		border: none;
+	}
+
+	button.filled-red:hover:not(:disabled) {
+		background-color: var(--color-danger-80);
+	}
+
+	button.filled-red:disabled {
+		background-color: var(--color-primary-10);
+		color: gray;
+		cursor: not-allowed;
+	}
+
+	/* Red-themed info callout */
+	.info-callout-red {
+		background-color: #fff0f0;
+		border-left-color: var(--color-danger);
+		color: var(--color-danger);
 	}
 
 	.badge-select {
@@ -832,6 +1033,23 @@
 		font-size: 1.05rem;
 	}
 
+	/* Red-themed action cards — placed after .action-card to win the cascade */
+	.action-card-red {
+		background-color: #fdecef;
+		border: 1px solid var(--color-danger-70);
+	}
+
+	.action-card-red h3 {
+		color: var(--color-danger);
+	}
+
+	.action-card-red .action-description,
+	.action-card-red .action-reminder,
+	.action-card-red .file-name {
+		color: var(--color-danger);
+		opacity: 0.85;
+	}
+
 	.action-description {
 		margin: 0;
 		font-size: 0.9rem;
@@ -921,6 +1139,16 @@
 		gap: 0.5rem;
 		color: var(--color-primary);
 		font-size: 1.05rem;
+	}
+
+	/* Red preview card — placed after .preview-card to win the cascade */
+	.preview-card-red {
+		background-color: #fdecef;
+		border: 1px solid var(--color-danger-70);
+	}
+
+	.preview-card-red h3 {
+		color: var(--color-danger);
 	}
 
 	.preview-card audio {

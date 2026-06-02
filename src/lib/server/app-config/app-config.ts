@@ -19,6 +19,18 @@ export const APP_CONFIG: AppConfig = {
 	},
 	CONVERSATION_EXPORT_DISABLED: env.CONVERSATION_EXPORT_DISABLED === "true",
 	NEW_CHAT_CONFIRM_DISABLED: env.NEW_CHAT_CONFIRM_DISABLED === "true",
+	TRANSCRIPTION_GROUPS: (() => {
+		const groups = []
+		let n = 1
+		while (env[`TRANSCRIPTION_GROUP_${n}_ID`]) {
+			groups.push({
+				id: env[`TRANSCRIPTION_GROUP_${n}_ID`] as string,
+				label: env[`TRANSCRIPTION_GROUP_${n}_LABEL`] ?? `Group ${n}`
+			})
+			n++
+		}
+		return groups
+	})(),
 	VENDORS: {
 		MISTRAL: {
 			NAME: "Mistral",

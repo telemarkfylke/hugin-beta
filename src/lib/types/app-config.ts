@@ -21,12 +21,18 @@ export type AppRoles = {
 	EDU_EMPLOYEE: string
 }
 
+export type TranscriptionGroup = {
+	id: string
+	label: string
+}
+
 export type AppConfig = {
 	NAME: string
 	BODY_SIZE_LIMIT_BYTES: number
 	APP_ROLES: AppRoles
 	CONVERSATION_EXPORT_DISABLED: boolean
 	NEW_CHAT_CONFIRM_DISABLED: boolean
+	TRANSCRIPTION_GROUPS: TranscriptionGroup[]
 	VENDORS: {
 		MISTRAL: VendorInfo
 		OPENAI: VendorInfo
