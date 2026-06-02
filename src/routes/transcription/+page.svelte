@@ -412,8 +412,7 @@
 				type="button"
 				class="mode-card closed"
 				class:selected={redPanelOpen}
-				role="radio"
-				aria-checked={redPanelOpen}
+				aria-expanded={redPanelOpen}
 				onclick={() => selectMode("red")}
 			>
 				<div class="mode-header">
@@ -509,14 +508,14 @@
 		</InfoBox>
 
 		{#if modeConfirmed}
-		  {#if isRedMode && selectedRedIndex !== null}
-		    <p class="red-mode-label">
-		      <span class="material-symbols-outlined">lock</span>
-		      {availableRedGroups[selectedRedIndex]?.label ?? ""}
-		    </p>
-		  {/if}
+			{#if isRedMode && selectedRedIndex !== null}
+				<p class="red-mode-label">
+					<span class="material-symbols-outlined">lock</span>
+					{availableRedGroups[selectedRedIndex]?.label ?? ""}
+				</p>
+			{/if}
 
-		  <div class="action-grid">
+			<div class="action-grid">
 			<section class="action-card" class:action-card-red={isRedMode} aria-labelledby="upload-title">
 				<h3 id="upload-title">
 					<span class="material-symbols-outlined">upload_file</span>
