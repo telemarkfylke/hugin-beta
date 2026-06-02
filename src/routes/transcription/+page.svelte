@@ -70,6 +70,8 @@
 
 	const hasAnyRedAccess = $derived(availableRedGroups.length > 0)
 
+	const isRedMode = $derived(selectedMode !== "open")
+
 	const persistJobs = (list: TranscriptionJob[]) => {
 		const slim = list.map((j) => ({
 			...j,
@@ -507,8 +509,15 @@
 		</InfoBox>
 
 		{#if modeConfirmed}
-		<div class="action-grid">
-			<section class="action-card" aria-labelledby="upload-title">
+		  {#if isRedMode && selectedRedIndex !== null}
+		    <p class="red-mode-label">
+		      <span class="material-symbols-outlined">lock</span>
+		      {availableRedGroups[selectedRedIndex]?.label ?? ""}
+		    </p>
+		  {/if}
+
+		  <div class="action-grid">
+			<section class="action-card" class:action-card-red={isRedMode} aria-labelledby="upload-title">
 				<h3 id="upload-title">
 					<span class="material-symbols-outlined">upload_file</span>
 					Last opp en lydfil
@@ -524,6 +533,7 @@
 					<button
 						type="button"
 						class="filled"
+						class:filled-red={isRedMode}
 						onclick={() => fileInputEl?.click()}
 						disabled={recording}
 					>
@@ -548,12 +558,12 @@
 				{/if}
 			</section>
 
-			<section class="action-card" aria-labelledby="record-title">
+			<section class="action-card" class:action-card-red={isRedMode} aria-labelledby="record-title">
 				<h3 id="record-title">
 					<span class="material-symbols-outlined">mic</span>
 					…eller spill inn lyd
 				</h3>
-				<div class="info-callout">
+				<div class="info-callout" class:info-callout-red={isRedMode}>
 					<strong>NB!</strong> Husk å laste ned lydopptaket før du sender til transkribering
 					i tilfelle noe går galt eller om du trenger en backup.
 				</div>
@@ -561,6 +571,7 @@
 				<button
 					type="button"
 					class="filled"
+					class:filled-red={isRedMode}
 					class:danger={recording}
 					onclick={recording ? stopRecording : startRecording}
 				>
@@ -580,7 +591,7 @@
 		</div>
 
 		{#if audioUrl && !recording}
-			<section class="preview-card" aria-label="Forhåndsvisning">
+			<section class="preview-card" class:preview-card-red={isRedMode} aria-label="Forhåndsvisning">
 				<h3>
 					<span class="material-symbols-outlined">play_circle</span>
 					Forhåndsvisning
@@ -590,6 +601,7 @@
 					<button
 						type="button"
 						class="filled"
+						class:filled-red={isRedMode}
 						onclick={sendTilTranscript}
 						disabled={submitStatus === "sending" || submitStatus === "sent"}
 					>
