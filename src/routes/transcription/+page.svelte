@@ -5,7 +5,7 @@
 	import InfoBox from "$lib/components/InfoBox.svelte"
 	import type { TranscriptionJob } from "$lib/server/transcription/types"
 
-	type TranscriptionMode = "open" | "closed"
+	type TranscriptionMode = "open" | "red1" | "red2" | "red3"
 
 	const { data } = $props()
 
@@ -37,6 +37,8 @@
 
 	let selectedMode: TranscriptionMode = $state("open")
 	let modeConfirmed = $state(false)
+	let redPanelOpen = $state(false) // whether the red sub-panel is visible
+	let selectedRedIndex: number | null = $state(null) // index into availableRedGroups
 	let isLoading = $state(true)
 
 	let mediaRecorder: MediaRecorder | undefined
@@ -63,6 +65,10 @@
 	let deleteErrors: Record<string, string> = $state({})
 
 	const localStorageKey = $derived(`transcription_jobs_${userId}`)
+
+	const availableRedGroups = $derived(data.APP_CONFIG.TRANSCRIPTION_GROUPS.filter((g) => data.authenticatedUser.groups.includes(g.id)))
+
+	const hasAnyRedAccess = $derived(availableRedGroups.length > 0)
 
 	const persistJobs = (list: TranscriptionJob[]) => {
 		const slim = list.map((j) => ({
@@ -196,10 +202,36 @@
 		deleteDialogJob = null
 	}
 
-	const selectMode = (mode: TranscriptionMode) => {
-		if (mode === "closed") return
-		selectedMode = mode
+	const selectMode = (mode: "open" | "red") => {
+		if (mode === "open") {
+			selectedMode = "open"
+			modeConfirmed = true
+			redPanelOpen = false
+			selectedRedIndex = null
+		} else {
+			// Toggle red sub-panel; don't confirm yet
+			redPanelOpen = !redPanelOpen
+			if (!redPanelOpen) {
+				// Collapsed — if no red use case was confirmed, reset to open
+				if (selectedMode !== "open") {
+					selectedMode = "open"
+					modeConfirmed = false
+				}
+			}
+		}
+	}
+
+	const selectRedUseCase = (index: number) => {
+		selectedRedIndex = index
+		selectedMode = `red${index + 1}` as TranscriptionMode
 		modeConfirmed = true
+		// Reset any previous audio state
+		audioBlob = undefined
+		audioUrl = undefined
+		selectedFileName = null
+		submitStatus = "idle"
+		submitMessage = ""
+		fileError = ""
 	}
 
 	async function startRecording() {
@@ -377,17 +409,15 @@
 			<button
 				type="button"
 				class="mode-card closed"
-				class:selected={selectedMode === "closed"}
+				class:selected={redPanelOpen}
 				role="radio"
-				aria-checked={selectedMode === "closed"}
-				aria-disabled="true"
-				disabled
-				onclick={() => selectMode("closed")}
+				aria-checked={redPanelOpen}
+				onclick={() => selectMode("red")}
 			>
 				<div class="mode-header">
 					<span class="material-symbols-outlined">lock</span>
 					<h2>Lukket transkripsjon</h2>
-					<span class="badge-coming">Kommer snart</span>
+					<span class="badge-danger">{redPanelOpen ? "Åpen ▲" : "Velg ▼"}</span>
 				</div>
 				<p class="mode-subtitle">Bruk denne hvis samtalen inneholder:</p>
 				<ul>
@@ -396,11 +426,39 @@
 					<li>Andre sensitive opplysninger</li>
 				</ul>
 				<p class="mode-detail">
-					Det er ikke mulig å laste opp eller laste ned opptak. Kun opptak i nettleser.
 					Informasjonen behandles internt i Telemark fylkeskommune.
 				</p>
 			</button>
 		</div>
+
+		{#if redPanelOpen}
+			<div class="red-panel" role="region" aria-label="Velg type sensitiv transkripsjon">
+				<p class="red-panel-title">
+					<span class="material-symbols-outlined">lock</span>
+					Velg type sensitiv transkripsjon
+				</p>
+				{#if hasAnyRedAccess}
+					{#each availableRedGroups as group, i}
+						<button
+							type="button"
+							class="use-case-btn"
+							class:active={selectedRedIndex === i}
+							onclick={() => selectRedUseCase(i)}
+						>
+							{group.label}
+							{#if selectedRedIndex === i}
+								<span class="material-symbols-outlined use-case-check">check_circle</span>
+							{/if}
+						</button>
+					{/each}
+				{:else}
+					<div class="no-access-box" role="alert">
+						<span class="material-symbols-outlined">warning</span>
+						Du har ikke tilgang til noen av de sensitive transkripsjonmodiene. Hvis innholdet er sensitivt eller taushetsbelagt, skal ikke tjenesten brukes.
+					</div>
+				{/if}
+			</div>
+		{/if}
 
 		<InfoBox title="Personvernerklæring">
 			<h2>Personvernerklæring – Hugin - tale til notat</h2>
