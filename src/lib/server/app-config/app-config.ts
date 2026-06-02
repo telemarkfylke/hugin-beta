@@ -19,6 +19,11 @@ export const APP_CONFIG: AppConfig = {
 	},
 	CONVERSATION_EXPORT_DISABLED: env.CONVERSATION_EXPORT_DISABLED === "true",
 	NEW_CHAT_CONFIRM_DISABLED: env.NEW_CHAT_CONFIRM_DISABLED === "true",
+	TRANSCRIPTION_GROUPS: [
+		{ id: env.TRANSCRIPTION_RED1_GROUP_ID ?? "", label: env.TRANSCRIPTION_RED1_LABEL ?? "RED1" },
+		{ id: env.TRANSCRIPTION_RED2_GROUP_ID ?? "", label: env.TRANSCRIPTION_RED2_LABEL ?? "RED2" },
+		{ id: env.TRANSCRIPTION_RED3_GROUP_ID ?? "", label: env.TRANSCRIPTION_RED3_LABEL ?? "RED3" }
+	].filter((g) => g.id !== ""),
 	VENDORS: {
 		MISTRAL: {
 			NAME: "Mistral",
