@@ -62,9 +62,7 @@ describe("resolveMessages", () => {
 		const result = resolveMessages(inputs)
 		expect(result[0]).toMatchObject({
 			role: "user",
-			content: expect.arrayContaining([
-				expect.objectContaining({ type: "file" })
-			])
+			content: expect.arrayContaining([expect.objectContaining({ type: "file" })])
 		})
 	})
 
