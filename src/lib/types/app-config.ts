@@ -1,16 +1,9 @@
-export type ModelInfo = {
-	ID: string
-	SUPPORTED_MESSAGE_FILE_MIME_TYPES: {
-		FILE: string[]
-		IMAGE: string[]
-	}
-}
-
 export type VendorInfo = {
 	NAME: string
 	ENABLED: boolean
 	PROJECTS: string[]
-	MODELS: ModelInfo[]
+	SUPPORTED_MESSAGE_FILE_MIME_TYPES: string[]
+	SUPPORTED_MESSAGE_IMAGE_MIME_TYPES: string[]
 }
 
 export type AppRoles = {

@@ -40,18 +40,12 @@ export const parseChatConfig = (input: unknown, APP_CONFIG: AppConfig): ChatConf
 		}
 	}
 	// Manual config
-	if (!VENDOR.MODELS.some((model) => model.ID === parsedConfig.model)) {
-		throw new HTTPError(400, `Unsupported model: ${parsedConfig.model} for vendorId: ${parsedConfig.vendorId}`)
-	}
-
-	// NB : Husk å legge til propertiene i dette objektet også. Spesielt hvis det er optional så er det lett å glemme.
 	return {
 		_id: parsedConfig._id,
 		name: parsedConfig.name,
 		description: parsedConfig.description,
 		vendorId: parsedConfig.vendorId,
 		project: parsedConfig.project,
-		model: parsedConfig.model,
 		instructions: parsedConfig.instructions,
 		conversationId: parsedConfig.conversationId,
 		tools: parsedConfig.tools || [],

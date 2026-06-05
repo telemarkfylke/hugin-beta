@@ -17,11 +17,11 @@ export const resolveModel = (config: ChatConfig): LanguageModel => {
 	switch (config.vendorId) {
 		case "OPENAI": {
 			const openai = createOpenAI({ apiKey: getApiKey("OPENAI", config.project) })
-			return openai(config.model ?? "gpt-4o")
+			return openai("gpt-5.5")
 		}
 		case "MISTRAL": {
 			const mistral = createMistral({ apiKey: getApiKey("MISTRAL", config.project) })
-			return mistral(config.model ?? "mistral-large-latest")
+			return mistral("mistral-large-latest")
 		}
 		default:
 			throw new HTTPError(400, `Unsupported vendorId: ${config.vendorId}`)

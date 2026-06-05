@@ -21,7 +21,6 @@
 	}
 	let manualConfigCache: Partial<ChatConfig> = {
 		vendorId: "MISTRAL",
-		model: "mistral-medium-latest",
 		instructions: ""
 	}
 
@@ -36,10 +35,6 @@
 
 	const getAvailableProjects = (vendorId: VendorId) => {
 		return chatState.APP_CONFIG.VENDORS[vendorId].PROJECTS
-	}
-
-	const getAvailableModels = (vendorId: VendorId) => {
-		return chatState.APP_CONFIG.VENDORS[vendorId].MODELS.map((model) => model.ID)
 	}
 
 	const copyAgentUrl = async () => {
@@ -62,30 +57,17 @@
 		}
 	})
 
-	// Almost illegal effect again, but we need to auto-select first available model when changing vendor in manual config
-	$effect(() => {
-		console.log("model effect ran, be careful")
-		if (chatState.chat.config.model) {
-			const availableModels = getAvailableModels(chatState.chat.config.vendorId)
-			if (!availableModels.includes(chatState.chat.config.model)) {
-				chatState.chat.config.model = availableModels[0] || ""
-			}
-		}
-	})
-
 	const onConfigTypeChange = (event: Event) => {
 		const target = event.target as HTMLInputElement
 		if (target.value === "predefined") {
 			manualConfigCache = {
 				vendorId: chatState.chat.config.vendorId,
 				project: chatState.chat.config.project,
-				model: chatState.chat.config.model,
 				instructions: chatState.chat.config.instructions
 			}
 			chatState.chat.config.vendorId = predefinedConfigCache.vendorId as VendorId
 			chatState.chat.config.project = predefinedConfigCache.project as string
 			chatState.chat.config.vendorAgent = predefinedConfigCache.vendorAgent
-			delete chatState.chat.config.model
 			delete chatState.chat.config.instructions
 		} else {
 			predefinedConfigCache = {
@@ -95,7 +77,6 @@
 			}
 			chatState.chat.config.vendorId = manualConfigCache.vendorId as VendorId
 			chatState.chat.config.project = manualConfigCache.project as string
-			chatState.chat.config.model = manualConfigCache.model as string
 			chatState.chat.config.instructions = manualConfigCache.instructions as string
 			delete chatState.chat.config.vendorAgent
 		}
@@ -207,17 +188,7 @@
 						</select>
 					</div>
 				{/if}
-				{#if !chatState.chat.config.vendorAgent}
-					<div class="config-item">
-						<label for="model">Modell</label>
-						<select id="model" bind:value={chatState.chat.config.model}>
-							{#each getAvailableModels(chatState.chat.config.vendorId) as modelId}
-								<option value={modelId}>{modelId}</option>
-							{/each}
-						</select>
-					</div>
-				{/if}
-			</div>
+				</div>
 
 			<!-- Instructions (only for manual config) -->
 			{#if !chatState.chat.config.vendorAgent}

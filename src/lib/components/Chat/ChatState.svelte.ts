@@ -101,7 +101,7 @@ export class ChatState {
 					return {
 						config: {
 							...this.chatConfig,
-							name: this.chatConfig.name || this.chatConfig.model || "Ukjent navn",
+							name: this.chatConfig.name || "Ukjent navn",
 							tools: webSearchTools
 						},
 						stream: this.streamResponse,
@@ -145,9 +145,6 @@ export class ChatState {
 		if (!chat) {
 			throw new Error("ChatState requires a Chat object")
 		}
-		if (!chat.config.vendorAgent?.id && !chat.config.model) {
-			throw new Error("Chat config must have either a vendorAgent id or a model defined")
-		}
 		this.chatId = chat._id
 		this.chatConfig = chat.config
 		this.chatHistory = chat.history
@@ -187,7 +184,6 @@ export class ChatState {
 				description: "This is an example chat configuration.",
 				vendorId: "OPENAI",
 				project: "DEFAULT",
-				model: "gpt-4",
 				accessGroups: ["all"],
 				type: "private",
 				created: {
@@ -225,7 +221,6 @@ export class ChatState {
 						description: "This is an example chat configuration.",
 						vendorId: "OPENAI",
 						project: "DEFAULT",
-						model: "gpt-4",
 						accessGroups: ["all"],
 						type: "private",
 						created: {
@@ -278,15 +273,10 @@ export class ChatState {
 			if (!vendor) {
 				throw new Error(`Vendor not found: ${this.chatConfig.vendorId}`)
 			}
-			const model = vendor.MODELS.find((m) => m.ID === this.chatConfig.model)
-			if (!model) {
-				throw new Error(`Model not found for vendor ${this.chatConfig.vendorId}: ${this.chatConfig.model}`)
-			}
-			const supportedFileTypes = model.SUPPORTED_MESSAGE_FILE_MIME_TYPES.FILE
-			const supportedImageTypes = model.SUPPORTED_MESSAGE_FILE_MIME_TYPES.IMAGE
+			const supportedFileTypes = vendor.SUPPORTED_MESSAGE_FILE_MIME_TYPES
+			const supportedImageTypes = vendor.SUPPORTED_MESSAGE_IMAGE_MIME_TYPES
 
 			for (const file of Array.from(inputFiles)) {
-				// Validate that the file type is supported (reuse existing helper for validation)
 				await fileToMessageContent(file, supportedFileTypes, supportedImageTypes)
 
 				const base64Url = await fileToBase64Url(file)

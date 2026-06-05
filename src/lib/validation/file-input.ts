@@ -18,17 +18,12 @@ export const validateFileInputs = (chatRequest: ChatRequest, APP_CONFIG: AppConf
 		throw new HTTPError(400, `Unsupported vendorId: ${chatRequest.config.vendorId}`)
 	}
 
-	const modelSupportedMimeTypes = vendor.MODELS.find((model) => model.ID === chatRequest.config.model)?.SUPPORTED_MESSAGE_FILE_MIME_TYPES || {
-		FILE: [],
-		IMAGE: []
-	}
-
-	const supportedMimeTypes = [...modelSupportedMimeTypes.FILE, ...modelSupportedMimeTypes.IMAGE]
+	const supportedMimeTypes = [...vendor.SUPPORTED_MESSAGE_FILE_MIME_TYPES, ...vendor.SUPPORTED_MESSAGE_IMAGE_MIME_TYPES]
 
 	const fileInputs = lastMessage.content.filter((contentItem) => contentItem.type === "input_file" || contentItem.type === "input_image")
 	for (const fileInput of fileInputs.slice(-1)) {
 		if (!validFileType(fileInput.type === "input_file" ? fileInput.fileUrl : fileInput.imageUrl, supportedMimeTypes)) {
-			throw new HTTPError(400, `File type of uploaded file is not supported for vendor/model: ${chatRequest.config.vendorId}-${chatRequest.config.model}`)
+			throw new HTTPError(400, `File type of uploaded file is not supported for vendor: ${chatRequest.config.vendorId}`)
 		}
 	}
 

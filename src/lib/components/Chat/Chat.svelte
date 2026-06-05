@@ -71,7 +71,7 @@
 					<div class="chat-response">
 						<h5 class="chat-response-header">
 							<img src={favicon16} alt="favicon" />
-							{chatState.chatConfig.name || chatState.chatConfig.model || "Assistent"}
+							{chatState.chatConfig.name || "Assistent"}
 						</h5>
 						{#if chatState.aiChat.status === "submitted" && message === chatState.aiChat.messages[chatState.aiChat.messages.length - 1] && message.parts.filter(p => p.type === "text").every(p => p.type === "text" && p.text === "")}
 							<TypingDots />
@@ -106,7 +106,7 @@
 				<div class="chat-response">
 					<h5 class="chat-response-header">
 						<img src={favicon16} alt="favicon" />
-						{chatState.chatConfig.name || chatState.chatConfig.model || "Assistent"}
+						{chatState.chatConfig.name || "Assistent"}
 					</h5>
 					<TypingDots />
 				</div>

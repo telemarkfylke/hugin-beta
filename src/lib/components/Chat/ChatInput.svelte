@@ -9,22 +9,10 @@
 	}
 	let { chatState }: Props = $props()
 
-	// Determine allowed file mime types based on model/vendor
 	let allowedMessageMimeTypes = $derived.by(() => {
-		if (!chatState.chat.config.model) {
-			return []
-		}
-
 		const vendor = chatState.APP_CONFIG.VENDORS[chatState.chat.config.vendorId]
-		if (!vendor) {
-			return []
-		}
-		const supportedTypes = vendor.MODELS.find((model) => model.ID === chatState.chat.config.model)?.SUPPORTED_MESSAGE_FILE_MIME_TYPES
-
-		if (!supportedTypes) {
-			return []
-		}
-		return [...supportedTypes.FILE, ...supportedTypes.IMAGE]
+		if (!vendor) return []
+		return [...vendor.SUPPORTED_MESSAGE_FILE_MIME_TYPES, ...vendor.SUPPORTED_MESSAGE_IMAGE_MIME_TYPES]
 	})
 
 	// Internal state for this component
