@@ -15,8 +15,7 @@
 			id: data.authenticatedUser.userId,
 			name: data.authenticatedUser.name
 		},
-		config: data.agent,
-		history: []
+		config: data.agent
 	}
 
 	const agentChatState = new ChatState(initialChat, data.authenticatedUser, data.APP_CONFIG)
@@ -33,8 +32,7 @@
 				id: data.authenticatedUser.userId,
 				name: data.authenticatedUser.name
 			},
-			config: data.agent,
-			history: []
+			config: data.agent
 		}
 		agentChatState.changeChat(initialChat)
 	})

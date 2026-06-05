@@ -39,8 +39,7 @@
 					name: "system"
 				}
 			}
-		},
-		history: []
+		}
 	}
 
 	// svelte-ignore state_referenced_locally (don't care, user is user, APP_CONFIG is APP_CONFIG. If somebody messes with them, backend must handle that)

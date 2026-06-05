@@ -3,7 +3,6 @@
 	import { canEditChatConfig } from "$lib/authorization"
 	import ChatConfigPanel from "./ChatConfigPanel.svelte"
 	import type { ChatState } from "./ChatState.svelte"
-	import ConversationExport from "./ConversationExport.svelte"
 	import NewChatDialog from "./NewChatDialog.svelte"
 
 	type Props = {
@@ -62,10 +61,7 @@
 					<span class="material-symbols-rounded">edit_square</span>
 					Ny samtale
 				</button>
-				{#if !chatState.APP_CONFIG.CONVERSATION_EXPORT_DISABLED}
-					<ConversationExport bind:chat={chatState.chat} />
-				{/if}
-				{#if userCanEditConfig}
+{#if userCanEditConfig}
 					<button class="header-action" class:glow={chatState.configEdited} onclick={() => chatState.configMode = true} title="Konfigurer assistent">
 						<span class="material-symbols-rounded">build</span>
 						Konfigurer

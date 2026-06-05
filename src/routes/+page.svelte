@@ -17,8 +17,7 @@
 			id: data.authenticatedUser.userId,
 			name: data.authenticatedUser.name
 		},
-		config: data.agent,
-		history: []
+		config: data.agent
 	}
 
 	// svelte-ignore state_referenced_locally (don't care, user is user, APP_CONFIG is APP_CONFIG. If somebody messes with them, backend must handle that)
