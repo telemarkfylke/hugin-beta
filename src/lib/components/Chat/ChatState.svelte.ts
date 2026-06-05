@@ -58,6 +58,7 @@ export class ChatState {
 	public initialConfig: ChatConfig = $state(placeHolderConfig)
 	public configEdited: boolean = $derived(JSON.stringify(this.chatConfig) !== JSON.stringify(this.initialConfig))
 	public webSearchEnabled: boolean = $state(false)
+	public reasoningEffort: "low" | "medium" | "high" = $state("medium")
 
 	public aiChat: AiChat
 
@@ -71,11 +72,16 @@ export class ChatState {
 					const webSearchTools: ChatConfig["tools"] = this.webSearchEnabled
 						? [{ type: "web_search" }, ...(this.chatConfig.tools?.filter((t) => t.type !== "web_search") ?? [])]
 						: this.chatConfig.tools?.filter((t) => t.type !== "web_search")
+					const providerOptions =
+						this.chatConfig.vendorId === "OPENAI"
+							? { openai: { reasoningEffort: this.reasoningEffort } }
+							: this.chatConfig.providerOptions
 					return {
 						config: {
 							...this.chatConfig,
 							name: this.chatConfig.name || "Ukjent navn",
-							tools: webSearchTools
+							tools: webSearchTools,
+							providerOptions
 						},
 						stream: this.streamResponse,
 						store: this.storeChat
@@ -119,6 +125,7 @@ export class ChatState {
 		this.chatOwner = chat.owner
 		this.initialConfig = JSON.parse(JSON.stringify(chat.config))
 		this.webSearchEnabled = false
+		this.reasoningEffort = "medium"
 		this.aiChat.messages = []
 	}
 
@@ -129,6 +136,7 @@ export class ChatState {
 		this.chatCreatedAt = new Date().toISOString()
 		this.chatUpdatedAt = new Date().toISOString()
 		this.webSearchEnabled = false
+		this.reasoningEffort = "medium"
 		this.aiChat.messages = []
 	}
 

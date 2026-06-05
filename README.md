@@ -11,7 +11,7 @@ The application is a SvelteKit monolith. The server side handles authentication,
 ### Key Capabilities
 
 - Real-time streaming AI responses via the Vercel AI SDK
-- OpenAI (`gpt-4o`) and Mistral (`mistral-large-latest`) support
+- OpenAI (`gpt-5.5`) and Mistral (`mistral-large-latest`) support
 - Optional web search tool (OpenAI only, via `openai.tools.webSearch()`)
 - Multi-modal input: text, images, and document file attachments
 - Per-project API key isolation — different keys per deployment context
@@ -47,7 +47,7 @@ The application uses the **Vercel AI SDK v6 directly** — there is no custom ve
 
 | Provider | Vendor ID | Model |
 |---|---|---|
-| OpenAI | `OPENAI` | `gpt-4o` |
+| OpenAI | `OPENAI` | `gpt-5.5` |
 | Mistral | `MISTRAL` | `mistral-large-latest` |
 
 On the server, `resolveModel()` in `src/lib/server/ai-sdk/resolve-model.ts` creates a provider instance from the appropriate API key and returns an AI SDK `LanguageModel`. The chat endpoint calls `streamText()` and returns `result.toUIMessageStreamResponse()`.

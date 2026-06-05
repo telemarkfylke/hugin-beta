@@ -22,6 +22,12 @@
 	let fileSizeWarning = $state(false)
 	let webSearchEnabled = $derived(chatState.webSearchEnabled)
 
+	const reasoningLevels: { value: "low" | "medium" | "high"; label: string }[] = [
+		{ value: "low", label: "Rask" },
+		{ value: "medium", label: "Balansert" },
+		{ value: "high", label: "Dyp" }
+	]
+
 	// Konverter filarrayen til en liste med filer
 	const filesToFileList = (files: File[]): FileList => {
 		const dataTransfer = new DataTransfer()
@@ -209,6 +215,18 @@
 						<span class="material-symbols-outlined">travel_explore</span>
 					</button>
 				{/if}
+				{#if chatState.chat.config.vendorId === "OPENAI"}
+					<select
+						class="reasoning-select"
+						bind:value={chatState.reasoningEffort}
+						title="Tenkenivå"
+						aria-label="Tenkenivå"
+					>
+						{#each reasoningLevels as level}
+							<option value={level.value}>{level.label}</option>
+						{/each}
+					</select>
+				{/if}
 			</div>
 			<div class="input-submit">
 				<!-- Send button (right) -->
@@ -299,6 +317,22 @@
 		color: var(--color-primary);
 		background-color: var(--color-primary-20);
 		border-radius: 50%;
+	}
+
+	.reasoning-select {
+		font-size: 0.75rem;
+		padding: 0.25rem 0.4rem;
+		border: 1px solid var(--color-primary-40);
+		border-radius: 1rem;
+		background: transparent;
+		color: var(--color-primary-70);
+		cursor: pointer;
+		outline: none;
+	}
+
+	.reasoning-select:focus {
+		border-color: var(--color-primary);
+		color: var(--color-primary);
 	}
 
 	.input-action-button.send {

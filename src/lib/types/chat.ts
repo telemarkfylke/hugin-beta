@@ -1,4 +1,5 @@
 import type { ObjectId } from "mongodb"
+import type { ProviderOptions } from "@ai-sdk/provider-utils"
 import z from "zod"
 import type { AppConfig } from "./app-config"
 
@@ -28,6 +29,7 @@ export type ChatConfig = {
 	instructions?: string | undefined
 	conversationId?: string | undefined
 	tools?: ChatTool[] | undefined | null
+	providerOptions?: ProviderOptions | undefined
 	type: "published" | "private"
 	shared?: boolean | undefined
 	accessGroups: (RoleAccessGroups | EntraAccessGroup)[]
@@ -86,6 +88,8 @@ export const ChatConfigSchema = schemaForType<ChatConfig>()(
 			.array(z.object({ type: z.enum(["web_search"]) }))
 			.nullable()
 			.optional(), // Update as per ChatTool for now
+		// biome-ignore lint: ProviderOptions is a complex recursive type that Zod cannot infer exactly
+		providerOptions: z.custom<ProviderOptions>().optional(),
 		shared: z.boolean().optional(),
 		instructions: z.string().optional(),
 		conversationId: z.string().optional(),

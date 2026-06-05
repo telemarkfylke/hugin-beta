@@ -8,7 +8,7 @@ let mockChatConfigs: ChatConfig[] = [
 	{
 		_id: "1000",
 		name: "Mistral",
-		description: "Mistral er en kraftig europeisk variant av ChatGPT",
+		description: "Mistral er en kraftig europeisk KI-modell.",
 		vendorId: "MISTRAL",
 		project: "DEFAULT",
 		instructions: "",
@@ -29,30 +29,8 @@ let mockChatConfigs: ChatConfig[] = [
 	},
 	{
 		_id: "2000",
-		name: "ChatGPT rask",
+		name: "ChatGPT",
 		description: "OpenAIs KI for rask og presis informasjon.",
-		vendorId: "OPENAI",
-		project: "DEFAULT",
-		instructions: "",
-		accessGroups: ["all"],
-		type: "published",
-		created: {
-			at: new Date().toISOString(),
-			by: {
-				id: "system"
-			}
-		},
-		updated: {
-			at: new Date().toISOString(),
-			by: {
-				id: "system"
-			}
-		}
-	},
-	{
-		_id: "3000",
-		name: "ChatGPT tenker",
-		description: "OpenAIs avanserte og nyeste KI for rask tenkning og resonnering.",
 		vendorId: "OPENAI",
 		project: "DEFAULT",
 		instructions: "",

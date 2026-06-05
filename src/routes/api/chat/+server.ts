@@ -47,7 +47,8 @@ const chatHandler: ApiNextFunction = async ({ requestEvent, user }) => {
 		model,
 		messages: coreMessages,
 		...(config.instructions ? { system: config.instructions } : {}),
-		...(tools ? { tools } : {})
+		...(tools ? { tools } : {}),
+		...(config.providerOptions ? { providerOptions: config.providerOptions } : {})
 	})
 
 	return {
