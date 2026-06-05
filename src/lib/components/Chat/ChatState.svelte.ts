@@ -1,10 +1,10 @@
+import { Chat as AiChat } from "@ai-sdk/svelte"
+import { DefaultChatTransport, type FileUIPart } from "ai"
 import { goto } from "$app/navigation"
 import type { AppConfig } from "$lib/types/app-config"
 import type { AuthenticatedPrincipal } from "$lib/types/authentication"
-import type { Chat, ChatConfig, ChatHistory, ChatRequest, ChatResponseObject } from "$lib/types/chat"
-import type { ChatInputItem } from "$lib/types/chat-item"
+import type { Chat, ChatConfig, ChatHistory } from "$lib/types/chat"
 import type { InputFile, InputImage } from "$lib/types/chat-item-content"
-import { postChatMessage } from "./PostChatMessage.svelte"
 
 const fileToBase64Url = (file: File): Promise<string> => {
 	return new Promise((resolve, reject) => {
@@ -71,31 +71,74 @@ const placeHolderConfig: ChatConfig = {
 }
 
 export class ChatState {
-	public chat: Chat = $state({
-		_id: "",
-		config: placeHolderConfig,
-		history: [] as ChatHistory,
-		createdAt: new Date().toISOString(),
-		updatedAt: new Date().toISOString(),
-		owner: {
-			id: "",
-			name: ""
-		}
-	})
+	public chatConfig: ChatConfig = $state(placeHolderConfig)
+	public chatId: string = $state("")
+	public chatHistory: ChatHistory = $state([])
+	public chatCreatedAt: string = $state(new Date().toISOString())
+	public chatUpdatedAt: string = $state(new Date().toISOString())
+	public chatOwner: { id: string; name?: string | undefined } = $state({ id: "", name: undefined })
 	public streamResponse: boolean = $state(true)
 	public storeChat: boolean = $state(false)
-	public isLoading: boolean = $state(false)
 	public user: AuthenticatedPrincipal
 	public APP_CONFIG: AppConfig
 	public configMode: boolean = $state(false)
 	public initialConfig: ChatConfig = $state(placeHolderConfig)
-	public configEdited: boolean = $derived(JSON.stringify(this.chat.config) !== JSON.stringify(this.initialConfig))
+	public configEdited: boolean = $derived(JSON.stringify(this.chatConfig) !== JSON.stringify(this.initialConfig))
 	public webSearchEnabled: boolean = $state(false)
+
+	public aiChat: AiChat
 
 	constructor(chat: Chat, user: AuthenticatedPrincipal, appConfig: AppConfig) {
 		this.user = user
 		this.APP_CONFIG = appConfig
+		this.aiChat = new AiChat({
+			transport: new DefaultChatTransport({
+				api: "/api/chat",
+				body: () => {
+					const webSearchTools: ChatConfig["tools"] = this.webSearchEnabled
+						? [{ type: "web_search" }, ...(this.chatConfig.tools?.filter((t) => t.type !== "web_search") ?? [])]
+						: this.chatConfig.tools?.filter((t) => t.type !== "web_search")
+					return {
+						config: {
+							...this.chatConfig,
+							name: this.chatConfig.name || this.chatConfig.model || "Ukjent navn",
+							tools: webSearchTools
+						},
+						stream: this.streamResponse,
+						store: this.storeChat
+					}
+				}
+			})
+		})
 		this.changeChat(chat)
+	}
+
+	public get isLoading(): boolean {
+		return this.aiChat.status === "submitted" || this.aiChat.status === "streaming"
+	}
+
+	/**
+	 * Compatibility getter — provides the old `chat` shape consumed by components
+	 * that have not yet been migrated to the new property names (Tasks 7+).
+	 */
+	public get chat(): Chat {
+		return {
+			_id: this.chatId,
+			config: this.chatConfig,
+			history: this.chatHistory,
+			createdAt: this.chatCreatedAt,
+			updatedAt: this.chatUpdatedAt,
+			owner: this.chatOwner
+		}
+	}
+
+	public set chat(value: Chat) {
+		this.chatId = value._id
+		this.chatConfig = value.config
+		this.chatHistory = value.history
+		this.chatCreatedAt = value.createdAt
+		this.chatUpdatedAt = value.updatedAt
+		this.chatOwner = value.owner
 	}
 
 	public changeChat = (chat: Chat): void => {
@@ -105,29 +148,30 @@ export class ChatState {
 		if (!chat.config.vendorAgent?.id && !chat.config.model) {
 			throw new Error("Chat config must have either a vendorAgent id or a model defined")
 		}
-		this.chat._id = chat._id
-		this.chat.config = chat.config
-		this.chat.history = chat.history
-		this.chat.createdAt = chat.createdAt
-		this.chat.updatedAt = chat.updatedAt
-		this.chat.owner = chat.owner
+		this.chatId = chat._id
+		this.chatConfig = chat.config
+		this.chatHistory = chat.history
+		this.chatCreatedAt = chat.createdAt
+		this.chatUpdatedAt = chat.updatedAt
+		this.chatOwner = chat.owner
 		this.initialConfig = JSON.parse(JSON.stringify(chat.config))
 		this.webSearchEnabled = false
+		this.aiChat.messages = []
 	}
 
 	public newChat = (): void => {
-		this.chat.history = []
-		this.chat._id = ""
-		this.chat.createdAt = new Date().toISOString()
-		this.chat.updatedAt = new Date().toISOString()
+		this.chatHistory = []
+		this.chatId = ""
+		this.chatCreatedAt = new Date().toISOString()
+		this.chatUpdatedAt = new Date().toISOString()
+		this.aiChat.messages = []
 	}
 
 	public loadChat = async (chatId: string): Promise<void> => {
 		// Fetch from API and update state
-		this.isLoading = true
+		this.aiChat.messages = []
 		// Sleep
 		await new Promise((resolve) => setTimeout(resolve, 1000))
-		this.isLoading = false
 		// Mocked response
 		const response: Chat = {
 			_id: chatId,
@@ -226,80 +270,40 @@ export class ChatState {
 	}
 
 	public promptChat = async (inputText: string, inputFiles: FileList) => {
-		const userMessage: ChatInputItem = {
-			type: "message.input",
-			role: "user",
-			content: []
-		}
+		// Convert files to FileUIPart format for the AI SDK
+		const fileParts: FileUIPart[] = []
 
-		// Process files if any
 		if (inputFiles && inputFiles.length > 0) {
-			const vendor = this.APP_CONFIG.VENDORS[this.chat.config.vendorId]
+			const vendor = this.APP_CONFIG.VENDORS[this.chatConfig.vendorId]
 			if (!vendor) {
-				throw new Error(`Vendor not found: ${this.chat.config.vendorId}`)
+				throw new Error(`Vendor not found: ${this.chatConfig.vendorId}`)
 			}
-			const model = vendor.MODELS.find((model) => model.ID === this.chat.config.model)
+			const model = vendor.MODELS.find((m) => m.ID === this.chatConfig.model)
 			if (!model) {
-				throw new Error(`Model not found for vendor ${this.chat.config.vendorId}: ${this.chat.config.model}`)
+				throw new Error(`Model not found for vendor ${this.chatConfig.vendorId}: ${this.chatConfig.model}`)
 			}
 			const supportedFileTypes = model.SUPPORTED_MESSAGE_FILE_MIME_TYPES.FILE
 			const supportedImageTypes = model.SUPPORTED_MESSAGE_FILE_MIME_TYPES.IMAGE
 
 			for (const file of Array.from(inputFiles)) {
-				const messageContent = await fileToMessageContent(file, supportedFileTypes, supportedImageTypes)
-				userMessage.content.push(messageContent)
+				// Validate that the file type is supported (reuse existing helper for validation)
+				await fileToMessageContent(file, supportedFileTypes, supportedImageTypes)
+
+				const base64Url = await fileToBase64Url(file)
+				fileParts.push({
+					type: "file",
+					mediaType: file.type,
+					filename: file.name,
+					url: base64Url
+				})
 			}
 		}
 
-		// Add text input
-		userMessage.content.push({
-			type: "input_text",
-			text: inputText
-		})
-
-		const chatInput = this.chat.history
-			.flatMap((chatItem) => {
-				if (chatItem.type === "chat_response") {
-					return chatItem.outputs
-				}
-				return chatItem
-			})
-			.filter((message) => message !== undefined)
-
-		const webSearchTools: typeof this.chat.config.tools = this.webSearchEnabled
-			? [{ type: "web_search" }, ...(this.chat.config.tools?.filter((t) => t.type !== "web_search") ?? [])]
-			: this.chat.config.tools?.filter((t) => t.type !== "web_search")
-
-		const chatRequest: ChatRequest = {
-			config: {
-				...this.chat.config,
-				name: this.chat.config.name || this.chat.config.model || "Ukjent navn",
-				tools: webSearchTools
-			},
-			inputs: [...chatInput, userMessage],
-			stream: this.streamResponse,
-			store: this.storeChat
+		if (fileParts.length > 0) {
+			await this.aiChat.sendMessage({ text: inputText, files: fileParts })
+		} else {
+			await this.aiChat.sendMessage({ text: inputText })
 		}
-
-		this.chat.history.push(userMessage)
-
-		const tempChatResponseObject: ChatResponseObject = {
-			id: `temp_id_${Date.now()}`,
-			type: "chat_response",
-			config: chatRequest.config,
-			createdAt: new Date().toISOString(),
-			outputs: [],
-			status: "queued",
-			usage: {
-				inputTokens: 0,
-				outputTokens: 0,
-				totalTokens: 0
-			}
-		}
-
-		this.chat.history.push(tempChatResponseObject)
-		const responseObjectToPopulate: ChatResponseObject = this.chat.history[this.chat.history.length - 1] as ChatResponseObject // The one we just pushed as it is first reactive after adding to state array
-		await postChatMessage(chatRequest, responseObjectToPopulate, this.chat)
 	}
 
 	public saveChatConfig = async (): Promise<void> => {
@@ -309,7 +313,7 @@ export class ChatState {
 				headers: {
 					"Content-Type": "application/json"
 				},
-				body: JSON.stringify(this.chat.config)
+				body: JSON.stringify(this.chatConfig)
 			})
 			if (!result.ok) {
 				const errorData = await result.json()
@@ -325,26 +329,26 @@ export class ChatState {
 
 	public updateChatConfig = async (): Promise<void> => {
 		try {
-			const result = await fetch(`/api/chatconfigs/${this.chat.config._id}`, {
+			const result = await fetch(`/api/chatconfigs/${this.chatConfig._id}`, {
 				method: "PUT",
 				headers: {
 					"Content-Type": "application/json"
 				},
-				body: JSON.stringify(this.chat.config)
+				body: JSON.stringify(this.chatConfig)
 			})
 			if (!result.ok) {
 				const errorData = await result.json()
 				throw new Error(`Failed to update chat config: ${result.status} ${result.statusText} - ${errorData.message || JSON.stringify(errorData)}`)
 			}
 			const updatedConfig: ChatConfig = await result.json()
-			this.chat.config = updatedConfig
+			this.chatConfig = updatedConfig
 			this.initialConfig = JSON.parse(JSON.stringify(updatedConfig))
 			this.configMode = false
 		} catch (error) {
 			console.error("Error updating chat config:", error)
 			throw error
 		}
-		goto(`/agents/${this.chat.config._id}`)
+		goto(`/agents/${this.chatConfig._id}`)
 	}
 
 	public deleteChatConfig = async (): Promise<void> => {
@@ -354,7 +358,7 @@ export class ChatState {
 		}
 
 		try {
-			const result = await fetch(`/api/chatconfigs/${this.chat.config._id}`, {
+			const result = await fetch(`/api/chatconfigs/${this.chatConfig._id}`, {
 				method: "DELETE"
 			})
 			if (!result.ok) {
