@@ -28,7 +28,5 @@ export type AppConfig = {
 	VENDORS: {
 		MISTRAL: VendorInfo
 		OPENAI: VendorInfo
-		OLLAMA: VendorInfo
-		LITELLM: VendorInfo
 	}
 }

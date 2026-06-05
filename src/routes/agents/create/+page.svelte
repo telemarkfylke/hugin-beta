@@ -20,7 +20,6 @@
 			description: "",
 			project: "DEFAULT",
 			vendorId: "MISTRAL",
-			model: "mistral-medium-latest",
 			instructions: "Answer in Norwegian.",
 			conversationId: "",
 			type: "private",

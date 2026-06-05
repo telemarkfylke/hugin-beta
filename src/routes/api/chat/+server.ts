@@ -41,7 +41,7 @@ const chatHandler: ApiNextFunction = async ({ requestEvent, user }) => {
 
 	const model = resolveModel(config)
 	const coreMessages = await convertToModelMessages(messages)
-	const tools = resolveTools(config.tools, config.vendorId)
+	const tools = resolveTools(config.tools, config)
 
 	const result = streamText({
 		model,

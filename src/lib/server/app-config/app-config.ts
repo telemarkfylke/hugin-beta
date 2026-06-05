@@ -9,7 +9,13 @@ import {
 
 export const APP_CONFIG: AppConfig = {
 	NAME: env.APP_NAME || "Mugin",
-	BODY_SIZE_LIMIT_BYTES: env.BODY_SIZE_LIMIT?.endsWith("M") ? Number(env.BODY_SIZE_LIMIT.split("M")[0]) * 1024 * 1024 : 10 * 1024 * 1024,
+	BODY_SIZE_LIMIT_BYTES: (() => {
+		const val = env.BODY_SIZE_LIMIT
+		if (!val) return 10 * 1024 * 1024
+		if (val.endsWith("M")) return Number(val.slice(0, -1)) * 1024 * 1024
+		const bytes = Number(val)
+		return Number.isFinite(bytes) && bytes > 0 ? bytes : 10 * 1024 * 1024
+	})(),
 	APP_ROLES: {
 		ADMIN: env.APP_ROLE_ADMIN as string,
 		AGENT_MAINTAINER: env.APP_ROLE_AGENT_MAINTAINER as string,
@@ -49,19 +55,5 @@ export const APP_CONFIG: AppConfig = {
 			SUPPORTED_MESSAGE_FILE_MIME_TYPES: OPEN_AI_DEFAULT_SUPPORTED_MESSAGE_FILE_MIME_TYPES,
 			SUPPORTED_MESSAGE_IMAGE_MIME_TYPES: OPEN_AI_DEFAULT_SUPPORTED_MESSAGE_IMAGE_MIME_TYPES
 		},
-		OLLAMA: {
-			NAME: "Ollama",
-			ENABLED: Boolean(env.OLLAMA_HOST),
-			PROJECTS: ["DEFAULT"],
-			SUPPORTED_MESSAGE_FILE_MIME_TYPES: [],
-			SUPPORTED_MESSAGE_IMAGE_MIME_TYPES: []
-		},
-		LITELLM: {
-			NAME: "Telemark fylkeskommune",
-			ENABLED: Boolean(env.LITELLM_BASE_URL),
-			PROJECTS: ["DEFAULT"],
-			SUPPORTED_MESSAGE_FILE_MIME_TYPES: [],
-			SUPPORTED_MESSAGE_IMAGE_MIME_TYPES: []
-		}
 	}
 }

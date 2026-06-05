@@ -1,403 +1,418 @@
 # Hugin Beta
 
-A multi-provider AI chat application built with SvelteKit, providing a unified interface to multiple AI providers with enterprise-grade authentication and real-time streaming responses.
-
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue.svg)](https://www.typescriptlang.org/)
-[![SvelteKit](https://img.shields.io/badge/SvelteKit-2.22-orange.svg)](https://kit.svelte.dev/)
-[![Svelte 5](https://img.shields.io/badge/Svelte-5.0-red.svg)](https://svelte.dev/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+An internal AI chat application built with SvelteKit 5, providing a multi-modal interface to OpenAI and Mistral AI via the Vercel AI SDK v6.
 
 ## Overview
 
-Hugin Beta is an internal AI-agent web application designed to provide a democratic, secure, flexible, and user-friendly AI solution. The application supports multiple AI providers through a vendor-agnostic architecture, ensuring built-in privacy and seamless user experience.
+Hugin Beta is an enterprise AI chat application designed for use in Norwegian county municipalities. It provides a secure, role-governed interface to large language models, with Microsoft Entra ID authentication, per-project API key isolation, optional web search, and support for file and image attachments.
 
-### Key Features
+The application is a SvelteKit monolith. The server side handles authentication, authorization, and AI provider integration. The client side is built with Svelte 5 Runes and uses the Vercel AI SDK's `@ai-sdk/svelte` package for reactive chat state.
 
-- **Multi-Provider Support** - Unified interface for OpenAI and Mistral AI (Ollama support in development)
-- **Real-Time Streaming** - Server-Sent Events (SSE) for incremental AI responses
-- **Enterprise Authentication** - Microsoft Entra ID integration with role-based access control
-- **Multi-Modal Input** - Support for text, images, and document uploads
-- **Modern UI** - Svelte 5 Runes for reactive state management with markdown and LaTeX rendering
+### Key Capabilities
+
+- Real-time streaming AI responses via the Vercel AI SDK
+- OpenAI (`gpt-4o`) and Mistral (`mistral-large-latest`) support
+- Optional web search tool (OpenAI only, via `openai.tools.webSearch()`)
+- Multi-modal input: text, images, and document file attachments
+- Per-project API key isolation — different keys per deployment context
+- Role-based and group-based access control (Entra ID)
+- Chat configuration management (create, publish, share assistants)
+- Transcription service integration (audio-to-note via internal service)
+- Markdown and LaTeX rendering in chat responses
 
 ---
 
-## Table of Contents
+## Tech Stack
 
-- [Architecture](#architecture)
-  - [System Overview](#system-overview)
-  - [Vendor Abstraction](#vendor-abstraction)
-  - [Authentication Flow](#authentication-flow)
-  - [Streaming Architecture](#streaming-architecture)
-- [Getting Started](#getting-started)
-  - [Prerequisites](#prerequisites)
-  - [Installation](#installation)
-  - [Environment Configuration](#environment-configuration)
-- [Development](#development)
-  - [Commands](#commands)
-  - [Project Structure](#project-structure)
-- [API Reference](#api-reference)
-- [Type System](#type-system)
-- [Testing](#testing)
-- [Deployment](#deployment)
-- [License](#license)
+| Category | Technology |
+|---|---|
+| Framework | SvelteKit 2, Svelte 5 (Runes) |
+| Language | TypeScript 5.9 (strict mode) |
+| AI Integration | Vercel AI SDK v6 (`ai`, `@ai-sdk/openai`, `@ai-sdk/mistral`, `@ai-sdk/svelte`) |
+| Validation | Zod 4 (API boundaries only) |
+| Linting / Formatting | Biome |
+| Testing | Vitest |
+| Authentication | Microsoft Entra ID via Azure App Service EasyAuth |
+| Database | MongoDB (driver installed; in-memory mock for development) |
+| Deployment | `@sveltejs/adapter-node` |
+| Logging | `@vestfoldfylke/loglady` with optional BetterStack forwarding |
 
 ---
 
 ## Architecture
 
-### System Overview
+### AI Integration
 
-Hugin Beta follows an API-first architecture where all frontend capabilities are backed by corresponding backend APIs. The application is built as a SvelteKit monolith with clear separation between client and server code.
+The application uses the **Vercel AI SDK v6 directly** — there is no custom vendor abstraction layer. Two providers are supported:
+
+| Provider | Vendor ID | Model |
+|---|---|---|
+| OpenAI | `OPENAI` | `gpt-4o` |
+| Mistral | `MISTRAL` | `mistral-large-latest` |
+
+On the server, `resolveModel()` in `src/lib/server/ai-sdk/resolve-model.ts` creates a provider instance from the appropriate API key and returns an AI SDK `LanguageModel`. The chat endpoint calls `streamText()` and returns `result.toUIMessageStreamResponse()`.
+
+On the client, `ChatState` (in `src/lib/components/Chat/ChatState.svelte.ts`) instantiates an AI SDK `Chat` object from `@ai-sdk/svelte`, configured with a `DefaultChatTransport` pointing at `/api/chat`. The `Chat` object owns the message list and streaming state; `ChatState` wraps it with Svelte 5 `$state` for reactivity and adds file upload, config persistence, and web search toggle logic.
+
+### Per-Project API Keys
+
+API keys are namespaced by vendor and project name:
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                         Client Layer                            │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────────┐ │
-│  │ Chat.svelte │  │ ChatState   │  │ SSE Stream Consumer     │ │
-│  │ (UI)        │◄─┤ (Svelte 5)  │◄─┤ (PostChatMessage)       │ │
-│  └─────────────┘  └─────────────┘  └─────────────────────────┘ │
-└────────────────────────────┬────────────────────────────────────┘
-                             │ HTTP/SSE
-┌────────────────────────────▼────────────────────────────────────┐
-│                        Server Layer                             │
-│  ┌─────────────────┐  ┌──────────────┐  ┌───────────────────┐  │
-│  │ Auth Middleware │─►│ API Routes   │─►│ Vendor Factory    │  │
-│  │ (Entra ID)      │  │ (/api/chat)  │  │ (ai-vendors.ts)   │  │
-│  └─────────────────┘  └──────────────┘  └─────────┬─────────┘  │
-└───────────────────────────────────────────────────┼─────────────┘
-                                                    │
-┌───────────────────────────────────────────────────▼─────────────┐
-│                      AI Provider Layer                          │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐             │
-│  │   OpenAI    │  │  Mistral AI │  │   Ollama    │             │
-│  │   Vendor    │  │   Vendor    │  │   Vendor    │             │
-│  └─────────────┘  └─────────────┘  └─────────────┘             │
-└─────────────────────────────────────────────────────────────────┘
+OPENAI_API_KEY_PROJECT_DEFAULT
+OPENAI_API_KEY_PROJECT_MYPROJECT
+MISTRAL_API_KEY_PROJECT_DEFAULT
 ```
 
-### Vendor Abstraction
+The `project` field on a `ChatConfig` determines which key is used at request time. This allows different assistants to bill to different accounts without any code changes.
 
-The application uses a plugin-based vendor pattern. All AI providers implement the `IAIVendor` interface:
+### Web Search
 
-```typescript
-interface IAIVendor {
-  createChatResponse(chatRequest: ChatRequest): Promise<ChatResponseObject>
-  createChatResponseStream(chatRequest: ChatRequest): Promise<ChatResponseStream>
-}
-```
+Web search is supported on OpenAI configs via `openai.tools.webSearch()`. It is opt-in per chat session (a toggle in the UI). When enabled, the tool is injected into the `streamText()` call. The `resolveTools()` function in `src/lib/server/ai-sdk/resolve-tools.ts` handles tool assembly.
 
-Each vendor implementation consists of three components:
+### Authentication
 
-| File | Purpose |
-|------|---------|
-| `{vendor}-vendor.ts` | Implements `IAIVendor` interface |
-| `{vendor}-mapping.ts` | Converts between internal types and vendor SDK types |
-| `{vendor}-stream.ts` | Handles SSE streaming and event normalization |
+**Production:** Azure App Service EasyAuth validates the user's Entra ID token before the request reaches the application. The validated claims arrive as a base64-encoded JSON payload in the `X-MS-CLIENT-PRINCIPAL` header. The middleware in `src/lib/server/auth/get-authenticated-user.ts` decodes and parses these claims into an `AuthenticatedPrincipal` with `userId`, `name`, `roles`, and `groups`.
 
-**Data Flow:**
-```
-ChatRequest → Mapping Layer → Vendor SDK → Vendor Response → Mapping Layer → ChatResponse
-```
+**Development:** Set `MOCK_AUTH="true"` to bypass EasyAuth. Use `MOCK_AUTH_ROLES` and `MOCK_AUTH_GROUPS` to configure the mock user's roles and group memberships.
 
-### Authentication Flow
-
-**Production (Microsoft Entra ID):**
-1. Azure App Service EasyAuth validates JWT token
-2. Claims passed via `X-MS-CLIENT-PRINCIPAL` header (base64-encoded)
-3. Middleware extracts and validates claims with Zod
-4. `AuthenticatedPrincipal` object created with userId, name, roles, and groups
-
-**Development (Mock Authentication):**
-- Enabled via `MOCK_AUTH="true"` environment variable
-- Roles and groups configurable via environment variables
-
-### Streaming Architecture
-
-Real-time AI responses use Server-Sent Events with the following event types:
-
-| Event | Description |
-|-------|-------------|
-| `response.config` | Chat configuration metadata nobody uses? |
-| `response.started` | Response initiated with responseId |
-| `response.output_text.delta` | Incremental text chunk |
-| `response.done` | Completion with token usage statistics |
-| `response.error` | Error information |
-| `conversation.created` | New conversation identifier |
-
-All events are validated using Zod discriminated unions for type-safe handling.
-
----
+Authentication runs on every request via `+layout.server.ts`, which calls `getAuthenticatedPrincipal()` and injects the result into `event.locals`.
 
 ### Authorization
-- Uses the functions in authorization.ts
-- Regular users can define their own chatConfigs and test basically any config against the api/chat endpoint
-  - But they cannot define chatconfigs with predefined agent/prompt-ids where the config is set up in a vendor.
-  - They can use predefined chatconfigs only if they have access to the agentId in some defined chatconfig in db - which is created by a user with more permissions.
+
+Authorization is enforced at two levels:
+
+1. **Middleware level** — `apiRequestMiddleware()` authenticates the user before any handler runs.
+2. **Handler level** — handlers call functions from `src/lib/authorization.ts` to check resource-level permissions.
+
+The main authorization functions:
+
+| Function | Purpose |
+|---|---|
+| `canPromptConfig` | Can this user send a message using this config? |
+| `canEditChatConfig` | Can this user edit this config? |
+| `canPublishChatConfig` | Can this user publish a config (make it visible to others)? |
+| `canViewAllChatConfigs` | Can this user see all configs in the system? |
+| `canUpdateChatConfig` | Can this user save changes to an existing config? |
+
+Access to a published config is determined by the config's `accessGroups` field, which can be role-based (`"all"`, `"employee"`, `"student"`, `"edu_employee"`) or Entra ID group-based (object IDs).
+
+### Validation
+
+Zod is used **only at external trust boundaries**:
+
+- `src/lib/validation/parse-chat-config.ts` — validates the `config` object on every `/api/chat` request
+- `src/lib/types/chat.ts` — `ChatConfigSchema` defines the Zod schema, from which the `ChatConfig` TypeScript type is derived
+
+Plain TypeScript type guards are used everywhere else (auth claim parsing, environment variable validation).
+
+### Error Handling
+
+All server errors are thrown as `HTTPError(status, message)` from `src/lib/server/middleware/http-error.ts`. The middleware catches these and serializes them as JSON responses. Internal details are never exposed to the client.
+
+### Logging
+
+All server-side code uses `logger` from `@vestfoldfylke/loglady`. Use `{placeholder}` syntax for structured fields:
+
+```typescript
+logger.info("Chat request for config {configId} by {userId}", config._id, user.userId)
+logger.errorException(error, "Failed to call provider")
+```
+
+BetterStack log forwarding activates automatically when `BETTERSTACK_URL` and `BETTERSTACK_TOKEN` environment variables are set.
+
+---
 
 ## Getting Started
 
 ### Prerequisites
 
-- **Node.js** - Latest LTS version (v20+)
-- **npm** - Package manager (included with Node.js)
-- **API Keys** - At least one of: Mistral API key, OpenAI API key, or local Ollama instance
+- Node.js v20 or later
+- npm (included with Node.js)
+- At least one API key: OpenAI or Mistral
 
 ### Installation
 
 ```bash
-# Clone the repository
-git clone <your-repository-url>
+git clone <repository-url>
 cd hugin-beta
-
-# Install dependencies
 npm install
 ```
 
-### Environment Configuration
+### Environment Setup
 
-Create a `.env` file in the project root:
+Copy `.env.example` to `.env` and fill in the required values:
 
 ```bash
-# AI Provider API Keys (at least one required)
-MISTRAL_API_KEY_PROJECT_DEFAULT="your-mistral-api-key"
-OPENAI_API_KEY_PROJECT_DEFAULT="your-openai-api-key"
+cp .env.example .env
+```
 
-# Mock Database Configuration
-MOCK_DB="true"                    # Use in-memory database (required for local dev)
-# Or production Database Configuration
-MONGODB_CONNECTION_STRING="mongodb+srv://..." # Production MongoDB connection
-MONGODB_DB_NAME="mugin" # Name of database
+Minimum configuration for local development:
 
-# Authentication
-MOCK_AUTH="true"                  # Enable mock authentication for local development
-MOCK_AUTH_ROLES="Employee,Admin"  # Comma-separated role values
-MOCK_AUTH_GROUPS="group-id-123"   # Comma-separated group IDs
-
-# Application Roles
+```bash
+OPENAI_API_KEY_PROJECT_DEFAULT="sk-..."   # or a Mistral key below
+MISTRAL_API_KEY_PROJECT_DEFAULT="..."
+MOCK_DB="true"
+MOCK_AUTH="true"
+MOCK_AUTH_ROLES="Employee,Admin"
 APP_ROLE_EMPLOYEE="Employee"
 APP_ROLE_STUDENT="Student"
 APP_ROLE_ADMIN="Admin"
 APP_ROLE_AGENT_MAINTAINER="AgentMaintainer"
 ```
 
+### Start the Development Server
+
+```bash
+npm run dev
+```
+
+The application is available at `http://localhost:5173`.
+
 ---
 
-## Development
+## Environment Variables
 
-### Commands
+### Application
+
+| Variable | Description | Default |
+|---|---|---|
+| `APP_NAME` | Application display name | `Mugin` |
+| `DEFAULT_AGENT_ID` | ID of the agent loaded on the home page | — |
+| `BODY_SIZE_LIMIT` | Max HTTP body size in bytes (or `NNM` for megabytes) | `10485760` (10 MB) |
+| `NEW_CHAT_CONFIRM_DISABLED` | Set `true` to suppress new-chat confirmation dialog | `false` |
+
+### Authentication
+
+| Variable | Description |
+|---|---|
+| `MOCK_AUTH` | Set `true` to enable mock authentication (local development only) |
+| `MOCK_AUTH_ROLES` | Comma-separated list of role values for the mock user (e.g. `Employee,Admin`) |
+| `MOCK_AUTH_GROUPS` | Comma-separated Entra ID group object IDs for the mock user |
+
+### Application Roles
+
+These values must match the role claim values configured in Entra ID.
+
+| Variable | Description |
+|---|---|
+| `APP_ROLE_EMPLOYEE` | Role value for employees |
+| `APP_ROLE_STUDENT` | Role value for students |
+| `APP_ROLE_ADMIN` | Role value for administrators |
+| `APP_ROLE_AGENT_MAINTAINER` | Role value for users who can publish and manage assistants |
+
+### AI Providers
+
+API keys follow the naming convention `{VENDOR}_API_KEY_PROJECT_{PROJECT}`. The project name `DEFAULT` is always required; additional project names can be added freely.
+
+| Variable | Description |
+|---|---|
+| `OPENAI_API_KEY_PROJECT_DEFAULT` | OpenAI API key for the default project |
+| `MISTRAL_API_KEY_PROJECT_DEFAULT` | Mistral API key for the default project |
+
+To add a project named `SCHOOL`, add `OPENAI_API_KEY_PROJECT_SCHOOL` and reference it in `ChatConfig.project = "SCHOOL"`.
+
+### Database
+
+| Variable | Description |
+|---|---|
+| `MOCK_DB` | Set `true` to use an in-memory store (required for local development) |
+| `MONGODB_CONNECTION_STRING` | MongoDB Atlas connection string (production) |
+| `MONGODB_DB_NAME` | Database name (production) |
+
+### Transcription Service (optional)
+
+| Variable | Description |
+|---|---|
+| `TALE_TIL_NOTAT_URL` | Internal URL of the transcription service |
+| `TRANSCRIPTION_CALLBACK_SECRET` | Shared secret for authenticating transcription callbacks |
+| `TRANSCRIPTION_GROUP_N_ID` | Entra ID group object ID for transcription use case N |
+| `TRANSCRIPTION_GROUP_N_LABEL` | Display label for transcription use case N |
+| `COPYPARTY_BASE_URL` | Internal Copyparty file store base URL |
+
+### Logging (optional)
+
+| Variable | Description |
+|---|---|
+| `BETTERSTACK_URL` | BetterStack ingestion endpoint |
+| `BETTERSTACK_TOKEN` | BetterStack source token |
+
+---
+
+## Development Commands
 
 | Command | Description |
-|---------|-------------|
+|---|---|
 | `npm run dev` | Start development server at `http://localhost:5173` |
 | `npm run dev -- --open` | Start dev server and open browser |
 | `npm run build` | Build for production |
 | `npm run preview` | Preview production build locally |
-| `npm run test` | Run full test suite (types, lint, build, unit tests) |
+| `npm run test` | Full test suite: `tsc` + Biome + build + Vitest |
 | `npm run test:unit` | Run Vitest unit tests only |
 | `npm run test:unit -- --watch` | Run tests in watch mode |
 | `npm run check` | TypeScript + Svelte type checking |
-| `npm run lint` | Run Biome linter |
+| `npm run check:watch` | Type checking in watch mode |
+| `npm run lint` | Run Biome linter (check only) |
 | `npm run lint:fix` | Auto-fix linting issues |
 
-### Project Structure
+Always run `npm run test` before committing. This pipeline runs type checking, linting, a production build, and the full unit test suite in sequence.
+
+---
+
+## Project Structure
 
 ```
 src/
-├── lib/                          # Shared library code
-│   ├── types/                    # Zod schemas and TypeScript types
-│   │   ├── AIVendor.ts          # Core vendor interface
-│   │   ├── chat.ts              # Chat request/response types
-│   │   ├── chat-item.ts         # Message types
-│   │   ├── chat-item-content.ts # Content types (text, file, image)
-│   │   ├── streaming.ts         # SSE event types
-│   │   └── authentication.ts    # Auth types
-│   ├── server/                   # Server-only code
-│   │   ├── ai-vendors.ts        # Vendor factory
-│   │   ├── openai/              # OpenAI implementation
-│   │   ├── mistral/             # Mistral implementation
-│   │   ├── auth/                # Authentication handlers
-│   │   ├── middleware/          # HTTP middleware
-│   │   └── db/                  # Database abstraction
-│   ├── components/              # Svelte components
-│   │   └── Chat/                # Chat UI components
-│   └── streaming.ts             # SSE utilities
-├── routes/                       # SvelteKit routes
-│   ├── +layout.server.ts        # Root auth middleware
-│   ├── +page.svelte             # Home page
+├── lib/
+│   ├── components/
+│   │   └── Chat/                   # Chat UI: Chat.svelte, ChatState.svelte.ts,
+│   │                               #   ChatInput, ChatHeaderWithConfig, etc.
+│   ├── server/
+│   │   ├── ai-sdk/                 # AI SDK integration
+│   │   │   ├── resolve-model.ts    # Maps ChatConfig.vendorId → LanguageModel
+│   │   │   └── resolve-tools.ts    # Assembles AI SDK tools (e.g. web search)
+│   │   ├── app-config/             # AppConfig singleton built from env vars
+│   │   ├── auth/                   # EasyAuth claim parsing, mock auth
+│   │   ├── db/                     # MongoDB abstraction + in-memory mock
+│   │   ├── middleware/             # HTTP middleware, HTTPError class
+│   │   └── transcription/          # Transcription job management
+│   ├── types/
+│   │   ├── app-config.ts           # AppConfig, VendorInfo, AppRoles types
+│   │   ├── authentication.ts       # AuthenticatedPrincipal, Entra ID claim types
+│   │   └── chat.ts                 # ChatConfig, Chat, VendorId, ChatTool,
+│   │                               #   ChatConfigSchema (Zod)
+│   ├── validation/
+│   │   ├── parse-chat-config.ts    # Validates + parses ChatConfig at API boundary
+│   │   └── env.ts                  # Environment variable validation at startup
+│   └── authorization.ts            # Pure authorization functions (no side effects)
+├── routes/
+│   ├── +layout.server.ts           # Injects authenticated user on every request
+│   ├── +page.svelte                # Home page
 │   ├── api/
-│   │   ├── chat/+server.ts      # Chat streaming endpoint
-│   │   └── chatconfigs/         # Config CRUD endpoints
-│   └── agents/                  # Agent management pages
-└── app.d.ts                     # Global type definitions
+│   │   ├── chat/+server.ts         # POST /api/chat — streaming AI response
+│   │   ├── chatconfigs/            # CRUD endpoints for chat configurations
+│   │   └── transcription/          # Transcription job endpoints
+│   ├── agents/                     # Agent listing and detail pages
+│   ├── admin/                      # Admin pages
+│   └── transcription/              # Transcription UI pages
+└── app.d.ts                        # SvelteKit locals type (AuthenticatedPrincipal)
+
+tests/
+└── server/                         # Server-side Vitest tests (Node environment)
 ```
 
 ---
 
-## API Reference
+## Key Concepts
 
-### POST `/api/chat`
+### Adding a New AI Provider
 
-Send a message and receive an AI response (streaming or non-streaming).
+The AI SDK has a large ecosystem of community providers. To add one:
 
-**Request Body:**
+1. Install the provider package, e.g. `npm install @ai-sdk/anthropic`.
+2. Add the vendor ID to `AppConfig.VENDORS` in `src/lib/types/app-config.ts`.
+3. Add the vendor block (with enabled flag, projects, and supported MIME types) in `src/lib/server/app-config/app-config.ts`.
+4. Add a case to `resolveModel()` in `src/lib/server/ai-sdk/resolve-model.ts`.
+5. Update `ChatConfigSchema` in `src/lib/types/chat.ts` to include the new vendor ID in the `vendorId` enum.
+6. Add the API key variable to `.env.example`.
+
+### Configuring Per-Project API Keys
+
+Each vendor can have multiple named projects. For example, to add an OpenAI project named `SCHOOL`:
+
+1. Add `OPENAI_API_KEY_PROJECT_SCHOOL="sk-..."` to `.env` (and `.env.example`).
+2. Create or update a `ChatConfig` with `project: "SCHOOL"` and `vendorId: "OPENAI"`.
+
+`AppConfig.VENDORS.OPENAI.PROJECTS` is populated automatically at startup by scanning environment variable names.
+
+### Adding New Roles or Access Groups
+
+**New role:**
+
+1. Add the role name to Entra ID app registration manifest.
+2. Add a corresponding env var (e.g. `APP_ROLE_REVIEWER="Reviewer"`).
+3. Add the field to `AppRoles` in `src/lib/types/app-config.ts`.
+4. Read it in `app-config.ts` under `APP_ROLES`.
+5. Use it in authorization functions in `src/lib/authorization.ts`.
+
+**New Entra group access:**
+
+No code change required. Add an `EntraAccessGroup` entry (`{ id: "<object-id>", displayName: "..." }`) to a `ChatConfig`'s `accessGroups` array. Users who are members of that group will pass the `canPromptConfig` check.
+
+---
+
+## Authentication
+
+### Production (EasyAuth)
+
+Azure App Service EasyAuth intercepts all requests, validates the Entra ID token, and forwards a base64-encoded JSON claims object in the `X-MS-CLIENT-PRINCIPAL` header. The application never handles raw JWTs directly.
+
+`src/lib/server/auth/get-authenticated-user.ts` decodes the header, parses the claims using plain TypeScript type guards (in `src/lib/validation/auth-principal.ts`), and returns an `AuthenticatedPrincipal`:
+
 ```typescript
-{
-  config: {
-    _id: string,
-    name: string,
-    description: string,
-    vendorId: "openai" | "mistral",
-    project: string,
-    model?: string,
-    instructions?: string,
-    conversationId?: string
-  },
-  inputs: ChatInputItem[],
-  stream?: boolean,
-  store?: boolean
+type AuthenticatedPrincipal = {
+  userId: string
+  name: string
+  roles: string[]
+  groups: string[]
 }
 ```
 
-**Response:**
-- **Streaming:** `ReadableStream` with `Content-Type: text/event-stream`
-- **Non-streaming:** `ChatResponseObject` as JSON
+If the header is missing or malformed, the request is rejected with HTTP 401.
 
-### POST `/api/chatconfigs`
+### Development (Mock Auth)
 
-Create a new chat configuration.
+Set `MOCK_AUTH="true"` in `.env`. The mock user is constructed from:
 
-### PATCH `/api/chatconfigs/[_id]`
+- `MOCK_AUTH_ROLES` — comma-separated list of role values
+- `MOCK_AUTH_GROUPS` — comma-separated Entra group object IDs (leave empty for no groups)
 
-Update an existing chat configuration.
-
----
-
-## Type System
-
-The application uses a **Zod-first** approach where all types are defined as Zod schemas, then TypeScript types are inferred:
-
-```typescript
-// Schema definition
-const ChatConfigSchema = z.object({
-  _id: z.string(),
-  name: z.string(),
-  vendorId: z.enum(["openai", "mistral", "ollama"]),
-  model: z.string().optional(),
-  // ...
-})
-
-// Type inference
-type ChatConfig = z.infer<typeof ChatConfigSchema>
-
-// Runtime validation
-const result = ChatConfigSchema.safeParse(data)
-```
-
-### Core Types
-
-| Type | Description | Location |
-|------|-------------|----------|
-| `ChatConfig` | Chat configuration (vendor, model, instructions) | [chat.ts](src/lib/types/chat.ts) |
-| `ChatRequest` | Request payload with config and inputs | [chat.ts](src/lib/types/chat.ts) |
-| `ChatResponseObject` | Complete response with outputs and usage | [chat.ts](src/lib/types/chat.ts) |
-| `ChatInputMessage` | User/system input message | [chat-item.ts](src/lib/types/chat-item.ts) |
-| `ChatOutputMessage` | Assistant output message | [chat-item.ts](src/lib/types/chat-item.ts) |
-| `MuginSse` | SSE event discriminated union | [streaming.ts](src/lib/types/streaming.ts) |
-| `AuthenticatedPrincipal` | User identity with roles/groups | [authentication.ts](src/lib/types/authentication.ts) |
+**Note:** `MOCK_AUTH="true"` is rejected at startup in production builds unless `BUILD_PLACEHOLDER_CONFIG=true` is also set.
 
 ---
 
 ## Testing
 
-The project uses Vitest with separate test environments:
+The project uses Vitest with two separate test environments:
 
-| Test Type | Location | Environment |
-|-----------|----------|-------------|
-| Client tests | `src/**/*.svelte.{test,spec}.ts` | Browser |
-| Server tests | `tests/server/**/*.{test,spec}.ts` | Node.js |
+| Test type | Location | Environment |
+|---|---|---|
+| Server tests | `tests/server/**/*.test.ts` | Node.js |
+| Client tests | `src/**/*.svelte.spec.ts` | Browser (jsdom) |
 
 ```bash
-# Run all tests
+# Run all tests (full suite including type check, lint, build)
 npm run test
 
 # Run unit tests only
 npm run test:unit
 
-# Run tests in watch mode
+# Run in watch mode during development
 npm run test:unit -- --watch
 ```
 
-### Code Quality
-
-Before committing, ensure all checks pass:
-
-```bash
-npm run test  # Runs: tsc → biome → build → vitest
-```
-
-**TypeScript Configuration** (`tsconfig.json`):
-- `strict: true` - All strict checks enabled
-- `noUncheckedIndexedAccess: true` - Prevents array access bugs
-- `exactOptionalPropertyTypes: true` - Catches undefined/null issues
+TypeScript is configured with `strict: true`, `noUncheckedIndexedAccess: true`, and `exactOptionalPropertyTypes: true`. All of these checks must pass as part of `npm run test`.
 
 ---
 
 ## Deployment
 
-### Build
+The application uses `@sveltejs/adapter-node` and is deployed as a Node.js process.
 
 ```bash
 npm run build
+node build/index.js
 ```
 
-The build uses `@sveltejs/adapter-node` for Node.js deployment.
+### Azure App Service
 
-### Production Environment Variables
+1. Configure the App Service with the Node.js runtime.
+2. Enable EasyAuth (Authentication) with Microsoft Entra ID as the identity provider.
+3. Set all required environment variables in Application Settings (or Key Vault references).
+4. Deploy the `build/` output using Azure CLI, GitHub Actions, or zip deploy.
 
-```bash
-# Required
-MONGO_DB_URI="mongodb+srv://..."
-MISTRAL_API_KEY_PROJECT_DEFAULT="sk-..."
-OPENAI_API_KEY_PROJECT_DEFAULT="sk-..."
-
-# Authentication (Azure App Service)
-MOCK_AUTH="false"
-
-# Application Roles
-APP_ROLE_EMPLOYEE="Employee"
-APP_ROLE_STUDENT="Student"
-APP_ROLE_ADMIN="Admin"
-APP_ROLE_AGENT_MAINTAINER="AgentMaintainer"
-```
-
-### Azure Deployment
-
-1. Configure Azure App Service with Node.js runtime
-2. Enable EasyAuth with Microsoft Entra ID
-3. Set environment variables in Application Settings
-4. Deploy using your preferred method (Azure CLI, GitHub Actions, etc.)
+Do not set `MOCK_AUTH="true"` in production. All authentication flows through EasyAuth.
 
 ---
 
-## Technology Stack
-
-| Category | Technology |
-|----------|------------|
-| Framework | SvelteKit 2.22, Svelte 5 |
-| Language | TypeScript 5.9 |
-| AI Providers | OpenAI, Mistral AI |
-| Database | MongoDB |
-| Validation | Zod 4.1 |
-| Linting | Biome |
-| Testing | Vitest |
-| Markdown | markdown-it, highlight.js, KaTeX |
-
----
-
-## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
----
-
-Built with ❤️ by the Mugin Team of Vestfold and Telemark fylkeskommuner.
+Built by the Mugin Team at Vestfold og Telemark fylkeskommune.

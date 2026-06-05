@@ -1,12 +1,18 @@
+import z from "zod"
 import { HTTPError } from "../server/middleware/http-error"
 import type { AppConfig } from "../types/app-config"
 import { type ChatConfig, ChatConfigSchema } from "../types/chat"
 
 export const parseChatConfig = (input: unknown, APP_CONFIG: AppConfig): ChatConfig => {
 	if (!input || typeof input !== "object") {
-		throw new Error("Invalid chat config input")
+		throw new HTTPError(400, "Invalid chat config input")
 	}
-	const parsedConfig = ChatConfigSchema.parse(input)
+	let parsedConfig: z.infer<typeof ChatConfigSchema>
+	try {
+		parsedConfig = ChatConfigSchema.parse(input)
+	} catch {
+		throw new HTTPError(400, "Invalid chat config: malformed fields")
+	}
 
 	const VENDOR = APP_CONFIG.VENDORS[parsedConfig.vendorId]
 	if (!VENDOR) {
@@ -19,10 +25,7 @@ export const parseChatConfig = (input: unknown, APP_CONFIG: AppConfig): ChatConf
 		throw new HTTPError(400, `VendorId: ${parsedConfig.vendorId} is not enabled`)
 	}
 	if (parsedConfig.vendorAgent) {
-		// Predefined config
-		if (!parsedConfig.vendorAgent.id || typeof parsedConfig.vendorAgent.id !== "string") {
-			throw new HTTPError(400, "vendorAgent.id must be a string")
-		}
+		// Predefined config — vendorAgent.id already validated by Zod schema
 		return {
 			_id: parsedConfig._id,
 			name: parsedConfig.name,

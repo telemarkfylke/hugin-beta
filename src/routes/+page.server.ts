@@ -13,7 +13,6 @@ const fallbackAgent: ChatConfig = {
 	description: "Mistral er en kraftig europeisk variant av ChatGPT",
 	vendorId: "MISTRAL",
 	project: "DEFAULT",
-	model: "mistral-large-latest",
 	instructions: "",
 	accessGroups: ["all"],
 	type: "published",

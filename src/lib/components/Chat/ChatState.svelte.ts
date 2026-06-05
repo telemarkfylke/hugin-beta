@@ -124,8 +124,11 @@ export class ChatState {
 
 	public newChat = (): void => {
 		this.chatId = ""
+		this.chatConfig = placeHolderConfig
+		this.initialConfig = placeHolderConfig
 		this.chatCreatedAt = new Date().toISOString()
 		this.chatUpdatedAt = new Date().toISOString()
+		this.webSearchEnabled = false
 		this.aiChat.messages = []
 	}
 
@@ -189,11 +192,11 @@ export class ChatState {
 			this.chatConfig = updatedConfig
 			this.initialConfig = JSON.parse(JSON.stringify(updatedConfig))
 			this.configMode = false
+			goto(`/agents/${this.chatConfig._id}`)
 		} catch (error) {
 			console.error("Error updating chat config:", error)
 			throw error
 		}
-		goto(`/agents/${this.chatConfig._id}`)
 	}
 
 	public deleteChatConfig = async (): Promise<void> => {

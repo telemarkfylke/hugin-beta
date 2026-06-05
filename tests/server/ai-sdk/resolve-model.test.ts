@@ -12,7 +12,7 @@ describe("resolveModel", () => {
 	it("returns a model object for OPENAI DEFAULT project", async () => {
 		const { resolveModel } = await import("../../../src/lib/server/ai-sdk/resolve-model")
 		// biome-ignore lint/suspicious/noExplicitAny: test uses partial ChatConfig
-		const model = resolveModel({ vendorId: "OPENAI", project: "DEFAULT", model: "gpt-4o" } as any)
+		const model = resolveModel({ vendorId: "OPENAI", project: "DEFAULT" } as any)
 		expect(model).toBeDefined()
 		expect(typeof model).toBe("object")
 	})
@@ -20,7 +20,7 @@ describe("resolveModel", () => {
 	it("returns a model object for MISTRAL DEFAULT project", async () => {
 		const { resolveModel } = await import("../../../src/lib/server/ai-sdk/resolve-model")
 		// biome-ignore lint/suspicious/noExplicitAny: test uses partial ChatConfig
-		const model = resolveModel({ vendorId: "MISTRAL", project: "DEFAULT", model: "mistral-large-latest" } as any)
+		const model = resolveModel({ vendorId: "MISTRAL", project: "DEFAULT" } as any)
 		expect(model).toBeDefined()
 		expect(typeof model).toBe("object")
 	})
@@ -29,13 +29,13 @@ describe("resolveModel", () => {
 		const { resolveModel } = await import("../../../src/lib/server/ai-sdk/resolve-model")
 		const { HTTPError } = await import("../../../src/lib/server/middleware/http-error")
 		// biome-ignore lint/suspicious/noExplicitAny: test exercises invalid vendorId path
-		expect(() => resolveModel({ vendorId: "UNKNOWN" as any, project: "DEFAULT", model: "gpt-4o" } as any)).toThrow(HTTPError)
+		expect(() => resolveModel({ vendorId: "UNKNOWN" as any, project: "DEFAULT" } as any)).toThrow(HTTPError)
 	})
 
 	it("throws HTTPError 500 for missing API key", async () => {
 		const { resolveModel } = await import("../../../src/lib/server/ai-sdk/resolve-model")
 		const { HTTPError } = await import("../../../src/lib/server/middleware/http-error")
 		// biome-ignore lint/suspicious/noExplicitAny: test uses partial ChatConfig
-		expect(() => resolveModel({ vendorId: "OPENAI", project: "NOKEY", model: "gpt-4o" } as any)).toThrow(HTTPError)
+		expect(() => resolveModel({ vendorId: "OPENAI", project: "NOKEY" } as any)).toThrow(HTTPError)
 	})
 })

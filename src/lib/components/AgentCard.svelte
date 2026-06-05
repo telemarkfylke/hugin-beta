@@ -20,8 +20,7 @@
 	const getVendorDisplayName = (vendorId: string) => {
 		const vendorNames: Record<string, string> = {
 			MISTRAL: "Mistral AI",
-			OPENAI: "OpenAI",
-			OLLAMA: "Ollama"
+			OPENAI: "OpenAI"
 		}
 		return vendorNames[vendorId] || vendorId
 	}
@@ -53,12 +52,6 @@
 				<span class="material-symbols-outlined">smart_toy</span>
 				<span>{getVendorDisplayName(agent.vendorId)}</span>
 			</div>
-			{#if agent.model}
-				<div class="meta-item">
-					<span class="material-symbols-outlined">memory</span>
-					<span>{agent.model}</span>
-				</div>
-			{/if}
 			{#if agent.vendorAgent}
 				<div class="meta-item">
 					<span class="material-symbols-outlined">extension</span>

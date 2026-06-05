@@ -1,29 +1,43 @@
-import { describe, expect, it } from "vitest"
-import { resolveTools } from "../../../src/lib/server/ai-sdk/resolve-tools"
+import { describe, expect, it, vi } from "vitest"
 import type { ChatTool } from "../../../src/lib/types/chat"
 
+vi.mock("$env/dynamic/private", () => ({
+	env: {
+		OPENAI_API_KEY_PROJECT_DEFAULT: "test-openai-key"
+	}
+}))
+
 describe("resolveTools", () => {
-	it("returns undefined when tools is an empty array", () => {
-		const result = resolveTools([], "OPENAI")
+	it("returns undefined when tools is an empty array", async () => {
+		const { resolveTools } = await import("../../../src/lib/server/ai-sdk/resolve-tools")
+		// biome-ignore lint/suspicious/noExplicitAny: test uses partial ChatConfig
+		const result = resolveTools([], { vendorId: "OPENAI", project: "DEFAULT" } as any)
 		expect(result).toBeUndefined()
 	})
 
-	it("returns undefined when tools is null or undefined", () => {
-		expect(resolveTools(null, "OPENAI")).toBeUndefined()
-		expect(resolveTools(undefined, "OPENAI")).toBeUndefined()
+	it("returns undefined when tools is null or undefined", async () => {
+		const { resolveTools } = await import("../../../src/lib/server/ai-sdk/resolve-tools")
+		// biome-ignore lint/suspicious/noExplicitAny: test uses partial ChatConfig
+		expect(resolveTools(null, { vendorId: "OPENAI", project: "DEFAULT" } as any)).toBeUndefined()
+		// biome-ignore lint/suspicious/noExplicitAny: test uses partial ChatConfig
+		expect(resolveTools(undefined, { vendorId: "OPENAI", project: "DEFAULT" } as any)).toBeUndefined()
 	})
 
-	it("returns a tool object with webSearch property for OPENAI web_search", () => {
+	it("returns a tool object with webSearch property for OPENAI web_search", async () => {
+		const { resolveTools } = await import("../../../src/lib/server/ai-sdk/resolve-tools")
 		const tools: ChatTool[] = [{ type: "web_search" }]
-		const result = resolveTools(tools, "OPENAI")
+		// biome-ignore lint/suspicious/noExplicitAny: test uses partial ChatConfig
+		const result = resolveTools(tools, { vendorId: "OPENAI", project: "DEFAULT" } as any)
 		expect(result).toBeDefined()
 		expect(result).toHaveProperty("webSearch")
 		expect(typeof result?.webSearch).toBe("object")
 	})
 
-	it("returns a tool object with webSearch property for MISTRAL web_search", () => {
+	it("returns a tool object with webSearch property for MISTRAL web_search (uses OpenAI web search)", async () => {
+		const { resolveTools } = await import("../../../src/lib/server/ai-sdk/resolve-tools")
 		const tools: ChatTool[] = [{ type: "web_search" }]
-		const result = resolveTools(tools, "MISTRAL")
+		// biome-ignore lint/suspicious/noExplicitAny: test uses partial ChatConfig
+		const result = resolveTools(tools, { vendorId: "MISTRAL", project: "DEFAULT" } as any)
 		expect(result).toBeDefined()
 		expect(result).toHaveProperty("webSearch")
 		expect(typeof result?.webSearch).toBe("object")

@@ -25,7 +25,6 @@ export type ChatConfig = {
 	vendorId: VendorId
 	project: string
 	vendorAgent?: VendorAgent | undefined
-	model?: string | undefined
 	instructions?: string | undefined
 	conversationId?: string | undefined
 	tools?: ChatTool[] | undefined | null
@@ -80,10 +79,9 @@ export const ChatConfigSchema = schemaForType<ChatConfig>()(
 		_id: z.string(),
 		name: z.string(),
 		description: z.string(),
-		vendorId: z.enum(["MISTRAL", "OPENAI", "OLLAMA", "LITELLM"]), // Update as per AppConfig Vendor keys for now
+		vendorId: z.enum(["MISTRAL", "OPENAI"]), // Update as per AppConfig Vendor keys for now
 		project: z.string(),
 		vendorAgent: z.object({ id: z.string() }).optional(),
-		model: z.string().optional(),
 		tools: z
 			.array(z.object({ type: z.enum(["web_search"]) }))
 			.nullable()
