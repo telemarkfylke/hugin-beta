@@ -179,6 +179,7 @@
 					<div class="menu-section-title">Andre tjenester</div>
 					<div class="menu-items">
 						<a class="menu-item" class:active={page.url.pathname === "/transcription"} href="/transcription">Tale-til-notat</a>
+						<a class="menu-item" class:active={page.url.pathname === "/filgenerering"} href="/filgenerering">Filgenerering</a>
 					</div>
 				</div>
 			{/if}
