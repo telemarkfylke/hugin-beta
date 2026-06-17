@@ -50,7 +50,6 @@
 			if (!res.body) throw new Error("Ingen respons fra serveren")
 
 			document = ""
-			prompt = ""
 
 			const citations: { url: string; title: string }[] = []
 
@@ -89,9 +88,10 @@
 				const sourcesSection = `\n\n---\n\n## Kilder\n\n${citations.map((c, i) => `${i + 1}. [${c.title}](${c.url})`).join("\n")}`
 				document += sourcesSection
 			}
+			prompt = ""
 		} catch (e) {
 			errorMessage = e instanceof Error ? e.message : "Ukjent feil"
-			if (!document) document = prevDocument
+			document = prevDocument
 		} finally {
 			isLoading = false
 		}

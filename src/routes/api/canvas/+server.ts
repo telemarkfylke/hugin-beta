@@ -32,8 +32,8 @@ const canvasHandler: ApiNextFunction = async ({ requestEvent, user }) => {
 
 	const { document, prompt, webSearch } = parseResult.data
 
-	if (webSearch && !APP_CONFIG.VENDORS.OPENAI.ENABLED) {
-		throw new HTTPError(400, "Web search is not available — OpenAI vendor is not configured")
+	if (!APP_CONFIG.VENDORS.OPENAI.ENABLED) {
+		throw new HTTPError(503, "Canvas is not available — OpenAI vendor is not configured")
 	}
 
 	logger.info(`[Canvas] User {userId} submitting prompt (webSearch: ${webSearch ?? false}, documentLength: ${document.length})`, user.userId)
