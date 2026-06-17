@@ -5,7 +5,7 @@
 	import InfoBox from "$lib/components/InfoBox.svelte"
 	import type { TranscriptionJob } from "$lib/server/transcription/types"
 
-	type TranscriptionMode = "open" | "closed"
+	type TranscriptionMode = "open" | "red"
 
 	const { data } = $props()
 
@@ -37,6 +37,8 @@
 
 	let selectedMode: TranscriptionMode = $state("open")
 	let modeConfirmed = $state(false)
+	let redPanelOpen = $state(false) // whether the red sub-panel is visible
+	let selectedRedIndex: number | null = $state(null) // index into availableRedGroups
 	let isLoading = $state(true)
 
 	let mediaRecorder: MediaRecorder | undefined
@@ -63,6 +65,12 @@
 	let deleteErrors: Record<string, string> = $state({})
 
 	const localStorageKey = $derived(`transcription_jobs_${userId}`)
+
+	const availableRedGroups = $derived(data.APP_CONFIG.TRANSCRIPTION_GROUPS.filter((g) => data.authenticatedUser.groups.includes(g.id)))
+
+	const hasAnyRedAccess = $derived(availableRedGroups.length > 0)
+
+	const isRedMode = $derived(selectedMode !== "open")
 
 	const persistJobs = (list: TranscriptionJob[]) => {
 		const slim = list.map((j) => ({
@@ -196,10 +204,29 @@
 		deleteDialogJob = null
 	}
 
-	const selectMode = (mode: TranscriptionMode) => {
-		if (mode === "closed") return
-		selectedMode = mode
+	const selectMode = (mode: "open" | "red") => {
+		if (mode === "open") {
+			selectedMode = "open"
+			modeConfirmed = true
+			redPanelOpen = false
+			selectedRedIndex = null
+		} else {
+			redPanelOpen = true
+			modeConfirmed = false
+		}
+	}
+
+	const selectRedUseCase = (index: number) => {
+		selectedRedIndex = index
+		selectedMode = "red"
 		modeConfirmed = true
+		// Reset any previous audio state
+		audioBlob = undefined
+		audioUrl = undefined
+		selectedFileName = null
+		submitStatus = "idle"
+		submitMessage = ""
+		fileError = ""
 	}
 
 	async function startRecording() {
@@ -354,7 +381,7 @@
 			<button
 				type="button"
 				class="mode-card open"
-				class:selected={selectedMode === "open"}
+				class:selected={selectedMode === "open" && modeConfirmed}
 				role="radio"
 				aria-checked={selectedMode === "open"}
 				onclick={() => selectMode("open")}
@@ -362,7 +389,6 @@
 				<div class="mode-header">
 					<span class="material-symbols-outlined">lock_open</span>
 					<h2>Åpen transkripsjon</h2>
-					<span class="badge-select">Velg</span>
 				</div>
 				<p class="mode-subtitle">Bruk denne hvis samtalen inneholder:</p>
 				<ul>
@@ -377,17 +403,13 @@
 			<button
 				type="button"
 				class="mode-card closed"
-				class:selected={selectedMode === "closed"}
-				role="radio"
-				aria-checked={selectedMode === "closed"}
-				aria-disabled="true"
-				disabled
-				onclick={() => selectMode("closed")}
+				class:selected={redPanelOpen}
+				aria-expanded={redPanelOpen}
+				onclick={() => selectMode("red")}
 			>
 				<div class="mode-header">
 					<span class="material-symbols-outlined">lock</span>
 					<h2>Lukket transkripsjon</h2>
-					<span class="badge-coming">Kommer snart</span>
 				</div>
 				<p class="mode-subtitle">Bruk denne hvis samtalen inneholder:</p>
 				<ul>
@@ -396,11 +418,39 @@
 					<li>Andre sensitive opplysninger</li>
 				</ul>
 				<p class="mode-detail">
-					Det er ikke mulig å laste opp eller laste ned opptak. Kun opptak i nettleser.
 					Informasjonen behandles internt i Telemark fylkeskommune.
 				</p>
 			</button>
 		</div>
+
+		{#if redPanelOpen}
+			<div class="red-panel" role="region" aria-label="Velg type sensitiv transkripsjon">
+				<p class="red-panel-title">
+					<span class="material-symbols-outlined">lock</span>
+					Velg type sensitiv transkripsjon
+				</p>
+				{#if hasAnyRedAccess}
+					{#each availableRedGroups as group, i}
+						<button
+							type="button"
+							class="use-case-btn"
+							class:active={selectedRedIndex === i}
+							onclick={() => selectRedUseCase(i)}
+						>
+							{group.label}
+							{#if selectedRedIndex === i}
+								<span class="material-symbols-outlined use-case-check">check_circle</span>
+							{/if}
+						</button>
+					{/each}
+				{:else}
+					<div class="no-access-box" role="alert">
+						<span class="material-symbols-outlined">warning</span>
+						Du har ikke tilgang til noen av de sensitive transkripsjonmodiene. Hvis innholdet er sensitivt eller taushetsbelagt, skal ikke tjenesten brukes.
+					</div>
+				{/if}
+			</div>
+		{/if}
 
 		<InfoBox title="Personvernerklæring">
 			<h2>Personvernerklæring – Hugin - tale til notat</h2>
@@ -449,190 +499,200 @@
 		</InfoBox>
 
 		{#if modeConfirmed}
-		<div class="action-grid">
-			<section class="action-card" aria-labelledby="upload-title">
-				<h3 id="upload-title">
-					<span class="material-symbols-outlined">upload_file</span>
-					Last opp en lydfil
-				</h3>
-				<p class="action-description">
-					Last opp lyd- eller videoklipp (maks {MAX_FILE_SIZE_MB} MB). Støttede formater: {ACCEPTED_EXTENSIONS.join(", ")}.
+			{#if isRedMode && selectedRedIndex !== null}
+				<p class="red-mode-label">
+					<span class="material-symbols-outlined">lock</span>
+					{availableRedGroups[selectedRedIndex]?.label ?? ""}
 				</p>
-				<p class="action-reminder">
-					<strong>Husk</strong> å slette lydfilen fra enheten din etter opplasting.
-				</p>
-
-				<div class="file-input-row">
-					<button
-						type="button"
-						class="filled"
-						onclick={() => fileInputEl?.click()}
-						disabled={recording}
-					>
-						<span class="material-symbols-outlined">folder_open</span>
-						Velg fil
-					</button>
-					<span class="file-name">
-						{selectedFileName ?? "Ingen fil er valgt"}
-					</span>
-					<input
-						bind:this={fileInputEl}
-						type="file"
-						accept={ACCEPT_ATTR}
-						id="audioFile"
-						name="audioFile"
-						onchange={handleAudioFileSelect}
-						hidden
-					/>
-				</div>
-				{#if fileError}
-					<p class="error-text">{fileError}</p>
-				{/if}
-			</section>
-
-			<section class="action-card" aria-labelledby="record-title">
-				<h3 id="record-title">
-					<span class="material-symbols-outlined">mic</span>
-					…eller spill inn lyd
-				</h3>
-				<div class="info-callout">
-					<strong>NB!</strong> Husk å laste ned lydopptaket før du sender til transkribering
-					i tilfelle noe går galt eller om du trenger en backup.
-				</div>
-
-				<button
-					type="button"
-					class="filled"
-					class:danger={recording}
-					onclick={recording ? stopRecording : startRecording}
-				>
-					<span class="material-symbols-outlined">
-						{recording ? "stop" : "fiber_manual_record"}
-					</span>
-					{recording ? "Stopp opptak" : "Start opptak"}
-				</button>
-
-				{#if recording}
-					<p class="recording-indicator">
-						<span class="pulse"></span>
-						Opptak pågår: {formatTimer(timer)}
-					</p>
-				{/if}
-			</section>
-		</div>
-
-		{#if audioUrl && !recording}
-			<section class="preview-card" aria-label="Forhåndsvisning">
-				<h3>
-					<span class="material-symbols-outlined">play_circle</span>
-					Forhåndsvisning
-				</h3>
-				<audio controls src={audioUrl}></audio>
-				<div class="preview-actions">
-					<button
-						type="button"
-						class="filled"
-						onclick={sendTilTranscript}
-						disabled={submitStatus === "sending" || submitStatus === "sent"}
-					>
-						<span class="material-symbols-outlined">send</span>
-						{submitStatus === "sending" ? "Laster opp…" : submitStatus === "sent" ? "Sendt" : "Send til transkripsjon"}
-					</button>
-					<a href={audioUrl} download={selectedFileName || "opptak.webm"} class="download-button">
-						<span class="material-symbols-outlined">download</span>
-						Last ned opptak
-					</a>
-				</div>
-				{#if uploadProgress !== null}
-					<div class="upload-progress" aria-label="Opplastingsstatus">
-						<div class="upload-progress-bar" style="width: {uploadProgress}%"></div>
-					</div>
-					<p class="upload-progress-label">
-						{uploadProgress}% — {(uploadedBytes / 1024 / 1024).toFixed(1)} / {(totalBytes / 1024 / 1024).toFixed(1)} MB
-					</p>
-				{/if}
-				{#if submitMessage}
-					<p class:error-text={submitStatus === "error"} class:success-text={submitStatus === "sent"}>
-						{submitMessage}
-					</p>
-				{/if}
-			</section>
-		{/if}
-
-		<section class="jobs-card" aria-label="Transkripsjoner">
-			<h3>
-				<span class="material-symbols-outlined">history</span>
-				Mine transkripsjoner
-			</h3>
-			{#if jobs.length === 0}
-				<p class="jobs-empty">Ingen transkripsjoner ennå.</p>
-			{:else}
-				<ul class="jobs-list">
-					{#each jobs as job (job.id)}
-						<li class="job-item" class:completed={job.status === "completed"} class:failed={job.status === "failed"}>
-							<div class="job-header">
-								<span class="job-name">{job.fileName}</span>
-								<span class="job-status status-{job.status}">
-									{#if job.status === "uploading"}Laster opp
-									{:else if job.status === "processing"}Behandles
-									{:else if job.status === "completed"}Ferdig
-									{:else}Feilet
-									{/if}
-								</span>
-								<button
-									type="button"
-									class="job-delete"
-									aria-label="Slett jobb"
-									onclick={() => openDeleteDialog(job)}
-								>
-									<span class="material-symbols-outlined">delete</span>
-								</button>
-							</div>
-							<div class="job-meta">
-								Opprettet: {formatDateTime(job.createdAt)}
-								{#if job.durationSeconds != null}
-									· Varighet: {job.durationSeconds.toFixed(1)} s
-								{/if}
-							</div>
-							{#if job.status === "failed" && job.error}
-								<p class="error-text">{job.error}</p>
-							{/if}
-							{#if job.status === "completed" && job.result}
-								{#if job.result.docx_url}
-									<div class="job-actions">
-										<a class="download-button" href={`/api/transcription/${job.id}/download`}>
-											<span class="material-symbols-outlined">description</span>
-											Last ned Word-dokument
-										</a>
-									</div>
-								{/if}
-							{/if}
-							{#if deleteErrors[job.id]}
-								<p class="error-text">{deleteErrors[job.id]}</p>
-							{/if}
-						</li>
-					{/each}
-				</ul>
 			{/if}
-		</section>
 
-		<section class="warning-panel" aria-label="Viktig informasjon">
-			<h3>
-				<span class="material-symbols-outlined">warning</span>
-				Husk at:
-			</h3>
-			<ul>
-				<li>Tjenesten er under utvikling og kan være ustabil.</li>
-				<li>Ikke bruk tjenesten til sensitiv eller taushetsbelagt informasjon.</li>
-				<li>Alle parter må informeres før opptak starter.</li>
-				<li>Transkripsjoner og oppsummeringer kan inneholde feil — kvalitetssikre alltid resultatet.</li>
-				<li>
-					Slett lydfilen fra enheten din etter opplasting, og sørg for at den ikke synkroniseres
-					til skylagring (f.eks. iCloud, OneDrive). Last aldri opp opptak av elever.
-				</li>
-			</ul>
-		</section>
-		<p class="model-info">Modell: Nasjonalbibliotekets nb-whisper-medium</p>
+			<div class="action-grid">
+				<section class="action-card" class:action-card-red={isRedMode} aria-labelledby="upload-title">
+					<h3 id="upload-title">
+						<span class="material-symbols-outlined">upload_file</span>
+						Last opp en lydfil
+					</h3>
+					<p class="action-description">
+						Last opp lyd- eller videoklipp (maks {MAX_FILE_SIZE_MB} MB). Støttede formater: {ACCEPTED_EXTENSIONS.join(", ")}.
+					</p>
+					<p class="action-reminder">
+						<strong>Husk</strong> å slette lydfilen fra enheten din etter opplasting.
+					</p>
+
+					<div class="file-input-row">
+						<button
+							type="button"
+							class="filled"
+							class:filled-red={isRedMode}
+							onclick={() => fileInputEl?.click()}
+							disabled={recording}
+						>
+							<span class="material-symbols-outlined">folder_open</span>
+							Velg fil
+						</button>
+						<span class="file-name">
+							{selectedFileName ?? "Ingen fil er valgt"}
+						</span>
+						<input
+							bind:this={fileInputEl}
+							type="file"
+							accept={ACCEPT_ATTR}
+							id="audioFile"
+							name="audioFile"
+							onchange={handleAudioFileSelect}
+							hidden
+						/>
+					</div>
+					{#if fileError}
+						<p class="error-text">{fileError}</p>
+					{/if}
+				</section>
+
+				<section class="action-card" class:action-card-red={isRedMode} aria-labelledby="record-title">
+					<h3 id="record-title">
+						<span class="material-symbols-outlined">mic</span>
+						…eller spill inn lyd
+					</h3>
+					<div class="info-callout" class:info-callout-red={isRedMode}>
+						<strong>NB!</strong> Husk å laste ned lydopptaket før du sender til transkribering
+						i tilfelle noe går galt eller om du trenger en backup.
+					</div>
+
+					<button
+						type="button"
+						class="filled"
+						class:filled-red={isRedMode}
+						class:danger={recording}
+						onclick={recording ? stopRecording : startRecording}
+					>
+						<span class="material-symbols-outlined">
+							{recording ? "stop" : "fiber_manual_record"}
+						</span>
+						{recording ? "Stopp opptak" : "Start opptak"}
+					</button>
+
+					{#if recording}
+						<p class="recording-indicator">
+							<span class="pulse"></span>
+							Opptak pågår: {formatTimer(timer)}
+						</p>
+					{/if}
+				</section>
+			</div>
+
+			{#if audioUrl && !recording}
+				<section class="preview-card" class:preview-card-red={isRedMode} aria-label="Forhåndsvisning">
+					<h3>
+						<span class="material-symbols-outlined">play_circle</span>
+						Forhåndsvisning
+					</h3>
+					<audio controls src={audioUrl}></audio>
+					<div class="preview-actions">
+						<button
+							type="button"
+							class="filled"
+							class:filled-red={isRedMode}
+							onclick={sendTilTranscript}
+							disabled={submitStatus === "sending" || submitStatus === "sent"}
+						>
+							<span class="material-symbols-outlined">send</span>
+							{submitStatus === "sending" ? "Laster opp…" : submitStatus === "sent" ? "Sendt" : "Send til transkripsjon"}
+						</button>
+						<a href={audioUrl} download={selectedFileName || "opptak.webm"} class="download-button" class:download-button-red={isRedMode}>
+							<span class="material-symbols-outlined">download</span>
+							Last ned opptak
+						</a>
+					</div>
+					{#if uploadProgress !== null}
+						<div class="upload-progress" aria-label="Opplastingsstatus">
+							<div class="upload-progress-bar" style="width: {uploadProgress}%"></div>
+						</div>
+						<p class="upload-progress-label">
+							{uploadProgress}% — {(uploadedBytes / 1024 / 1024).toFixed(1)} / {(totalBytes / 1024 / 1024).toFixed(1)} MB
+						</p>
+					{/if}
+					{#if submitMessage}
+						<p class:error-text={submitStatus === "error"} class:success-text={submitStatus === "sent"}>
+							{submitMessage}
+						</p>
+					{/if}
+				</section>
+			{/if}
+
+			<section class="jobs-card" class:jobs-card-red={isRedMode} aria-label="Transkripsjoner">
+				<h3>
+					<span class="material-symbols-outlined">history</span>
+					Mine transkripsjoner
+				</h3>
+				{#if jobs.length === 0}
+					<p class="jobs-empty">Ingen transkripsjoner ennå.</p>
+				{:else}
+					<ul class="jobs-list">
+						{#each jobs as job (job.id)}
+							<li class="job-item" class:completed={job.status === "completed"} class:failed={job.status === "failed"}>
+								<div class="job-header">
+									<span class="job-name">{job.fileName}</span>
+									<span class="job-status status-{job.status}">
+										{#if job.status === "uploading"}Laster opp
+										{:else if job.status === "processing"}Behandles
+										{:else if job.status === "completed"}Ferdig
+										{:else}Feilet
+										{/if}
+									</span>
+									<button
+										type="button"
+										class="job-delete"
+										aria-label="Slett jobb"
+										onclick={() => openDeleteDialog(job)}
+									>
+										<span class="material-symbols-outlined">delete</span>
+									</button>
+								</div>
+								<div class="job-meta">
+									Opprettet: {formatDateTime(job.createdAt)}
+									{#if job.durationSeconds != null}
+										· Varighet: {job.durationSeconds.toFixed(1)} s
+									{/if}
+								</div>
+								{#if job.status === "failed" && job.error}
+									<p class="error-text">{job.error}</p>
+								{/if}
+								{#if job.status === "completed" && job.result}
+									{#if job.result.docx_url}
+										<div class="job-actions">
+											<a class="download-button" href={`/api/transcription/${job.id}/download`}>
+												<span class="material-symbols-outlined">description</span>
+												Last ned Word-dokument
+											</a>
+										</div>
+									{/if}
+								{/if}
+								{#if deleteErrors[job.id]}
+									<p class="error-text">{deleteErrors[job.id]}</p>
+								{/if}
+							</li>
+						{/each}
+					</ul>
+				{/if}
+			</section>
+
+			<section class="warning-panel" aria-label="Viktig informasjon">
+				<h3>
+					<span class="material-symbols-outlined">warning</span>
+					Husk at:
+				</h3>
+				<ul>
+					<li>Tjenesten er under utvikling og kan være ustabil.</li>
+					<li>Ikke bruk tjenesten til sensitiv eller taushetsbelagt informasjon.</li>
+					<li>Alle parter må informeres før opptak starter.</li>
+					<li>Transkripsjoner og oppsummeringer kan inneholde feil — kvalitetssikre alltid resultatet.</li>
+					<li>
+						Slett lydfilen fra enheten din etter opplasting, og sørg for at den ikke synkroniseres
+						til skylagring (f.eks. iCloud, OneDrive). Last aldri opp opptak av elever.
+					</li>
+				</ul>
+			</section>
+			<p class="model-info">Modell: Nasjonalbibliotekets nb-whisper-medium</p>
 		{/if}
 	</div>
 {/if}
@@ -687,33 +747,35 @@
 	}
 
 	.mode-card.open:hover {
-		background-color: var(--color-secondary-20);
+		background-color: var(--color-secondary-30);
 		border-color: var(--color-primary);
 		box-shadow: 0 6px 20px rgba(0, 82, 96, 0.18);
 		transform: translateY(-2px);
 	}
 
-	.mode-card.open:hover .badge-select {
-		background-color: var(--color-primary);
-		color: white;
-	}
-
 	.mode-card.open.selected {
 		border-color: var(--color-primary);
-		background-color: var(--color-secondary-20);
+		background-color: var(--color-secondary-30);
 		box-shadow: 0 2px 8px rgba(0, 82, 96, 0.15);
 	}
 
 	.mode-card.closed {
 		background-color: #fdecef;
-		border: 2px dashed var(--color-danger-70);
+		border: 2px solid #f7c5cb;
 		color: var(--color-danger);
-		cursor: not-allowed;
-		opacity: 0.85;
 	}
 
 	.mode-card.closed:hover {
-		background-color: #fdecef;
+		background-color: #f7c5cb;
+		border-color: var(--color-danger);
+		box-shadow: 0 6px 20px rgba(183, 23, 61, 0.18);
+		transform: translateY(-2px);
+	}
+
+	.mode-card.closed.selected {
+		border-color: var(--color-danger);
+		background-color: #f7c5cb;
+		box-shadow: 0 2px 8px rgba(183, 23, 61, 0.15);
 	}
 
 	.mode-header {
@@ -729,33 +791,114 @@
 		color: inherit;
 	}
 
-	.badge-coming {
-		font-size: 0.7rem;
-		text-transform: uppercase;
-		letter-spacing: 0.05em;
-		background-color: var(--color-danger);
-		color: white;
-		padding: 0.15rem 0.5rem;
-		border-radius: 999px;
-		margin-left: auto;
+	/* Red sub-panel */
+	.red-panel {
+		background-color: #fdecef;
+		border: 2px solid var(--color-danger-70);
+		border-radius: 8px;
+		padding: 1.25rem;
+		margin-bottom: 1.5rem;
+		color: var(--color-danger);
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
 	}
 
-	.badge-select {
-		display: inline-flex;
+	.red-panel-title {
+		display: flex;
 		align-items: center;
-		gap: 0.2rem;
-		font-size: 0.75rem;
-		font-weight: 600;
-		text-transform: uppercase;
-		letter-spacing: 0.05em;
-		background-color: var(--color-secondary-30);
-		color: var(--color-primary);
-		padding: 0.15rem 0.5rem 0.15rem 0.6rem;
-		border-radius: 999px;
-		margin-left: auto;
-		transition: background-color 0.2s ease, color 0.2s ease;
+		gap: 0.5rem;
+		font-weight: 700;
+		font-size: 0.95rem;
+		margin: 0 0 0.25rem;
+		color: var(--color-danger);
 	}
 
+	.use-case-btn {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		width: 100%;
+		background: white;
+		border: 2px solid var(--color-danger-70);
+		border-radius: 6px;
+		padding: 0.65rem 1rem;
+		cursor: pointer;
+		text-align: left;
+		color: var(--color-danger);
+		font-size: 0.9rem;
+		font-weight: 600;
+		font-family: var(--font-family);
+		transition: background 0.15s ease, border-color 0.15s ease;
+	}
+
+	.use-case-btn:hover {
+		background: #f7c5cb;
+		border-color: var(--color-danger);
+	}
+
+	.use-case-btn.active {
+		background: #f7c5cb;
+		border-color: var(--color-danger);
+	}
+
+	.use-case-check {
+		font-size: 1rem;
+		color: var(--color-danger);
+	}
+
+	.no-access-box {
+		display: flex;
+		align-items: flex-start;
+		gap: 0.5rem;
+		background: #fff0f0;
+		border: 1px dashed var(--color-danger);
+		border-radius: 6px;
+		padding: 0.75rem 1rem;
+		font-size: 0.85rem;
+		color: var(--color-danger);
+		line-height: 1.4;
+	}
+
+	.no-access-box .material-symbols-outlined {
+		font-size: 1.1rem;
+		flex-shrink: 0;
+		margin-top: 0.05rem;
+	}
+
+	/* Red mode label above action grid */
+	.red-mode-label {
+		display: flex;
+		align-items: center;
+		gap: 0.4rem;
+		font-weight: 700;
+		font-size: 0.85rem;
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
+		color: var(--color-danger);
+		margin: 0 0 0.5rem;
+	}
+
+	.red-mode-label .material-symbols-outlined {
+		font-size: 1rem;
+	}
+
+	/* Red-themed filled button */
+	button.filled-red {
+		background-color: var(--color-danger-80);
+		color: white;
+		border: none;
+	}
+
+	button.filled-red:hover:not(:disabled) {
+		background-color: var(--color-danger-70);
+	}
+
+	button.filled-red:disabled {
+		background-color: var(--color-primary-10);
+		color: gray;
+		cursor: not-allowed;
+	}
 
 	.mode-card p,
 	.mode-card ul {
@@ -832,6 +975,23 @@
 		font-size: 1.05rem;
 	}
 
+	/* Red-themed action cards — placed after .action-card to win the cascade */
+	.action-card-red {
+		background-color: #fdecef;
+		border: 1px solid var(--color-danger-70);
+	}
+
+	.action-card-red h3 {
+		color: var(--color-danger);
+	}
+
+	.action-card-red .action-description,
+	.action-card-red .action-reminder,
+	.action-card-red .file-name {
+		color: var(--color-danger);
+		opacity: 0.85;
+	}
+
 	.action-description {
 		margin: 0;
 		font-size: 0.9rem;
@@ -853,6 +1013,12 @@
 		line-height: 1.4;
 		border-radius: 4px;
 		color: #5a4800;
+	}
+
+	.info-callout-red {
+		background-color: white;
+		border-left: 3px solid var(--color-danger);
+		color: var(--color-danger);
 	}
 
 	.file-input-row {
@@ -923,6 +1089,16 @@
 		font-size: 1.05rem;
 	}
 
+	/* Red preview card — placed after .preview-card to win the cascade */
+	.preview-card-red {
+		background-color: #fdecef;
+		border: 1px solid var(--color-danger-70);
+	}
+
+	.preview-card-red h3 {
+		color: var(--color-danger);
+	}
+
 	.preview-card audio {
 		width: 100%;
 	}
@@ -971,6 +1147,16 @@
 		color: var(--color-primary);
 	}
 
+	.download-button-red {
+		border-color: var(--color-danger);
+		color: var(--color-danger);
+	}
+
+	.download-button-red:hover {
+		background-color: #fdecef;
+		color: var(--color-danger);
+	}
+
 	.jobs-card {
 		background-color: var(--color-primary-10);
 		border: 1px solid var(--color-primary-20);
@@ -993,6 +1179,46 @@
 		color: var(--color-primary-80);
 		font-style: italic;
 		font-size: 0.9rem;
+	}
+
+	.jobs-card-red {
+		background-color: #fdecef;
+		border-color: #f7c5cb;
+	}
+
+	.jobs-card-red h3 {
+		color: var(--color-danger);
+	}
+
+	.jobs-card-red .jobs-empty {
+		color: var(--color-danger);
+		opacity: 0.8;
+	}
+
+	.jobs-card-red .job-item {
+		border-color: #f7c5cb;
+	}
+
+	.jobs-card-red .job-item.completed {
+		border-left-color: var(--color-danger);
+	}
+
+	.jobs-card-red .job-name {
+		color: var(--color-danger);
+	}
+
+	.jobs-card-red .job-meta {
+		color: var(--color-danger);
+		opacity: 0.75;
+	}
+
+	.jobs-card-red .job-delete {
+		color: var(--color-danger);
+		opacity: 0.6;
+	}
+
+	.jobs-card-red .job-delete:hover {
+		opacity: 1;
 	}
 
 	.jobs-list {

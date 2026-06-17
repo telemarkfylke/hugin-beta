@@ -52,10 +52,10 @@ const mockClaims: MSPrincipalClaims = {
 			typ: "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress",
 			val: `demo.spokelse@fylke.no` // This value isn't guaranteed to be correct and is mutable over time. Never use it for authorization or to save data for a user.
 		},
-		{
-			typ: "groups",
-			val: "a23d4ddd-8e3a-40ca-b4ce-a32e87508094" // Group Object ID if groups are included in the token (in this case, only one group, random UUID genereated for mock)
-		},
+		...MOCK_AUTH_GROUPS.map((group) => ({
+			typ: "groups" as const,
+			val: group.trim()
+		})),
 		{
 			typ: "name",
 			val: "Demo Spøkelse" // The name claim provides a human-readable value that identifies the subject of the token. The value isn't guaranteed to be unique, it can be changed, and should be used only for display purposes
