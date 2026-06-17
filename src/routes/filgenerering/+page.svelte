@@ -1,62 +1,89 @@
 <script>
-    console.log("Hei verden")
+    import GrowingTextArea from '$lib/components/GrowingTextArea.svelte';
+    import { page } from "$app/state";
+
+	let previewUrl = $state('/filgenerering/pptx/reveal?t=' + Date.now());
+
+	function refreshPreview() {
+		previewUrl = '/filgenerering/pptx/reveal?t=' + Date.now();
+	}
+
+    let prompt = $state('');
+    let loading = $state(false);
+
+    async function handleSubmit() {
+        if (!prompt.trim() || loading) return;
+        loading = true;
+        // TODO: kall backend her
+        loading = false;
+    }
+
+    function handleKeydown(e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            handleSubmit();
+        }
+    }
 </script>
 
-
-
 <main>
-    <div class="filesypes">
-        <h1>
-            Velg filtype
-        </h1>
 
-        <div class="btn-row">
-            <a class="file-btn pptx-btn" href="/filgenerering/pptx">PowerPoint</a>
-            <a class="file-btn docx-btn" href="/filgenerering/docx">Word</a>
+    <div class="reveal_container">
+        <h1>Presentasjon</h1>
+        <div class="actions">
+            <a href="/reveal/download-pptx" target="_blank">
+                <button>
+				    Last ned PowerPoint
+			    </button>
+		    </a>
+	    </div>
+        <iframe
+		    src={previewUrl}
+		    title="Reveal.js preview"
+	    ></iframe>
+    </div>
+
+
+
+
+    <div class="chat_container">
+
+        <div class="input-wrapper">
+            <GrowingTextArea
+                bind:value={prompt}
+                placeholder="Beskriv hva du vil lage..."
+                style="input"
+                on:keydown={handleKeydown}
+            />
+            <button
+                class="filled"
+                on:click={handleSubmit}
+                disabled={!prompt.trim() || loading}
+            >
+                {loading ? 'Genererer...' : 'Generer fil'}
+            </button>
         </div>
     </div>
 </main>
 
-
-
 <style>
-.filesypes {
-    width: 96%;
-    height: 500px;
-    margin-top: 50px;
-    margin-left: 20px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    }
-h1 {
-    font-size: 25px;
-    text-align: center;
-    }
-.file-btn {
-    display: inline-block; /* Endret fra block til inline-block */
-    width: 200px;
-    height: 70px;
-    box-shadow: 0px 4px 4px rgba(0, 0, 0, 0.25);
-    border-style: solid;
-    border-width: 1px;
-    text-align: center;
-    line-height: 70px;
-    border-radius: 5px;
-    text-decoration: none;
-    margin-right: 20px; /* Endret fra margin-left til margin-right */
+    .reveal_container {
+        background-color: aqua;
+        width: 60%;
+        height: 600px;
+        margin-left: auto;
+        margin-right: auto;
+        display: block;
     }
 
-.pptx-btn {
-    background-color: #F05922; /* PowerPoint-oransje */
-    color: white;
-    border-color: #F05922;
+    .chat_container{
+        width: 50%;
+        height: 100px;
+        margin-top: 30%;
+        margin-left: auto;
+        margin-right: auto;
+        display: block;
     }
 
-.docx-btn {
-    background-color: #2B579A; /* Word-blå */
-    color: white;
-    border-color: #2B579A;
-    margin-top: 0; /* Fjernet margin-top */
-    }
 </style>
+i

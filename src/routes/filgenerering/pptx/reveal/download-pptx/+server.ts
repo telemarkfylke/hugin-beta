@@ -18,7 +18,7 @@ export async function GET() {
 
     // Oppretter output-mappa for å søgre for at den finnes
     const templatePath = path.join(process.cwd(), 'Template.pptx');
-
+    // kjører pandoc som henter 
     await runPandoc([
         slidesPath,
         "-o",
@@ -26,10 +26,10 @@ export async function GET() {
         `--reference-doc=${templatePath}`
     ]);
     // leser inn pptx fila og sender den som nedlastning
-    const file = await fs.readFile(pptxPath);
+    const donwloand_file = await fs.readFile(pptxPath);
 
     // returnerer pptx fila som en nedlastning med riktig content-type og content-disposition header
-    return new Response(file, {
+    return new Response(donwloand_file, {
         headers: {
             'Content-Type':
 				'application/vnd.openxmlformats-officedocument.presentationml.presentation',
