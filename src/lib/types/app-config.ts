@@ -21,6 +21,11 @@ export type AppRoles = {
 	EDU_EMPLOYEE: string
 }
 
+export type TranscriptionGroup = {
+	id: string
+	label: string
+}
+
 export type AppConfig = {
 	NAME: string
 	BODY_SIZE_LIMIT_BYTES: number
@@ -28,6 +33,7 @@ export type AppConfig = {
 	CONVERSATION_EXPORT_DISABLED: boolean
 	NEW_CHAT_CONFIRM_DISABLED: boolean
 	CANVAS_ENABLED: boolean
+	TRANSCRIPTION_GROUPS: TranscriptionGroup[]
 	VENDORS: {
 		MISTRAL: VendorInfo
 		OPENAI: VendorInfo
