@@ -1,3 +1,4 @@
+import { invalidateAll } from "$app/navigation"
 import { parseSse } from "$lib/streaming"
 import type { Chat, ChatRequest, ChatResponseObject } from "$lib/types/chat"
 import type { ChatOutputMessage } from "$lib/types/chat-item"
@@ -48,13 +49,17 @@ export const postChatMessage = async (chatRequest: ChatRequest, chatResponseObje
 		if (!response.ok) {
 			console.error(`Error posting chat message: ${response.statusText}`)
 			if (response.status === 401) {
+				// Session expired — re-run server loads via SvelteKit. The layout load will
+				// throw svelteError(401) if the session is truly gone, showing the login screen.
 				chatResponseObject.status = "failed"
-				window.location.href = "/"
+				await invalidateAll()
 				return
 			}
 			if (response.status === 403) {
+				// Not authorized for this specific agent — this is not a session issue.
+				// Show the error in the chat UI; redirecting to "/" would just loop.
+				addMessageDeltaToChatItem(chatResponseObject, `error_${Date.now()}`, "Du har ikke tilgang til å bruke denne agenten.")
 				chatResponseObject.status = "failed"
-				window.location.href = "/"
 				return
 			}
 			const errorData = await response.json().catch(() => null)

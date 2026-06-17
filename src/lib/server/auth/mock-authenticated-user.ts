@@ -6,8 +6,10 @@ import type { MSPrincipalClaim, MSPrincipalClaims } from "$lib/types/authenticat
 import { MS_AUTH_PRINCIPAL_CLAIMS_HEADER } from "./auth-constants"
 
 export const MOCK_AUTH = env.MOCK_AUTH === "true"
+export const MOCK_AUTH_FORCE_401 = env.MOCK_AUTH_FORCE_401 === "true"
+export const MOCK_AUTH_FORCE_403 = env.MOCK_AUTH_FORCE_403 === "true"
 const MOCK_AUTH_ROLES = env.MOCK_AUTH_ROLES ? env.MOCK_AUTH_ROLES.split(",") : []
-if (MOCK_AUTH) {
+if (MOCK_AUTH && !MOCK_AUTH_FORCE_401) {
 	if (MOCK_AUTH_ROLES.length === 0) {
 		throw new Error("MOCK_AUTH is enabled but no MOCK_AUTH_ROLES are set. Please set MOCK_AUTH_ROLES to a comma-separated list of roles.")
 	}
@@ -107,6 +109,10 @@ const base64MockClaims = Buffer.from(JSON.stringify(mockClaims), "utf-8").toStri
 export const injectMockAuthenticatedUserHeaders = (headers: Headers): Headers => {
 	if (!MOCK_AUTH) {
 		throw new Error("MOCK_AUTH is not enabled, you should not be calling this function!")
+	}
+	if (MOCK_AUTH_FORCE_401) {
+		// Simulate missing EasyAuth header — getAuthenticatedPrincipal will throw → 401
+		return headers
 	}
 	if (headers.has(MS_AUTH_PRINCIPAL_CLAIMS_HEADER)) {
 		logger.warn(`Headers already have ${MS_AUTH_PRINCIPAL_CLAIMS_HEADER}, probs already injected!`)
