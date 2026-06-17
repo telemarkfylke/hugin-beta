@@ -4,7 +4,7 @@
 	import { markdownFormatter } from "$lib/formatting/markdown-formatter"
 	import { parseSse } from "$lib/streaming"
 
-	let document = $state("")
+	let docContent = $state("")
 	let prompt = $state("")
 	let promptWrapDiv: HTMLDivElement = $state() as HTMLDivElement
 	let promptTextArea: HTMLTextAreaElement = $state() as HTMLTextAreaElement
@@ -32,13 +32,13 @@
 		if (!prompt.trim() || isLoading) return
 		isLoading = true
 		errorMessage = ""
-		const prevDocument = document
+		const prevDocument = docContent
 		try {
 			const res = await fetch("/api/canvas", {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({
-					document,
+					document: docContent,
 					prompt,
 					webSearch: webSearchEnabled
 				})
@@ -49,7 +49,7 @@
 			}
 			if (!res.body) throw new Error("Ingen respons fra serveren")
 
-			document = ""
+			docContent = ""
 
 			const citations: { url: string; title: string }[] = []
 
@@ -65,7 +65,7 @@
 				buffer = buffer.slice(boundary + 2)
 				for (const event of parseSse(complete)) {
 					if (event.event === "response.output_text.delta") {
-						document += event.data.content
+						docContent += event.data.content
 					} else if (event.event === "response.annotations") {
 						for (const a of event.data.annotations) {
 							if (!citations.find((c) => c.url === a.url)) {
@@ -86,12 +86,12 @@
 
 			if (citations.length > 0) {
 				const sourcesSection = `\n\n---\n\n## Kilder\n\n${citations.map((c, i) => `${i + 1}. [${c.title}](${c.url})`).join("\n")}`
-				document += sourcesSection
+				docContent += sourcesSection
 			}
 			prompt = ""
 		} catch (e) {
 			errorMessage = e instanceof Error ? e.message : "Ukjent feil"
-			document = prevDocument
+			docContent = prevDocument
 		} finally {
 			isLoading = false
 		}
@@ -105,9 +105,9 @@
 	}
 
 	const downloadText = () => {
-		const blob = new Blob([document], { type: "text/plain" })
+		const blob = new Blob([docContent], { type: "text/plain" })
 		const url = URL.createObjectURL(blob)
-		const a = window.document.createElement("a")
+		const a = document.createElement("a")
 		a.href = url
 		a.download = "canvas.txt"
 		a.click()
@@ -116,14 +116,17 @@
 
 	const parseInline = (text: string): TextRun[] => {
 		const runs: TextRun[] = []
-		const re = /\*\*(.+?)\*\*|_(.+?)_|\*(.+?)\*/g
+		const re = /\*\*\*(.+?)\*\*\*|___(.+?)___|\*\*(.+?)\*\*|__(.+?)__|_(.+?)_|\*(.+?)\*/g
 		let last = 0
 		let match = re.exec(text)
 		while (match !== null) {
 			if (match.index > last) runs.push(new TextRun(text.slice(last, match.index)))
-			if (match[1] !== undefined) runs.push(new TextRun({ text: match[1], bold: true }))
-			else if (match[2] !== undefined) runs.push(new TextRun({ text: match[2], italics: true }))
-			else if (match[3] !== undefined) runs.push(new TextRun({ text: match[3], italics: true }))
+			if (match[1] !== undefined) runs.push(new TextRun({ text: match[1], bold: true, italics: true }))
+			else if (match[2] !== undefined) runs.push(new TextRun({ text: match[2], bold: true, italics: true }))
+			else if (match[3] !== undefined) runs.push(new TextRun({ text: match[3], bold: true }))
+			else if (match[4] !== undefined) runs.push(new TextRun({ text: match[4], bold: true }))
+			else if (match[5] !== undefined) runs.push(new TextRun({ text: match[5], italics: true }))
+			else if (match[6] !== undefined) runs.push(new TextRun({ text: match[6], italics: true }))
 			last = match.index + match[0].length
 			match = re.exec(text)
 		}
@@ -132,7 +135,7 @@
 	}
 
 	const downloadDocx = async () => {
-		const lines = document.split("\n")
+		const lines = docContent.split("\n")
 		const paragraphs: Paragraph[] = []
 
 		for (const line of lines) {
@@ -156,7 +159,7 @@
 		const doc = new Document({ sections: [{ children: paragraphs }] })
 		const blob = await Packer.toBlob(doc)
 		const url = URL.createObjectURL(blob)
-		const a = window.document.createElement("a")
+		const a = document.createElement("a")
 		a.href = url
 		a.download = "canvas.docx"
 		a.click()
@@ -167,16 +170,16 @@
 <div class="canvas-page">
 	<!-- Top bar: export buttons -->
 	<div class="canvas-topbar">
-		<button onclick={() => (isEditing = !isEditing)} disabled={!document} title={isEditing ? "Forhåndsvis" : "Rediger"}>
+		<button onclick={() => (isEditing = !isEditing)} disabled={!docContent} title={isEditing ? "Forhåndsvis" : "Rediger"}>
 			<span class="material-symbols-outlined">{isEditing ? "preview" : "edit"}</span>
 			{isEditing ? "Forhåndsvis" : "Rediger"}
 		</button>
 		<div class="export-buttons">
-			<button onclick={downloadText} disabled={!document} title="Last ned som tekstfil">
+			<button onclick={downloadText} disabled={!docContent} title="Last ned som tekstfil">
 				<span class="material-symbols-outlined">download</span>
 				Tekst
 			</button>
-			<button onclick={downloadDocx} disabled={!document} title="Last ned som Word-dokument">
+			<button onclick={downloadDocx} disabled={!docContent} title="Last ned som Word-dokument">
 				<span class="material-symbols-outlined">download</span>
 				Word
 			</button>
@@ -187,9 +190,9 @@
 	<div class="canvas-body" bind:this={canvasBody}>
 		<div class="canvas-paper">
 			{#if isEditing}
-				<textarea class="document-editor" bind:this={documentEditor} bind:value={document} oninput={(e) => { const t = e.currentTarget; const scroll = canvasBody?.scrollTop ?? 0; t.style.height = "auto"; t.style.height = t.scrollHeight + "px"; if (canvasBody) canvasBody.scrollTop = scroll }}></textarea>
-			{:else if document}
-				{@html markdownFormatter(document)}
+				<textarea class="document-editor" bind:this={documentEditor} bind:value={docContent} oninput={(e) => { const t = e.currentTarget; const scroll = canvasBody?.scrollTop ?? 0; t.style.height = "auto"; t.style.height = t.scrollHeight + "px"; if (canvasBody) canvasBody.scrollTop = scroll }}></textarea>
+			{:else if docContent}
+				{@html markdownFormatter(docContent)}
 			{:else}
 				<p class="empty-hint">Dokumentet er tomt. Skriv en instruksjon nedenfor for å komme i gang.</p>
 			{/if}

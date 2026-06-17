@@ -6,8 +6,8 @@ import { APP_CONFIG } from "$lib/server/app-config/app-config"
 import { HTTPError } from "$lib/server/middleware/http-error"
 import { apiRequestMiddleware } from "$lib/server/middleware/http-request"
 import { responseStream } from "$lib/streaming"
-import { CanvasRequestSchema } from "$lib/types/canvas"
 import type { ApiNextFunction } from "$lib/types/middleware/http-request"
+import { parseCanvasRequest } from "$lib/validation/parse-canvas-request"
 
 const CANVAS_VENDOR_ID = "OPENAI" as const
 const CANVAS_MODEL = "gpt-5.4"
@@ -25,18 +25,13 @@ const canvasHandler: ApiNextFunction = async ({ requestEvent, user }) => {
 	}
 
 	const body = await requestEvent.request.json()
-	const parseResult = CanvasRequestSchema.safeParse(body)
-	if (!parseResult.success) {
-		throw new HTTPError(400, parseResult.error.issues[0]?.message ?? "Invalid request body")
-	}
-
-	const { document, prompt, webSearch } = parseResult.data
+	const { document, prompt, webSearch } = parseCanvasRequest(body)
 
 	if (!APP_CONFIG.VENDORS.OPENAI.ENABLED) {
 		throw new HTTPError(503, "Canvas is not available — OpenAI vendor is not configured")
 	}
 
-	logger.info(`[Canvas] User {userId} submitting prompt (webSearch: ${webSearch ?? false}, documentLength: ${document.length})`, user.userId)
+	logger.info("[Canvas] User {userId} submitting prompt (webSearch: {webSearch}, documentLength: {documentLength})", user.userId, webSearch ?? false, document.length)
 
 	const userMessage = document ? `Here is the current document:\n\n${document}\n\n---\n\nUser instruction: ${prompt}` : prompt
 
