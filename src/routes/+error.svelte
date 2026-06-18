@@ -11,6 +11,7 @@
 		<h1>Ingen tilgang</h1>
 		<p>Du har ikke tilgang til denne siden.</p>
 		<a href="/">Gå til forsiden</a>
+		<a href="/.auth/login/aad?post_login_redirect_uri=/" class="secondary">Logg inn på nytt</a>
 	{:else}
 		<h1>Noe gikk galt</h1>
 		<p>{$page.error?.message ?? "En ukjent feil oppstod."}</p>
@@ -46,5 +47,11 @@
 
 	a:hover {
 		opacity: 0.85;
+	}
+
+	a.secondary {
+		background-color: transparent;
+		color: var(--color-primary, #0066cc);
+		border: 1px solid var(--color-primary, #0066cc);
 	}
 </style>

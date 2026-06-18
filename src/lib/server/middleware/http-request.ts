@@ -3,6 +3,7 @@ import { logger } from "@vestfoldfylke/loglady"
 import type { AuthenticatedPrincipal } from "$lib/types/authentication"
 import type { ApiNextFunction, ServerLoadNextFunction } from "$lib/types/middleware/http-request"
 import { getAuthenticatedPrincipal } from "../auth/get-authenticated-user"
+import { MOCK_AUTH, MOCK_AUTH_FORCE_403 } from "../auth/mock-authenticated-user"
 import { HTTPError } from "./http-error"
 
 /**
@@ -28,6 +29,10 @@ export const apiRequestMiddleware = async (requestEvent: RequestEvent, next: Api
 	} catch (error) {
 		logger.errorException(error, `${loggerPrefix} - Error during authentication`)
 		return json({ message: "Unauthorized" }, { status: 401 })
+	}
+	if (MOCK_AUTH && MOCK_AUTH_FORCE_403) {
+		logger.warn(`${loggerPrefix} - MOCK_AUTH_FORCE_403 is enabled, returning 403`)
+		return json({ message: "Forbidden" }, { status: 403 })
 	}
 	try {
 		const { response, isAuthorized } = await next({ requestEvent, user })
