@@ -4,6 +4,7 @@
 	import { canEditPredefinedConfig, canPublishChatConfig } from "$lib/authorization"
 	import type { ChatConfig, VendorId } from "$lib/types/chat"
 	import GrowingTextArea from "../GrowingTextArea.svelte"
+	import VendorModelSelector from "../VendorModelSelector.svelte"
 	import type { ChatState } from "./ChatState.svelte"
 
 	type Props = {
@@ -25,21 +26,8 @@
 		instructions: ""
 	}
 
-	const getVendors = () => {
-		return Object.entries(chatState.APP_CONFIG.VENDORS)
-			.filter(([_key, vendor]) => vendor.ENABLED)
-			.map(([key, vendor]) => ({
-				id: key as VendorId,
-				name: vendor.NAME
-			}))
-	}
-
 	const getAvailableProjects = (vendorId: VendorId) => {
 		return chatState.APP_CONFIG.VENDORS[vendorId].PROJECTS
-	}
-
-	const getAvailableModels = (vendorId: VendorId) => {
-		return chatState.APP_CONFIG.VENDORS[vendorId].MODELS.map((model) => model.ID)
 	}
 
 	const copyAgentUrl = async () => {
@@ -58,17 +46,6 @@
 					throw new Error(`No available projects for vendor ${chatState.chat.config.vendorId}`)
 				}
 				chatState.chat.config.project = availableProjects[0]
-			}
-		}
-	})
-
-	// Almost illegal effect again, but we need to auto-select first available model when changing vendor in manual config
-	$effect(() => {
-		console.log("model effect ran, be careful")
-		if (chatState.chat.config.model) {
-			const availableModels = getAvailableModels(chatState.chat.config.vendorId)
-			if (!availableModels.includes(chatState.chat.config.model)) {
-				chatState.chat.config.model = availableModels[0] || ""
 			}
 		}
 	})
@@ -189,30 +166,24 @@
 
 			<!-- Model / vendor-agent -->
 			<div class="config-section">
-				<div class="config-item">
-					<label for="vendor">KI-leverandør</label>
-					<select id="vendor" bind:value={chatState.chat.config.vendorId}>
-						{#each getVendors() as vendor}
-							<option value={vendor.id}>{vendor.name}</option>
-						{/each}
-					</select>
-				</div>
+				{#if !chatState.chat.config.vendorAgent}
+					<VendorModelSelector bind:vendorId={chatState.chat.config.vendorId} bind:model={chatState.chat.config.model as string} appConfig={chatState.APP_CONFIG} />
+				{:else}
+					<div class="config-item">
+						<label for="vendor">KI-leverandør</label>
+						<select id="vendor" bind:value={chatState.chat.config.vendorId}>
+							{#each Object.entries(chatState.APP_CONFIG.VENDORS).filter(([_k, v]) => v.ENABLED) as [id, vendor]}
+								<option value={id}>{vendor.NAME}</option>
+							{/each}
+						</select>
+					</div>
+				{/if}
 				{#if userCanEditPredefinedConfig}
 					<div class="config-item">
 						<label for="vendor-project">Prosjekt</label>
 						<select id="vendor-project" bind:value={chatState.chat.config.project}>
 							{#each getAvailableProjects(chatState.chat.config.vendorId) as projectId}
 								<option value={projectId}>{projectId}</option>
-							{/each}
-						</select>
-					</div>
-				{/if}
-				{#if !chatState.chat.config.vendorAgent}
-					<div class="config-item">
-						<label for="model">Modell</label>
-						<select id="model" bind:value={chatState.chat.config.model}>
-							{#each getAvailableModels(chatState.chat.config.vendorId) as modelId}
-								<option value={modelId}>{modelId}</option>
 							{/each}
 						</select>
 					</div>

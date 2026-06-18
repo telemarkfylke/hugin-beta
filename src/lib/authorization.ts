@@ -46,6 +46,10 @@ export const canUpdateChatConfig = (user: AuthenticatedPrincipal, appRoles: AppR
 	return false
 }
 
+export const canUseCanvas = (user: AuthenticatedPrincipal, appRoles: AppRoles): boolean => {
+	return user.roles.includes(appRoles.EMPLOYEE) || user.roles.includes(appRoles.ADMIN)
+}
+
 export const canPromptConfig = (user: AuthenticatedPrincipal, appConfig: AppConfig, chatConfig: ChatConfig): boolean => {
 	if (user.roles.includes(appConfig.APP_ROLES.ADMIN)) {
 		return true

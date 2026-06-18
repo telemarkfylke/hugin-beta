@@ -32,6 +32,7 @@ export type AppConfig = {
 	APP_ROLES: AppRoles
 	CONVERSATION_EXPORT_DISABLED: boolean
 	NEW_CHAT_CONFIRM_DISABLED: boolean
+	CANVAS_ENABLED: boolean
 	TRANSCRIPTION_GROUPS: TranscriptionGroup[]
 	VENDORS: {
 		MISTRAL: VendorInfo
