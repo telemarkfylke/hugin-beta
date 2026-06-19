@@ -348,7 +348,7 @@ export class ChatState {
 	}
 
 	public deleteChatConfig = async (): Promise<void> => {
-		const confirmDelete = confirm("Er du sikker på at du vil slette denne agenten? Dette kan ikke angres. 😬")
+		const confirmDelete = confirm("Er du sikker på at du vil slette denne assistenten? Dette kan ikke angres. 😬")
 		if (!confirmDelete) {
 			return
 		}

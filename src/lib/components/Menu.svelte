@@ -11,8 +11,9 @@
 		authenticatedUser: AuthenticatedPrincipal
 		appName: string
 		isEmployee: boolean
+		canvasEnabled: boolean
 	}
-	let { authenticatedUser, appName, isEmployee }: Props = $props()
+	let { authenticatedUser, appName, isEmployee, canvasEnabled }: Props = $props()
 
 	let menuOpen = $state(true)
 	let menuAgents: { isLoading: boolean; agents: ChatConfig[]; error: string | null } = $state({ isLoading: false, agents: [], error: null })
@@ -129,25 +130,25 @@
 			<div class="menu-section">
 				{#if menuAgents.isLoading}
 					<div class="menu-section">
-						<div class="menu-section-title">Agenter</div>
+						<div class="menu-section-title">Assistenter</div>
 						loading...
 					</div>
 					<div class="menu-section">
-						<div class="menu-section-title">Dine agenter</div>
+						<div class="menu-section-title">Dine assistenter</div>
 						loading...
 					</div>
 				{:else if menuAgents.error}
 					<div class="menu-section">
-						<div class="menu-section-title">Agenter</div>
+						<div class="menu-section-title">Assistenter</div>
 						loading...
 					</div>
 					<div class="menu-section">
-						<div class="menu-section-title">Dine agenter</div>
+						<div class="menu-section-title">Dine assistenter</div>
 						loading...
 					</div>
 				{:else}
 					<div class="menu-section">
-						<div class="menu-section-title">Agenter</div>
+						<div class="menu-section-title">Assistenter</div>
 						<div class="menu-items">
 							{#each menuAgents.agents.filter(agent => agent.type === "published").slice(0,5) as agent}
 								<a class="menu-item" class:active={page.url.pathname === "/agents/" + agent._id} href={"/agents/" + agent._id}>
@@ -155,12 +156,12 @@
 								</a>
 							{/each}
 							<a class="menu-item" class:active={page.url.pathname === "/agents"} href="/agents">
-								<span class="material-symbols-outlined">more_horiz</span>Se alle agenter
+								<span class="material-symbols-outlined">more_horiz</span>Se alle assistenter
 							</a>
 						</div>
 					</div>
 					<div class="menu-section">
-						<div class="menu-section-title">Dine agenter</div>
+						<div class="menu-section-title">Dine assistenter</div>
 						<div class="menu-items">
 							{#each menuAgents.agents.filter(agent => agent.type === "private" && agent.created.by.id === authenticatedUser.userId).slice(0,5) as agent}
 								<a class="menu-item" class:active={page.url.pathname === "/agents/" + agent._id} href={"/agents/" + agent._id}>
@@ -168,7 +169,7 @@
 								</a>
 							{/each}
 							<a class="menu-item" class:active={page.url.pathname === "/agents/create"} href="/agents/create">
-								<span class="material-symbols-outlined">add</span>Lag ny agent
+								<span class="material-symbols-outlined">add</span>Lag ny assistent
 							</a>
 						</div>	
 					</div>
@@ -179,6 +180,9 @@
 					<div class="menu-section-title">Andre tjenester</div>
 					<div class="menu-items">
 						<a class="menu-item" class:active={page.url.pathname === "/transcription"} href="/transcription">Tale-til-notat</a>
+						{#if canvasEnabled}
+							<a class="menu-item" class:active={page.url.pathname === "/canvas"} href="/canvas">Tanke-til-notat</a>
+						{/if}
 					</div>
 				</div>
 			{/if}

@@ -33,7 +33,7 @@
 		}
 		let name = chatState.chat.config.name || chatState.chat.config.model
 		if (!name) {
-			name = chatState.chat.config._id ? "Uten navn" : "Ny agent"
+			name = chatState.chat.config._id ? "Uten navn" : "Ny assistent"
 		}
 		if (chatState.configEdited) {
 			name += "*"
@@ -66,7 +66,7 @@
 					<ConversationExport bind:chat={chatState.chat} />
 				{/if}
 				{#if userCanEditConfig}
-					<button class="header-action" class:glow={chatState.configEdited} onclick={() => chatState.configMode = true} title="Konfigurer agent">
+					<button class="header-action" class:glow={chatState.configEdited} onclick={() => chatState.configMode = true} title="Konfigurer assistent">
 						<span class="material-symbols-rounded">build</span>
 						Konfigurer
 					</button>
@@ -86,7 +86,7 @@
 		{#if chatState.chat.config.description}
 			{chatState.chat.config.description}
 		{:else}
-			<em>Ingen beskrivelse tilgjengelig for denne agenten.</em>
+			<em>Ingen beskrivelse tilgjengelig for denne assistenten.</em>
 		{/if}
 	</div>
 {/if}

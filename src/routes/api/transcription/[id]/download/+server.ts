@@ -1,4 +1,5 @@
 import type { RequestHandler } from "@sveltejs/kit"
+import { env } from "$env/dynamic/private"
 import { HTTPError } from "$lib/server/middleware/http-error"
 import { apiRequestMiddleware } from "$lib/server/middleware/http-request"
 import { getJobById } from "$lib/server/transcription/job-store"
@@ -10,20 +11,23 @@ const sanitizeFileName = (name: string): string => {
 }
 
 const downloadDocx: ApiNextFunction = async ({ requestEvent, user }) => {
-	if (!user.preferredUserName) {
-		throw new HTTPError(400, "preferredUserName is required")
-	}
 	const id = requestEvent.params.id
 	if (!id) {
 		throw new HTTPError(400, "Missing job id")
 	}
 
-	const job = getJobById(user.preferredUserName, id)
+	const job = getJobById(user.userId, id)
 	if (!job) {
 		throw new HTTPError(404, "Transkripsjonen ble ikke funnet")
 	}
 	if (job.status !== "completed" || !job.result?.docx_url) {
 		throw new HTTPError(404, "Transkripsjonen har ingen nedlastbar fil")
+	}
+
+	// Guard against SSRF — only fetch from the configured Copyparty base URL
+	const copypartyBase = env.COPYPARTY_BASE_URL
+	if (copypartyBase && !job.result.docx_url.startsWith(copypartyBase)) {
+		throw new HTTPError(502, "Ugyldig dokument-URL")
 	}
 
 	let upstream: Response

@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { onMount } from "svelte"
+	import { invalidateAll } from "$app/navigation"
 	import favicon16 from "$lib/assets/favicon-16x16.png"
 	import favicon32 from "$lib/assets/favicon-32x32.png"
 	import "../style.css" // Add global css (and make it hot reload)
@@ -6,8 +8,15 @@
 	import Menu from "$lib/components/Menu.svelte"
 	import type { LayoutProps } from "./$types.js"
 
-	// Get layout props, data will be accessible for children as well, so do not put too much here to avoid overfetching
 	let { children, data }: LayoutProps = $props()
+
+	onMount(() => {
+		const revalidateSession = () => {
+			if (document.visibilityState === "visible") invalidateAll()
+		}
+		document.addEventListener("visibilitychange", revalidateSession)
+		return () => document.removeEventListener("visibilitychange", revalidateSession)
+	})
 </script>
 
 <svelte:head>
@@ -23,7 +32,7 @@
 </svelte:head>
 
 <main>
-	<Menu authenticatedUser={data.authenticatedUser} appName={data.APP_CONFIG.NAME} isEmployee={data.authenticatedUser.roles.includes(data.APP_CONFIG.APP_ROLES.EMPLOYEE)} />
+	<Menu authenticatedUser={data.authenticatedUser} appName={data.APP_CONFIG.NAME} isEmployee={data.authenticatedUser.roles.includes(data.APP_CONFIG.APP_ROLES.EMPLOYEE)} canvasEnabled={data.APP_CONFIG.CANVAS_ENABLED} />
 	<div class="page-content">
 		{#if children}
 			{@render children()}

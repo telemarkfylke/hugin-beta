@@ -1,9 +1,10 @@
+import { invalidateAll } from "$app/navigation"
 import { parseSse } from "$lib/streaming"
 import type { Chat, ChatRequest, ChatResponseObject } from "$lib/types/chat"
 import type { ChatOutputMessage } from "$lib/types/chat-item"
 
 export const addMessageDeltaToChatItem = (chatResponseObject: ChatResponseObject, itemId: string, messageDelta: string): ChatOutputMessage => {
-	if (!chatResponseObject || !chatResponseObject.outputs || !Array.isArray(chatResponseObject.outputs)) {
+	if (!chatResponseObject?.outputs || !Array.isArray(chatResponseObject.outputs)) {
 		throw new Error("No chatResponseObject.outputs to add message delta to")
 	}
 	if (!itemId) {
@@ -47,9 +48,23 @@ export const postChatMessage = async (chatRequest: ChatRequest, chatResponseObje
 		})
 		if (!response.ok) {
 			console.error(`Error posting chat message: ${response.statusText}`)
-			const errorData = await response.json()
+			if (response.status === 401) {
+				// Session expired — re-run server loads via SvelteKit. The layout load will
+				// throw svelteError(401) if the session is truly gone, showing the login screen.
+				chatResponseObject.status = "failed"
+				await invalidateAll()
+				return
+			}
+			if (response.status === 403) {
+				// Not authorized for this specific agent — this is not a session issue.
+				// Show the error in the chat UI; redirecting to "/" would just loop.
+				addMessageDeltaToChatItem(chatResponseObject, `error_${Date.now()}`, "Du har ikke tilgang til å bruke denne agenten.")
+				chatResponseObject.status = "failed"
+				return
+			}
+			const errorData = await response.json().catch(() => null)
 			console.error("Error details:", errorData)
-			throw new Error(`Error posting chat message: ${response.statusText}`) // For now, just throw an error
+			throw new Error(`Error posting chat message: ${response.statusText}`)
 		}
 		if (chatRequest.stream) {
 			if (!response.body) {
@@ -58,67 +73,61 @@ export const postChatMessage = async (chatRequest: ChatRequest, chatResponseObje
 			if (!response.body.getReader) {
 				throw new Error("Response body does not support streaming")
 			}
-			try {
-				const reader = response.body.getReader()
-				const decoder = new TextDecoder("utf-8")
-				while (true) {
-					const { value, done } = await reader.read()
-					const chatResponseText = decoder.decode(value, { stream: true })
-					const chatResponse = parseSse(chatResponseText)
-					for (const chatResult of chatResponse) {
-						switch (chatResult.event) {
-							case "conversation.created": {
-								console.log("Conversation created with ID:", chatResult.data.conversationId)
-								chat.config.conversationId = chatResult.data.conversationId // Trolig ikke greit i følge svelte... siden vi endrer state i en annet scope enn den som eier staten
-								break
+			const reader = response.body.getReader()
+			const decoder = new TextDecoder("utf-8")
+			while (true) {
+				const { value, done } = await reader.read()
+				const chatResponseText = decoder.decode(value, { stream: true })
+				const chatResponse = parseSse(chatResponseText)
+				for (const chatResult of chatResponse) {
+					switch (chatResult.event) {
+						case "conversation.created": {
+							console.log("Conversation created with ID:", chatResult.data.conversationId)
+							chat.config.conversationId = chatResult.data.conversationId // Trolig ikke greit i følge svelte... siden vi endrer state i en annet scope enn den som eier staten
+							break
+						}
+						case "response.started": {
+							const { responseId } = chatResult.data
+							console.log("Response started with ID:", chatResult.data.responseId)
+							chatResponseObject.id = responseId
+							chatResponseObject.status = "in_progress"
+							break
+						}
+						case "response.output_text.delta": {
+							addMessageDeltaToChatItem(chatResponseObject, chatResult.data.itemId, chatResult.data.content)
+							break
+						}
+						case "response.searching": {
+							chatResponseObject.status = "searching"
+							break
+						}
+						case "response.done": {
+							console.log("Response done. Total tokens used:", chatResult.data.usage.totalTokens)
+							chatResponseObject.status = "completed"
+							chatResponseObject.usage = chatResult.data.usage
+							break
+						}
+						case "response.annotations": {
+							const outputMessage = chatResponseObject.outputs.find((o) => o.type === "message.output" && o.id === chatResult.data.itemId)
+							if (outputMessage?.type === "message.output" && outputMessage.content[0]?.type === "output_text") {
+								const existing = outputMessage.content[0].annotations ?? []
+								outputMessage.content[0].annotations = [...existing, ...chatResult.data.annotations]
 							}
-							case "response.started": {
-								const { responseId } = chatResult.data
-								console.log("Response started with ID:", chatResult.data.responseId)
-								chatResponseObject.id = responseId
-								chatResponseObject.status = "in_progress"
-								break
-							}
-							case "response.output_text.delta": {
-								addMessageDeltaToChatItem(chatResponseObject, chatResult.data.itemId, chatResult.data.content)
-								break
-							}
-							case "response.searching": {
-								chatResponseObject.status = "searching"
-								break
-							}
-							case "response.done": {
-								console.log("Response done. Total tokens used:", chatResult.data.usage.totalTokens)
-								chatResponseObject.status = "completed"
-								chatResponseObject.usage = chatResult.data.usage
-								break
-							}
-							case "response.annotations": {
-								const outputMessage = chatResponseObject.outputs.find((o) => o.type === "message.output" && o.id === chatResult.data.itemId)
-								if (outputMessage?.type === "message.output" && outputMessage.content[0]?.type === "output_text") {
-									const existing = outputMessage.content[0].annotations ?? []
-									outputMessage.content[0].annotations = [...existing, ...chatResult.data.annotations]
-								}
-								break
-							}
-							case "response.error": {
-								console.error("Response error:", chatResult.data.code, chatResult.data.message)
-								addMessageDeltaToChatItem(chatResponseObject, `error_${Date.now()}`, `\n\n[Error: ${chatResult.data.message}]`)
-								chatResponseObject.status = "failed"
-								break
-							}
-							default: {
-								console.warn("Unhandled chat result event:", chatResult.event)
-								break
-							}
+							break
+						}
+						case "response.error": {
+							console.error("Response error:", chatResult.data.code, chatResult.data.message)
+							addMessageDeltaToChatItem(chatResponseObject, `error_${Date.now()}`, `\n\n[Error: ${chatResult.data.message}]`)
+							chatResponseObject.status = "failed"
+							break
+						}
+						default: {
+							console.warn("Unhandled chat result event:", chatResult.event)
+							break
 						}
 					}
-					if (done) break
 				}
-			} catch (error) {
-				addMessageDeltaToChatItem(chatResponseObject, `error_${Date.now()}`, "\n\n[Error occurred while receiving agent response]")
-				chatResponseObject.status = "failed"
-				throw error
+				if (done) break
 			}
 			return
 		}

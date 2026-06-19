@@ -9,11 +9,11 @@
 <div class="agents-page">
 	<header class="page-header">
 		<div>&nbsp;</div>
-		<h1>Agenter</h1>
+		<h1>Assistenter</h1>
 		<a href="/agents/create" class="new-agent-link">
 			<button class="filled">
 				<span class="material-symbols-outlined">add</span>
-				Ny agent
+				Ny assistent
 			</button>
 		</a>
 	</header>
@@ -21,8 +21,8 @@
 	{#if data.agents.length === 0}
 		<div class="empty-state">
 			<span class="material-symbols-outlined empty-icon">smart_toy</span>
-			<p>Ingen agenter funnet</p>
-			<a href="/agents/create">Opprett din første agent</a>
+			<p>Ingen assistenter funnet</p>
+			<a href="/agents/create">Opprett din første assistent</a>
 		</div>
 	{:else}
 		<h3>Publiserte</h3>

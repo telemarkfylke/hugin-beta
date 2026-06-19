@@ -25,17 +25,24 @@
       {#each chatHistoryItem.outputs as chatItem}
         <ChatItem {chatItem} completed={chatHistoryItem.status === "completed"} />
       {/each}
+      {#if chatHistoryItem.status === "failed" && chatHistoryItem.outputs.length === 0}
+        <p class="error-message">Noe gikk galt. Prøv igjen.</p>
+      {/if}
     {/if}
   </div>
 {/if}
 
 <style>
   .chat-response-header {
-    /* Align items center */
     display: flex;
     align-items: center;
     gap: 0.5rem;
     margin-top: 1rem;
     margin-bottom: 0.5rem;
+  }
+
+  .error-message {
+    color: var(--color-error, #c0392b);
+    font-style: italic;
   }
 </style>

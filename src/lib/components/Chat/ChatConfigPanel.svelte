@@ -4,6 +4,7 @@
 	import { canEditPredefinedConfig, canPublishChatConfig } from "$lib/authorization"
 	import type { ChatConfig, VendorId } from "$lib/types/chat"
 	import GrowingTextArea from "../GrowingTextArea.svelte"
+	import VendorModelSelector from "../VendorModelSelector.svelte"
 	import type { ChatState } from "./ChatState.svelte"
 
 	type Props = {
@@ -25,27 +26,14 @@
 		instructions: ""
 	}
 
-	const getVendors = () => {
-		return Object.entries(chatState.APP_CONFIG.VENDORS)
-			.filter(([_key, vendor]) => vendor.ENABLED)
-			.map(([key, vendor]) => ({
-				id: key as VendorId,
-				name: vendor.NAME
-			}))
-	}
-
 	const getAvailableProjects = (vendorId: VendorId) => {
 		return chatState.APP_CONFIG.VENDORS[vendorId].PROJECTS
-	}
-
-	const getAvailableModels = (vendorId: VendorId) => {
-		return chatState.APP_CONFIG.VENDORS[vendorId].MODELS.map((model) => model.ID)
 	}
 
 	const copyAgentUrl = async () => {
 		await navigator.clipboard.writeText(page.url.href)
 		chatState.chat.config.shared = true
-		alert("Agentens adresse er kopiert til utklippstavlen og kan limes inn i en mail eller melding for å deles med andre.\n\nNB: Alle med lenken kan bruke agenten.")
+		alert("Assistentens adresse er kopiert til utklippstavlen og kan limes inn i en mail eller melding for å deles med andre.\n\nNB: Alle med lenken kan bruke assistenten.")
 	}
 
 	// Almost illegal effect, but we need to auto-select first available model when changing vendor in manual config
@@ -58,17 +46,6 @@
 					throw new Error(`No available projects for vendor ${chatState.chat.config.vendorId}`)
 				}
 				chatState.chat.config.project = availableProjects[0]
-			}
-		}
-	})
-
-	// Almost illegal effect again, but we need to auto-select first available model when changing vendor in manual config
-	$effect(() => {
-		console.log("model effect ran, be careful")
-		if (chatState.chat.config.model) {
-			const availableModels = getAvailableModels(chatState.chat.config.vendorId)
-			if (!availableModels.includes(chatState.chat.config.model)) {
-				chatState.chat.config.model = availableModels[0] || ""
 			}
 		}
 	})
@@ -113,7 +90,7 @@
 						class="name-input"
 						id="agent-name"
 						rows="1"
-						placeholder="Gi agenten et navn"
+						placeholder="Gi assistenten et navn"
 						bind:value={chatState.chat.config.name}
 						onkeydown={(e) => { if (e.key === "Enter") e.preventDefault() }}
 					></textarea>
@@ -123,8 +100,8 @@
 			<!-- Description -->
 			<div class="config-section">
 				<div class="config-item">
-					<label for="description">Beskrivelse av agent</label>
-					<GrowingTextArea id="description" style="textarea" initialRows={1} placeholder="Skriv en beskrivelse av agenten her" bind:value={chatState.chat.config.description} />
+					<label for="description">Beskrivelse av assistent</label>
+					<GrowingTextArea id="description" style="textarea" initialRows={1} placeholder="Skriv en beskrivelse av assistenten her" bind:value={chatState.chat.config.description} />
 				</div>
 			</div>
 
@@ -132,7 +109,7 @@
 			<div class="config-section">
 				<div class="share-row">
 					<label class="toggle-label">
-						<span>Del agent</span>
+						<span>Del assistent</span>
 						<span class="toggle">
 							<input type="checkbox" bind:checked={chatState.chat.config.shared} />
 							<span class="toggle-track"></span>
@@ -143,7 +120,7 @@
 					</button>
 				</div>
 				<div class="share-description">
-					Ved å dele din agent kan de som har lenken bruke den, men den blir ikke listet opp noe sted.
+					Ved å dele din assistent kan de som har lenken bruke den, men den blir ikke listet opp noe sted.
 				</div>
 			</div>
 
@@ -189,30 +166,24 @@
 
 			<!-- Model / vendor-agent -->
 			<div class="config-section">
-				<div class="config-item">
-					<label for="vendor">KI-leverandør</label>
-					<select id="vendor" bind:value={chatState.chat.config.vendorId}>
-						{#each getVendors() as vendor}
-							<option value={vendor.id}>{vendor.name}</option>
-						{/each}
-					</select>
-				</div>
+				{#if !chatState.chat.config.vendorAgent}
+					<VendorModelSelector bind:vendorId={chatState.chat.config.vendorId} bind:model={chatState.chat.config.model as string} appConfig={chatState.APP_CONFIG} />
+				{:else}
+					<div class="config-item">
+						<label for="vendor">KI-leverandør</label>
+						<select id="vendor" bind:value={chatState.chat.config.vendorId}>
+							{#each Object.entries(chatState.APP_CONFIG.VENDORS).filter(([_k, v]) => v.ENABLED) as [id, vendor]}
+								<option value={id}>{vendor.NAME}</option>
+							{/each}
+						</select>
+					</div>
+				{/if}
 				{#if userCanEditPredefinedConfig}
 					<div class="config-item">
 						<label for="vendor-project">Prosjekt</label>
 						<select id="vendor-project" bind:value={chatState.chat.config.project}>
 							{#each getAvailableProjects(chatState.chat.config.vendorId) as projectId}
 								<option value={projectId}>{projectId}</option>
-							{/each}
-						</select>
-					</div>
-				{/if}
-				{#if !chatState.chat.config.vendorAgent}
-					<div class="config-item">
-						<label for="model">Modell</label>
-						<select id="model" bind:value={chatState.chat.config.model}>
-							{#each getAvailableModels(chatState.chat.config.vendorId) as modelId}
-								<option value={modelId}>{modelId}</option>
 							{/each}
 						</select>
 					</div>
@@ -233,7 +204,7 @@
 			{#if chatState.chat.config.vendorAgent}
 				<div class="config-section">
 					<div class="config-item">
-						<label for="vendorAgentId">Agent-id</label>
+						<label for="vendorAgentId">Assistent-id</label>
 						<input id="vendorAgentId" placeholder="agent/prompt-id" type="text" bind:value={chatState.chat.config.vendorAgent.id} />
 					</div>
 				</div>
@@ -244,7 +215,7 @@
 		<div class="config-actions">
 			<div class="config-action-item">
 				{#if chatState.chat.config._id}
-					<button class="filled danger" onclick={chatState.deleteChatConfig}><span class="material-symbols-outlined">delete</span>Slett agent</button>
+					<button class="filled danger" onclick={chatState.deleteChatConfig}><span class="material-symbols-outlined">delete</span>Slett assistent</button>
 				{:else}
 					&nbsp;
 				{/if}
@@ -253,14 +224,14 @@
 				{#if chatState.configEdited}
 					<button onclick={() => chatState.configMode = false} title="Test endringer i samtalen">
 						<span class="material-symbols-rounded">experiment</span>
-						Test agent
+						Test assistent
 					</button>
 				{/if}
 				<button onclick={() => { chatState.chat.config = JSON.parse(JSON.stringify(chatState.initialConfig)); chatState.configMode = false; }}>Avbryt</button>
 				{#if chatState.chat.config._id}
 					<button disabled={!chatState.configEdited} class="filled" onclick={chatState.updateChatConfig}><span class="material-symbols-outlined">save</span>Lagre endringer</button>
 				{:else}
-					<button disabled={!chatState.configEdited} class="filled" onclick={chatState.saveChatConfig}><span class="material-symbols-outlined">save</span>Lagre som ny agent</button>
+					<button disabled={!chatState.configEdited} class="filled" onclick={chatState.saveChatConfig}><span class="material-symbols-outlined">save</span>Lagre som ny assistent</button>
 				{/if}
 			</div>
 		</div>

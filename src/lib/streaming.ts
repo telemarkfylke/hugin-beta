@@ -48,10 +48,10 @@ export const parseSse = (chunk: string): MuginSse[] => {
 		if (keyValueLines.length !== 2) {
 			throw new Error("Invalid SSE format - must contain exactly two lines per event (event and data)")
 		}
-		if (!keyValueLines[0] || !keyValueLines[0].startsWith("event: ")) {
+		if (!keyValueLines[0]?.startsWith("event: ")) {
 			throw new Error(`Invalid line (does not start with event:) ${keyValueLines[0]}`)
 		}
-		if (!keyValueLines[1] || !keyValueLines[1].startsWith("data: ")) {
+		if (!keyValueLines[1]?.startsWith("data: ")) {
 			throw new Error(`Invalid line (does not start with data:) ${keyValueLines[1]}`)
 		}
 		const event = keyValueLines[0].slice(7).trim()

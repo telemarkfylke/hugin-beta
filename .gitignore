@@ -1,4 +1,5 @@
 node_modules
+.superpowers
 
 # Output
 .output
@@ -26,6 +27,7 @@ vite.config.ts.timestamp-*
 # Claude Code
 CLAUDE.md
 .claude/
+.superpowers/
 
 # Mock db
 src/lib/db/mockdb-data.ts
