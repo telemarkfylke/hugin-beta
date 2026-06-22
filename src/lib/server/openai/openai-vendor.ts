@@ -15,12 +15,20 @@ const openAiRequest = (chatRequest: ChatRequest): ResponseCreateParamsBase => {
 		store: false
 	}
 
-	const tools = chatRequest.config.tools?.map((tool) => {
-		if (tool.type === "web_search") {
-			return { type: "web_search_preview" as const }
-		}
-		return tool
-	})
+	const tools = chatRequest.config.tools
+		?.filter((tool) => {
+			return tool.type !== "library_search"
+		})
+		.map((tool) => {
+			if (tool.type === "web_search") {
+				return { type: "web_search_preview" as const }
+			}
+			if (tool.type === "library_search") {
+				return { type: "web_search_preview" as const }
+			}
+
+			return tool
+		})
 
 	if (chatRequest.config.vendorAgent) {
 		if (!chatRequest.config.vendorAgent.id) {

@@ -183,6 +183,7 @@
 						{#if canvasEnabled}
 							<a class="menu-item" class:active={page.url.pathname === "/canvas"} href="/canvas">Tanke-til-notat</a>
 						{/if}
+						<a class="menu-item" class:active={page.url.pathname === "/ragservice"} href="/ragservice">Datakilder</a>
 					</div>
 				</div>
 			{/if}

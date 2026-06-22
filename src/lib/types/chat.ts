@@ -9,9 +9,15 @@ export type VendorAgent = {
 	id: string
 }
 
-export type ChatTool = {
+export type WebSearchChatTool = {
 	type: "web_search"
 }
+
+export type DocumentLibraryChatTool = {
+	type: "library_search"
+}
+
+export type ChatTool = WebSearchChatTool | DocumentLibraryChatTool
 
 export type RoleAccessGroups = "all" | "employee" | "edu_employee" | "student"
 export type EntraAccessGroup = {

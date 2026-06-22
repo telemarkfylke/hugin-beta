@@ -4,18 +4,30 @@ import { env } from "$env/dynamic/private"
 import type { IAIVendor } from "$lib/types/AIVendor"
 import type { ChatRequest, ChatResponseObject, ChatResponseStream } from "$lib/types/chat"
 import { APP_CONFIG } from "../app-config/app-config"
+import { getLibraryMappingStore } from "../document-libraries/interfaces"
 import { chatInputToMistralInput, mistralResponseToChatResponseObject } from "./mistral-mapping"
 import { handleMistralResponseStream } from "./mistral-stream"
 
 const MISTRAL_SUPPORTED_MODELS = APP_CONFIG.VENDORS.MISTRAL.MODELS.map((model) => model.ID)
 
-const mistralRequest = (chatRequest: ChatRequest): ConversationRequest => {
-	const tools = chatRequest.config.tools?.map((tool) => {
-		if (tool.type === "web_search") {
-			return { type: "web_search" as const }
+const mistralRequest = async (chatRequest: ChatRequest): Promise<ConversationRequest> => {
+	chatRequest.config.tools?.push({ type: "library_search" })
+
+	const tools = []
+	if (chatRequest.config.tools) {
+		for (const tool of chatRequest.config.tools) {
+			if (tool.type === "web_search") {
+				tools.push({ type: "web_search" as const })
+			}
+			if (tool.type === "library_search") {
+				const libStore = getLibraryMappingStore()
+				const libraryIds = await libStore.getVendorIds(chatRequest.config._id, "Mistral")
+				if (libraryIds.length > 0) {
+					tools.push({ type: "document_library" as const, libraryIds: libraryIds })
+				}
+			}
 		}
-		return tool
-	})
+	}
 
 	const baseConfig: ConversationRequest = {
 		inputs: chatRequest.inputs.map(chatInputToMistralInput),
@@ -60,7 +72,7 @@ export class MistralVendor implements IAIVendor {
 		})
 
 		const response = await mistral.beta.conversations.start({
-			...mistralRequest(chatRequest),
+			...(await mistralRequest(chatRequest)),
 			stream: false
 		})
 		return mistralResponseToChatResponseObject(chatRequest.config, response)
@@ -72,8 +84,10 @@ export class MistralVendor implements IAIVendor {
 			apiKey: PROJECT_API_KEY
 		})
 
+		// const libraries = await mistral.beta.libraries.list();
+
 		const responseStream = await mistral.beta.conversations.startStream({
-			...mistralRequest(chatRequest),
+			...(await mistralRequest(chatRequest)),
 			stream: true
 		})
 		return handleMistralResponseStream(chatRequest, responseStream)
