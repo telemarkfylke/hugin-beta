@@ -8,6 +8,7 @@ import { MS_AUTH_PRINCIPAL_CLAIMS_HEADER } from "./auth-constants"
 export const MOCK_AUTH = env.MOCK_AUTH === "true"
 export const MOCK_AUTH_FORCE_401 = env.MOCK_AUTH_FORCE_401 === "true"
 export const MOCK_AUTH_FORCE_403 = env.MOCK_AUTH_FORCE_403 === "true"
+const MOCK_AUTH_GROUPS = env.MOCK_AUTH_GROUPS ? env.MOCK_AUTH_GROUPS.split(",") : []
 const MOCK_AUTH_ROLES = env.MOCK_AUTH_ROLES ? env.MOCK_AUTH_ROLES.split(",") : []
 if (MOCK_AUTH && !MOCK_AUTH_FORCE_401) {
 	if (MOCK_AUTH_ROLES.length === 0) {
