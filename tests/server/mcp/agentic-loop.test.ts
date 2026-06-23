@@ -57,7 +57,7 @@ describe("runMcpAgenticLoop", () => {
 		const mcp: McpClient = { listTools: vi.fn(), callTool: vi.fn().mockResolvedValue("X") }
 		const events = await collect(runMcpAgenticLoop(driver, mcp, { maxIterations: 2 }))
 		expect(events.at(-1)?.event).toBe("response.done")
-		expect((mcp.callTool as ReturnType<typeof vi.fn>).mock.calls.length).toBeLessThanOrEqual(2)
+		expect((mcp.callTool as ReturnType<typeof vi.fn>).mock.calls.length).toBe(1)
 	})
 
 	it("emits tool_result error when a tool throws, and feeds error back", async () => {
@@ -74,5 +74,30 @@ describe("runMcpAgenticLoop", () => {
 		const toolResult = events.find((e) => e.event === "response.tool_result")
 		expect((toolResult?.data as { status: string }).status).toBe("error")
 		expect(seen[0]?.isError).toBe(true)
+	})
+
+	it("emits tool_call eagerly — interleaved with text_delta in the same turn", async () => {
+		const driver: ToolTurnDriver = {
+			start: () =>
+				gen([
+					{ type: "text_delta", itemId: "m1", content: "intro" },
+					{ type: "tool_call", callId: "c1", toolName: "Search_SharePoint", arguments: "{}" },
+					{ type: "usage", usage }
+				]),
+			continueWith: () =>
+				gen([
+					{ type: "text_delta", itemId: "m2", content: "done" },
+					{ type: "usage", usage }
+				])
+		}
+		const mcp: McpClient = { listTools: vi.fn(), callTool: vi.fn().mockResolvedValue("R") }
+		const events = await collect(runMcpAgenticLoop(driver, mcp))
+
+		const eventNames = events.map((e) => e.event)
+		const deltaIndex = eventNames.indexOf("response.output_text.delta")
+		const toolCallIndex = eventNames.indexOf("response.tool_call")
+		expect(deltaIndex).toBeGreaterThanOrEqual(0)
+		expect(toolCallIndex).toBeGreaterThanOrEqual(0)
+		expect(deltaIndex).toBeLessThan(toolCallIndex)
 	})
 })

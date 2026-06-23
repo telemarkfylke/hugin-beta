@@ -36,6 +36,7 @@ export const runMcpAgenticLoop = (driver: ToolTurnDriver, mcpClient: McpClient, 
 						if (event.type === "text_delta") {
 							controller.enqueue(createSse({ event: "response.output_text.delta", data: { itemId: event.itemId, content: event.content } }))
 						} else if (event.type === "tool_call") {
+							controller.enqueue(createSse({ event: "response.tool_call", data: { itemId: event.callId, toolName: event.toolName } }))
 							pendingCalls.push({ callId: event.callId, toolName: event.toolName, arguments: event.arguments })
 						} else if (event.type === "usage") {
 							accumulatedUsage.inputTokens += event.usage.inputTokens
@@ -55,7 +56,6 @@ export const runMcpAgenticLoop = (driver: ToolTurnDriver, mcpClient: McpClient, 
 
 					const results: ToolResult[] = []
 					for (const call of pendingCalls) {
-						controller.enqueue(createSse({ event: "response.tool_call", data: { itemId: call.callId, toolName: call.toolName } }))
 						const result = await executeToolCall(mcpClient, call)
 						results.push(result)
 						controller.enqueue(createSse({ event: "response.tool_result", data: { itemId: call.callId, toolName: call.toolName, status: result.isError ? "error" : "ok" } }))
