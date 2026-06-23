@@ -31,6 +31,7 @@ Hugin Beta is an internal AI-agent web application designed to provide a democra
   - [Streaming Architecture](#streaming-architecture)
 - [Features](#features)
   - [Canvas](#canvas)
+  - [SharePoint MCP Integration](#sharepoint-mcp-integration)
 - [Getting Started](#getting-started)
   - [Prerequisites](#prerequisites)
   - [Installation](#installation)
@@ -174,6 +175,33 @@ Canvas is gated behind the `CANVAS_ENABLED` environment variable and requires th
 | `src/routes/canvas/+page.server.ts` | Page load with auth/feature-flag check |
 | `src/routes/api/canvas/+server.ts` | POST endpoint — streams AI response |
 | `src/lib/types/canvas.ts` | Zod request schema |
+
+### SharePoint MCP Integration
+
+Hugin supports read-only access to SharePoint via a [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server. When enabled, manual-config assistants can call SharePoint tools during a chat turn; the results are fed back to the AI in a Hugin-owned agentic loop, and the final answer is streamed to the client as usual.
+
+**Key behaviours:**
+
+- Read-only — the MCP server exposes SharePoint data retrieval tools only; no write operations.
+- Manual-config assistants only — assistants that reference a predefined vendor agent config are rejected with HTTP 400. The MCP tool toggle is available in the assistant config editor.
+- Supported vendors: OpenAI, Mistral, LiteLLM. Ollama is not supported.
+- Service-identity auth (client credentials flow) — the application authenticates to the MCP server using its own Entra ID service principal; no delegated user token is used.
+- Access is gated by the existing assistant `accessGroups` RBAC: a user can only reach an MCP-enabled assistant if they are a member of one of the groups listed in that assistant's `accessGroups`.
+
+**Environment variables** (add to `.env` / Azure Application Settings):
+
+```bash
+MCP_SHAREPOINT_ENABLED="true"                  # Set to "true" to activate
+MCP_SHAREPOINT_URL="https://..."               # MCP server base URL
+MCP_SHAREPOINT_CLIENT_ID=""                    # App registration client ID
+MCP_SHAREPOINT_CLIENT_SECRET=""               # App registration client secret
+MCP_SHAREPOINT_TENANT_ID=""                   # Entra tenant ID
+MCP_SHAREPOINT_SCOPE="api://.../.default"     # OAuth scope for the MCP server
+```
+
+When `MCP_SHAREPOINT_ENABLED` is absent or not `"true"`, the feature is silently disabled and all other `MCP_SHAREPOINT_*` variables are ignored.
+
+**Server-side setup** (app-role grant `SharePoint.MCP.Read`, secret rotation before Dec 2026): see [`hugin-integration.md`](hugin-integration.md).
 
 ---
 
