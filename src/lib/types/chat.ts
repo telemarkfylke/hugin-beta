@@ -9,9 +9,7 @@ export type VendorAgent = {
 	id: string
 }
 
-export type ChatTool = {
-	type: "web_search"
-}
+export type ChatTool = { type: "web_search" } | { type: "mcp"; server: "sharepoint" }
 
 export type RoleAccessGroups = "all" | "employee" | "edu_employee" | "student"
 export type EntraAccessGroup = {
@@ -118,9 +116,9 @@ export const ChatConfigSchema = schemaForType<ChatConfig>()(
 		vendorAgent: z.object({ id: z.string() }).optional(),
 		model: z.string().optional(),
 		tools: z
-			.array(z.object({ type: z.enum(["web_search"]) }))
+			.array(z.discriminatedUnion("type", [z.object({ type: z.literal("web_search") }), z.object({ type: z.literal("mcp"), server: z.literal("sharepoint") })]))
 			.nullable()
-			.optional(), // Update as per ChatTool for now
+			.optional(),
 		shared: z.boolean().optional(),
 		instructions: z.string().optional(),
 		conversationId: z.string().optional(),
