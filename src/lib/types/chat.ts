@@ -10,7 +10,12 @@ export type VendorAgent = {
 }
 
 export type ChatTool = {
-	type: "web_search"
+	type: "web_search" | "datasource"
+}
+
+export type DataSource = {
+	type: "ragservice"
+	id: string
 }
 
 export type RoleAccessGroups = "all" | "employee" | "edu_employee" | "student"
@@ -30,6 +35,7 @@ export type ChatConfig = {
 	instructions?: string | undefined
 	conversationId?: string | undefined
 	tools?: ChatTool[] | undefined | null
+	dataSources?: DataSource[] | undefined
 	type: "published" | "private"
 	shared?: boolean | undefined
 	accessGroups: (RoleAccessGroups | EntraAccessGroup)[]
@@ -118,8 +124,11 @@ export const ChatConfigSchema = schemaForType<ChatConfig>()(
 		vendorAgent: z.object({ id: z.string() }).optional(),
 		model: z.string().optional(),
 		tools: z
-			.array(z.object({ type: z.enum(["web_search"]) }))
+			.array(z.object({ type: z.enum(["web_search", "datasource"]) }))
 			.nullable()
+			.optional(),
+		dataSources: z
+			.array(z.object({ type: z.enum(["ragservice"]), id: z.string() }))
 			.optional(), // Update as per ChatTool for now
 		shared: z.boolean().optional(),
 		instructions: z.string().optional(),

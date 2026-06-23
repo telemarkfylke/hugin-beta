@@ -31,7 +31,7 @@
 
 	{#if store._embedded.access.upload}
 		<div>
-			<FileUpload onFileUploaded={() => loadFiles()}></FileUpload>
+			<FileUpload storeId={store.storeId} onFileUploaded={() => loadFiles()} />
 		</div>
 		<hr>
 	{/if}

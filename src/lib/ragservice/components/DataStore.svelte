@@ -51,9 +51,10 @@
 
 <main>
 	{#if createNew}
-		<DataStoreCreate onDone={(storeId: string | null) => {
-			if(storeId){
-				selectedStoreId = storeId
+		<DataStoreCreate onDone={(newStore: StoreConfig | null) => {
+			if(newStore){
+				stores.push(newStore)
+				selectedStoreId = newStore.storeId
 			}
 			createNew = false
 		}}></DataStoreCreate>
@@ -65,16 +66,16 @@
 				{/each}
 			</select>
 			<button  onclick={() => (createNew = true)}>
-				Ny
+				<span class="material-symbols-outlined">add</span>Lag nytt bibliotek
 			</button>
 
 			{#if store}
 				<button
 					disabled={!store._embedded.access.admin}
-					class="deletebutton"
+					class="filled danger"
 					onclick={() => deleteStore()}
 				>
-					Slett
+					<span class="material-symbols-outlined">delete</span>Slett bibliotek
 				</button>
 			{/if}
 		</div>
@@ -141,7 +142,7 @@
 	}
 
 	button.deletebutton {
-		background-color: lightsalmon;
+		/*background-color: lightsalmon;*/
 		cursor: pointer;
 	}
 
@@ -154,7 +155,7 @@
 		font-size: 14px;
 		border-top-left-radius: 5px;
 		border-top-right-radius: 5px;
-		background-color: #c9c189;
+		/*background-color: #c9c189; */
 		color: #888887;
 		cursor: pointer;
 	}

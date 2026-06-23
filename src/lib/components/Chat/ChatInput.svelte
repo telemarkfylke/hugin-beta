@@ -33,6 +33,8 @@
 	let messageInProgress = $state(false)
 	let fileSizeWarning = $state(false)
 	let webSearchEnabled = $derived(chatState.webSearchEnabled)
+	let datasourceEnabled = $derived(chatState.datasourceEnabled)
+	let hasDatasources = $derived((chatState.chat.config.dataSources?.length ?? 0) > 0)
 
 	// Konverter filarrayen til en liste med filer
 	const filesToFileList = (files: File[]): FileList => {
@@ -219,6 +221,19 @@
 						type="button"
 					>
 						<span class="material-symbols-outlined">travel_explore</span>
+					</button>
+				{/if}
+				{#if hasDatasources}
+					<button
+						class="icon-button input-action-button"
+						class:active={datasourceEnabled}
+						onclick={() => {
+							chatState.datasourceEnabled = !chatState.datasourceEnabled
+						}}
+						title={datasourceEnabled ? "Datakilder aktivert" : "Datakilder deaktivert"}
+						type="button"
+					>
+						<span class="material-symbols-outlined">database</span>
 					</button>
 				{/if}
 			</div>

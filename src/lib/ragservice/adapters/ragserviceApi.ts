@@ -1,261 +1,113 @@
-import type { Access, AccessRow, CreateVectorStoreInput, EmbeddingDimensions, EmbeddingModel, VectorMatch, VectorSearch, StoreConfig, VectorStoreFile, StoreWrapper, StoreResponse, AccessType, GraphUser, GraphGroup } from "../types"
-import { getToken } from '../../token';
-//const { ragserviceurlRAGSERVICE_URL: ragserviceurl, MOCK_USER_ID: mockUserId, MOCK_USER_NAME: mockUserName, } = import.meta.env;
+import type { Access, AccessRow, CreateVectorStoreInput, EmbeddingDimensions, EmbeddingModel, VectorMatch, VectorSearch, StoreConfig, VectorStoreFile, StoreResponse, AccessType, GraphUser, GraphGroup } from "../types"
 
+const BASE = "/api/obo/rag"
 
-const { VITE_RAGSERVICE_URL: ragserviceurl } = import.meta.env;
-const { VITE_MOCK_USER_ID: mockUserId } = import.meta.env;
-const { VITE_MOCK_USER_NAME: mockUserName } = import.meta.env;
+async function get<T>(path: string): Promise<T | null> {
+	try {
+		const res = await fetch(`${BASE}${path}`)
+		if (!res.ok) return null
+		return await res.json() as T
+	} catch { return null }
+}
 
-const env = import.meta.env;
+async function post<T>(path: string, body: unknown): Promise<T | null> {
+	try {
+		const res = await fetch(`${BASE}${path}`, {
+			method: "POST",
+			headers: { "content-type": "application/json" },
+			body: JSON.stringify(body)
+		})
+		if (!res.ok) return null
+		return await res.json() as T
+	} catch { return null }
+}
+
+async function put<T>(path: string, body: unknown): Promise<T | null> {
+	try {
+		const res = await fetch(`${BASE}${path}`, {
+			method: "PUT",
+			headers: { "content-type": "application/json" },
+			body: JSON.stringify(body)
+		})
+		if (!res.ok) return null
+		return await res.json() as T
+	} catch { return null }
+}
+
+async function del(path: string): Promise<boolean> {
+	try {
+		const res = await fetch(`${BASE}${path}`, { method: "DELETE" })
+		return res.ok
+	} catch { return false }
+}
 
 export class RagServiceApi {
-
-	private baseUrl: string = ragserviceurl || 'http://localhost:7071'
-
-	constructor(baseUrl?: string | null) {
-		if (baseUrl)
-			this.baseUrl = baseUrl
+	async getModels(): Promise<EmbeddingModel[]> {
+		return await get<EmbeddingModel[]>("/models") ?? []
 	}
 
-	private async getHeaders(auth: boolean): Promise<Record<string, string>> {
-		const headers: Record<string, string> = {
-			"x-ms-client-principal-name": mockUserName ?? "",
-			"x-ms-client-principal-id": mockUserId ?? ""
-		}
-
-		if (auth) {
-			const accessToken = await getToken()
-			if (accessToken) headers["authorization"] = `Bearer ${accessToken}`
-		}
-
-		return headers
+	async getDimensions(model: EmbeddingModel): Promise<EmbeddingDimensions[]> {
+		return await get<EmbeddingDimensions[]>(`/models/${model}/dimensions`) ?? []
 	}
 
-	public async getModels(): Promise<EmbeddingModel[]> {
-		const headers = await this.getHeaders(true)
-		const url = `${this.baseUrl}/api/models`
-		try {
-			const response: Response = await fetch(url, {
-				method: 'GET',
-				headers: headers
-			})
-			const details = await response.json()
-			return details as EmbeddingModel[]
-		} catch (error) {
-			return []
-		}
+	async getStores(): Promise<StoreConfig[]> {
+		return await get<StoreConfig[]>("/stores/") ?? []
 	}
 
-	public async getDimensions(model: EmbeddingModel): Promise<EmbeddingDimensions[]> {
-		const headers = await this.getHeaders(true)
-		const url = `${this.baseUrl}/api/models/${model}/dimensions`
-		try {
-			const response: Response = await fetch(url, {
-				method: 'GET',
-				headers: headers
-			})
-			const details = await response.json()
-			return details as EmbeddingDimensions[]
-		} catch (error) {
-			return []
-		}
+	async createStore(config: CreateVectorStoreInput): Promise<StoreConfig | null> {
+		return await post<StoreConfig>("/stores/", config)
 	}
 
-	public async getStores(): Promise<StoreConfig[]> {
-		const headers = await this.getHeaders(true)
-		const url = `${this.baseUrl}/api/stores/`
-		try {
-			const response: Response = await fetch(url, {
-				method: 'GET',
-				headers: headers
-			})
-			const details = await response.json()
-			return details as StoreConfig[]
-		} catch (error) {
-			return []
-		}
+	async getStore(id: string, _extendedInfo: boolean): Promise<StoreResponse | null> {
+		return await get<StoreResponse>(`/stores/${id}`)
 	}
 
-	public async createStore(config: CreateVectorStoreInput): Promise<StoreConfig | null> {
-		const headers = await this.getHeaders(true)
-		const url = `${this.baseUrl}/api/stores/`
-		try {
-			const response: Response = await fetch(url, {
-				method: 'POST',
-				headers: headers,
-				body: JSON.stringify(config)
-			})
-			const details = await response.json()
-			return details as StoreConfig
-		} catch (error) {
-			return null
-		}
+	async deleteStore(id: string): Promise<boolean> {
+		return await del(`/stores/${id}`)
 	}
 
-	public async uploadFile(storeId: string, formData: FormData): Promise<Response> {
-		const headers = await this.getHeaders(true)
-		const response = await fetch(`${this.baseUrl}/api/stores/${storeId}/textfiles`, {
+	async uploadFile(storeId: string, formData: FormData): Promise<Response> {
+		return await fetch(`${BASE}/stores/${storeId}/textfiles`, {
 			method: "POST",
-			headers: headers,
 			body: formData
 		})
-		return response
 	}
 
-	public async deleteStore(id: string): Promise<boolean | null> {
-		const headers = await this.getHeaders(true)
-		const url = `${this.baseUrl}/api/stores/${id}`
-
-		try {
-			const response: Response = await fetch(url, {
-				method: 'DELETE',
-				headers: headers
-			})
-			return response.status === 200
-		} catch (error) {
-			return false
-		}
+	async getFiles(storeId: string): Promise<VectorStoreFile[]> {
+		return await get<VectorStoreFile[]>(`/stores/${storeId}/files`) ?? []
 	}
 
-
-	public async getStore(id: string, extendedInfo: boolean): Promise<StoreResponse | null> {
-		const headers = await this.getHeaders(true)
-		const url = `${this.baseUrl}/api/stores/${id}`
-
-		try {
-			const response: Response = await fetch(url, {
-				method: 'GET',
-				headers: headers
-			})
-			const details = await response.json()
-			return details as StoreResponse
-		} catch (error) {
-			return null
-		}
+	async removeFile(storeId: string, fileId: string): Promise<boolean> {
+		return await del(`/stores/${storeId}/files/${fileId}`)
 	}
 
-	public async getFiles(storeId: string): Promise<VectorStoreFile[]> {
-		const headers = await this.getHeaders(true)
-		const url = `${this.baseUrl}/api/stores/${storeId}/files`
-		try {
-			const response: Response = await fetch(url, {
-				method: 'GET',
-				headers: headers
-			})
-			const details = await response.json()
-			return details as VectorStoreFile[]
-		} catch (error) {
-			return []
-		}
+	async textSearch(storeId: string, query: VectorSearch): Promise<VectorMatch[]> {
+		return await post<VectorMatch[]>(`/stores/${storeId}/search/text`, query) ?? []
 	}
 
-	public async textSearch(storeId: string, query: VectorSearch): Promise<VectorMatch[]> {
-		const headers = await this.getHeaders(true)
-		const url = `${this.baseUrl}/api/stores/${storeId}/search/text`
-		try {
-			const response: Response = await fetch(url, {
-				method: 'POST',
-				headers: headers,
-				body: JSON.stringify(query)
-			})
-
-			const details = await response.json()
-			return details as VectorMatch[]
-		} catch (error) {
-			return []
-		}
+	async getAccess(storeId: string): Promise<Access> {
+		return await get<Access>(`/stores/${storeId}/access/`) ?? {}
 	}
 
-	public async getAccess(storeId: string) {
-		const headers = await this.getHeaders(true)
-		const url = `${this.baseUrl}/api/stores/${storeId}/access/`
-		try {
-			const response: Response = await fetch(url, {
-				method: 'GET',
-				headers: headers
-			})
-			const details = await response.json()
-			return details as Access
-		} catch (error) {
-			return {}
-		}
+	async setAccess(storeId: string, type: AccessType, userId: string, accessRow: AccessRow): Promise<void> {
+		await put(`/stores/${storeId}/access/${this.typePath(type)}/${userId}`, accessRow)
 	}
 
-	public async setAccess(storeId: string, type: AccessType, userId: string, accessRow: AccessRow) {
-		const headers = await this.getHeaders(true)
-
-		if (type === "role") {
-			throw Error("Roles are not implmeneted")
-		}
-
-		const url = `${this.baseUrl}/api/stores/${storeId}/access/${this.getTypePath(type)}/${userId}`
-		try {
-			const response: Response = await fetch(url, {
-				method: 'PUT',
-				headers: headers,
-				body: JSON.stringify(accessRow)
-			})
-			const details = await response.json()
-			return details as VectorMatch[]
-		} catch (error) {
-			return []
-		}
+	async removeAccess(storeId: string, type: AccessType, userId: string): Promise<void> {
+		await del(`/stores/${storeId}/access/${this.typePath(type)}/${userId}`)
 	}
 
-	public async removeAccess(storeId: string, type: AccessType, userId: string) {
-		const headers = await this.getHeaders(true)
-		const url = `${this.baseUrl}/api/stores/${storeId}/access/${this.getTypePath(type)}/${userId}`
-		try {
-			const response: Response = await fetch(url, {
-				method: 'DELETE',
-				headers: headers
-			})
-		} catch (error) {
-		}
+	async searchUsers(query: string): Promise<GraphUser[]> {
+		return await get<GraphUser[]>(`/entities/graph/users?search=${encodeURIComponent(query)}`) ?? []
 	}
 
-	public async removeFile(storeId: string, fileId: string) {
-		const headers = await this.getHeaders(true)
-		const url = `${this.baseUrl}/api/stores/${storeId}/files/${fileId}`
-		try {
-			const response: Response = await fetch(url, {
-				method: 'DELETE',
-				headers: headers
-			})
-		} catch (error) {
-		}
+	async searchGroups(query: string): Promise<GraphGroup[]> {
+		return await get<GraphGroup[]>(`/entities/graph/groups?search=${encodeURIComponent(query)}`) ?? []
 	}
 
-
-	public async searchUsers(query: string): Promise<GraphUser[]> {
-		const headers = await this.getHeaders(true)
-		const url = `${this.baseUrl}/api/entities/graph/users?search=${encodeURIComponent(query)}`
-		try {
-			const response: Response = await fetch(url, { method: 'GET', headers })
-			return await response.json() as GraphUser[]
-		} catch (error) {
-			return []
-		}
-	}
-
-	public async searchGroups(query: string): Promise<GraphGroup[]> {
-		const headers = await this.getHeaders(true)
-		const url = `${this.baseUrl}/api/entities/graph/groups?search=${encodeURIComponent(query)}`
-		try {
-			const response: Response = await fetch(url, { method: 'GET', headers })
-			return await response.json() as GraphGroup[]
-		} catch (error) {
-			return []
-		}
-	}
-
-	private getTypePath( type: AccessType):string {
-		if(type==="group")
-			return "groups"
-		if(type==="user")
-			return "users"
-
+	private typePath(type: AccessType): string {
+		if (type === "group") return "groups"
+		if (type === "user") return "users"
 		return ""
 	}
 }

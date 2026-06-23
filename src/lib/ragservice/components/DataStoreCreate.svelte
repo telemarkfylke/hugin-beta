@@ -1,14 +1,15 @@
 <script lang="ts">
 	import { RagServiceApi } from "../adapters/ragserviceApi";
-	import { afterNavigate } from '$app/navigation';
+	import { onMount } from 'svelte';
 	import type {
 		CreateVectorStoreInput,
 		EmbeddingDimensions,
 		EmbeddingModel,
+        StoreConfig,
 	} from "../types";
 
 	type Props = {
-		onDone: (storeId: string | null) => void
+		onDone: (storeId: StoreConfig | null) => void
 	};
 
 	
@@ -42,14 +43,14 @@
 
 	async function addStore() {
 		const reply = await api.createStore(store);
-		onDone(reply?.storeId || null)
+		onDone(reply)
 	}
 
 	async function cancel() {
 		onDone(null)
 	}
 
-	afterNavigate(() => {
+	onMount(() => {
 		loadModels();
 	});
 </script>

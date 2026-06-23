@@ -32,6 +32,7 @@ export const parseChatConfig = (input: unknown, APP_CONFIG: AppConfig): ChatConf
 			vendorAgent: {
 				id: parsedConfig.vendorAgent.id
 			},
+			dataSources: parsedConfig.dataSources,
 			shared: parsedConfig.shared,
 			accessGroups: parsedConfig.accessGroups,
 			type: parsedConfig.type,
@@ -55,6 +56,7 @@ export const parseChatConfig = (input: unknown, APP_CONFIG: AppConfig): ChatConf
 		instructions: parsedConfig.instructions,
 		conversationId: parsedConfig.conversationId,
 		tools: parsedConfig.tools || [],
+		dataSources: parsedConfig.dataSources,
 		shared: parsedConfig.shared,
 		accessGroups: parsedConfig.accessGroups,
 		type: parsedConfig.type,
