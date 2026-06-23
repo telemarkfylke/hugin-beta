@@ -31,6 +31,7 @@
 	},
 	"dependencies": {
 		"@mistralai/mistralai": "^2.2.0",
+		"@modelcontextprotocol/sdk": "^1.29.0",
 		"@vestfoldfylke/loglady": "^1.5.3",
 		"@vscode/markdown-it-katex": "^1.1.2",
 		"docx": "^9.6.1",
