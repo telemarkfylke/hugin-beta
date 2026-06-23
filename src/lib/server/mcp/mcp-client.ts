@@ -7,6 +7,8 @@ import type { McpToolDefinition } from "./mcp-tools"
 
 logger.logConfig({ prefix: "hugin - mcp-client" })
 
+const MCP_CALL_TIMEOUT_MS = 30_000
+
 export interface McpClient {
 	listTools(): Promise<McpToolDefinition[]>
 	callTool(name: string, args: Record<string, unknown>): Promise<string>
@@ -71,7 +73,8 @@ const connect = async (): Promise<McpClient | null> => {
 		},
 		async callTool(name, args) {
 			logger.info("MCP tool call: {name}", name)
-			const result = await sdkClient.callTool({ name, arguments: args })
+			// resultSchema is optional; pass undefined to reach the options argument (3rd param).
+			const result = await sdkClient.callTool({ name, arguments: args }, undefined, { timeout: MCP_CALL_TIMEOUT_MS })
 			return flattenToolResult(result as { content?: Array<{ type: string; text?: string }> })
 		}
 	}

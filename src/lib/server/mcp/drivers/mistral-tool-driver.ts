@@ -48,6 +48,12 @@ export const createMistralToolDriver = (mistral: Mistral, chatRequest: ChatReque
 					}
 					break
 				}
+				case "conversation.response.error": {
+					// Surface server-side Mistral errors so the agentic-loop catch emits response.error to the client.
+					// Field names mirror mistral-stream.ts: chunk.data.code and chunk.data.message.
+					const message = typeof data.message === "string" ? data.message : "Mistral stream error"
+					throw new Error(message)
+				}
 				case "conversation.response.done": {
 					// ResponseDoneEvent.usage is a ConversationUsageInfo (promptTokens/completionTokens/totalTokens).
 					const usage = data.usage as { promptTokens?: number; completionTokens?: number; totalTokens?: number } | undefined

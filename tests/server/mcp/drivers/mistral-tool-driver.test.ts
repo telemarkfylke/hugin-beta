@@ -96,6 +96,18 @@ describe("createMistralToolDriver", () => {
 		expect(events.find((e) => e.type === "usage")).toEqual({ type: "usage", usage: { inputTokens: 3, outputTokens: 1, totalTokens: 4 } })
 	})
 
+	it("throws when a conversation.response.error event is received", async () => {
+		const fakeMistral = {
+			beta: {
+				conversations: {
+					startStream: async () => eventStream([{ event: "conversation.response.error", data: { type: "conversation.response.error", code: 500, message: "upstream failure" } }])
+				}
+			}
+		}
+		const driver = createMistralToolDriver(fakeMistral as never, chatRequest, [])
+		await expect(drain(driver.start())).rejects.toThrow("upstream failure")
+	})
+
 	it("continues the conversation via appendStream using the stored conversationId and function-result entries", async () => {
 		const appendCalls: unknown[] = []
 		const fakeMistral = {
