@@ -200,6 +200,29 @@
 				</div>
 			{/if}
 
+			<!-- Tools (only for manual config) -->
+			{#if !chatState.chat.config.vendorAgent}
+				<div class="config-section">
+					<div class="share-row">
+						<label class="toggle-label">
+							<span>Aktiver SharePoint-søk (MCP)</span>
+							<span class="toggle">
+								<input
+									type="checkbox"
+									checked={chatState.chat.config.tools?.some((t) => t.type === "mcp") ?? false}
+									onchange={(e) => {
+										const enabled = e.currentTarget.checked
+										const rest = (chatState.chat.config.tools ?? []).filter((t) => t.type !== "mcp")
+										chatState.chat.config.tools = enabled ? [...rest, { type: "mcp", server: "sharepoint" }] : rest
+									}}
+								/>
+								<span class="toggle-track"></span>
+							</span>
+						</label>
+					</div>
+				</div>
+			{/if}
+
 			<!-- Vendor agent (only for predefined config) -->
 			{#if chatState.chat.config.vendorAgent}
 				<div class="config-section">
