@@ -2,6 +2,7 @@ import { json, type RequestHandler } from "@sveltejs/kit"
 import { canPromptConfig } from "$lib/authorization"
 import { getVendor } from "$lib/server/ai-vendors"
 import { APP_CONFIG } from "$lib/server/app-config/app-config"
+import { configHasMcpTool, runMcpChat } from "$lib/server/mcp/run-mcp-chat"
 import { HTTPError } from "$lib/server/middleware/http-error"
 import { apiRequestMiddleware } from "$lib/server/middleware/http-request"
 import { responseStream } from "$lib/streaming"
@@ -60,9 +61,8 @@ const supahChat: ApiNextFunction = async ({ requestEvent, user }) => {
 	const vendor = getVendor(chatRequest.config.vendorId)
 
 	if (chatRequest.stream) {
-		const stream = await vendor.createChatResponseStream(chatRequest)
+		const stream = configHasMcpTool(chatRequest.config) ? await runMcpChat(chatRequest) : await vendor.createChatResponseStream(chatRequest)
 
-		// Så kan vi sikkert lage en kopi av streamen for å lagre i db eller noe også her (hvis det er en conversatonId eller noe sånt og store ikke er false)
 		return {
 			isAuthorized: true,
 			response: responseStream(stream)
