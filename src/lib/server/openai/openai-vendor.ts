@@ -15,12 +15,7 @@ const openAiRequest = (chatRequest: ChatRequest): ResponseCreateParamsBase => {
 		store: false
 	}
 
-	const tools = chatRequest.config.tools?.map((tool) => {
-		if (tool.type === "web_search") {
-			return { type: "web_search_preview" as const }
-		}
-		return tool
-	})
+	const tools = chatRequest.config.tools?.filter((tool) => tool.type === "web_search").map(() => ({ type: "web_search_preview" as const }))
 
 	if (chatRequest.config.vendorAgent) {
 		if (!chatRequest.config.vendorAgent.id) {
