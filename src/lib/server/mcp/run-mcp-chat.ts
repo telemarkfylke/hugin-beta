@@ -30,6 +30,7 @@ export const runMcpChat = async (chatRequest: ChatRequest): Promise<ReadableStre
 		if (!apiKey) throw new Error(`No Mistral API key for project ${project}`)
 		driver = createMistralToolDriver(new Mistral({ apiKey }), chatRequest, tools)
 	} else if (vendorId === "LITELLM") {
+		if (!env.LITELLM_BASE_URL) throw new Error("LITELLM_BASE_URL environment variable is not set")
 		driver = createLitellmToolDriver(new OpenAI({ baseURL: env.LITELLM_BASE_URL, apiKey: env.LITELLM_API_KEY || "no-key" }), chatRequest, tools)
 	} else {
 		throw new Error(`MCP is not supported for vendor ${vendorId}`)
