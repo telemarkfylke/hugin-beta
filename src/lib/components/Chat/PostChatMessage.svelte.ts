@@ -101,6 +101,16 @@ export const postChatMessage = async (chatRequest: ChatRequest, chatResponseObje
 							chatResponseObject.status = "searching"
 							break
 						}
+						case "response.tool_call": {
+							console.log("Tool call:", chatResult.data.toolName)
+							chatResponseObject.status = "searching"
+							break
+						}
+						case "response.tool_result": {
+							console.log("Tool result:", chatResult.data.toolName, chatResult.data.status)
+							chatResponseObject.status = "in_progress"
+							break
+						}
 						case "response.done": {
 							console.log("Response done. Total tokens used:", chatResult.data.usage.totalTokens)
 							chatResponseObject.status = "completed"
