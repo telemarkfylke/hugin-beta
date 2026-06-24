@@ -1,11 +1,14 @@
 <script lang="ts">
 	import { slide } from "svelte/transition"
 	import { page } from "$app/state"
+	import { onMount } from "svelte"
 	import { canEditPredefinedConfig, canPublishChatConfig } from "$lib/authorization"
 	import type { ChatConfig, VendorId } from "$lib/types/chat"
 	import GrowingTextArea from "../GrowingTextArea.svelte"
 	import VendorModelSelector from "../VendorModelSelector.svelte"
 	import type { ChatState } from "./ChatState.svelte"
+	import { RagServiceApi } from "$lib/ragservice/adapters/ragserviceApi"
+	import type { StoreConfig } from "$lib/ragservice/types"
 
 	type Props = {
 		chatState: ChatState
@@ -49,6 +52,24 @@
 			}
 		}
 	})
+
+	const ragApi = new RagServiceApi()
+	let availableStores: StoreConfig[] = $state([])
+
+	onMount(async () => {
+		availableStores = await ragApi.getStores()
+	})
+
+	function addDataSource(storeId: string) {
+		if (!storeId) return
+		const existing = chatState.chat.config.dataSources ?? []
+		if (existing.some(s => s.id === storeId)) return
+		chatState.chat.config.dataSources = [...existing, { type: "ragservice", id: storeId }]
+	}
+
+	function removeDataSource(storeId: string) {
+		chatState.chat.config.dataSources = (chatState.chat.config.dataSources ?? []).filter(s => s.id !== storeId)
+	}
 
 	const onConfigTypeChange = (event: Event) => {
 		const target = event.target as HTMLInputElement
@@ -199,6 +220,25 @@
 					</div>
 				</div>
 			{/if}
+
+			<!-- Data sources -->
+			<div class="config-section">
+				<div class="config-item">
+					<label>Datakilder</label>
+					{#each chatState.chat.config.dataSources ?? [] as source}
+						<div class="source-row">
+							<span>{availableStores.find(s => s.storeId === source.id)?.name ?? source.id}</span>
+							<button class="remove-source" onclick={() => removeDataSource(source.id)}>×</button>
+						</div>
+					{/each}
+					<select onchange={(e) => { addDataSource(e.currentTarget.value); e.currentTarget.value = "" }}>
+						<option value="">Legg til datakilde...</option>
+						{#each availableStores.filter(s => !(chatState.chat.config.dataSources ?? []).some(d => d.id === s.storeId)) as store}
+							<option value={store.storeId}>{store.name}</option>
+						{/each}
+					</select>
+				</div>
+			</div>
 
 			<!-- Vendor agent (only for predefined config) -->
 			{#if chatState.chat.config.vendorAgent}
@@ -358,6 +398,25 @@
 		font-size: smaller;
 		color: #888;
 		margin-top: 0.25rem;
+	}
+	.source-row {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		padding: 0.25rem 0.25rem 0.25rem 0;
+		font-size: small;
+	}
+	button.remove-source {
+		background: none;
+		border: none;
+		cursor: pointer;
+		color: #888;
+		font-size: 1rem;
+		line-height: 1;
+		padding: 0 0.25rem;
+	}
+	button.remove-source:hover {
+		color: #c00;
 	}
 	label {
 		color: var(--color-primary);
