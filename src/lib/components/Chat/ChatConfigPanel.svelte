@@ -227,13 +227,13 @@
 					<label>Datakilder</label>
 					{#each chatState.chat.config.dataSources ?? [] as source}
 						<div class="source-row">
-							<span>{availableStores.find(s => s.storeId === source.id)?.name ?? source.id}</span>
+							<span>{availableStores.find((s) => s.storeId === source.id)?.name ?? source.id}</span>
 							<button class="remove-source" onclick={() => removeDataSource(source.id)}>×</button>
 						</div>
 					{/each}
 					<select onchange={(e) => { addDataSource(e.currentTarget.value); e.currentTarget.value = "" }}>
 						<option value="">Legg til datakilde...</option>
-						{#each availableStores.filter(s => !(chatState.chat.config.dataSources ?? []).some(d => d.id === s.storeId)) as store}
+						{#each availableStores.filter((s) => !(chatState.chat.config.dataSources ?? []).some((d) => d.id === s.storeId)) as store}
 							<option value={store.storeId}>{store.name}</option>
 						{/each}
 					</select>
