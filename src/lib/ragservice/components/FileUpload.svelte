@@ -1,31 +1,31 @@
 <script lang="ts">
-	import { RagServiceApi } from "$lib/ragservice/adapters/ragserviceApi";
+	import { RagServiceApi } from "$lib/ragservice/adapters/ragserviceApi"
 
 	type Props = {
-		storeId: string;
-		onFileUploaded: () => void;
-	};
+		storeId: string
+		onFileUploaded: () => void
+	}
 
-	let { storeId, onFileUploaded }: Props = $props();
+	let { storeId, onFileUploaded }: Props = $props()
 
-	const api = new RagServiceApi();
-	let fileInput: HTMLInputElement;
-	let uploading = $state(false);
+	const api = new RagServiceApi()
+	let fileInput: HTMLInputElement
+	let uploading = $state(false)
 
 	async function handleUpload() {
-		if (!fileInput.files || fileInput.files.length === 0) return;
+		if (!fileInput.files || fileInput.files.length === 0) return
 
-		uploading = true;
+		uploading = true
 		try {
-			const formData = new FormData();
+			const formData = new FormData()
 			for (let i = 0; i < fileInput.files.length; i++) {
-				formData.append("files[]", fileInput.files[i] as File);
+				formData.append("files[]", fileInput.files[i] as File)
 			}
-			await api.uploadFile(storeId, formData);
-			onFileUploaded();
+			await api.uploadFile(storeId, formData)
+			onFileUploaded()
 		} finally {
-			uploading = false;
-			fileInput.value = "";
+			uploading = false
+			fileInput.value = ""
 		}
 	}
 </script>

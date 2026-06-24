@@ -1,6 +1,6 @@
 import { env } from "$env/dynamic/private"
-import { getRagToken } from "./get-rag-token"
 import type { VectorMatch } from "$lib/ragservice/types"
+import { getRagToken } from "./get-rag-token"
 
 async function fetchStoreSearch(storeId: string, query: string, ragToken: string): Promise<VectorMatch[]> {
 	const res = await fetch(`${env.RAGSERVICE_URL}/api/stores/${storeId}/search/text`, {
@@ -19,11 +19,7 @@ async function fetchStoreSearch(storeId: string, query: string, ragToken: string
 	return (await res.json()) as VectorMatch[]
 }
 
-export async function searchRagStores(
-	storeIds: string[],
-	query: string,
-	userToken: string | null
-): Promise<VectorMatch[]> {
+export async function searchRagStores(storeIds: string[], query: string, userToken: string | null): Promise<VectorMatch[]> {
 	if (storeIds.length === 0) return []
 
 	let ragToken: string
@@ -35,6 +31,6 @@ export async function searchRagStores(
 		ragToken = await getRagToken(userToken)
 	}
 
-	const results = await Promise.all(storeIds.map(id => fetchStoreSearch(id, query, ragToken)))
+	const results = await Promise.all(storeIds.map((id) => fetchStoreSearch(id, query, ragToken)))
 	return results.flat()
 }

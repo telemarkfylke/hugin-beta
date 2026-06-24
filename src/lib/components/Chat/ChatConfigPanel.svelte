@@ -1,14 +1,14 @@
 <script lang="ts">
+	import { onMount } from "svelte"
 	import { slide } from "svelte/transition"
 	import { page } from "$app/state"
-	import { onMount } from "svelte"
 	import { canEditPredefinedConfig, canPublishChatConfig } from "$lib/authorization"
+	import { RagServiceApi } from "$lib/ragservice/adapters/ragserviceApi"
+	import type { StoreConfig } from "$lib/ragservice/types"
 	import type { ChatConfig, VendorId } from "$lib/types/chat"
 	import GrowingTextArea from "../GrowingTextArea.svelte"
 	import VendorModelSelector from "../VendorModelSelector.svelte"
 	import type { ChatState } from "./ChatState.svelte"
-	import { RagServiceApi } from "$lib/ragservice/adapters/ragserviceApi"
-	import type { StoreConfig } from "$lib/ragservice/types"
 
 	type Props = {
 		chatState: ChatState
@@ -63,12 +63,12 @@
 	function addDataSource(storeId: string) {
 		if (!storeId) return
 		const existing = chatState.chat.config.dataSources ?? []
-		if (existing.some(s => s.id === storeId)) return
+		if (existing.some((s) => s.id === storeId)) return
 		chatState.chat.config.dataSources = [...existing, { type: "ragservice", id: storeId }]
 	}
 
 	function removeDataSource(storeId: string) {
-		chatState.chat.config.dataSources = (chatState.chat.config.dataSources ?? []).filter(s => s.id !== storeId)
+		chatState.chat.config.dataSources = (chatState.chat.config.dataSources ?? []).filter((s) => s.id !== storeId)
 	}
 
 	const onConfigTypeChange = (event: Event) => {

@@ -1,60 +1,58 @@
 <script lang="ts">
-	import type { VectorMatch, VectorSearch, StoreResponse } from "$lib/ragservice/types";
-	import { RagServiceApi } from "$lib/ragservice/adapters/ragserviceApi";
+	import { RagServiceApi } from "$lib/ragservice/adapters/ragserviceApi"
+	import type { StoreResponse, VectorMatch, VectorSearch } from "$lib/ragservice/types"
 
-	const api = new RagServiceApi();
+	const api = new RagServiceApi()
 
 	type Props = {
-		store: StoreResponse;
-	};
-	let { store }: Props = $props();
+		store: StoreResponse
+	}
+	let { store }: Props = $props()
 
-	let responses: VectorMatch[] = $state([]);
-	let editingId: string | null = $state(null);
-	let editText: string = $state("");
-	let saving: boolean = $state(false);
+	let responses: VectorMatch[] = $state([])
+	let editingId: string | null = $state(null)
+	let editText: string = $state("")
+	let saving: boolean = $state(false)
 
 	const query: VectorSearch = $state({
 		text: "",
 		replyLimit: 3,
 		storeIds: [store.storeId],
 		weights: { text: 5, vector: 5 }
-	});
+	})
 
 	async function search() {
-		responses = await api.textSearch(store.storeId, query);
+		responses = await api.textSearch(store.storeId, query)
 	}
 
 	function startEdit(response: VectorMatch) {
-		editingId = response.id ?? null;
-		editText = response.text;
+		editingId = response.id ?? null
+		editText = response.text
 	}
 
 	function cancelEdit() {
-		editingId = null;
-		editText = "";
+		editingId = null
+		editText = ""
 	}
 
 	async function saveEdit(response: VectorMatch) {
-		if (!response.id) return;
-		saving = true;
+		if (!response.id) return
+		saving = true
 		try {
-			await api.updateChunk(store.storeId, response.id, { data: editText });
-			response.text = editText;
-			editingId = null;
+			await api.updateChunk(store.storeId, response.id, { data: editText })
+			response.text = editText
+			editingId = null
 		} finally {
-			saving = false;
+			saving = false
 		}
 	}
 
 	async function deleteChunk(response: VectorMatch) {
-		if (!response.id) return;
-		if (!confirm("Slette denne chunken?")) return;
-		await api.deleteChunk(store.storeId, response.id);
-		responses = responses.filter(r => r.id !== response.id);
+		if (!response.id) return
+		if (!confirm("Slette denne chunken?")) return
+		await api.deleteChunk(store.storeId, response.id)
+		responses = responses.filter((r) => r.id !== response.id)
 	}
-
-
 </script>
 
 <div class="search-form">

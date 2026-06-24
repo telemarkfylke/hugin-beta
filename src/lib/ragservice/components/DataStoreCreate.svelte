@@ -1,48 +1,43 @@
 <script lang="ts">
-	import { RagServiceApi } from "../adapters/ragserviceApi";
-	import { onMount } from 'svelte';
-	import type {
-		CreateVectorStoreInput,
-		EmbeddingDimensions,
-		EmbeddingModel,
-        StoreConfig,
-	} from "../types";
+	import { onMount } from "svelte"
+	import { RagServiceApi } from "../adapters/ragserviceApi"
+	import type { CreateVectorStoreInput, EmbeddingDimensions, EmbeddingModel, StoreConfig } from "../types"
 
 	type Props = {
 		onDone: (storeId: StoreConfig | null) => void
-	};
+	}
 
-	
-	let { onDone }: Props = $props();
+	let { onDone }: Props = $props()
 
-	let methodOptions: EmbeddingModel[] = $state(["embeddinggemma:300m"]);
-	let dimensionsOptions: EmbeddingDimensions[] = $state([]);
+	let methodOptions: EmbeddingModel[] = $state(["embeddinggemma:300m"])
+	let dimensionsOptions: EmbeddingDimensions[] = $state([])
 
 	const store: CreateVectorStoreInput = $state({
 		name: "",
 		description: "",
 		embeddingMethod: "embeddinggemma:300m",
-		dimensions: 1024,
-	});
+		dimensions: 1024
+	})
 
-	const api = new RagServiceApi();
+	const api = new RagServiceApi()
 
 	async function loadModels() {
-		methodOptions = await api.getModels();
-		await loadDimensions();
+		methodOptions = await api.getModels()
+		await loadDimensions()
 	}
 
 	async function loadDimensions() {
-		dimensionsOptions = await api.getDimensions(store.embeddingMethod);
+		dimensionsOptions = await api.getDimensions(store.embeddingMethod)
 		if (!dimensionsOptions.includes(store.dimensions)) {
 			if (dimensionsOptions.length > 0) {
-				store.dimensions = dimensionsOptions[0]!;
+				// biome-ignore lint/style/noNonNullAssertion: guarded by dimensionsOptions.length > 0
+				store.dimensions = dimensionsOptions[0]!
 			}
 		}
 	}
 
 	async function addStore() {
-		const reply = await api.createStore(store);
+		const reply = await api.createStore(store)
 		onDone(reply)
 	}
 
@@ -51,8 +46,8 @@
 	}
 
 	onMount(() => {
-		loadModels();
-	});
+		loadModels()
+	})
 </script>
 
 <main>

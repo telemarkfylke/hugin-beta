@@ -1,30 +1,28 @@
 <script lang="ts">
-  import { RagServiceApi } from "../adapters/ragserviceApi";
-	import type { StoreResponse, VectorStoreFile } from "../types";
-
-    import FileUpload from "./FileUpload.svelte";
-    import { onMount } from "svelte";
+	import { onMount } from "svelte"
+	import { RagServiceApi } from "../adapters/ragserviceApi"
+	import type { StoreResponse, VectorStoreFile } from "../types"
+	import FileUpload from "./FileUpload.svelte"
 
 	type Props = {
-		store: StoreResponse;
-	};
-	let { store }: Props = $props();
-	const api = new RagServiceApi();
-	let files: VectorStoreFile[] = $state([]);
+		store: StoreResponse
+	}
+	let { store }: Props = $props()
+	const api = new RagServiceApi()
+	let files: VectorStoreFile[] = $state([])
 
 	async function loadFiles() {
-		files = await api.getFiles(store.storeId);
+		files = await api.getFiles(store.storeId)
 	}
 
-	async function removeFile(userId: string){
+	async function removeFile(userId: string) {
 		await api.removeFile(store.storeId, userId)
 		loadFiles()
 	}
 
 	onMount(() => {
-		loadFiles();
-	});
-
+		loadFiles()
+	})
 </script>
 
 <main>

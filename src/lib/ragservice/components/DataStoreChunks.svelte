@@ -1,46 +1,46 @@
 <script lang="ts">
-	import type { StoreResponse } from "$lib/ragservice/types";
-	import { RagServiceApi } from "$lib/ragservice/adapters/ragserviceApi";
+	import { RagServiceApi } from "$lib/ragservice/adapters/ragserviceApi"
+	import type { StoreResponse } from "$lib/ragservice/types"
 
-	const api = new RagServiceApi();
+	const api = new RagServiceApi()
 
 	type Props = {
-		store: StoreResponse;
-	};
-	let { store }: Props = $props();
+		store: StoreResponse
+	}
+	let { store }: Props = $props()
 
-	type KVPair = { key: string; value: string };
+	type KVPair = { key: string; value: string }
 
-	let newChunkText: string = $state("");
-	let newChunkFields: KVPair[] = $state([]);
-	let adding: boolean = $state(false);
-	let successMessage: string = $state("");
+	let newChunkText: string = $state("")
+	let newChunkFields: KVPair[] = $state([])
+	let adding: boolean = $state(false)
+	let successMessage: string = $state("")
 
 	function addField() {
-		newChunkFields.push({ key: "", value: "" });
+		newChunkFields.push({ key: "", value: "" })
 	}
 
 	function removeField(index: number) {
-		newChunkFields.splice(index, 1);
+		newChunkFields.splice(index, 1)
 	}
 
 	function buildExtraInfo(): Record<string, unknown> | undefined {
-		const filled = newChunkFields.filter(f => f.key.trim());
-		if (filled.length === 0) return undefined;
-		return Object.fromEntries(filled.map(f => [f.key.trim(), f.value]));
+		const filled = newChunkFields.filter((f) => f.key.trim())
+		if (filled.length === 0) return undefined
+		return Object.fromEntries(filled.map((f) => [f.key.trim(), f.value]))
 	}
 
 	async function addChunk() {
-		if (!newChunkText.trim()) return;
-		adding = true;
-		successMessage = "";
+		if (!newChunkText.trim()) return
+		adding = true
+		successMessage = ""
 		try {
-			await api.addChunks(store.storeId, [{ data: newChunkText, extraInfo: buildExtraInfo() }]);
-			newChunkText = "";
-			newChunkFields = [];
-			successMessage = "Chunk lagt til.";
+			await api.addChunks(store.storeId, [{ data: newChunkText, extraInfo: buildExtraInfo() }])
+			newChunkText = ""
+			newChunkFields = []
+			successMessage = "Chunk lagt til."
 		} finally {
-			adding = false;
+			adding = false
 		}
 	}
 </script>

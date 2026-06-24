@@ -1,12 +1,12 @@
 <script lang="ts">
-	import { page } from "$app/state";
-	import type { StoreConfig } from "$lib/ragservice/types";
+	import { page } from "$app/state"
+	import type { StoreConfig } from "$lib/ragservice/types"
 
 	type Props = {
-		stores: StoreConfig[],
+		stores: StoreConfig[]
 		onStoreClick: (storeId: string) => void
-	};
-	let { stores = $bindable(), onStoreClick = $bindable() }: Props = $props();
+	}
+	let { stores = $bindable(), onStoreClick = $bindable() }: Props = $props()
 </script>
 
 <ul>
