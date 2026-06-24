@@ -175,13 +175,14 @@
 					</div>
 				{/if}
 			</div>
+			<!-- Hugin-only services. Hidden unless APP_NAME="Hugin" (defaults to "Mugin"); set it in your .env for local dev. -->
 			{#if appName === "Hugin" && isEmployee}
 				<div class="menu-section">
 					<div class="menu-section-title">Andre tjenester</div>
 					<div class="menu-items">
 						<a class="menu-item" class:active={page.url.pathname === "/transcription"} href="/transcription">Tale-til-notat</a>
 						{#if canvasEnabled}
-							<a class="menu-item" class:active={page.url.pathname === "/canvas"} href="/canvas">Tanke-til-notat</a>
+							<a class="menu-item" class:active={page.url.pathname === "/canvas"} href="/canvas">Kladdeboka</a>
 						{/if}
 						<a class="menu-item" class:active={page.url.pathname === "/ragservice"} href="/ragservice">Datakilder</a>
 					</div>

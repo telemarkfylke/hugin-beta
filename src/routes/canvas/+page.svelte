@@ -188,7 +188,12 @@
 
 	<!-- Canvas document area -->
 	<div class="canvas-body" bind:this={canvasBody}>
-		<div class="canvas-paper">
+		<div class="canvas-content">
+			<header class="canvas-header">
+				<h1>Kladdeboka</h1>
+				<p>Skriv og bearbeid dokumenter sammen med kunstig intelligens. Beskriv hva du vil ha, så hjelper Hugin deg med å skrive og redigere. Du kan også redigere dokumentet selv. Bruk funksjonene på toppen av siden.</p>
+			</header>
+			<div class="canvas-paper">
 			{#if isEditing}
 				<textarea class="document-editor" bind:this={documentEditor} bind:value={docContent} oninput={(e) => { const t = e.currentTarget; const scroll = canvasBody?.scrollTop ?? 0; t.style.height = "auto"; t.style.height = t.scrollHeight + "px"; if (canvasBody) canvasBody.scrollTop = scroll }}></textarea>
 			{:else if docContent}
@@ -196,6 +201,7 @@
 			{:else}
 				<p class="empty-hint">Dokumentet er tomt. Skriv en instruksjon nedenfor for å komme i gang.</p>
 			{/if}
+			</div>
 		</div>
 	</div>
 
@@ -281,16 +287,44 @@
 		justify-content: center;
 	}
 
-	/* Paper card */
+	/* Content column (header + paper) */
+	.canvas-content {
+		width: 100%;
+		max-width: 210mm;
+		align-self: flex-start;
+	}
+
+	/* Page header */
+	.canvas-header {
+		margin-bottom: 1.5rem;
+	}
+
+	.canvas-header h1 {
+		margin: 0 0 0.5rem;
+		font-size: 1.5rem;
+		color: var(--color-primary);
+	}
+
+	.canvas-header p {
+		margin: 0 0 0.35rem;
+		color: var(--color-primary-80);
+		font-size: 0.9rem;
+		line-height: 1.5;
+	}
+
+	.canvas-header p:last-child {
+		margin-bottom: 0;
+	}
+
+	/* Paper card — A4 page (210 × 297 mm) */
 	.canvas-paper {
 		background: white;
-		border-radius: 6px;
+		border-radius: 2px;
 		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.10), 0 0 0 1px rgba(0, 0, 0, 0.04);
-		padding: 3rem 4rem;
+		padding: 25mm 20mm;
 		width: 100%;
-		max-width: 52rem;
+		min-height: 297mm;
 		box-sizing: border-box;
-		align-self: flex-start;
 	}
 
 	.empty-hint {
@@ -300,7 +334,7 @@
 
 	.document-editor {
 		width: 100%;
-		min-height: 60vh;
+		min-height: 247mm;
 		border: none;
 		outline: none;
 		resize: none;
