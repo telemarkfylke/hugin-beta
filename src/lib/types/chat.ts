@@ -127,9 +127,7 @@ export const ChatConfigSchema = schemaForType<ChatConfig>()(
 			.array(z.object({ type: z.enum(["web_search", "datasource"]) }))
 			.nullable()
 			.optional(),
-		dataSources: z
-			.array(z.object({ type: z.enum(["ragservice"]), id: z.string() }))
-			.optional(), // Update as per ChatTool for now
+		dataSources: z.array(z.object({ type: z.enum(["ragservice"]), id: z.string() })).optional(), // Update as per ChatTool for now
 		shared: z.boolean().optional(),
 		instructions: z.string().optional(),
 		conversationId: z.string().optional(),

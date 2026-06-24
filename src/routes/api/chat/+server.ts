@@ -2,9 +2,9 @@ import { json, type RequestHandler } from "@sveltejs/kit"
 import { canPromptConfig } from "$lib/authorization"
 import { getVendor } from "$lib/server/ai-vendors"
 import { APP_CONFIG } from "$lib/server/app-config/app-config"
+import { MS_AUTH_TOKEN_HEADER } from "$lib/server/auth/auth-constants"
 import { HTTPError } from "$lib/server/middleware/http-error"
 import { apiRequestMiddleware } from "$lib/server/middleware/http-request"
-import { MS_AUTH_TOKEN_HEADER } from "$lib/server/auth/auth-constants"
 import { searchRagStores } from "$lib/server/ragservice/rag-search"
 import { responseStream } from "$lib/streaming"
 import type { ChatRequest } from "$lib/types/chat"
@@ -61,36 +61,32 @@ const supahChat: ApiNextFunction = async ({ requestEvent, user }) => {
 		throw new HTTPError(403, "Not authorized to use this chat configuration")
 	}
 
-	const datasourceToolActive = chatRequest.config.tools?.some(t => t.type === "datasource") ?? false
-	const ragStoreIds = datasourceToolActive
-		? (chatRequest.config.dataSources?.filter(s => s.type === "ragservice").map(s => s.id) ?? [])
-		: []
+	const datasourceToolActive = chatRequest.config.tools?.some((t) => t.type === "datasource") ?? false
+	const ragStoreIds = datasourceToolActive ? (chatRequest.config.dataSources?.filter((s) => s.type === "ragservice").map((s) => s.id) ?? []) : []
 
 	if (ragStoreIds.length > 0) {
-		const lastUserMsg = [...chatRequest.inputs]
-			.reverse()
-			.find((i): i is ChatInputMessage => i.type === "message.input" && i.role === "user")
+		const lastUserMsg = [...chatRequest.inputs].reverse().find((i): i is ChatInputMessage => i.type === "message.input" && i.role === "user")
 
-		const queryText = lastUserMsg?.content
-			.filter((c): c is InputText => c.type === "input_text")
-			.map(c => c.text)
-			.join(" ")
-			.trim() ?? ""
+		const queryText =
+			lastUserMsg?.content
+				.filter((c): c is InputText => c.type === "input_text")
+				.map((c) => c.text)
+				.join(" ")
+				.trim() ?? ""
 
 		if (queryText) {
 			const userToken = requestEvent.request.headers.get(MS_AUTH_TOKEN_HEADER)
 			const matches = await searchRagStores(ragStoreIds, queryText, userToken)
 
 			if (matches.length > 0) {
-				const contextText = matches.map(m => m.text).join("\n\n---\n\n")
-				chatRequest.config.instructions = (chatRequest.config.instructions ?? "")
-					+ `\n\nRelevant kontekst fra datakilder:\n\n${contextText}`
+				const contextText = matches.map((m) => m.text).join("\n\n---\n\n")
+				chatRequest.config.instructions = `${chatRequest.config.instructions ?? ""}\n\nRelevant kontekst fra datakilder:\n\n${contextText}`
 			}
 		}
 	}
 
 	// Strip internal Hugin tools that vendors don't know about
-	chatRequest.config.tools = chatRequest.config.tools?.filter(t => t.type !== "datasource")
+	chatRequest.config.tools = chatRequest.config.tools?.filter((t) => t.type !== "datasource")
 
 	const vendor = getVendor(chatRequest.config.vendorId)
 

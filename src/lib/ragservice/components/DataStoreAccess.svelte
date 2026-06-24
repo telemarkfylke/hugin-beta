@@ -1,16 +1,16 @@
 <script lang="ts">
-	import type { AccessFlat, AccessType, GraphGroup, GraphUser, StoreResponse } from "../types";
-	import { RagServiceApi } from "../adapters/ragserviceApi";
-	import { flattenAccesses } from "../utils";
-	import { onMount } from "svelte";
+	import { onMount } from "svelte"
+	import { RagServiceApi } from "../adapters/ragserviceApi"
+	import type { AccessFlat, AccessType, GraphGroup, GraphUser, StoreResponse } from "../types"
+	import { flattenAccesses } from "../utils"
 
 	type Props = {
-		store: StoreResponse;
-	};
-	let { store }: Props = $props();
+		store: StoreResponse
+	}
+	let { store }: Props = $props()
 
-	let userAccesses: AccessFlat[] = $state([]);
-	const api = new RagServiceApi();
+	let userAccesses: AccessFlat[] = $state([])
+	const api = new RagServiceApi()
 
 	let newAccess: AccessFlat = $state({
 		id: "",
@@ -18,68 +18,68 @@
 		view: false,
 		search: false,
 		upload: false,
-		admin: false,
-	});
+		admin: false
+	})
 
-	type EntitySuggestion = { id: string; label: string };
-	let searchInput: string = $state("");
-	let suggestions: EntitySuggestion[] = $state([]);
-	let searchTimer: ReturnType<typeof setTimeout> | null = null;
+	type EntitySuggestion = { id: string; label: string }
+	let searchInput: string = $state("")
+	let suggestions: EntitySuggestion[] = $state([])
+	let searchTimer: ReturnType<typeof setTimeout> | null = null
 
 	function onSearchInput() {
-		if (searchTimer) clearTimeout(searchTimer);
+		if (searchTimer) clearTimeout(searchTimer)
 		if (searchInput.length < 2) {
-			suggestions = [];
-			return;
+			suggestions = []
+			return
 		}
 		searchTimer = setTimeout(async () => {
 			if (newAccess.type === "user") {
-				const results = await api.searchUsers(searchInput);
-				suggestions = results.map((u: GraphUser) => ({ id: u.id, label: `${u.displayName} (${u.userPrincipalName})` }));
+				const results = await api.searchUsers(searchInput)
+				suggestions = results.map((u: GraphUser) => ({ id: u.id, label: `${u.displayName} (${u.userPrincipalName})` }))
 			} else {
-				const results = await api.searchGroups(searchInput);
-				suggestions = results.map((g: GraphGroup) => ({ id: g.id, label: g.displayName }));
+				const results = await api.searchGroups(searchInput)
+				suggestions = results.map((g: GraphGroup) => ({ id: g.id, label: g.displayName }))
 			}
-		}, 300);
+		}, 300)
 	}
 
 	function selectSuggestion(s: EntitySuggestion) {
-		newAccess.id = s.id;
-		newAccess.name = s.label;
-		searchInput = s.label;
-		suggestions = [];
+		newAccess.id = s.id
+		newAccess.name = s.label
+		searchInput = s.label
+		suggestions = []
 	}
 
 	function onTypeChange() {
-		newAccess.id = "";
-		searchInput = "";
-		suggestions = [];
+		newAccess.id = ""
+		searchInput = ""
+		suggestions = []
 	}
 
 	async function setAccess(access: AccessFlat) {
-		await api.setAccess(store.storeId, access.type ,access.id, {
+		await api.setAccess(store.storeId, access.type, access.id, {
 			view: access.view,
 			search: access.search,
 			upload: access.upload,
 			admin: access.admin,
-			name: access.name,
-		});
-		loadAccess();
+			name: access.name
+		})
+		loadAccess()
 	}
 
 	async function loadAccess() {
-		const access = await api.getAccess(store.storeId);
-		userAccesses = [ ...flattenAccesses(access.users || {}, "user"), ...flattenAccesses(access.groups || {}, "group")]
+		const access = await api.getAccess(store.storeId)
+		userAccesses = [...flattenAccesses(access.users || {}, "user"), ...flattenAccesses(access.groups || {}, "group")]
 	}
 
 	async function removeAccess(id: string, type: AccessType) {
-		await api.removeAccess(store.storeId, type, id);
-		loadAccess();
+		await api.removeAccess(store.storeId, type, id)
+		loadAccess()
 	}
 
 	onMount(() => {
-		loadAccess();
-	});
+		loadAccess()
+	})
 
 	/*disabled= {store._embedded.access.admin)} */
 </script>

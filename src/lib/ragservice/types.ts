@@ -1,9 +1,9 @@
 export type VectorStoreFile = {
-	id: string,
-	name: string,
-	type: string,
-	bytes: number,
-	status: string,
+	id: string
+	name: string
+	type: string
+	bytes: number
+	status: string
 	summary?: string
 }
 
@@ -25,7 +25,6 @@ export type CreateVectorStoreInput = {
 	supportVision?: boolean
 }
 
-
 export type StoreConfig = CreateVectorStoreInput & {
 	storeId: string
 	createdAt: string
@@ -36,18 +35,16 @@ export type StoreConfig = CreateVectorStoreInput & {
 }
 
 export type StoreResponse = StoreConfig & {
-	_embedded:{
+	_embedded: {
 		access: AccessRow
 	}
 }
-
 
 export type StoreWrapper = {
 	config: StoreConfig
 	files: Record<string, VectorStoreFile>
 	access: Access
 }
-
 
 export type VectorMatch = {
 	id?: string
@@ -74,10 +71,10 @@ export type VectorSearch = {
 }
 
 export type AccessRow = {
-	view: boolean,
-	search: boolean,
-	upload: boolean,
-	admin: boolean,
+	view: boolean
+	search: boolean
+	upload: boolean
+	admin: boolean
 	name?: string | undefined
 }
 
@@ -91,10 +88,9 @@ export type AccessLevel = "view" | "search" | "upload" | "admin"
 
 export type AccessType = "user" | "group" | "role"
 
-
 export type AccessFlat = AccessRow & {
 	id: string
-	type:AccessType
+	type: AccessType
 }
 
 export type GraphUser = {

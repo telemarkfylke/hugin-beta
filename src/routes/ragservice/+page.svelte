@@ -1,18 +1,18 @@
 <script lang="ts">
-	import { afterNavigate } from "$app/navigation";
-	import { RagServiceApi } from "$lib/ragservice/adapters/ragserviceApi";
-	import type { StoreConfig } from "$lib/ragservice/types";
-	import DataStore from "$lib/ragservice/components/DataStore.svelte";
+	import { afterNavigate } from "$app/navigation"
+	import { RagServiceApi } from "$lib/ragservice/adapters/ragserviceApi"
+	import DataStore from "$lib/ragservice/components/DataStore.svelte"
+	import type { StoreConfig } from "$lib/ragservice/types"
 
-	let stores: StoreConfig[] = $state([]);
+	let stores: StoreConfig[] = $state([])
 
-	const api = new RagServiceApi();
+	const api = new RagServiceApi()
 
 	// Variabel som får "kontoobjektet" fra innlogget bruker fra MSAL
 	//let account: any = $state(null);
 
 	async function search() {
-		stores = await api.getStores();
+		stores = await api.getStores()
 	}
 
 	afterNavigate(async () => {
@@ -35,8 +35,8 @@
 		};
 		await authenticate();
 		*/
-		await search();
-	});
+		await search()
+	})
 </script>
 
 <div>

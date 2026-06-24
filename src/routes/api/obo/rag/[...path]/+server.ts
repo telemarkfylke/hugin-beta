@@ -1,7 +1,7 @@
-import { env } from "$env/dynamic/private"
 import { error, type RequestHandler } from "@sveltejs/kit"
-import { getRagToken } from "$lib/server/ragservice/get-rag-token"
+import { env } from "$env/dynamic/private"
 import { MS_AUTH_TOKEN_HEADER } from "$lib/server/auth/auth-constants"
+import { getRagToken } from "$lib/server/ragservice/get-rag-token"
 
 async function proxyToRag(request: Request, path: string, url: URL): Promise<Response> {
 	let ragToken: string
@@ -47,8 +47,7 @@ async function proxyToRag(request: Request, path: string, url: URL): Promise<Res
 	})
 }
 
-const handler: RequestHandler = ({ request, params, url }) =>
-	proxyToRag(request, params.path ?? "", url)
+const handler: RequestHandler = ({ request, params, url }) => proxyToRag(request, params.path ?? "", url)
 
 export const GET = handler
 export const POST = handler

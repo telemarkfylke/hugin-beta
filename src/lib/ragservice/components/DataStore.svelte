@@ -1,37 +1,37 @@
 <script lang="ts">
-	import type { StoreConfig, StoreResponse } from "$lib/ragservice/types";
-	import FileList from "../components/FileList.svelte";
-	import DataStoreTextSearch from "../components/DataStoreTextSearch.svelte";
-	import DataStoreAccess from "../components/DataStoreAccess.svelte";
-	import DataStoreChunks from "../components/DataStoreChunks.svelte";
-	import { RagServiceApi } from "../adapters/ragserviceApi";
-	import { goto } from "$app/navigation";
-	import DataStoreCreate from "./DataStoreCreate.svelte";
+	import { goto } from "$app/navigation"
+	import type { StoreConfig, StoreResponse } from "$lib/ragservice/types"
+	import { RagServiceApi } from "../adapters/ragserviceApi"
+	import DataStoreAccess from "../components/DataStoreAccess.svelte"
+	import DataStoreChunks from "../components/DataStoreChunks.svelte"
+	import DataStoreTextSearch from "../components/DataStoreTextSearch.svelte"
+	import FileList from "../components/FileList.svelte"
+	import DataStoreCreate from "./DataStoreCreate.svelte"
 
 	type Props = {
-		stores: StoreConfig[];
-	};
-	let { stores }: Props = $props();
+		stores: StoreConfig[]
+	}
+	let { stores }: Props = $props()
 
-	let selectedStoreId: string = $state("");
-	let store: StoreResponse | null = $state(null);
-	let activeTab: string = $state("search");
+	let selectedStoreId: string = $state("")
+	let store: StoreResponse | null = $state(null)
+	let activeTab: string = $state("search")
 
-	let createNew: boolean = $state(false);
+	let createNew: boolean = $state(false)
 
-	const api = new RagServiceApi();
+	const api = new RagServiceApi()
 
 	async function loadStore(storeId: string) {
-		if (!storeId) return;
-		store = await api.getStore(storeId, true);
+		if (!storeId) return
+		store = await api.getStore(storeId, true)
 	}
 
 	async function deleteStore() {
-		if (!store) return;
-		const doDelete = confirm("Er du HELT sikker på at du vil slette ?");
+		if (!store) return
+		const doDelete = confirm("Er du HELT sikker på at du vil slette ?")
 		if (doDelete) {
-			const success = await api.deleteStore(store.storeId);
-			if (success) await goto("/");
+			const success = await api.deleteStore(store.storeId)
+			if (success) await goto("/")
 		}
 	}
 
@@ -42,11 +42,12 @@
 		}*/
 
 		if (!selectedStoreId && stores.length > 0) {
-			selectedStoreId = stores[0]!.storeId;
+			const first = stores[0]
+			if (first) selectedStoreId = first.storeId
 		} else {
-			loadStore(selectedStoreId);
+			loadStore(selectedStoreId)
 		}
-	});
+	})
 </script>
 
 <main>

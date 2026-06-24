@@ -1,4 +1,19 @@
-import type { Access, AccessRow, ChunkInput, CreateVectorStoreInput, EmbeddingDimensions, EmbeddingModel, VectorMatch, VectorSearch, StoreConfig, VectorStoreFile, StoreResponse, AccessType, GraphUser, GraphGroup } from "../types"
+import type {
+	Access,
+	AccessRow,
+	AccessType,
+	ChunkInput,
+	CreateVectorStoreInput,
+	EmbeddingDimensions,
+	EmbeddingModel,
+	GraphGroup,
+	GraphUser,
+	StoreConfig,
+	StoreResponse,
+	VectorMatch,
+	VectorSearch,
+	VectorStoreFile
+} from "../types"
 
 const BASE = "/api/obo/rag"
 
@@ -6,8 +21,10 @@ async function get<T>(path: string): Promise<T | null> {
 	try {
 		const res = await fetch(`${BASE}${path}`)
 		if (!res.ok) return null
-		return await res.json() as T
-	} catch { return null }
+		return (await res.json()) as T
+	} catch {
+		return null
+	}
 }
 
 async function post<T>(path: string, body: unknown): Promise<T | null> {
@@ -18,8 +35,10 @@ async function post<T>(path: string, body: unknown): Promise<T | null> {
 			body: JSON.stringify(body)
 		})
 		if (!res.ok) return null
-		return await res.json() as T
-	} catch { return null }
+		return (await res.json()) as T
+	} catch {
+		return null
+	}
 }
 
 async function put<T>(path: string, body: unknown): Promise<T | null> {
@@ -30,28 +49,32 @@ async function put<T>(path: string, body: unknown): Promise<T | null> {
 			body: JSON.stringify(body)
 		})
 		if (!res.ok) return null
-		return await res.json() as T
-	} catch { return null }
+		return (await res.json()) as T
+	} catch {
+		return null
+	}
 }
 
 async function del(path: string): Promise<boolean> {
 	try {
 		const res = await fetch(`${BASE}${path}`, { method: "DELETE" })
 		return res.ok
-	} catch { return false }
+	} catch {
+		return false
+	}
 }
 
 export class RagServiceApi {
 	async getModels(): Promise<EmbeddingModel[]> {
-		return await get<EmbeddingModel[]>("/models") ?? []
+		return (await get<EmbeddingModel[]>("/models")) ?? []
 	}
 
 	async getDimensions(model: EmbeddingModel): Promise<EmbeddingDimensions[]> {
-		return await get<EmbeddingDimensions[]>(`/models/${model}/dimensions`) ?? []
+		return (await get<EmbeddingDimensions[]>(`/models/${model}/dimensions`)) ?? []
 	}
 
 	async getStores(): Promise<StoreConfig[]> {
-		return await get<StoreConfig[]>("/stores/") ?? []
+		return (await get<StoreConfig[]>("/stores/")) ?? []
 	}
 
 	async createStore(config: CreateVectorStoreInput): Promise<StoreConfig | null> {
@@ -74,7 +97,7 @@ export class RagServiceApi {
 	}
 
 	async getFiles(storeId: string): Promise<VectorStoreFile[]> {
-		return await get<VectorStoreFile[]>(`/stores/${storeId}/files`) ?? []
+		return (await get<VectorStoreFile[]>(`/stores/${storeId}/files`)) ?? []
 	}
 
 	async removeFile(storeId: string, fileId: string): Promise<boolean> {
@@ -82,11 +105,11 @@ export class RagServiceApi {
 	}
 
 	async textSearch(storeId: string, query: VectorSearch): Promise<VectorMatch[]> {
-		return await post<VectorMatch[]>(`/stores/${storeId}/search/text`, query) ?? []
+		return (await post<VectorMatch[]>(`/stores/${storeId}/search/text`, query)) ?? []
 	}
 
 	async getAccess(storeId: string): Promise<Access> {
-		return await get<Access>(`/stores/${storeId}/access/`) ?? {}
+		return (await get<Access>(`/stores/${storeId}/access/`)) ?? {}
 	}
 
 	async setAccess(storeId: string, type: AccessType, userId: string, accessRow: AccessRow): Promise<void> {
@@ -98,11 +121,11 @@ export class RagServiceApi {
 	}
 
 	async searchUsers(query: string): Promise<GraphUser[]> {
-		return await get<GraphUser[]>(`/entities/graph/users?search=${encodeURIComponent(query)}`) ?? []
+		return (await get<GraphUser[]>(`/entities/graph/users?search=${encodeURIComponent(query)}`)) ?? []
 	}
 
 	async searchGroups(query: string): Promise<GraphGroup[]> {
-		return await get<GraphGroup[]>(`/entities/graph/groups?search=${encodeURIComponent(query)}`) ?? []
+		return (await get<GraphGroup[]>(`/entities/graph/groups?search=${encodeURIComponent(query)}`)) ?? []
 	}
 
 	async addChunks(storeId: string, chunks: ChunkInput[]): Promise<boolean> {
@@ -118,7 +141,9 @@ export class RagServiceApi {
 				body: JSON.stringify(chunk)
 			})
 			return res.ok
-		} catch { return false }
+		} catch {
+			return false
+		}
 	}
 
 	async deleteChunk(storeId: string, chunkId: string): Promise<boolean> {

@@ -273,9 +273,8 @@ export class ChatState {
 			: this.chat.config.tools?.filter((t) => t.type !== "web_search")
 
 		const hasDatasources = (this.chat.config.dataSources?.length ?? 0) > 0
-		const activeTools: typeof this.chat.config.tools = hasDatasources && this.datasourceEnabled
-			? [{ type: "datasource" }, ...(webSearchTools?.filter((t) => t.type !== "datasource") ?? [])]
-			: webSearchTools?.filter((t) => t.type !== "datasource")
+		const activeTools: typeof this.chat.config.tools =
+			hasDatasources && this.datasourceEnabled ? [{ type: "datasource" }, ...(webSearchTools?.filter((t) => t.type !== "datasource") ?? [])] : webSearchTools?.filter((t) => t.type !== "datasource")
 
 		const chatRequest: ChatRequest = {
 			config: {
