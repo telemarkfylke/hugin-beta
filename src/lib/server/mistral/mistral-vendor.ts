@@ -10,11 +10,11 @@ import { handleMistralResponseStream } from "./mistral-stream"
 const MISTRAL_SUPPORTED_MODELS = APP_CONFIG.VENDORS.MISTRAL.MODELS.map((model) => model.ID)
 
 const mistralRequest = (chatRequest: ChatRequest): ConversationRequest => {
-	const tools = chatRequest.config.tools?.map((tool) => {
+	const tools = chatRequest.config.tools?.flatMap((tool) => {
 		if (tool.type === "web_search") {
-			return { type: "web_search" as const }
+			return [{ type: "web_search" as const }]
 		}
-		return tool
+		return []
 	})
 
 	const baseConfig: ConversationRequest = {
