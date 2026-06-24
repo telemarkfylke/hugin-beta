@@ -167,7 +167,7 @@
 		</tbody>
 	</table>
 	<hr />
-	<table>
+	<table class="access-list">
 		<thead>
 			<tr>
 				<th>Type</th>
@@ -235,6 +235,16 @@
 		border: 1px solid darkgray;
 	}
 
+	table.access-list {
+		width: 100%;
+	}
+
+	table.access-list td:nth-child(2),
+	table.access-list th:nth-child(2) {
+		min-width: 200px;
+		white-space: nowrap;
+	}
+
 	td.combobox-cell {
 		position: relative;
 	}
@@ -260,6 +270,7 @@
 		background: none;
 		border: none;
 		cursor: pointer;
+		white-space: nowrap;
 	}
 
 	ul.suggestions li button:hover {

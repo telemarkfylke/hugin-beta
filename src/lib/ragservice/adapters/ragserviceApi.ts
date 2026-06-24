@@ -1,4 +1,4 @@
-import type { Access, AccessRow, CreateVectorStoreInput, EmbeddingDimensions, EmbeddingModel, VectorMatch, VectorSearch, StoreConfig, VectorStoreFile, StoreResponse, AccessType, GraphUser, GraphGroup } from "../types"
+import type { Access, AccessRow, ChunkInput, CreateVectorStoreInput, EmbeddingDimensions, EmbeddingModel, VectorMatch, VectorSearch, StoreConfig, VectorStoreFile, StoreResponse, AccessType, GraphUser, GraphGroup } from "../types"
 
 const BASE = "/api/obo/rag"
 
@@ -103,6 +103,26 @@ export class RagServiceApi {
 
 	async searchGroups(query: string): Promise<GraphGroup[]> {
 		return await get<GraphGroup[]>(`/entities/graph/groups?search=${encodeURIComponent(query)}`) ?? []
+	}
+
+	async addChunks(storeId: string, chunks: ChunkInput[]): Promise<boolean> {
+		const res = await post<unknown>(`/stores/${storeId}/chunks`, chunks)
+		return res !== null
+	}
+
+	async updateChunk(storeId: string, chunkId: string, chunk: ChunkInput): Promise<boolean> {
+		try {
+			const res = await fetch(`${BASE}/stores/${storeId}/chunks/${chunkId}`, {
+				method: "PATCH",
+				headers: { "content-type": "application/json" },
+				body: JSON.stringify(chunk)
+			})
+			return res.ok
+		} catch { return false }
+	}
+
+	async deleteChunk(storeId: string, chunkId: string): Promise<boolean> {
+		return await del(`/stores/${storeId}/chunks/${chunkId}`)
 	}
 
 	private typePath(type: AccessType): string {

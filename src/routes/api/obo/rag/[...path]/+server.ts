@@ -32,7 +32,9 @@ async function proxyToRag(request: Request, path: string, url: URL): Promise<Res
 		fetchOptions.duplex = "half"
 	}
 
+	console.log(`[obo/rag] ${request.method} ${ragUrl}`)
 	let upstream = await fetch(ragUrl, fetchOptions)
+	if (!upstream.ok) console.log(`[obo/rag] upstream svarte ${upstream.status}`)
 
 	if (upstream.status >= 300 && upstream.status < 400) {
 		const location = upstream.headers.get("location")
@@ -51,4 +53,5 @@ const handler: RequestHandler = ({ request, params, url }) =>
 export const GET = handler
 export const POST = handler
 export const PUT = handler
+export const PATCH = handler
 export const DELETE = handler

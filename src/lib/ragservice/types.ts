@@ -50,11 +50,17 @@ export type StoreWrapper = {
 
 
 export type VectorMatch = {
+	id?: string
 	storeId: string
 	fileId: string
 	score: number
 	text: string
-	meta:any	
+	extraInfo?: Record<string, unknown>
+}
+
+export type ChunkInput = {
+	data: string
+	extraInfo?: Record<string, unknown>
 }
 
 export type VectorSearch = {

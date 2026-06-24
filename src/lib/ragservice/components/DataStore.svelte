@@ -3,9 +3,10 @@
 	import FileList from "../components/FileList.svelte";
 	import DataStoreTextSearch from "../components/DataStoreTextSearch.svelte";
 	import DataStoreAccess from "../components/DataStoreAccess.svelte";
+	import DataStoreChunks from "../components/DataStoreChunks.svelte";
 	import { RagServiceApi } from "../adapters/ragserviceApi";
 	import { goto } from "$app/navigation";
-    import DataStoreCreate from "./DataStoreCreate.svelte";
+	import DataStoreCreate from "./DataStoreCreate.svelte";
 
 	type Props = {
 		stores: StoreConfig[];
@@ -15,7 +16,6 @@
 	let selectedStoreId: string = $state("");
 	let store: StoreResponse | null = $state(null);
 	let activeTab: string = $state("search");
-
 
 	let createNew: boolean = $state(false);
 
@@ -51,13 +51,15 @@
 
 <main>
 	{#if createNew}
-		<DataStoreCreate onDone={(newStore: StoreConfig | null) => {
-			if(newStore){
-				stores.push(newStore)
-				selectedStoreId = newStore.storeId
-			}
-			createNew = false
-		}}></DataStoreCreate>
+		<DataStoreCreate
+			onDone={(newStore: StoreConfig | null) => {
+				if (newStore) {
+					stores.push(newStore);
+					selectedStoreId = newStore.storeId;
+				}
+				createNew = false;
+			}}
+		></DataStoreCreate>
 	{:else}
 		<div class="store-header">
 			<select bind:value={selectedStoreId}>
@@ -65,7 +67,7 @@
 					<option value={s.storeId}>{s.name}</option>
 				{/each}
 			</select>
-			<button  onclick={() => (createNew = true)}>
+			<button onclick={() => (createNew = true)}>
 				<span class="material-symbols-outlined">add</span>Lag nytt bibliotek
 			</button>
 
@@ -92,27 +94,41 @@
 			</table>
 
 			<div class="tabrow">
-				<button
-					disabled={activeTab === "search"}
-					class="tabButton"
-					onclick={() => {
-						activeTab = "search";
-					}}>Søk</button
-				>
-				<button
-					disabled={activeTab === "files"}
-					class="tabButton"
-					onclick={() => {
-						activeTab = "files";
-					}}>Filer</button
-				>
-				<button
-					disabled={activeTab === "access"}
-					class="tabButton"
-					onclick={() => {
-						activeTab = "access";
-					}}>Tilganger</button
-				>
+				{#if store._embedded.access.search}
+					<button
+						disabled={activeTab === "search"}
+						class="tabButton"
+						onclick={() => {
+							activeTab = "search";
+						}}>Søk</button
+					>
+				{/if}
+				{#if store._embedded.access.upload}
+					<button
+						disabled={activeTab === "files"}
+						class="tabButton"
+						onclick={() => {
+							activeTab = "files";
+						}}>Filer</button
+					>
+					<button
+						disabled={activeTab === "chunks"}
+						class="tabButton"
+						onclick={() => {
+							activeTab = "chunks";
+						}}>Legg til chunks</button
+					>
+				{/if}
+
+				{#if store._embedded.access.admin}
+					<button
+						disabled={activeTab === "access"}
+						class="tabButton"
+						onclick={() => {
+							activeTab = "access";
+						}}>Tilganger</button
+					>
+				{/if}
 			</div>
 
 			<div>
@@ -122,6 +138,8 @@
 					<DataStoreTextSearch {store} />
 				{:else if activeTab === "access"}
 					<DataStoreAccess {store} />
+				{:else if activeTab === "chunks"}
+					<DataStoreChunks {store} />
 				{/if}
 			</div>
 		{/if}

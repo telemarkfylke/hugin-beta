@@ -89,6 +89,16 @@
 			>
 		</tbody>
 	</table>
-	<button onclick={() => {cancel()}}>Avbryt</button>
-	<button onclick={() => {addStore()}}>Legg til</button>
+	<div class="actions">
+		<button onclick={() => {cancel()}}>Avbryt</button>
+		<button onclick={() => {addStore()}}>Legg til</button>
+	</div>
 </main>
+
+<style>
+	div.actions {
+		display: flex;
+		gap: 8px;
+		margin-top: 8px;
+	}
+</style>
