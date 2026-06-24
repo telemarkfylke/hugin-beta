@@ -9,6 +9,7 @@ export const MOCK_AUTH = env.MOCK_AUTH === "true"
 export const MOCK_AUTH_FORCE_401 = env.MOCK_AUTH_FORCE_401 === "true"
 export const MOCK_AUTH_FORCE_403 = env.MOCK_AUTH_FORCE_403 === "true"
 const MOCK_AUTH_ROLES = env.MOCK_AUTH_ROLES ? env.MOCK_AUTH_ROLES.split(",") : []
+const MOCK_AUTH_GROUPS = env.MOCK_AUTH_GROUPS ? env.MOCK_AUTH_GROUPS.split(",") : []
 if (MOCK_AUTH && !MOCK_AUTH_FORCE_401) {
 	if (MOCK_AUTH_ROLES.length === 0) {
 		throw new Error("MOCK_AUTH is enabled but no MOCK_AUTH_ROLES are set. Please set MOCK_AUTH_ROLES to a comma-separated list of roles.")
