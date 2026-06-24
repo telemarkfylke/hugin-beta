@@ -15,11 +15,11 @@ const openAiRequest = (chatRequest: ChatRequest): ResponseCreateParamsBase => {
 		store: false
 	}
 
-	const tools = chatRequest.config.tools?.map((tool) => {
+	const tools = chatRequest.config.tools?.flatMap((tool) => {
 		if (tool.type === "web_search") {
-			return { type: "web_search_preview" as const }
+			return [{ type: "web_search_preview" as const }]
 		}
-		return tool
+		return []
 	})
 
 	if (chatRequest.config.vendorAgent) {
