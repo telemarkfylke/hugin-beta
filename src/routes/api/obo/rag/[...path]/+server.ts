@@ -13,7 +13,9 @@ async function proxyToRag(request: Request, path: string, url: URL): Promise<Res
 		const userToken = request.headers.get(MS_AUTH_TOKEN_HEADER)
 		if (!userToken) {
 			const xmsKeys: string[] = []
-			request.headers.forEach((_v, k) => { if (k.startsWith("x-ms-")) xmsKeys.push(k) })
+			request.headers.forEach((_v, k) => {
+				if (k.startsWith("x-ms-")) xmsKeys.push(k)
+			})
 			error(401, `Manglende brukertoken. x-ms-* headers mottatt: ${xmsKeys.join(", ") || "ingen"}`)
 		}
 		ragToken = await getRagToken(userToken)
