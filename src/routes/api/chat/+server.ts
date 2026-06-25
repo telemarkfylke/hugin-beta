@@ -75,8 +75,8 @@ const supahChat: ApiNextFunction = async ({ requestEvent, user }) => {
 				.trim() ?? ""
 
 		if (queryText) {
-			const userToken = requestEvent.request.headers.get(MS_AUTH_TOKEN_HEADER)
-			const matches = await searchRagStores(ragStoreIds, queryText, userToken)
+			const graphToken = requestEvent.request.headers.get(MS_AUTH_TOKEN_HEADER)
+			const matches = await searchRagStores(ragStoreIds, queryText, user, graphToken)
 
 			if (matches.length > 0) {
 				const contextText = matches.map((m) => m.text).join("\n\n---\n\n")
