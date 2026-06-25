@@ -18,10 +18,12 @@ async function proxyToRag(request: Request, path: string, url: URL): Promise<Res
 			})
 			error(401, `Manglende brukertoken. x-ms-* headers mottatt: ${xmsKeys.join(", ") || "ingen"}`)
 		}
+		const [, payload] = userToken.split(".")
+		const claims = JSON.parse(Buffer.from(payload ?? "", "base64url").toString())
 		try {
 			ragToken = await getRagToken(userToken)
 		} catch (e) {
-			error(500, `OBO feilet: ${e instanceof Error ? e.message : String(e)}`)
+			error(500, `OBO feilet (aud=${claims.aud}, appid=${claims.appid}): ${e instanceof Error ? e.message : String(e)}`)
 		}
 	}
 
