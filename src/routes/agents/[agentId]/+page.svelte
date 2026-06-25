@@ -21,11 +21,19 @@
 
 	const agentChatState = new ChatState(initialChat, data.authenticatedUser, data.APP_CONFIG)
 
-	// Get url param agentId and update chat config when it changes
+	// Track which agent the current chat belongs to, so we only reset on a real
+	// agentId change — not on every `data` update (e.g. invalidateAll() on tab
+	// refocus, which would otherwise wipe the in-progress conversation).
+	let loadedAgentId = $state(page.params.agentId)
+
+	// Reset the chat only when the url param agentId actually changes
 	$effect(() => {
-		console.log("Agent ID changed:", page.params.agentId)
-		page.params.agentId
-		const initialChat: Chat = {
+		const agentId = page.params.agentId
+		if (agentId === loadedAgentId) {
+			return
+		}
+		loadedAgentId = agentId
+		const newChat: Chat = {
 			_id: "",
 			createdAt: "",
 			updatedAt: "",
@@ -36,7 +44,7 @@
 			config: data.agent,
 			history: []
 		}
-		agentChatState.changeChat(initialChat)
+		agentChatState.changeChat(newChat)
 	})
 </script>
   <ChatComponent chatState={agentChatState} />
