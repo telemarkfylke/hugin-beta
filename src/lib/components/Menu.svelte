@@ -184,7 +184,7 @@
 						{#if canvasEnabled}
 							<a class="menu-item" class:active={page.url.pathname === "/canvas"} href="/canvas">Kladdeboka</a>
 						{/if}
-						<a class="menu-item" class:active={page.url.pathname === "/ragservice"} href="/ragservice">Datakilder</a>
+						<!-- <a class="menu-item" class:active={page.url.pathname === "/ragservice"} href="/ragservice">Datakilder</a> -->
 					</div>
 				</div>
 			{/if}

@@ -11,19 +11,11 @@ async function proxyToRag(request: Request, path: string, url: URL): Promise<Res
 		ragToken = env.RAGSERVICE_TOKEN
 	} else {
 		const userToken = request.headers.get(MS_AUTH_TOKEN_HEADER)
-		if (!userToken) {
-			const xmsKeys: string[] = []
-			request.headers.forEach((_v, k) => {
-				if (k.startsWith("x-ms-")) xmsKeys.push(k)
-			})
-			error(401, `Manglende brukertoken. x-ms-* headers mottatt: ${xmsKeys.join(", ") || "ingen"}`)
-		}
-		const [, payload] = userToken.split(".")
-		const claims = JSON.parse(Buffer.from(payload ?? "", "base64url").toString())
+		if (!userToken) error(401, "Ikke autentisert")
 		try {
 			ragToken = await getRagToken(userToken)
-		} catch (e) {
-			error(500, `OBO feilet (aud=${claims.aud}, appid=${claims.appid}): ${e instanceof Error ? e.message : String(e)}`)
+		} catch (_e) {
+			error(500, "Kunne ikke hente tilgangstoken for datakilde")
 		}
 	}
 
@@ -44,9 +36,7 @@ async function proxyToRag(request: Request, path: string, url: URL): Promise<Res
 		fetchOptions.duplex = "half"
 	}
 
-	console.log(`[obo/rag] ${request.method} ${ragUrl}`)
 	let upstream = await fetch(ragUrl, fetchOptions)
-	if (!upstream.ok) console.log(`[obo/rag] upstream svarte ${upstream.status}`)
 
 	if (upstream.status >= 300 && upstream.status < 400) {
 		const location = upstream.headers.get("location")
