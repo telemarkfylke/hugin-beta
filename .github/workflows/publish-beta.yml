@@ -1,0 +1,53 @@
+# Docs for the Azure Web Apps Deploy action: https://github.com/azure/functions-action
+# More GitHub Actions for Azure: https://github.com/Azure/actions
+
+name: Build and deploy Node.js project to Azure Function App - TEST
+
+on:
+  push:
+    branches:
+      - beta
+  workflow_dispatch:
+
+env:
+  APP_NAME: 'tfkdlzchataimugin2web' # set this to your function or web app name
+  AZURE_FUNCTIONAPP_PACKAGE_PATH: '.' # set this to the path to your web app project, defaults to the repository root
+  NODE_VERSION: '22.x' # set this to the node version to use (supports 8.x, 10.x, 12.x)
+
+jobs:
+  build-and-deploy:
+    runs-on: self-hosted
+    steps:
+      - name: 'Checkout GitHub Action'
+        uses: actions/checkout@v4
+
+      - name: Setup Node ${{ env.NODE_VERSION }} Environment
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: 'Install dependencies'
+        shell: bash
+        run: npm ci
+
+      - name: 'Lint and type check'
+        shell: bash
+        run: npx tsc --noEmit && npx @biomejs/biome check
+
+      - name: 'Build'
+        shell: bash
+        run: npm run build
+
+      - name: 'Run unit tests'
+        shell: bash
+        run: npm run test:unit -- --run
+
+      - name: 'Run Azure Functions Action'
+        uses: Azure/functions-action@v1
+        id: fa
+        with:
+          app-name: ${{ env.APP_NAME }} # set this to your function or web app name
+          slot-name: 'Production'
+          package: ${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}
+          publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_TEST }}
