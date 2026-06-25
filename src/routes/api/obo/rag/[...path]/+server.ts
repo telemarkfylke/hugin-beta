@@ -11,7 +11,11 @@ async function proxyToRag(request: Request, path: string, url: URL): Promise<Res
 		ragToken = env.RAGSERVICE_TOKEN
 	} else {
 		const userToken = request.headers.get(MS_AUTH_TOKEN_HEADER)
-		if (!userToken) error(401, "Manglende brukertoken — sjekk at Azure Easy Auth er konfigurert med token store")
+		if (!userToken) {
+			const xmsKeys: string[] = []
+			request.headers.forEach((_v, k) => { if (k.startsWith("x-ms-")) xmsKeys.push(k) })
+			error(401, `Manglende brukertoken. x-ms-* headers mottatt: ${xmsKeys.join(", ") || "ingen"}`)
+		}
 		ragToken = await getRagToken(userToken)
 	}
 
