@@ -19,7 +19,7 @@ async function fetchStoreSearch(storeId: string, query: string, ragToken: string
 	return (await res.json()) as VectorMatch[]
 }
 
-export async function searchRagStores(storeIds: string[], query: string, refreshToken: string | null): Promise<VectorMatch[]> {
+export async function searchRagStores(storeIds: string[], query: string, userToken: string | null): Promise<VectorMatch[]> {
 	if (storeIds.length === 0) return []
 
 	let ragToken: string
@@ -27,8 +27,8 @@ export async function searchRagStores(storeIds: string[], query: string, refresh
 		if (!env.RAGSERVICE_TOKEN) throw new Error("RAGSERVICE_TOKEN er ikke satt i .env for lokal utvikling")
 		ragToken = env.RAGSERVICE_TOKEN
 	} else {
-		if (!refreshToken) throw new Error("Manglende refresh token for RAG-søk")
-		ragToken = await getRagToken(refreshToken)
+		if (!userToken) throw new Error("Manglende brukertoken for RAG-søk")
+		ragToken = await getRagToken(userToken)
 	}
 
 	const results = await Promise.all(storeIds.map((id) => fetchStoreSearch(id, query, ragToken)))
