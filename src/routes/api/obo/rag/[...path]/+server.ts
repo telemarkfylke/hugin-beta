@@ -1,6 +1,6 @@
 import { error, type RequestHandler } from "@sveltejs/kit"
 import { env } from "$env/dynamic/private"
-import { MS_AUTH_TOKEN_HEADER } from "$lib/server/auth/auth-constants"
+import { MS_AUTH_REFRESH_TOKEN_HEADER } from "$lib/server/auth/auth-constants"
 import { getRagToken } from "$lib/server/ragservice/get-rag-token"
 
 async function proxyToRag(request: Request, path: string, url: URL): Promise<Response> {
@@ -10,18 +10,12 @@ async function proxyToRag(request: Request, path: string, url: URL): Promise<Res
 		if (!env.RAGSERVICE_TOKEN) error(500, "RAGSERVICE_TOKEN er ikke satt i .env for lokal utvikling")
 		ragToken = env.RAGSERVICE_TOKEN
 	} else {
-		const userToken = request.headers.get(MS_AUTH_TOKEN_HEADER)
-		if (!userToken) {
-			const xmsKeys: string[] = []
-			request.headers.forEach((_v, k) => {
-				if (k.startsWith("x-ms-")) xmsKeys.push(k)
-			})
-			error(401, `Manglende brukertoken. x-ms-* headers mottatt: ${xmsKeys.join(", ") || "ingen"}`)
-		}
+		const refreshToken = request.headers.get(MS_AUTH_REFRESH_TOKEN_HEADER)
+		if (!refreshToken) error(401, "Manglende refresh token — sjekk at Azure Easy Auth er konfigurert med token store")
 		try {
-			ragToken = await getRagToken(userToken)
+			ragToken = await getRagToken(refreshToken)
 		} catch (e) {
-			error(500, `OBO feilet: ${e instanceof Error ? e.message : String(e)}`)
+			error(500, `Token-bytte feilet: ${e instanceof Error ? e.message : String(e)}`)
 		}
 	}
 

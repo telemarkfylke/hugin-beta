@@ -2,7 +2,7 @@ import { json, type RequestHandler } from "@sveltejs/kit"
 import { canPromptConfig } from "$lib/authorization"
 import { getVendor } from "$lib/server/ai-vendors"
 import { APP_CONFIG } from "$lib/server/app-config/app-config"
-import { MS_AUTH_TOKEN_HEADER } from "$lib/server/auth/auth-constants"
+import { MS_AUTH_REFRESH_TOKEN_HEADER } from "$lib/server/auth/auth-constants"
 import { HTTPError } from "$lib/server/middleware/http-error"
 import { apiRequestMiddleware } from "$lib/server/middleware/http-request"
 import { searchRagStores } from "$lib/server/ragservice/rag-search"
@@ -75,8 +75,8 @@ const supahChat: ApiNextFunction = async ({ requestEvent, user }) => {
 				.trim() ?? ""
 
 		if (queryText) {
-			const userToken = requestEvent.request.headers.get(MS_AUTH_TOKEN_HEADER)
-			const matches = await searchRagStores(ragStoreIds, queryText, userToken)
+			const refreshToken = requestEvent.request.headers.get(MS_AUTH_REFRESH_TOKEN_HEADER)
+			const matches = await searchRagStores(ragStoreIds, queryText, refreshToken)
 
 			if (matches.length > 0) {
 				const contextText = matches.map((m) => m.text).join("\n\n---\n\n")
