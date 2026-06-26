@@ -7,16 +7,15 @@ import { getRagToken } from "$lib/server/ragservice/get-rag-token"
 
 async function proxyToRag(request: Request, path: string, url: URL): Promise<Response> {
 	let ragToken: string
-	let userId: string
 	let groups: string[]
 
-	let principal
+	let principal: ReturnType<typeof getAuthenticatedPrincipal>
 	try {
 		principal = getAuthenticatedPrincipal(request.headers)
 	} catch {
 		error(401, "Ikke autentisert")
 	}
-	userId = principal.userId
+	const userId = principal.userId
 
 	if (env.MOCK_AUTH === "true") {
 		if (!env.RAGSERVICE_TOKEN) error(500, "RAGSERVICE_TOKEN er ikke satt i .env for lokal utvikling")

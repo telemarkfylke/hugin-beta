@@ -1,7 +1,7 @@
 import { env } from "$env/dynamic/private"
-import type { AuthenticatedPrincipal } from "$lib/types/authentication"
 import type { VectorMatch } from "$lib/ragservice/types"
 import { getUserGroups } from "$lib/server/auth/get-user-groups"
+import type { AuthenticatedPrincipal } from "$lib/types/authentication"
 import { getRagToken } from "./get-rag-token"
 
 async function fetchStoreSearch(storeId: string, query: string, ragToken: string, userId: string, groups: string[]): Promise<VectorMatch[]> {
@@ -23,12 +23,7 @@ async function fetchStoreSearch(storeId: string, query: string, ragToken: string
 	return (await res.json()) as VectorMatch[]
 }
 
-export async function searchRagStores(
-	storeIds: string[],
-	query: string,
-	user: AuthenticatedPrincipal | null,
-	graphToken: string | null
-): Promise<VectorMatch[]> {
+export async function searchRagStores(storeIds: string[], query: string, user: AuthenticatedPrincipal | null, graphToken: string | null): Promise<VectorMatch[]> {
 	if (storeIds.length === 0) return []
 
 	let ragToken: string
