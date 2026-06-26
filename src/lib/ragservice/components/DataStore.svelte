@@ -15,7 +15,7 @@
 
 	let selectedStoreId: string = $state("")
 	let store: StoreResponse | null = $state(null)
-	let activeTab: string = $state("search")
+	let activeTab: string = $state("view")
 
 	let createNew: boolean = $state(false)
 
@@ -25,6 +25,13 @@
 		if (!storeId) return
 		store = null
 		store = await api.getStore(storeId, true)
+		if (store) {
+			const access = store._embedded.access
+			if (access.search) activeTab = "search"
+			else if (access.upload) activeTab = "files"
+			else if (access.admin) activeTab = "access"
+			else activeTab = "view"
+		}
 	}
 
 	async function deleteStore() {
@@ -139,6 +146,8 @@
 					<DataStoreAccess {store} />
 				{:else if activeTab === "chunks"}
 					<DataStoreChunks {store} />
+				{:else if activeTab === "view"}
+					<p>Du har kun tilgang til å liste opp dette biblioteket.</p>
 				{/if}
 			</div>
 		{/if}
