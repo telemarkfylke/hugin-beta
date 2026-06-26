@@ -23,6 +23,7 @@
 
 	async function loadStore(storeId: string) {
 		if (!storeId) return
+		store = null
 		store = await api.getStore(storeId, true)
 	}
 
