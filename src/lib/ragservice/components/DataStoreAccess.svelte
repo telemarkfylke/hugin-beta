@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from "svelte"
 	import { RagServiceApi } from "../adapters/ragserviceApi"
-	import type { AccessFlat, AccessType, GraphGroup, GraphUser, StoreResponse } from "../types"
+	import type { AccessFlat, AccessType, GraphGroup, GraphUser, StoreResponse, UnrestrictedAccess } from "../types"
 	import { flattenAccesses } from "../utils"
 
 	type Props = {
@@ -10,6 +10,7 @@
 	let { store }: Props = $props()
 
 	let userAccesses: AccessFlat[] = $state([])
+	let unrestricted: UnrestrictedAccess | null = $state(null)
 	const api = new RagServiceApi()
 
 	let newAccess: AccessFlat = $state({
@@ -72,6 +73,22 @@
 		userAccesses = [...flattenAccesses(access.users || {}, "user"), ...flattenAccesses(access.groups || {}, "group")]
 	}
 
+	async function loadUnrestricted() {
+		unrestricted = await api.getUnrestrictedAccess(store.storeId)
+	}
+
+	async function updateUnrestricted(patch: Partial<UnrestrictedAccess>) {
+		const current = unrestricted ?? { view: false, search: false }
+		const updated = { ...current, ...patch }
+		await api.setUnrestrictedAccess(store.storeId, updated)
+		unrestricted = updated
+	}
+
+	async function removeUnrestricted() {
+		await api.deleteUnrestrictedAccess(store.storeId)
+		unrestricted = null
+	}
+
 	async function removeAccess(id: string, type: AccessType) {
 		await api.removeAccess(store.storeId, type, id)
 		loadAccess()
@@ -79,6 +96,7 @@
 
 	onMount(() => {
 		loadAccess()
+		loadUnrestricted()
 	})
 
 	/*disabled= {store._embedded.access.admin)} */
@@ -164,6 +182,43 @@
 					></td
 				></tr
 			>
+		</tbody>
+	</table>
+	<hr />
+	<h4>Åpen tilgang</h4>
+	<table>
+		<tbody>
+			<tr>
+				<td>Alle kan se</td>
+				<td>
+					<input
+						type="checkbox"
+						checked={unrestricted?.view ?? false}
+						onchange={(e) => updateUnrestricted({ view: (e.target as HTMLInputElement).checked })}
+						disabled={!store._embedded.access.admin}
+					/>
+				</td>
+			</tr>
+			<tr>
+				<td>Alle kan søke</td>
+				<td>
+					<input
+						type="checkbox"
+						checked={unrestricted?.search ?? false}
+						onchange={(e) => updateUnrestricted({ search: (e.target as HTMLInputElement).checked })}
+						disabled={!store._embedded.access.admin}
+					/>
+				</td>
+			</tr>
+			{#if unrestricted}
+				<tr>
+					<td colspan="2">
+						<button onclick={removeUnrestricted} disabled={!store._embedded.access.admin}>
+							Fjern åpen tilgang
+						</button>
+					</td>
+				</tr>
+			{/if}
 		</tbody>
 	</table>
 	<hr />

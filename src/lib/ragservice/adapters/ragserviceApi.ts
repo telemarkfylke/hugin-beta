@@ -10,6 +10,7 @@ import type {
 	GraphUser,
 	StoreConfig,
 	StoreResponse,
+	UnrestrictedAccess,
 	VectorMatch,
 	VectorSearch,
 	VectorStoreFile
@@ -118,6 +119,18 @@ export class RagServiceApi {
 
 	async removeAccess(storeId: string, type: AccessType, userId: string): Promise<void> {
 		await del(`/stores/${storeId}/access/${this.typePath(type)}/${userId}`)
+	}
+
+	async getUnrestrictedAccess(storeId: string): Promise<UnrestrictedAccess | null> {
+		return await get<UnrestrictedAccess>(`/stores/${storeId}/access/unrestricted`)
+	}
+
+	async setUnrestrictedAccess(storeId: string, access: UnrestrictedAccess): Promise<void> {
+		await put(`/stores/${storeId}/access/unrestricted`, access)
+	}
+
+	async deleteUnrestrictedAccess(storeId: string): Promise<void> {
+		await del(`/stores/${storeId}/access/unrestricted`)
 	}
 
 	async searchUsers(query: string): Promise<GraphUser[]> {

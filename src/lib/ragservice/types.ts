@@ -84,6 +84,11 @@ export type Access = {
 	groups?: Record<string, AccessRow>
 }
 
+export type UnrestrictedAccess = {
+	view: boolean
+	search: boolean
+}
+
 export type AccessLevel = "view" | "search" | "upload" | "admin"
 
 export type AccessType = "user" | "group" | "role"
