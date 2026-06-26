@@ -36,10 +36,9 @@
 	}
 
 	$effect(() => {
-		/*
-		if(stores.length <= 0){
+		if (stores.length <= 0) {
 			createNew = true
-		}*/
+		}
 
 		if (!selectedStoreId && stores.length > 0) {
 			const first = stores[0]
@@ -158,11 +157,6 @@
 	select {
 		font-size: 1.1rem;
 		padding: 4px 8px;
-	}
-
-	button.deletebutton {
-		/*background-color: lightsalmon;*/
-		cursor: pointer;
 	}
 
 	td {
