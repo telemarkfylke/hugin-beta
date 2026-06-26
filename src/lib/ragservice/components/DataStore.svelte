@@ -36,10 +36,6 @@
 	}
 
 	$effect(() => {
-		if (stores.length <= 0) {
-			createNew = true
-		}
-
 		if (!selectedStoreId && stores.length > 0) {
 			const first = stores[0]
 			if (first) selectedStoreId = first.storeId
@@ -62,11 +58,13 @@
 		></DataStoreCreate>
 	{:else}
 		<div class="store-header">
-			<select bind:value={selectedStoreId}>
-				{#each stores as s}
-					<option value={s.storeId}>{s.name}</option>
-				{/each}
-			</select>
+			{#if stores.length > 0}
+				<select bind:value={selectedStoreId}>
+					{#each stores as s}
+						<option value={s.storeId}>{s.name}</option>
+					{/each}
+				</select>
+			{/if}
 			<button onclick={() => (createNew = true)}>
 				<span class="material-symbols-outlined">add</span>Lag nytt bibliotek
 			</button>
