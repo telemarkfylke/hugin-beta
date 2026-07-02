@@ -35,7 +35,7 @@ export type ChatConfig = {
 	instructions?: string | undefined
 	conversationId?: string | undefined
 	tools?: ChatTool[] | undefined | null
-	dataSources?: DataSource[] | undefined
+	dataSources?: DataSource[] | undefined | null
 	type: "published" | "private"
 	shared?: boolean | undefined
 	accessGroups: (RoleAccessGroups | EntraAccessGroup)[]
@@ -127,7 +127,10 @@ export const ChatConfigSchema = schemaForType<ChatConfig>()(
 			.array(z.object({ type: z.enum(["web_search", "datasource"]) }))
 			.nullable()
 			.optional(),
-		dataSources: z.array(z.object({ type: z.enum(["ragservice"]), id: z.string() })).optional(), // Update as per ChatTool for now
+		dataSources: z
+			.array(z.object({ type: z.enum(["ragservice"]), id: z.string() }))
+			.nullable()
+			.optional(), // Update as per ChatTool for now
 		shared: z.boolean().optional(),
 		instructions: z.string().optional(),
 		conversationId: z.string().optional(),
