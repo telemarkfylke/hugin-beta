@@ -1,37 +1,52 @@
-# Lage en PowerPoint om bilder
+# Presentasjon om bilder
 
-## 1. Velg tema og mål
-- Bestem hva presentasjonen skal handle om.
-- Tenk på hvem som skal se den.
-- Finn ut hva du vil at publikum skal lære.
+## Hva er et bilde?
+Et bilde er en visuell framstilling av noe, for eksempel en person, et landskap, en gjenstand eller en idé. Bilder kan være fotografier, tegninger, malerier eller digitale illustrasjoner.
 
-## 2. Samle bilder
-- Velg bilder som passer til temaet.
-- Bruk tydelige og relevante bilder.
-- Pass på at du har lov til å bruke bildene.
+## Hvorfor er bilder viktige?
+Bilder er viktige fordi de:
+- formidler informasjon raskt
+- skaper følelser og stemning
+- gjør det lettere å forstå et budskap
+- brukes i reklame, kunst, skole og medier
 
-## 3. Lag lysbildene
-- Start med en tittelside.
-- Ha ett tema per lysbilde.
-- Plasser bildene ryddig og oversiktlig.
-- Bruk lite tekst sammen med bildene.
+## Ulike typer bilder
+### Fotografier
+Fotografier viser ofte virkelige situasjoner og brukes i aviser, sosiale medier og familiealbum.
 
-## 4. Velg design
-- Bruk en enkel og passende mal.
-- Velg farger som passer godt sammen.
-- Sørg for at teksten er lett å lese.
+### Tegninger og illustrasjoner
+Disse brukes ofte i bøker, tegneserier, undervisning og design.
 
-## 5. Legg til overganger og animasjoner
-- Bruk enkle overganger mellom lysbildene.
-- Ikke bruk for mange animasjoner.
-- La effektene støtte innholdet.
+### Malerier
+Malerier er en kunstform der kunstneren uttrykker tanker, følelser eller historier gjennom farger og former.
 
-## 6. Øv på presentasjonen
-- Gå gjennom alle lysbildene.
-- Sjekk at bildene vises riktig.
-- Øv på hva du skal si til hvert bilde.
+### Digitale bilder
+Digitale bilder lages eller redigeres på datamaskin og brukes mye på nettet, i spill og i grafisk design.
 
-## 7. Lagre og presenter
-- Lagre presentasjonen ofte.
-- Ta gjerne en kopi i PDF.
-- Presenter rolig og tydelig.
+## Hva kan et bilde fortelle?
+Et bilde kan fortelle:
+- hva som skjer
+- hvem som er med
+- hvor det skjer
+- hvilken stemning bildet har
+- hvilket budskap skaperen ønsker å gi
+
+## Hvordan tolke et bilde
+Når vi ser på et bilde, kan vi spørre:
+1. Hva ser jeg?
+2. Hvilke farger og former dominerer?
+3. Hva slags følelse gir bildet?
+4. Hva tror jeg kunstneren eller fotografen vil si?
+5. Hvem er målgruppen?
+
+## Bilder i hverdagen
+Vi møter bilder hver dag:
+- på mobilen
+- i bøker
+- på plakater
+- i reklamer
+- på internett
+- i kunst og film
+
+## Oppsummering
+Bilder er en viktig del av kommunikasjon og hverdagsliv. De kan informere, påvirke, underholde og inspirere oss.

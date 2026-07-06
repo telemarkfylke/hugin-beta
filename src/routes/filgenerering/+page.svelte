@@ -1,4 +1,5 @@
 <script>
+    import Chat from '$lib/components/Chat/Chat.svelte';
     import GrowingTextArea from '$lib/components/GrowingTextArea.svelte';
 
     let previewUrl = $state('/filgenerering/pptx/reveal?t=' + Date.now());
@@ -8,6 +9,17 @@
     let display = $state(null);
     let send_btn = $state(null);
     let input = $state(null);
+
+    let agentResponseIds = {
+        "openaut": null,
+    };
+    console.log("ResponsID:", agentResponseIds)
+    
+    let agentResponseIDHistory = {
+        "openaut": []
+    }
+
+    console.log("ResponsID_Historikk:", agentResponseIDHistory)
 
     function refreshPreview() {
         previewUrl = '/filgenerering/pptx/reveal?t=' + Date.now();
@@ -20,10 +32,12 @@
         if (!prompt.trim() || loading) return;
         loading = true;
 
+        const previousResponseId = agentResponseIDHistory[agentResponseIds];
+
         const respons = await fetch('/api/filgenerering', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ message: prompt })
+            body: JSON.stringify({ message: prompt, previousResponseId })
         });
         console.log(respons)
         // TODO: behandle respons her
