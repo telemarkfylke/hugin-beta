@@ -5,7 +5,7 @@ import { resolve } from 'node:dns';
 import { rejects } from 'node:assert';
 
 export async function GET() {
-    const slidesPath = path.join(process.cwd(), 'src', 'routes', 'filgenerering', 'pptx', 'slides.md'); // siten for .md fila for presangtasjonen
+    const slidesPath = path.join(process.cwd(), 'src', 'routes', 'filgenerering', 'pptx', 'content.md'); // siten for .md fila for presangtasjonen
     const pptxPath = path.join(process.cwd(), "content", "dist", "presentation.pptx"); // for hvor pptx fila skal lagres
 
     // Skjekk om slides.md finnes

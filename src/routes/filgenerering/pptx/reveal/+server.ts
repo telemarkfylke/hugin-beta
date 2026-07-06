@@ -3,7 +3,7 @@ import path from 'node:path';
 import { spawn } from 'node:child_process';
 
 export async function GET() {
-    const slidesPath = path.join(process.cwd(), 'src', 'routes', 'filgenerering', 'pptx', 'slides.md');
+    const slidesPath = path.join(process.cwd(), 'src', 'routes', 'filgenerering', 'pptx', 'content.md');
     const outputDir = path.join(process.cwd(), 'content', 'dist');
     const htmlPath = path.join(outputDir, 'index.html');
 
