@@ -51,6 +51,8 @@ export type VectorMatch = {
 	storeId: string
 	fileId: string
 	score: number
+	vectorScore: number | null
+	textScore: number | null
 	text: string
 	extraInfo?: Record<string, unknown>
 }
@@ -65,6 +67,10 @@ export type VectorSearch = {
 	storeIds?: string[]
 	replyLimit: number
 	weights: {
+		text: number
+		vector: number
+	}
+	thresholds: {
 		text: number
 		vector: number
 	}

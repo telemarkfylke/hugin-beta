@@ -18,7 +18,15 @@
 		text: "",
 		replyLimit: 3,
 		storeIds: [store.storeId],
-		weights: { text: 0.5, vector: 0.5 }
+		weights: { text: 0.5, vector: 0.5 },
+		thresholds: {
+			text: 0,
+			vector: 0.7
+		}
+	})
+
+	$effect(() => {
+		query.weights.vector = 1 - query.weights.text
 	})
 
 	async function search() {
@@ -69,15 +77,21 @@
 					<button onclick={() => search()} disabled={!store._embedded.access.search}>Søk</button>
 				</td>
 			</tr>
+
 			<tr>
-				<td>Vektlegg tekst</td>
-				<td>{query.weights.text}</td>
+				<td>Vector &lt;-&gt; Tekst</td>
+				<td>{query.weights.vector.toFixed(1)} / {query.weights.text.toFixed(1)}</td>
 				<td><input type="range" step="0.1" min="0" max="1" bind:value={query.weights.text} /></td>
 			</tr>
 			<tr>
-				<td>Vektlegg vector</td>
-				<td>{query.weights.vector}</td>
-				<td><input type="range" step="0.1" min="0" max="1" bind:value={query.weights.vector} /></td>
+				<td>Text Treshhold</td>
+				<td>{query.thresholds.vector}</td>
+				<td><input type="range" step="1" min="0" max="50" bind:value={query.thresholds.text} /></td>
+			</tr>
+			<tr>
+				<td>Vector Treshhold</td>
+				<td>{query.thresholds.vector}</td>
+				<td><input type="range" step="0.01" min="0" max="1" bind:value={query.thresholds.vector} /></td>
 			</tr>
 		</tbody>
 	</table>
@@ -88,7 +102,9 @@
 		<thead>
 			<tr>
 				<th>Tekst</th>
-				<th>Score</th>
+				<th>Sort score</th>
+				<th>Vector score</th>
+				<th>Text Score</th>
 				<th></th>
 			</tr>
 		</thead>
@@ -106,6 +122,9 @@
 						{/if}
 					</td>
 					<td class="score-cell">{response.score.toFixed(3)}</td>
+					<td class="score-cell">{response.vectorScore?.toFixed(3)}</td>
+					<td class="score-cell">{response.textScore?.toFixed(3)}</td>
+
 					<td class="actions-cell">
 						{#if editingId === response.id}
 							<button onclick={() => saveEdit(response)} disabled={saving}>Lagre</button>
