@@ -18,7 +18,7 @@
 		text: "",
 		replyLimit: 3,
 		storeIds: [store.storeId],
-		weights: { text: 5, vector: 5 }
+		weights: { text: 0.5, vector: 0.5 }
 	})
 
 	async function search() {
@@ -72,12 +72,12 @@
 			<tr>
 				<td>Vektlegg tekst</td>
 				<td>{query.weights.text}</td>
-				<td><input type="range" min="0" max="10" bind:value={query.weights.text} /></td>
+				<td><input type="range" step="0.1" min="0" max="1" bind:value={query.weights.text} /></td>
 			</tr>
 			<tr>
 				<td>Vektlegg vector</td>
 				<td>{query.weights.vector}</td>
-				<td><input type="range" min="0" max="10" bind:value={query.weights.vector} /></td>
+				<td><input type="range" step="0.1" min="0" max="1" bind:value={query.weights.vector} /></td>
 			</tr>
 		</tbody>
 	</table>
