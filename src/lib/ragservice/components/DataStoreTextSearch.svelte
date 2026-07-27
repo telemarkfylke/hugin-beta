@@ -67,7 +67,7 @@
 	<table>
 		<tbody>
 			<tr>
-				<td rowspan="3">
+				<td rowspan="4">
 					<textarea rows="4" class="searchtext" bind:value={query.text} placeholder="Søketekst"></textarea>
 				</td>
 				<td>Antall svar</td>
@@ -79,13 +79,13 @@
 			</tr>
 
 			<tr>
-				<td>Vector &lt;-&gt; Tekst</td>
-				<td>{query.weights.vector.toFixed(1)} / {query.weights.text.toFixed(1)}</td>
+				<td colspan="2">Prioriter Vector eller Tekst</td>
+				<!--td>{query.weights.vector.toFixed(1)} / {query.weights.text.toFixed(1)}</td-->
 				<td><input type="range" step="0.1" min="0" max="1" bind:value={query.weights.text} /></td>
 			</tr>
 			<tr>
 				<td>Text Treshhold</td>
-				<td>{query.thresholds.vector}</td>
+				<td>{query.thresholds.text}</td>
 				<td><input type="range" step="1" min="0" max="50" bind:value={query.thresholds.text} /></td>
 			</tr>
 			<tr>
