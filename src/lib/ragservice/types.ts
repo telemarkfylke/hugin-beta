@@ -17,12 +17,29 @@ export type StoreState = {
 export type EmbeddingDimensions = 512 | 768 | 1024
 export type EmbeddingModel = "embeddinggemma:300m" | "mock" | "voyage-4-lite" | "voyage-4-large" | "voyage-4" | "voyage-context-3" | "voyage-multimodal-3.5" | "qwen3-embedding"
 
+export type SearchWeights = {
+	text?: number
+	vector?: number
+}
+
+export type SearchThresholds = {
+	text?: number
+	vector?: number
+	logic?: "and" | "or"
+}
+
+export type SearchOptions = {
+	thresholds?: SearchThresholds | null
+	weights?: SearchWeights | null
+}
+
 export type CreateVectorStoreInput = {
 	name: string
 	description: string
 	embeddingMethod: EmbeddingModel
 	dimensions: EmbeddingDimensions
 	supportVision?: boolean
+	searchOptions?: SearchOptions | null
 }
 
 export type StoreConfig = CreateVectorStoreInput & {
@@ -32,6 +49,13 @@ export type StoreConfig = CreateVectorStoreInput & {
 		id: string
 		name: string
 	}
+}
+
+// The only values that we allow to be altered after creation
+export type UpdateStoreValues = {
+	name?: string
+	description?: string
+	searchOptions?: SearchOptions | null
 }
 
 export type StoreResponse = StoreConfig & {
@@ -66,15 +90,8 @@ export type VectorSearch = {
 	text: string
 	storeIds?: string[]
 	replyLimit: number
-	weights: {
-		text: number
-		vector: number
-	}
-	thresholds: {
-		text: number
-		vector: number
-		logic: "and" | "or"
-	}
+	weights?: SearchWeights | null
+	thresholds?: SearchThresholds | null
 }
 
 export type AccessRow = {

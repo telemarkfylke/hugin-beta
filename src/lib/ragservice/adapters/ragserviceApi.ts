@@ -11,6 +11,7 @@ import type {
 	StoreConfig,
 	StoreResponse,
 	UnrestrictedAccess,
+	UpdateStoreValues,
 	VectorMatch,
 	VectorSearch,
 	VectorStoreFile
@@ -56,6 +57,20 @@ async function put<T>(path: string, body: unknown): Promise<T | null> {
 	}
 }
 
+async function patch<T>(path: string, body: unknown): Promise<T | null> {
+	try {
+		const res = await fetch(`${BASE}${path}`, {
+			method: "PATCH",
+			headers: { "content-type": "application/json" },
+			body: JSON.stringify(body)
+		})
+		if (!res.ok) return null
+		return (await res.json()) as T
+	} catch {
+		return null
+	}
+}
+
 async function del(path: string): Promise<boolean> {
 	try {
 		const res = await fetch(`${BASE}${path}`, { method: "DELETE" })
@@ -84,6 +99,10 @@ export class RagServiceApi {
 
 	async getStore(id: string, _extendedInfo: boolean): Promise<StoreResponse | null> {
 		return await get<StoreResponse>(`/stores/${id}`)
+	}
+
+	async updateStore(id: string, values: UpdateStoreValues): Promise<StoreConfig | null> {
+		return await patch<StoreConfig>(`/stores/${id}`, values)
 	}
 
 	async deleteStore(id: string): Promise<boolean> {

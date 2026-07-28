@@ -4,6 +4,7 @@
 	import { RagServiceApi } from "../adapters/ragserviceApi"
 	import DataStoreAccess from "../components/DataStoreAccess.svelte"
 	import DataStoreChunks from "../components/DataStoreChunks.svelte"
+	import DataStoreSettings from "../components/DataStoreSettings.svelte"
 	import DataStoreTextSearch from "../components/DataStoreTextSearch.svelte"
 	import FileList from "../components/FileList.svelte"
 	import DataStoreCreate from "./DataStoreCreate.svelte"
@@ -32,6 +33,11 @@
 			else if (access.admin) activeTab = "access"
 			else activeTab = "view"
 		}
+	}
+
+	async function refreshStore() {
+		if (!store) return
+		await loadStore(store.storeId)
 	}
 
 	async function deleteStore() {
@@ -134,6 +140,13 @@
 							activeTab = "access";
 						}}>Tilganger</button
 					>
+					<button
+						disabled={activeTab === "settings"}
+						class="tabButton"
+						onclick={() => {
+							activeTab = "settings";
+						}}>Innstillinger</button
+					>
 				{/if}
 			</div>
 
@@ -146,6 +159,8 @@
 					<DataStoreAccess {store} />
 				{:else if activeTab === "chunks"}
 					<DataStoreChunks {store} />
+				{:else if activeTab === "settings"}
+					<DataStoreSettings {store} onSaved={refreshStore} />
 				{:else if activeTab === "view"}
 					<p>Du har kun tilgang til å liste opp dette biblioteket.</p>
 				{/if}

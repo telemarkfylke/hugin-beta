@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { RagServiceApi } from "$lib/ragservice/adapters/ragserviceApi"
-	import type { StoreResponse, VectorMatch, VectorSearch } from "$lib/ragservice/types"
+	import type { SearchOptions, StoreResponse, VectorMatch, VectorSearch } from "$lib/ragservice/types"
 
 	const api = new RagServiceApi()
 
@@ -14,24 +14,50 @@
 	let editText: string = $state("")
 	let saving: boolean = $state(false)
 
+	let useWeights = $state(true)
+	let weightsText = $state(0.5)
+
+	let useThresholds = $state(true)
+	let thresholdsText = $state(0)
+	let thresholdsVector = $state(0.7)
+	let thresholdsLogic: "and" | "or" = $state("and")
+
 	const query: VectorSearch = $state({
 		text: "",
 		replyLimit: 3,
 		storeIds: [store.storeId],
-		weights: { text: 0.5, vector: 0.5 },
-		thresholds: {
-			text: 0,
-			vector: 0.7,
-			logic: "and"
-		}
+		weights: null,
+		thresholds: null
 	})
 
 	$effect(() => {
-		query.weights.vector = 1 - query.weights.text
+		query.weights = useWeights ? { text: weightsText, vector: 1 - weightsText } : null
+	})
+
+	$effect(() => {
+		query.thresholds = useThresholds ? { text: thresholdsText, vector: thresholdsVector, logic: thresholdsLogic } : null
 	})
 
 	async function search() {
 		responses = await api.textSearch(store.storeId, query)
+	}
+
+	let savingDefaults = $state(false)
+	let saveDefaultsMessage: string | null = $state(null)
+
+	async function saveAsStoreDefaults() {
+		savingDefaults = true
+		saveDefaultsMessage = null
+		const searchOptions: SearchOptions = {
+			weights: useWeights ? { text: weightsText, vector: 1 - weightsText } : null,
+			thresholds: useThresholds ? { text: thresholdsText, vector: thresholdsVector, logic: thresholdsLogic } : null
+		}
+		try {
+			const updated = await api.updateStore(store.storeId, { searchOptions })
+			saveDefaultsMessage = updated ? "Lagret som standard for biblioteket." : "Kunne ikke lagre."
+		} finally {
+			savingDefaults = false
+		}
 	}
 
 	function startEdit(response: VectorMatch) {
@@ -65,45 +91,72 @@
 </script>
 
 <div class="search-form">
-	<table>
-		<tbody>
-			<tr>
-				<td rowspan="4">
-					<textarea rows="4" class="searchtext" bind:value={query.text} placeholder="Søketekst"></textarea>
-				</td>
-				<td>Antall svar</td>
-				<td>{query.replyLimit}</td>
-				<td><input type="range" min="0" max="10" bind:value={query.replyLimit} /></td>
-				<td rowspan="4">
-					<button onclick={() => search()} disabled={!store._embedded.access.search}>Søk</button>
-				</td>
-			</tr>
+	<div class="search-layout">
+		<textarea rows="8" class="searchtext" bind:value={query.text} placeholder="Søketekst"></textarea>
 
-			<tr>
-				<!--td>{query.weights.vector.toFixed(1)} / {query.weights.text.toFixed(1)}</td-->
-				<td colspan="3">Vector<input type="range" step="0.1" min="0" max="1" bind:value={query.weights.text} />Tekst</td>
-			</tr>
-			<tr>
-				<td>Text Treshhold</td>
-				<td>{query.thresholds.text}</td>
-				<td><input type="range" step="1" min="0" max="50" bind:value={query.thresholds.text} /></td>
-			</tr>
-			<tr>
-				<td>Vector Treshhold</td>
-				<td>{query.thresholds.vector}</td>
-				<td><input type="range" step="0.01" min="0" max="1" bind:value={query.thresholds.vector} /></td>
-			</tr>
-			<tr>
-				<td>Logikk</td>
-				<td colspan="2">
-					<select bind:value={query.thresholds.logic} >
-						<option value="and">And</option>
-						<option value="or">Or</option>
-					</select>
-				</td>
-			</tr>
-		</tbody>
-	</table>
+		<table class="search-options">
+			<tbody>
+				<tr>
+					<td>Antall svar</td>
+					<td>{query.replyLimit}</td>
+					<td><input type="range" min="0" max="10" bind:value={query.replyLimit} /></td>
+				</tr>
+
+				<tr>
+					<td colspan="3">
+						<label><input type="checkbox" bind:checked={useWeights} /> Egendefinert vekting</label>
+					</td>
+				</tr>
+				{#if useWeights}
+					<tr>
+						<td>Vector &lt;-&gt; Tekst</td>
+						<td>{(1 - weightsText).toFixed(1)} / {weightsText.toFixed(1)}</td>
+						<td><input type="range" step="0.1" min="0" max="1" bind:value={weightsText} /></td>
+					</tr>
+				{/if}
+
+				<tr>
+					<td colspan="3">
+						<label><input type="checkbox" bind:checked={useThresholds} /> Egendefinerte terskler</label>
+					</td>
+				</tr>
+				{#if useThresholds}
+					<tr>
+						<td>Text Treshhold</td>
+						<td>{thresholdsText}</td>
+						<td><input type="range" step="1" min="0" max="50" bind:value={thresholdsText} /></td>
+					</tr>
+					<tr>
+						<td>Vector Treshhold</td>
+						<td>{thresholdsVector}</td>
+						<td><input type="range" step="0.01" min="0" max="1" bind:value={thresholdsVector} /></td>
+					</tr>
+					<tr>
+						<td>Logikk</td>
+						<td colspan="2">
+							<select bind:value={thresholdsLogic}>
+								<option value="and">And</option>
+								<option value="or">Or</option>
+							</select>
+						</td>
+					</tr>
+				{/if}
+			</tbody>
+		</table>
+	</div>
+
+	<div class="search-actions">
+		<button onclick={() => search()} disabled={!store._embedded.access.search}>Søk</button>
+
+		{#if store._embedded.access.admin}
+			<button onclick={() => saveAsStoreDefaults()} disabled={savingDefaults}>
+				Lagre som standard for biblioteket
+			</button>
+			{#if saveDefaultsMessage}
+				<span class="save-message">{saveDefaultsMessage}</span>
+			{/if}
+		{/if}
+	</div>
 </div>
 
 {#if responses.length > 0}
@@ -176,9 +229,33 @@
 		vertical-align: top;
 	}
 
+	div.search-layout {
+		display: flex;
+		gap: 12px;
+		align-items: flex-start;
+	}
+
 	textarea.searchtext {
 		width: 282px;
-		height: 67px;
+		height: 100%;
+		box-sizing: border-box;
+		resize: vertical;
+	}
+
+	table.search-options {
+		flex: 1;
+	}
+
+	div.search-actions {
+		display: flex;
+		align-items: center;
+		gap: 12px;
+		margin-top: 8px;
+	}
+
+	span.save-message {
+		font-size: 0.9em;
+		color: #666;
 	}
 
 	table.results {

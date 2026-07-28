@@ -16,7 +16,27 @@
 		name: "",
 		description: "",
 		embeddingMethod: "embeddinggemma:300m",
-		dimensions: 1024
+		dimensions: 1024,
+		searchOptions: null
+	})
+
+	let useWeights = $state(false)
+	let weightsText = $state(0.5)
+
+	let useThresholds = $state(false)
+	let thresholdsText = $state(0)
+	let thresholdsVector = $state(0.7)
+	let thresholdsLogic: "and" | "or" = $state("or")
+
+	$effect(() => {
+		if (!useWeights && !useThresholds) {
+			store.searchOptions = null
+			return
+		}
+		store.searchOptions = {
+			weights: useWeights ? { text: weightsText, vector: 1 - weightsText } : null,
+			thresholds: useThresholds ? { text: thresholdsText, vector: thresholdsVector, logic: thresholdsLogic } : null
+		}
 	})
 
 	const api = new RagServiceApi()
@@ -82,6 +102,46 @@
 					</select></td
 				></tr
 			>
+
+			<tr>
+				<td colspan="3">
+					<label><input type="checkbox" bind:checked={useWeights} /> Egendefinert vekting</label>
+				</td>
+			</tr>
+			{#if useWeights}
+				<tr>
+					<td>Vector &lt;-&gt; Tekst</td>
+					<td>{(1 - weightsText).toFixed(1)} / {weightsText.toFixed(1)}</td>
+					<td><input type="range" step="0.1" min="0" max="1" bind:value={weightsText} /></td>
+				</tr>
+			{/if}
+
+			<tr>
+				<td colspan="3">
+					<label><input type="checkbox" bind:checked={useThresholds} /> Egendefinerte terskler</label>
+				</td>
+			</tr>
+			{#if useThresholds}
+				<tr>
+					<td>Text Treshhold</td>
+					<td>{thresholdsText}</td>
+					<td><input type="range" step="1" min="0" max="50" bind:value={thresholdsText} /></td>
+				</tr>
+				<tr>
+					<td>Vector Treshhold</td>
+					<td>{thresholdsVector}</td>
+					<td><input type="range" step="0.01" min="0" max="1" bind:value={thresholdsVector} /></td>
+				</tr>
+				<tr>
+					<td>Logikk</td>
+					<td colspan="2">
+						<select bind:value={thresholdsLogic}>
+							<option value="or">Eller (or)</option>
+							<option value="and">Og (and)</option>
+						</select>
+					</td>
+				</tr>
+			{/if}
 		</tbody>
 	</table>
 	<div class="actions">
