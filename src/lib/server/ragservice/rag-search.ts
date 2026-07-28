@@ -15,7 +15,7 @@ async function fetchStoreSearch(storeId: string, query: string, ragToken: string
 		},
 		body: JSON.stringify({
 			text: query,
-			replyLimit: 3			
+			replyLimit: 3
 		})
 	})
 	if (!res.ok) return []
