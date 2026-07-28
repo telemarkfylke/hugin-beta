@@ -73,6 +73,7 @@ export type VectorSearch = {
 	thresholds: {
 		text: number
 		vector: number
+		logic: "and" | "or"
 	}
 }
 

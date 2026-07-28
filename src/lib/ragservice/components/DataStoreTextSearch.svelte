@@ -21,7 +21,8 @@
 		weights: { text: 0.5, vector: 0.5 },
 		thresholds: {
 			text: 0,
-			vector: 0.7
+			vector: 0.7,
+			logic:"and"
 		}
 	})
 
@@ -73,15 +74,14 @@
 				<td>Antall svar</td>
 				<td>{query.replyLimit}</td>
 				<td><input type="range" min="0" max="10" bind:value={query.replyLimit} /></td>
-				<td rowspan="3">
+				<td rowspan="4">
 					<button onclick={() => search()} disabled={!store._embedded.access.search}>Søk</button>
 				</td>
 			</tr>
 
 			<tr>
-				<td colspan="2">Prioriter Vector eller Tekst</td>
 				<!--td>{query.weights.vector.toFixed(1)} / {query.weights.text.toFixed(1)}</td-->
-				<td><input type="range" step="0.1" min="0" max="1" bind:value={query.weights.text} /></td>
+				<td colspan="3">Vector<input type="range" step="0.1" min="0" max="1" bind:value={query.weights.text} />Tekst</td>
 			</tr>
 			<tr>
 				<td>Text Treshhold</td>
@@ -92,6 +92,15 @@
 				<td>Vector Treshhold</td>
 				<td>{query.thresholds.vector}</td>
 				<td><input type="range" step="0.01" min="0" max="1" bind:value={query.thresholds.vector} /></td>
+			</tr>
+			<tr>
+				<td>Logikk</td>
+				<td colspan="2">
+					<select bind:value={query.thresholds.logic} >
+						<option value="and">And</option>
+						<option value="or">Or</option>
+					</select>
+				</td>
 			</tr>
 		</tbody>
 	</table>
