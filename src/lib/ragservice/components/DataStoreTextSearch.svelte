@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { RagServiceApi } from "$lib/ragservice/adapters/ragserviceApi"
 	import type { SearchOptions, StoreResponse, VectorMatch, VectorSearch } from "$lib/ragservice/types"
+	import NullableRangeField from "./NullableRangeField.svelte"
 
 	const api = new RagServiceApi()
 
@@ -14,13 +15,11 @@
 	let editText: string = $state("")
 	let saving: boolean = $state(false)
 
-	let useWeights = $state(true)
-	let weightsText = $state(0.5)
+	let weightsText: number = $state(store.searchOptions?.weights?.text ?? 0.5)
 
-	let useThresholds = $state(true)
-	let thresholdsText = $state(0)
-	let thresholdsVector = $state(0.7)
-	let thresholdsLogic: "and" | "or" = $state("and")
+	let thresholdsText: number | null = $state(store.searchOptions?.thresholds?.text ?? null)
+	let thresholdsVector: number | null = $state(store.searchOptions?.thresholds?.vector ?? null)
+	let thresholdsLogic: "and" | "or" = $state(store.searchOptions?.thresholds?.logic ?? "or")
 
 	const query: VectorSearch = $state({
 		text: "",
@@ -31,11 +30,11 @@
 	})
 
 	$effect(() => {
-		query.weights = useWeights ? { text: weightsText, vector: 1 - weightsText } : null
+		query.weights = { text: weightsText, vector: 1 - weightsText }
 	})
 
 	$effect(() => {
-		query.thresholds = useThresholds ? { text: thresholdsText, vector: thresholdsVector, logic: thresholdsLogic } : null
+		query.thresholds = { text: thresholdsText, vector: thresholdsVector, logic: thresholdsLogic }
 	})
 
 	async function search() {
@@ -49,8 +48,8 @@
 		savingDefaults = true
 		saveDefaultsMessage = null
 		const searchOptions: SearchOptions = {
-			weights: useWeights ? { text: weightsText, vector: 1 - weightsText } : null,
-			thresholds: useThresholds ? { text: thresholdsText, vector: thresholdsVector, logic: thresholdsLogic } : null
+			weights: { text: weightsText, vector: 1 - weightsText },
+			thresholds: { text: thresholdsText, vector: thresholdsVector, logic: thresholdsLogic }
 		}
 		try {
 			const updated = await api.updateStore(store.storeId, { searchOptions })
@@ -103,44 +102,23 @@
 				</tr>
 
 				<tr>
-					<td colspan="3">
-						<label><input type="checkbox" bind:checked={useWeights} /> Egendefinert vekting</label>
-					</td>
+					<td>Vector &lt;-&gt; Tekst</td>
+					<td>{(1 - weightsText).toFixed(1)} / {weightsText.toFixed(1)}</td>
+					<td><input type="range" step="0.1" min="0" max="1" bind:value={weightsText} /></td>
 				</tr>
-				{#if useWeights}
-					<tr>
-						<td>Vector &lt;-&gt; Tekst</td>
-						<td>{(1 - weightsText).toFixed(1)} / {weightsText.toFixed(1)}</td>
-						<td><input type="range" step="0.1" min="0" max="1" bind:value={weightsText} /></td>
-					</tr>
-				{/if}
+
+				<NullableRangeField label="Text Treshhold" min={0} max={50} step={1} bind:value={thresholdsText} />
+				<NullableRangeField label="Vector Treshhold" min={0} max={1} step={0.01} decimals={2} bind:value={thresholdsVector} />
 
 				<tr>
-					<td colspan="3">
-						<label><input type="checkbox" bind:checked={useThresholds} /> Egendefinerte terskler</label>
+					<td>Logikk</td>
+					<td colspan="2">
+						<select bind:value={thresholdsLogic}>
+							<option value="and">And</option>
+							<option value="or">Or</option>
+						</select>
 					</td>
 				</tr>
-				{#if useThresholds}
-					<tr>
-						<td>Text Treshhold</td>
-						<td>{thresholdsText}</td>
-						<td><input type="range" step="1" min="0" max="50" bind:value={thresholdsText} /></td>
-					</tr>
-					<tr>
-						<td>Vector Treshhold</td>
-						<td>{thresholdsVector}</td>
-						<td><input type="range" step="0.01" min="0" max="1" bind:value={thresholdsVector} /></td>
-					</tr>
-					<tr>
-						<td>Logikk</td>
-						<td colspan="2">
-							<select bind:value={thresholdsLogic}>
-								<option value="and">And</option>
-								<option value="or">Or</option>
-							</select>
-						</td>
-					</tr>
-				{/if}
 			</tbody>
 		</table>
 	</div>

@@ -23,8 +23,8 @@ export type SearchWeights = {
 }
 
 export type SearchThresholds = {
-	text?: number
-	vector?: number
+	text?: number | null
+	vector?: number | null
 	logic?: "and" | "or"
 }
 

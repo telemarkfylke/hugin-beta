@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { RagServiceApi } from "../adapters/ragserviceApi"
 	import type { StoreResponse, UpdateStoreValues } from "../types"
+	import NullableRangeField from "./NullableRangeField.svelte"
 
 	type Props = {
 		store: StoreResponse
@@ -13,12 +14,10 @@
 	let name = $state(store.name)
 	let description = $state(store.description)
 
-	let useWeights = $state(store.searchOptions?.weights != null)
-	let weightsText = $state(store.searchOptions?.weights?.text ?? 0.5)
+	let weightsText: number = $state(store.searchOptions?.weights?.text ?? 0.5)
 
-	let useThresholds = $state(store.searchOptions?.thresholds != null)
-	let thresholdsText = $state(store.searchOptions?.thresholds?.text ?? 0)
-	let thresholdsVector = $state(store.searchOptions?.thresholds?.vector ?? 0.7)
+	let thresholdsText: number | null = $state(store.searchOptions?.thresholds?.text ?? null)
+	let thresholdsVector: number | null = $state(store.searchOptions?.thresholds?.vector ?? null)
 	let thresholdsLogic: "and" | "or" = $state(store.searchOptions?.thresholds?.logic ?? "or")
 
 	let saving = $state(false)
@@ -31,8 +30,8 @@
 			name,
 			description,
 			searchOptions: {
-				weights: useWeights ? { text: weightsText, vector: 1 - weightsText } : null,
-				thresholds: useThresholds ? { text: thresholdsText, vector: thresholdsVector, logic: thresholdsLogic } : null
+				weights: { text: weightsText, vector: 1 - weightsText },
+				thresholds: { text: thresholdsText, vector: thresholdsVector, logic: thresholdsLogic }
 			}
 		}
 		try {
@@ -55,44 +54,23 @@
 			<tr><td>Beskrivelse</td><td>:</td><td><input bind:value={description} /></td></tr>
 
 			<tr>
-				<td colspan="3">
-					<label><input type="checkbox" bind:checked={useWeights} /> Egendefinert vekting</label>
-				</td>
+				<td>Vector &lt;-&gt; Tekst</td>
+				<td>{(1 - weightsText).toFixed(1)} / {weightsText.toFixed(1)}</td>
+				<td><input type="range" step="0.1" min="0" max="1" bind:value={weightsText} /></td>
 			</tr>
-			{#if useWeights}
-				<tr>
-					<td>Vector &lt;-&gt; Tekst</td>
-					<td>{(1 - weightsText).toFixed(1)} / {weightsText.toFixed(1)}</td>
-					<td><input type="range" step="0.1" min="0" max="1" bind:value={weightsText} /></td>
-				</tr>
-			{/if}
+
+			<NullableRangeField label="Text Treshhold" min={0} max={50} step={1} bind:value={thresholdsText} />
+			<NullableRangeField label="Vector Treshhold" min={0} max={1} step={0.01} decimals={2} bind:value={thresholdsVector} />
 
 			<tr>
-				<td colspan="3">
-					<label><input type="checkbox" bind:checked={useThresholds} /> Egendefinerte terskler</label>
+				<td>Logikk</td>
+				<td colspan="2">
+					<select bind:value={thresholdsLogic}>
+						<option value="and">And</option>
+						<option value="or">Or</option>
+					</select>
 				</td>
 			</tr>
-			{#if useThresholds}
-				<tr>
-					<td>Text Treshhold</td>
-					<td>{thresholdsText}</td>
-					<td><input type="range" step="1" min="0" max="50" bind:value={thresholdsText} /></td>
-				</tr>
-				<tr>
-					<td>Vector Treshhold</td>
-					<td>{thresholdsVector}</td>
-					<td><input type="range" step="0.01" min="0" max="1" bind:value={thresholdsVector} /></td>
-				</tr>
-				<tr>
-					<td>Logikk</td>
-					<td colspan="2">
-						<select bind:value={thresholdsLogic}>
-							<option value="or">Eller (or)</option>
-							<option value="and">Og (and)</option>
-						</select>
-					</td>
-				</tr>
-			{/if}
 		</tbody>
 	</table>
 
