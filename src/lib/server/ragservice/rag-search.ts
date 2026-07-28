@@ -20,7 +20,7 @@ async function fetchStoreSearch(storeId: string, query: string, ragToken: string
 			thresholds: {
 				text: 0,
 				vector: 0.7,
-				logic:"and"
+				logic: "and"
 			}
 		})
 	})

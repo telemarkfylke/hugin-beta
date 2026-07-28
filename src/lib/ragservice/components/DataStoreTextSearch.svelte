@@ -22,7 +22,7 @@
 		thresholds: {
 			text: 0,
 			vector: 0.7,
-			logic:"and"
+			logic: "and"
 		}
 	})
 
