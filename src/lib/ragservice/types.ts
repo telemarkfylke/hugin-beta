@@ -106,6 +106,7 @@ export type Access = {
 	users?: Record<string, AccessRow>
 	roles?: Record<string, AccessRow>
 	groups?: Record<string, AccessRow>
+	unrestricted: UnrestrictedAccess
 }
 
 export type UnrestrictedAccess = {

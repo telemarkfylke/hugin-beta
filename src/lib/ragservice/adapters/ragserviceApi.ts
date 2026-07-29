@@ -129,7 +129,14 @@ export class RagServiceApi {
 	}
 
 	async getAccess(storeId: string): Promise<Access> {
-		return (await get<Access>(`/stores/${storeId}/access/`)) ?? {}
+		return (
+			(await get<Access>(`/stores/${storeId}/access/`)) ?? {
+				unrestricted: {
+					view: false,
+					search: false
+				}
+			}
+		)
 	}
 
 	async setAccess(storeId: string, type: AccessType, userId: string, accessRow: AccessRow): Promise<void> {

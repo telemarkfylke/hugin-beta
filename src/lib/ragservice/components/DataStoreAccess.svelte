@@ -71,11 +71,13 @@
 	async function loadAccess() {
 		const access = await api.getAccess(store.storeId)
 		userAccesses = [...flattenAccesses(access.users || {}, "user"), ...flattenAccesses(access.groups || {}, "group")]
+		unrestricted = access.unrestricted
 	}
 
+	/*
 	async function loadUnrestricted() {
 		unrestricted = await api.getUnrestrictedAccess(store.storeId)
-	}
+	}*/
 
 	async function updateUnrestricted(patch: Partial<UnrestrictedAccess>) {
 		const current = unrestricted ?? { view: false, search: false }
@@ -96,7 +98,7 @@
 
 	onMount(() => {
 		loadAccess()
-		loadUnrestricted()
+		//loadUnrestricted()
 	})
 
 	/*disabled= {store._embedded.access.admin)} */

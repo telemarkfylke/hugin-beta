@@ -4,6 +4,8 @@ import { getUserGroups } from "$lib/server/auth/get-user-groups"
 import type { AuthenticatedPrincipal } from "$lib/types/authentication"
 import { getRagToken } from "./get-rag-token"
 
+const USE_MULTISEARCH: boolean = true
+
 async function fetchStoreSearch(storeId: string, query: string, ragToken: string, userId: string, groups: string[]): Promise<VectorMatch[]> {
 	const res = await fetch(`${env.RAGSERVICE_URL}/api/stores/${storeId}/search/text`, {
 		method: "POST",
@@ -14,6 +16,25 @@ async function fetchStoreSearch(storeId: string, query: string, ragToken: string
 			"x-user-groups": groups.join(",")
 		},
 		body: JSON.stringify({
+			text: query,
+			replyLimit: 3
+		})
+	})
+	if (!res.ok) return []
+	return (await res.json()) as VectorMatch[]
+}
+
+async function fetchMultiStoreSearch(storeIds: string[], query: string, ragToken: string, userId: string, groups: string[]): Promise<VectorMatch[]> {
+	const res = await fetch(`${env.RAGSERVICE_URL}/api/search/`, {
+		method: "POST",
+		headers: {
+			authorization: `Bearer ${ragToken}`,
+			"content-type": "application/json",
+			"x-user-id": userId,
+			"x-user-groups": groups.join(",")
+		},
+		body: JSON.stringify({
+			storeIds: storeIds,
 			text: query,
 			replyLimit: 3
 		})
@@ -41,6 +62,15 @@ export async function searchRagStores(storeIds: string[], query: string, user: A
 		groups = await getUserGroups(user, graphToken)
 	}
 
-	const results = await Promise.all(storeIds.map((id) => fetchStoreSearch(id, query, ragToken, userId, groups)))
-	return results.flat()
+	// Try use ragservice buildting multiserach
+	if (USE_MULTISEARCH) {
+		const results = await fetchMultiStoreSearch(storeIds, query, ragToken, userId, groups)
+		return results
+	}
+
+	// Handle multiserach manually with promise all
+	else {
+		const results = await Promise.all(storeIds.map((id) => fetchStoreSearch(id, query, ragToken, userId, groups)))
+		return results.flat()
+	}
 }
