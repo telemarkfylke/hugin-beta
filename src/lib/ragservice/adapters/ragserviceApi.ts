@@ -109,8 +109,10 @@ export class RagServiceApi {
 		return await del(`/stores/${id}`)
 	}
 
-	async uploadFile(storeId: string, formData: FormData): Promise<Response> {
-		return await fetch(`${BASE}/stores/${storeId}/textfiles`, {
+	async uploadFile(storeId: string, formData: FormData, normalizeChuncks: boolean): Promise<Response> {
+		let url = `${BASE}/stores/${storeId}/textfiles`
+		if (normalizeChuncks) url += "?normalizeChunks=true"
+		return await fetch(url, {
 			method: "POST",
 			body: formData
 		})
