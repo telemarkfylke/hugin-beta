@@ -105,6 +105,43 @@
 </script>
 
 <main>
+	<h4>Åpen tilgang</h4>
+	<table>
+		<tbody>
+			<tr>
+				<td>Alle kan se</td>
+				<td>
+					<input
+						type="checkbox"
+						checked={unrestricted?.view ?? false}
+						onchange={(e) => updateUnrestricted({ view: (e.target as HTMLInputElement).checked })}
+						disabled={!store._embedded.access.admin}
+					/>
+				</td>
+			</tr>
+			<tr>
+				<td>Alle kan søke</td>
+				<td>
+					<input
+						type="checkbox"
+						checked={unrestricted?.search ?? false}
+						onchange={(e) => updateUnrestricted({ search: (e.target as HTMLInputElement).checked })}
+						disabled={!store._embedded.access.admin}
+					/>
+				</td>
+			</tr>
+			{#if unrestricted}
+				<tr>
+					<td colspan="2">
+						<button onclick={removeUnrestricted} disabled={!store._embedded.access.admin}>
+							Fjern åpen tilgang
+						</button>
+					</td>
+				</tr>
+			{/if}
+		</tbody>
+	</table>
+	<hr />
 	<table>
 		<tbody>
 			<tr
@@ -245,44 +282,7 @@
 				</tr>
 			{/each}
 		</tbody>
-	</table>
-	<hr />
-	<h4>Åpen tilgang</h4>
-	<table>
-		<tbody>
-			<tr>
-				<td>Alle kan se</td>
-				<td>
-					<input
-						type="checkbox"
-						checked={unrestricted?.view ?? false}
-						onchange={(e) => updateUnrestricted({ view: (e.target as HTMLInputElement).checked })}
-						disabled={!store._embedded.access.admin}
-					/>
-				</td>
-			</tr>
-			<tr>
-				<td>Alle kan søke</td>
-				<td>
-					<input
-						type="checkbox"
-						checked={unrestricted?.search ?? false}
-						onchange={(e) => updateUnrestricted({ search: (e.target as HTMLInputElement).checked })}
-						disabled={!store._embedded.access.admin}
-					/>
-				</td>
-			</tr>
-			{#if unrestricted}
-				<tr>
-					<td colspan="2">
-						<button onclick={removeUnrestricted} disabled={!store._embedded.access.admin}>
-							Fjern åpen tilgang
-						</button>
-					</td>
-				</tr>
-			{/if}
-		</tbody>
-	</table>
+	</table>	
 </main>
 
 <style>
