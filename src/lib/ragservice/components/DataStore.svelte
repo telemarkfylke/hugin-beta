@@ -7,6 +7,7 @@
 	import DataStoreSettings from "../components/DataStoreSettings.svelte"
 	import DataStoreTextSearch from "../components/DataStoreTextSearch.svelte"
 	import FileList from "../components/FileList.svelte"
+	import "./ragservice-shared.css"
 	import DataStoreCreate from "./DataStoreCreate.svelte"
 
 	type Props = {
@@ -95,21 +96,30 @@
 		</div>
 
 		{#if store}
-			<table>
-				<tbody>
-					<tr><td>Beskrivelse</td><td>:</td><td>{store.description}</td></tr>
-					<tr><td>Method</td><td>:</td><td>{store.embeddingMethod}</td></tr>
-					<tr><td>Dimensions</td><td>:</td><td>{store.dimensions}</td></tr>
-					<tr><td>Opprettet av</td><td>:</td><td>{store.createdBy.name}</td></tr
-					>
-				</tbody>
-			</table>
+			<div class="rag-card store-info">
+				<div class="rag-simple-field">
+					<span class="rag-field-label">Beskrivelse</span>
+					<span>{store.description}</span>
+				</div>
+				<div class="rag-simple-field">
+					<span class="rag-field-label">Method</span>
+					<span>{store.embeddingMethod}</span>
+				</div>
+				<div class="rag-simple-field">
+					<span class="rag-field-label">Dimensions</span>
+					<span>{store.dimensions}</span>
+				</div>
+				<div class="rag-simple-field">
+					<span class="rag-field-label">Opprettet av</span>
+					<span>{store.createdBy.name}</span>
+				</div>
+			</div>
 
-			<div class="tabrow">
+			<div class="rag-tabs">
 				{#if store._embedded.access.search}
 					<button
+						class="rag-tab-button"
 						disabled={activeTab === "search"}
-						class="tabButton"
 						onclick={() => {
 							activeTab = "search";
 						}}>Søk</button
@@ -117,15 +127,15 @@
 				{/if}
 				{#if store._embedded.access.upload}
 					<button
+						class="rag-tab-button"
 						disabled={activeTab === "files"}
-						class="tabButton"
 						onclick={() => {
 							activeTab = "files";
 						}}>Filer</button
 					>
 					<button
+						class="rag-tab-button"
 						disabled={activeTab === "chunks"}
-						class="tabButton"
 						onclick={() => {
 							activeTab = "chunks";
 						}}>Legg til chunks</button
@@ -134,15 +144,15 @@
 
 				{#if store._embedded.access.admin}
 					<button
+						class="rag-tab-button"
 						disabled={activeTab === "access"}
-						class="tabButton"
 						onclick={() => {
 							activeTab = "access";
 						}}>Tilganger</button
 					>
 					<button
+						class="rag-tab-button"
 						disabled={activeTab === "settings"}
-						class="tabButton"
 						onclick={() => {
 							activeTab = "settings";
 						}}>Innstillinger</button
@@ -150,7 +160,7 @@
 				{/if}
 			</div>
 
-			<div>
+			<div class="tab-content">
 				{#if activeTab === "files"}
 					<FileList {store} />
 				{:else if activeTab === "search"}
@@ -162,7 +172,7 @@
 				{:else if activeTab === "settings"}
 					<DataStoreSettings {store} onSaved={refreshStore} />
 				{:else if activeTab === "view"}
-					<p>Du har kun tilgang til å liste opp dette biblioteket.</p>
+					<p class="rag-muted">Du har kun tilgang til å liste opp dette biblioteket.</p>
 				{/if}
 			</div>
 		{/if}
@@ -174,44 +184,29 @@
 		display: flex;
 		align-items: center;
 		gap: 12px;
-		margin-bottom: 8px;
+		margin-bottom: 16px;
 	}
 
 	select {
-		font-size: 1.1rem;
-		padding: 4px 8px;
+		font-family: var(--font-family);
+		font-size: 1rem;
+		padding: 6px 10px;
+		border: 1px solid var(--color-primary-30);
+		border-radius: 4px;
 	}
 
-	td {
-		text-align: left;
-	}
-
-	button.tabButton {
-		border: 1px solid #888887;
-		font-size: 14px;
-		border-top-left-radius: 5px;
-		border-top-right-radius: 5px;
-		/*background-color: #c9c189; */
-		color: #888887;
-		cursor: pointer;
-	}
-
-	button.tabButton:disabled,
-	button.tabButton[disabled] {
-		border-top: 1px solid #888887;
-		font-size: 14px;
-		border-top-left-radius: 5px;
-		border-top-right-radius: 5px;
-		border-bottom: 0px solid #ffffff;
-		background-color: #ffffff;
-		color: #000000;
-	}
-
-	div.tabrow {
+	div.store-info {
 		display: flex;
-		gap: 4px;
-		padding-top: 5px;
-		padding-bottom: 0px;
-		border-bottom: 1px solid #888887;
+		flex-direction: column;
+		gap: 8px;
+		margin-bottom: 16px;
+	}
+
+	div.store-info .rag-simple-field {
+		grid-template-columns: 140px 1fr;
+	}
+
+	div.tab-content {
+		margin-top: 16px;
 	}
 </style>

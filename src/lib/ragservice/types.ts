@@ -31,6 +31,7 @@ export type SearchThresholds = {
 export type SearchOptions = {
 	thresholds?: SearchThresholds | null
 	weights?: SearchWeights | null
+	rerank?: boolean | null
 }
 
 export type CreateVectorStoreInput = {
@@ -92,6 +93,7 @@ export type VectorSearch = {
 	replyLimit: number
 	weights?: SearchWeights | null
 	thresholds?: SearchThresholds | null
+	rerank?: boolean | null
 }
 
 export type AccessRow = {

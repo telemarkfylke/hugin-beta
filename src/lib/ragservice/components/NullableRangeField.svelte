@@ -1,4 +1,7 @@
 <script lang="ts">
+	import "./ragservice-shared.css"
+	import InfoTooltip from "./InfoTooltip.svelte"
+
 	type Props = {
 		label: string
 		min: number
@@ -6,8 +9,9 @@
 		step?: number
 		decimals?: number
 		value: number | null
+		help?: string
 	}
-	let { label, min, max, step = 1, decimals = 0, value = $bindable() }: Props = $props()
+	let { label, min, max, step = 1, decimals = 0, value = $bindable(), help }: Props = $props()
 
 	let localValue = $state(value ?? min)
 
@@ -21,20 +25,20 @@
 	}
 </script>
 
-<tr>
-	<td>
-		<label><input type="checkbox" checked={value != null} onchange={(e) => toggle(e.currentTarget.checked)} /> {label}</label>
-	</td>
-	<td>{value != null ? value.toFixed(decimals) : "–"}</td>
-	<td>
-		<input
-			type="range"
-			{min}
-			{max}
-			{step}
-			disabled={value == null}
-			value={value ?? localValue}
-			oninput={(e) => onSlide(Number(e.currentTarget.value))}
-		/>
-	</td>
-</tr>
+<div class="rag-field">
+	<label class="rag-field-label">
+		<input type="checkbox" checked={value != null} onchange={(e) => toggle(e.currentTarget.checked)} />
+		{label}
+		{#if help}<InfoTooltip text={help} />{/if}
+	</label>
+	<input
+		type="range"
+		{min}
+		{max}
+		{step}
+		disabled={value == null}
+		value={value ?? localValue}
+		oninput={(e) => onSlide(Number(e.currentTarget.value))}
+	/>
+	<span class="rag-field-value">{value != null ? value.toFixed(decimals) : "–"}</span>
+</div>

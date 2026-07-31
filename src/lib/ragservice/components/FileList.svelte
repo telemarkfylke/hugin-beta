@@ -2,6 +2,7 @@
 	import { onMount } from "svelte"
 	import { RagServiceApi } from "../adapters/ragserviceApi"
 	import type { StoreResponse, VectorStoreFile } from "../types"
+	import "./ragservice-shared.css"
 	import FileUpload from "./FileUpload.svelte"
 
 	type Props = {
@@ -25,19 +26,16 @@
 	})
 </script>
 
-<main>
-
+<main class="rag-card">
 	{#if store._embedded.access.upload}
-		<div>
-			<FileUpload storeId={store.storeId} onFileUploaded={() => loadFiles()} />
-		</div>
-		<hr>
+		<h3 class="rag-section-title">Last opp fil</h3>
+		<FileUpload storeId={store.storeId} onFileUploaded={() => loadFiles()} />
 	{/if}
 
-	<table>
+	<h3 class="rag-section-title">Filer</h3>
+	<table class="rag-table">
 		<thead>
 			<tr>
-				<!--th>Id</th-->
 				<th>Status</th>
 				<th>Navn</th>
 				<th></th>
@@ -46,21 +44,20 @@
 		<tbody>
 			{#each files as file}
 				<tr>
-					<!--td>{file.id}</td-->
 					<td>{file.status}</td>
 					<td>{file.name}</td>
-					<td><button onclick={() => removeFile(file.id)}  disabled= {!store._embedded.access.admin} >SLETT</button></td>
+					<td>
+						<button class="danger" onclick={() => removeFile(file.id)} disabled={!store._embedded.access.admin}>Slett</button>
+					</td>
 				</tr>
 			{/each}
 		</tbody>
 	</table>
-
 </main>
 
 <style>
-	td,
-	th {
-		text-align: left;
-		border: 1px solid darkgray;
+	button.danger {
+		color: var(--color-danger);
+		border-color: var(--color-danger);
 	}
 </style>

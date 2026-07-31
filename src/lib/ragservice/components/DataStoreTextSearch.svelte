@@ -1,6 +1,9 @@
 <script lang="ts">
 	import { RagServiceApi } from "$lib/ragservice/adapters/ragserviceApi"
 	import type { SearchOptions, StoreResponse, VectorMatch, VectorSearch } from "$lib/ragservice/types"
+	import "./ragservice-shared.css"
+	import InfoTooltip from "./InfoTooltip.svelte"
+	import NullableBooleanField from "./NullableBooleanField.svelte"
 	import NullableRangeField from "./NullableRangeField.svelte"
 
 	const api = new RagServiceApi()
@@ -20,13 +23,15 @@
 	let thresholdsText: number | null = $state(store.searchOptions?.thresholds?.text ?? null)
 	let thresholdsVector: number | null = $state(store.searchOptions?.thresholds?.vector ?? null)
 	let thresholdsLogic: "and" | "or" = $state(store.searchOptions?.thresholds?.logic ?? "or")
+	let rerank: boolean | null = $state(store.searchOptions?.rerank ?? null)
 
 	const query: VectorSearch = $state({
 		text: "",
 		replyLimit: 3,
 		storeIds: [store.storeId],
 		weights: null,
-		thresholds: null
+		thresholds: null,
+		rerank: null
 	})
 
 	$effect(() => {
@@ -35,6 +40,10 @@
 
 	$effect(() => {
 		query.thresholds = { text: thresholdsText, vector: thresholdsVector, logic: thresholdsLogic }
+	})
+
+	$effect(() => {
+		query.rerank = rerank
 	})
 
 	async function search() {
@@ -49,7 +58,8 @@
 		saveDefaultsMessage = null
 		const searchOptions: SearchOptions = {
 			weights: { text: weightsText, vector: 1 - weightsText },
-			thresholds: { text: thresholdsText, vector: thresholdsVector, logic: thresholdsLogic }
+			thresholds: { text: thresholdsText, vector: thresholdsVector, logic: thresholdsLogic },
+			rerank
 		}
 		try {
 			const updated = await api.updateStore(store.storeId, { searchOptions })
@@ -89,56 +99,81 @@
 	}
 </script>
 
-<div class="search-form">
+<div class="rag-card">
 	<div class="search-layout">
 		<textarea rows="8" class="searchtext" bind:value={query.text} placeholder="Søketekst"></textarea>
 
-		<table class="search-options">
-			<tbody>
-				<tr>
-					<td>Antall svar</td>
-					<td>{query.replyLimit}</td>
-					<td><input type="range" min="0" max="10" bind:value={query.replyLimit} /></td>
-				</tr>
+		<div class="rag-field-grid search-options">
+			<div class="rag-field">
+				<span class="rag-field-label">Antall svar <InfoTooltip text="Maks antall treff som returneres fra søket." /></span>
+				<input type="range" min="0" max="10" bind:value={query.replyLimit} />
+				<span class="rag-field-value">{query.replyLimit}</span>
+			</div>
 
-				<tr>
-					<td>Vector &lt;-&gt; Tekst</td>
-					<td>{(1 - weightsText).toFixed(1)} / {weightsText.toFixed(1)}</td>
-					<td><input type="range" step="0.1" min="0" max="1" bind:value={weightsText} /></td>
-				</tr>
+			<h4 class="rag-section-title">Vekting</h4>
+			<div class="rag-field">
+				<span class="rag-field-label">
+					Vector &lt;-&gt; Tekst
+					<InfoTooltip
+						text="Balanse mellom semantisk (vector) søk og tekst-/nøkkelordsøk. Helt til venstre = kun vector, helt til høyre = kun tekst."
+					/>
+				</span>
+				<input type="range" step="0.1" min="0" max="1" bind:value={weightsText} />
+				<span class="rag-field-value">{(1 - weightsText).toFixed(1)} / {weightsText.toFixed(1)}</span>
+			</div>
 
-				<NullableRangeField label="Text Treshhold" min={0} max={50} step={1} bind:value={thresholdsText} />
-				<NullableRangeField label="Vector Treshhold" min={0} max={1} step={0.01} decimals={2} bind:value={thresholdsVector} />
-
-				<tr>
-					<td>Logikk</td>
-					<td colspan="2">
-						<select bind:value={thresholdsLogic}>
-							<option value="and">And</option>
-							<option value="or">Or</option>
-						</select>
-					</td>
-				</tr>
-			</tbody>
-		</table>
+			<h4 class="rag-section-title">Terskler</h4>
+			<NullableRangeField
+				label="Text Treshhold"
+				min={0}
+				max={50}
+				step={1}
+				bind:value={thresholdsText}
+				help="Minimum tekst-score et treff må ha for å bli tatt med. Skru av for å ikke filtrere på tekst-score."
+			/>
+			<NullableRangeField
+				label="Vector Treshhold"
+				min={0}
+				max={1}
+				step={0.01}
+				decimals={2}
+				bind:value={thresholdsVector}
+				help="Minimum vector-score (semantisk likhet) et treff må ha for å bli tatt med. Skru av for å ikke filtrere på vector-score."
+			/>
+			<div class="rag-simple-field">
+				<span class="rag-field-label">
+					Logikk
+					<InfoTooltip text="'And' krever at treffet passerer både tekst- og vector-terskel. 'Or' krever at minst én av dem er oppfylt." />
+				</span>
+				<select bind:value={thresholdsLogic}>
+					<option value="and">And</option>
+					<option value="or">Or</option>
+				</select>
+			</div>
+			<NullableBooleanField
+				label="Rerank"
+				bind:value={rerank}
+				help="Ekstra steg som sorterer treffene på nytt for bedre relevans, på bekostning av noe høyere søketid. 'Ikke satt' bruker standard oppførsel."
+			/>
+		</div>
 	</div>
 
 	<div class="search-actions">
-		<button onclick={() => search()} disabled={!store._embedded.access.search}>Søk</button>
+		<button class="filled" onclick={() => search()} disabled={!store._embedded.access.search}>Søk</button>
 
 		{#if store._embedded.access.admin}
 			<button onclick={() => saveAsStoreDefaults()} disabled={savingDefaults}>
 				Lagre som standard for biblioteket
 			</button>
 			{#if saveDefaultsMessage}
-				<span class="save-message">{saveDefaultsMessage}</span>
+				<span class="rag-muted">{saveDefaultsMessage}</span>
 			{/if}
 		{/if}
 	</div>
 </div>
 
 {#if responses.length > 0}
-	<table class="results">
+	<table class="rag-table results">
 		<thead>
 			<tr>
 				<th>Tekst</th>
@@ -171,6 +206,7 @@
 							<button onclick={cancelEdit}>Avbryt</button>
 						{:else}
 							<button
+								class="icon-button"
 								onclick={() => startEdit(response)}
 								disabled={!response.id || !store._embedded.access.upload}
 								title={!response.id ? "Mangler chunk-id i søkeresultat" : "Rediger"}
@@ -178,10 +214,10 @@
 								<span class="material-symbols-outlined">edit</span>
 							</button>
 							<button
+								class="icon-button danger"
 								onclick={() => deleteChunk(response)}
 								disabled={!response.id || !store._embedded.access.upload}
 								title={!response.id ? "Mangler chunk-id i søkeresultat" : "Slett"}
-								class="danger"
 							>
 								<span class="material-symbols-outlined">delete</span>
 							</button>
@@ -193,23 +229,10 @@
 	</table>
 {/if}
 
-
 <style>
-	table {
-		border-collapse: collapse;
-	}
-
-	td, th {
-		border: 1px solid black;
-		min-width: 20px;
-		padding: 5px;
-		text-align: left;
-		vertical-align: top;
-	}
-
 	div.search-layout {
 		display: flex;
-		gap: 12px;
+		gap: 20px;
 		align-items: flex-start;
 	}
 
@@ -218,9 +241,13 @@
 		height: 100%;
 		box-sizing: border-box;
 		resize: vertical;
+		font: inherit;
+		padding: 8px;
+		border: 1px solid var(--color-primary-30);
+		border-radius: 4px;
 	}
 
-	table.search-options {
+	div.search-options {
 		flex: 1;
 	}
 
@@ -228,17 +255,11 @@
 		display: flex;
 		align-items: center;
 		gap: 12px;
-		margin-top: 8px;
-	}
-
-	span.save-message {
-		font-size: 0.9em;
-		color: #666;
+		margin-top: 20px;
 	}
 
 	table.results {
-		width: 100%;
-		margin-top: 12px;
+		margin-top: 16px;
 	}
 
 	td.text-cell {
@@ -255,7 +276,7 @@
 		margin: 4px 0 0;
 		font-size: 0.75em;
 		color: #888;
-		background: #f5f5f5;
+		background: var(--color-primary-10);
 		padding: 4px 6px;
 		border-radius: 3px;
 		max-height: 80px;
@@ -273,75 +294,8 @@
 		white-space: nowrap;
 	}
 
-	td.actions-cell button {
-		padding: 2px 4px;
-	}
-
 	button.danger {
-		color: #c00;
-	}
-
-	div.add-chunk {
-		margin-top: 20px;
-		display: flex;
-		flex-direction: column;
-		gap: 8px;
-		max-width: 600px;
-	}
-
-	div.add-chunk h4 {
-		margin: 0;
-	}
-
-	div.add-chunk textarea {
-		font: inherit;
-		padding: 6px;
-	}
-
-	div.extra-info {
-		display: flex;
-		flex-direction: column;
-		gap: 4px;
-	}
-
-	span.extra-info-label {
-		font-size: small;
-		color: #666;
-	}
-
-	div.kv-row {
-		display: flex;
-		gap: 6px;
-		align-items: center;
-	}
-
-	div.kv-row input {
-		flex: 1;
-		font: inherit;
-		padding: 3px 6px;
-	}
-
-	div.kv-row button {
-		padding: 2px 4px;
-		background: none;
-		border: none;
-		cursor: pointer;
-		color: #888;
-	}
-
-	div.kv-row button:hover {
-		color: #c00;
-	}
-
-	button.add-field-btn {
-		align-self: flex-start;
-		font-size: small;
-		background: none;
-		border: 1px dashed #aaa;
-		cursor: pointer;
-		padding: 3px 8px;
-		display: flex;
-		align-items: center;
-		gap: 2px;
+		color: var(--color-danger);
+		border-color: var(--color-danger);
 	}
 </style>

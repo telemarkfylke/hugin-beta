@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { RagServiceApi } from "$lib/ragservice/adapters/ragserviceApi"
 	import type { StoreResponse } from "$lib/ragservice/types"
+	import "./ragservice-shared.css"
 
 	const api = new RagServiceApi()
 
@@ -45,7 +46,7 @@
 	}
 </script>
 
-<div class="chunks-form">
+<div class="rag-card chunks-form">
 	<textarea rows="6" bind:value={newChunkText} placeholder="Skriv inn tekst for ny chunk..."></textarea>
 
 	<div class="extra-info">
@@ -54,7 +55,7 @@
 			<div class="kv-row">
 				<input type="text" placeholder="Nøkkel" bind:value={field.key} />
 				<input type="text" placeholder="Verdi" bind:value={field.value} />
-				<button type="button" onclick={() => removeField(i)} title="Fjern felt">
+				<button type="button" class="icon-button" onclick={() => removeField(i)} title="Fjern felt">
 					<span class="material-symbols-outlined">close</span>
 				</button>
 			</div>
@@ -65,7 +66,7 @@
 	</div>
 
 	<div class="form-actions">
-		<button onclick={addChunk} disabled={adding || !newChunkText.trim()}>
+		<button class="filled" onclick={addChunk} disabled={adding || !newChunkText.trim()}>
 			{adding ? "Legger til..." : "Legg til chunk"}
 		</button>
 		{#if successMessage}
@@ -78,20 +79,21 @@
 	div.chunks-form {
 		display: flex;
 		flex-direction: column;
-		gap: 10px;
+		gap: 12px;
 		max-width: 600px;
-		padding-top: 8px;
 	}
 
 	div.chunks-form textarea {
 		font: inherit;
-		padding: 6px;
+		padding: 8px;
+		border: 1px solid var(--color-primary-30);
+		border-radius: 4px;
 	}
 
 	div.extra-info {
 		display: flex;
 		flex-direction: column;
-		gap: 4px;
+		gap: 6px;
 	}
 
 	span.extra-info-label {
@@ -107,32 +109,21 @@
 
 	div.kv-row input {
 		flex: 1;
-		font: inherit;
-		padding: 3px 6px;
-	}
-
-	div.kv-row button {
-		padding: 2px 4px;
-		background: none;
-		border: none;
-		cursor: pointer;
-		color: #888;
-	}
-
-	div.kv-row button:hover {
-		color: #c00;
+		font-family: var(--font-family);
+		padding: 4px 6px;
+		border: 1px solid var(--color-primary-30);
+		border-radius: 4px;
 	}
 
 	button.add-field-btn {
 		align-self: flex-start;
+		height: auto;
 		font-size: small;
 		background: none;
-		border: 1px dashed #aaa;
+		border: 1px dashed var(--color-primary-30);
+		color: var(--color-primary);
 		cursor: pointer;
-		padding: 3px 8px;
-		display: flex;
-		align-items: center;
-		gap: 2px;
+		padding: 4px 8px;
 	}
 
 	div.form-actions {
@@ -143,6 +134,6 @@
 
 	span.success {
 		font-size: small;
-		color: green;
+		color: var(--color-primary);
 	}
 </style>

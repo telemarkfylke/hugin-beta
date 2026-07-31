@@ -31,11 +31,36 @@
 	}
 </script>
 
-<form onsubmit={(e) => { e.preventDefault(); handleUpload(); }}>
-	
-	<div><input id="file-to-upload" type="file" bind:this={fileInput} /></div>
-	<div><label><input type="checkbox" bind:checked={normalizeChuncks} />Normaliser chunks</label></div>
-	<button type="submit" disabled={uploading}>
+<form
+	class="upload-form"
+	onsubmit={(e) => {
+		e.preventDefault();
+		handleUpload();
+	}}
+>
+	<input id="file-to-upload" type="file" bind:this={fileInput} />
+	<label><input type="checkbox" bind:checked={normalizeChuncks} /> Normaliser chunks</label>
+	<button type="submit" class="filled" disabled={uploading}>
 		{uploading ? "Laster opp..." : "Last opp"}
 	</button>
 </form>
+
+<style>
+	form.upload-form {
+		display: flex;
+		align-items: center;
+		gap: 16px;
+		flex-wrap: wrap;
+	}
+
+	form.upload-form label {
+		display: flex;
+		align-items: center;
+		gap: 4px;
+		font-size: 0.9rem;
+	}
+
+	form.upload-form input[type="checkbox"] {
+		accent-color: var(--color-primary);
+	}
+</style>
