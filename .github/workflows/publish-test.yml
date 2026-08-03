@@ -51,7 +51,18 @@ jobs:
           getent hosts "$SCM_HOST" || nslookup "$SCM_HOST" || echo "DNS resolution failed"
           echo "Curling https://$SCM_HOST/api/settings (expect 401 if reachable, auth aside)..."
           curl -v --max-time 20 -o /dev/null -w "\nHTTP status: %{http_code}\nTotal time: %{time_total}s\n" "https://$SCM_HOST/api/settings" || echo "Curl failed to connect"
-
+      - name: Trace Route to SCM Private Endpoint
+        run: |
+          TARGET_IP="10.205.14.138"
+          
+          echo "=== 1. Trace TCP route to 10.205.14.138:443 ==="
+          # Installs traceroute if missing and traces on TCP port 443
+          sudo apt-get update && sudo apt-get install -y traceroute
+          sudo traceroute -T -p 443 $TARGET_IP || true
+      
+          echo "=== 2. Check local interface & routing table ==="
+          ip route get $TARGET_IP
+          
       - name: 'Run Azure Functions Action'
         uses: Azure/functions-action@v1
         id: fa
