@@ -43,6 +43,15 @@ jobs:
         shell: bash
         run: npm run test:unit -- --run
 
+      - name: 'Check Kudu SCM connectivity'
+        shell: bash
+        run: |
+          SCM_HOST="${{ env.APP_NAME }}.scm.azurewebsites.net"
+          echo "Resolving $SCM_HOST..."
+          getent hosts "$SCM_HOST" || nslookup "$SCM_HOST" || echo "DNS resolution failed"
+          echo "Curling https://$SCM_HOST/api/settings (expect 401 if reachable, auth aside)..."
+          curl -v --max-time 20 -o /dev/null -w "\nHTTP status: %{http_code}\nTotal time: %{time_total}s\n" "https://$SCM_HOST/api/settings" || echo "Curl failed to connect"
+
       - name: 'Run Azure Functions Action'
         uses: Azure/functions-action@v1
         id: fa
