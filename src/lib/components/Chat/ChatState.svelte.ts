@@ -47,6 +47,16 @@ const fileToMessageContent = async (file: File, supportedFileTypes: string[], su
 	}
 }
 
+const STORE_CHAT_STORAGE_KEY = "hugin_default_store_chat"
+
+const getDefaultStoreChat = (): boolean => {
+	if (typeof localStorage === "undefined") {
+		return true
+	}
+	const saved = localStorage.getItem(STORE_CHAT_STORAGE_KEY)
+	return saved === null ? true : saved === "true"
+}
+
 const placeHolderConfig: ChatConfig = {
 	_id: "",
 	name: "",
@@ -84,7 +94,7 @@ export class ChatState {
 		}
 	})
 	public streamResponse: boolean = $state(true)
-	public storeChat: boolean = $state(true)
+	public storeChat: boolean = $state(getDefaultStoreChat())
 	public isLoading: boolean = $state(false)
 	public user: AuthenticatedPrincipal
 	public APP_CONFIG: AppConfig
@@ -123,6 +133,13 @@ export class ChatState {
 		this.chat._id = ""
 		this.chat.createdAt = new Date().toISOString()
 		this.chat.updatedAt = new Date().toISOString()
+	}
+
+	public toggleStoreChat = (): void => {
+		this.storeChat = !this.storeChat
+		if (typeof localStorage !== "undefined") {
+			localStorage.setItem(STORE_CHAT_STORAGE_KEY, String(this.storeChat))
+		}
 	}
 
 	public loadChat = async (conversationId: string): Promise<void> => {

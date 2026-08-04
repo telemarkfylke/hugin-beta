@@ -70,11 +70,9 @@
 				<button
 					class="header-action"
 					class:active={!chatState.storeChat}
-					onclick={() => {
-						chatState.storeChat = !chatState.storeChat
-					}}
+					onclick={() => chatState.toggleStoreChat()}
 					title={chatState.storeChat ? "Samtalen lagres" : "Inkognito: samtalen lagres ikke"}
-				>					
+				>
 					Inkognito
 				</button>
 				{#if userCanEditConfig}
