@@ -63,6 +63,7 @@ export type ChatRequest = {
 	inputs: ChatInputItem[]
 	store?: boolean
 	stream?: boolean
+	huginConversationId?:string
 }
 
 export type ChatResponseStream = ReadableStream<Uint8Array>

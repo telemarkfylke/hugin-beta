@@ -284,7 +284,8 @@ export class ChatState {
 			},
 			inputs: [...chatInput, userMessage],
 			stream: this.streamResponse,
-			store: this.storeChat
+			store: this.storeChat,
+			huginConversationId:string
 		}
 
 		this.chat.history.push(userMessage)

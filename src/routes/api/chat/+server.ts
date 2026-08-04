@@ -80,7 +80,7 @@ const supahChat: ApiNextFunction = async ({ requestEvent, user }) => {
 
 			if (matches.length > 0) {
 				const contextText = matches.map((m) => m.text).join("\n\n---\n\n")
-				chatRequest.config.instructions = `${chatRequest.config.instructions ?? ""}\n\nRelevant kontekst fra datakilder:\n\n${contextText}`
+				chatRequest.config.instructions = `${chatRequest.config.instructions ?? ""}\n\n#Relevant kontekst fra datakilder:\n\n${contextText}`
 			}
 		}
 	}
