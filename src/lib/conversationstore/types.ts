@@ -15,11 +15,8 @@ export type NewConversation =  Omit<Conversation, "id">
 
 export type Conversation = {
 	id: string
-	lastUpdated:Date
 	owner: string
-	userInput: ChatInputItem
-	response: ChatResponseObject
-	summary: string	
+	summary?: string	
 	createdAt:Date
 	updatedAt:Date
 }

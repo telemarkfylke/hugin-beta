@@ -1,10 +1,8 @@
 import { logger } from "@vestfoldfylke/loglady"
 import { type Collection, type Db, type Filter, type MongoClient, ObjectId } from "mongodb"
 import { env } from "$env/dynamic/private"
-import { canViewAllChatConfigs } from "$lib/authorization"
 import type { AuthenticatedPrincipal } from "$lib/types/authentication"
 import type { ConversationMessagePair, Conversation, NewConversation, NewConversationMessagePair } from "../../types"
-import { APP_CONFIG } from "$lib/server/app-config/app-config"
 import type { IConversationStore } from "./interface"
 
 
@@ -51,15 +49,10 @@ export class MongoConversationStore implements IConversationStore {
 		const db = await this.getDb()
 		const collection: Collection<DbConversation> = db.collection(this.conversationCollectionName)
 
-		if (canViewAllChatConfigs(principal, APP_CONFIG.APP_ROLES)) {
-			return (await collection.find({}).toArray()).map((config) => ({ ...config, id: config._id.toString() }))
-		}
-
+		// Conversations are private - unlike chat configs, there is no "view all" bypass here.
 		const query: Filter<DbConversation> = { "owner": principal.userId }
-		
-
-		const chatConfigs = await collection.find(query).toArray()
-		return chatConfigs.map((config) => ({ ...config, id: config._id.toString() }))
+		const conversations = await collection.find(query).sort({ updatedAt: -1 }).toArray()
+		return conversations.map((conversation) => ({ ...conversation, id: conversation._id.toString() }))
 	}
 
 	async createConversation(conversation: NewConversation, principal: AuthenticatedPrincipal): Promise<Conversation> {

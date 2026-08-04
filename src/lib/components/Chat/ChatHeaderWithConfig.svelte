@@ -4,6 +4,7 @@
 	import ChatConfigPanel from "./ChatConfigPanel.svelte"
 	import type { ChatState } from "./ChatState.svelte"
 	import ConversationExport from "./ConversationExport.svelte"
+	import ConversationList from "./ConversationList.svelte"
 	import NewChatDialog from "./NewChatDialog.svelte"
 
 	type Props = {
@@ -65,6 +66,17 @@
 				{#if !chatState.APP_CONFIG.CONVERSATION_EXPORT_DISABLED}
 					<ConversationExport bind:chat={chatState.chat} />
 				{/if}
+				<ConversationList bind:chatState />
+				<button
+					class="header-action"
+					class:active={!chatState.storeChat}
+					onclick={() => {
+						chatState.storeChat = !chatState.storeChat
+					}}
+					title={chatState.storeChat ? "Samtalen lagres" : "Inkognito: samtalen lagres ikke"}
+				>					
+					Inkognito
+				</button>
 				{#if userCanEditConfig}
 					<button class="header-action" class:glow={chatState.configEdited} onclick={() => chatState.configMode = true} title="Konfigurer assistent">
 						<span class="material-symbols-rounded">build</span>
@@ -128,6 +140,11 @@
 		opacity: 1;
 		color: var(--color-primary);
 		animation: glow-pulse 2s ease-in-out infinite;
+	}
+	button.header-action.active {
+		opacity: 1;
+		color: var(--color-primary);
+		background-color: var(--color-primary-20);
 	}
 	@keyframes glow-pulse {
 		0%, 100% {

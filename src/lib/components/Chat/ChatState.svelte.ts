@@ -1,4 +1,5 @@
 import { goto } from "$app/navigation"
+import { chatHistoryToInputItems } from "$lib/chat-history"
 import type { AppConfig } from "$lib/types/app-config"
 import type { AuthenticatedPrincipal } from "$lib/types/authentication"
 import type { Chat, ChatConfig, ChatHistory, ChatRequest, ChatResponseObject } from "$lib/types/chat"
@@ -83,7 +84,7 @@ export class ChatState {
 		}
 	})
 	public streamResponse: boolean = $state(true)
-	public storeChat: boolean = $state(false)
+	public storeChat: boolean = $state(true)
 	public isLoading: boolean = $state(false)
 	public user: AuthenticatedPrincipal
 	public APP_CONFIG: AppConfig
@@ -124,107 +125,30 @@ export class ChatState {
 		this.chat.updatedAt = new Date().toISOString()
 	}
 
-	public loadChat = async (chatId: string): Promise<void> => {
-		// Fetch from API and update state
+	public loadChat = async (conversationId: string): Promise<void> => {
 		this.isLoading = true
-		// Sleep
-		await new Promise((resolve) => setTimeout(resolve, 1000))
-		this.isLoading = false
-		// Mocked response
-		const response: Chat = {
-			_id: chatId,
-			createdAt: new Date().toISOString(),
-			updatedAt: new Date().toISOString(),
-			owner: {
-				id: "owner-id-123",
-				name: "Owner Name"
-			},
-			config: {
-				_id: "config-id-123",
-				name: "Example Chat Config",
-				description: "This is an example chat configuration.",
-				vendorId: "OPENAI",
-				project: "DEFAULT",
-				model: "gpt-4",
-				accessGroups: ["all"],
-				type: "private",
-				created: {
-					at: new Date().toISOString(),
-					by: {
-						id: "owner-id-123",
-						name: "Owner Name"
-					}
-				},
-				updated: {
-					at: new Date().toISOString(),
-					by: {
-						id: "owner-id-123",
-						name: "Owner Name"
-					}
+		try {
+			const result = await fetch(`/api/conversations/${conversationId}`)
+			if (!result.ok) {
+				throw new Error(`Failed to load conversation: ${result.status} ${result.statusText}`)
+			}
+			const data: { conversation: { id: string; owner: string; createdAt: string; updatedAt: string }; history: ChatHistory } = await result.json()
+
+			const lastResponse = [...data.history].reverse().find((item): item is ChatResponseObject => item.type === "chat_response")
+
+			this.changeChat({
+				_id: data.conversation.id,
+				config: lastResponse?.config ?? this.chat.config,
+				history: data.history,
+				createdAt: data.conversation.createdAt,
+				updatedAt: data.conversation.updatedAt,
+				owner: {
+					id: data.conversation.owner
 				}
-			},
-			history: [
-				{
-					type: "message.input",
-					role: "user",
-					content: [
-						{
-							type: "input_text",
-							text: "Hello, how are you?"
-						}
-					]
-				},
-				{
-					id: "response-id-123",
-					type: "chat_response",
-					config: {
-						_id: "config-id-123",
-						name: "Example Chat Config",
-						description: "This is an example chat configuration.",
-						vendorId: "OPENAI",
-						project: "DEFAULT",
-						model: "gpt-4",
-						accessGroups: ["all"],
-						type: "private",
-						created: {
-							at: new Date().toISOString(),
-							by: {
-								id: "owner-id-123",
-								name: "Owner Name"
-							}
-						},
-						updated: {
-							at: new Date().toISOString(),
-							by: {
-								id: "owner-id-123",
-								name: "Owner Name"
-							}
-						}
-					},
-					createdAt: new Date().toISOString(),
-					outputs: [
-						{
-							id: "output-message-id-123",
-							type: "message.output",
-							role: "assistant",
-							content: [
-								{
-									type: "output_text",
-									text: "I'm doing well, thank you!"
-								}
-							]
-						}
-					],
-					status: "completed",
-					usage: {
-						inputTokens: 5,
-						outputTokens: 7,
-						totalTokens: 12
-					}
-				}
-			]
+			})
+		} finally {
+			this.isLoading = false
 		}
-		this.changeChat(response)
 	}
 
 	public promptChat = async (inputText: string, inputFiles: FileList) => {
@@ -259,14 +183,7 @@ export class ChatState {
 			text: inputText
 		})
 
-		const chatInput = this.chat.history
-			.flatMap((chatItem) => {
-				if (chatItem.type === "chat_response") {
-					return chatItem.outputs
-				}
-				return chatItem
-			})
-			.filter((message) => message !== undefined)
+		const chatInput = chatHistoryToInputItems(this.chat.history)
 
 		const webSearchTools: typeof this.chat.config.tools = this.webSearchEnabled
 			? [{ type: "web_search" }, ...(this.chat.config.tools?.filter((t) => t.type !== "web_search") ?? [])]
@@ -282,10 +199,11 @@ export class ChatState {
 				name: this.chat.config.name || this.chat.config.model || "Ukjent navn",
 				tools: activeTools
 			},
-			inputs: [...chatInput, userMessage],
+			// Uten lagring (store=false) har backend ingen historikk å bygge kontekst fra, så da må vi fortsatt sende hele samtalen selv.
+			inputs: this.storeChat ? [userMessage] : [...chatInput, userMessage],
 			stream: this.streamResponse,
 			store: this.storeChat,
-			huginConversationId:string
+			huginConversationId: this.storeChat ? this.chat._id || undefined : undefined
 		}
 
 		this.chat.history.push(userMessage)

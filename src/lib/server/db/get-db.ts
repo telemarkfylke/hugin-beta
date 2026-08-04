@@ -11,7 +11,7 @@ if (env.MOCK_DB === "true") {
 	if (!env.MONGODB_CONNECTION_STRING) {
 		throw new Error("MONGODB_CONNECTION_STRING is not set (du har glemt den)")
 	}
-	const mongoClient = new MongoClient(env.MONGODB_CONNECTION_STRING)
+	const mongoClient = new MongoClient(env.MONGODB_CONNECTION_STRING, { ignoreUndefined: true })
 	chatConfigStore = new MongoChatConfigStore(mongoClient)
 }
 
