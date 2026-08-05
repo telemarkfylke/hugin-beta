@@ -8,7 +8,8 @@ export interface IConversationStore {
 	getConversations(principal: AuthenticatedPrincipal): Promise<Conversation[]>
 	createConversation(conversation: NewConversation, principal: AuthenticatedPrincipal): Promise<Conversation>
 	replaceConversation(conversationId: string, conversation: Conversation, principal: AuthenticatedPrincipal): Promise<Conversation>
-	deleteConversation(conversationId: string, principal: AuthenticatedPrincipal): Promise<void>	
+	deleteConversation(conversationId: string, principal: AuthenticatedPrincipal): Promise<void>
+	updateConversationTitle(conversationId: string, title: string, principal: AuthenticatedPrincipal): Promise<void>
 
 	// Messages
 	appendConversationMessage(conversationId: string, messagePair: NewConversationMessagePair, principal: AuthenticatedPrincipal): Promise<ConversationMessagePair> 

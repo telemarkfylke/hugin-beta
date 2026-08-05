@@ -128,7 +128,18 @@ export class ChatState {
 		this.datasourceEnabled = false
 	}
 
+	// Fire-and-forget - the endpoint is idempotent (no-ops if a title already exists), so callers
+	// never need to know in advance whether one is needed.
+	private requestTitleGeneration = (conversationId: string): void => {
+		fetch(`/api/conversations/${conversationId}/title`, { method: "POST" }).catch((error) => {
+			console.error("Error requesting conversation title generation:", error)
+		})
+	}
+
 	public newChat = (): void => {
+		if (this.chat._id && this.chat.history.length > 0) {
+			this.requestTitleGeneration(this.chat._id)
+		}
 		this.chat.history = []
 		this.chat._id = ""
 		this.chat.createdAt = new Date().toISOString()
@@ -149,7 +160,7 @@ export class ChatState {
 			if (!result.ok) {
 				throw new Error(`Failed to load conversation: ${result.status} ${result.statusText}`)
 			}
-			const data: { conversation: { id: string; owner: string; createdAt: string; updatedAt: string }; history: ChatHistory } = await result.json()
+			const data: { conversation: { id: string; owner: string; title?: string; createdAt: string; updatedAt: string }; history: ChatHistory } = await result.json()
 
 			const lastResponse = [...data.history].reverse().find((item): item is ChatResponseObject => item.type === "chat_response")
 
@@ -163,6 +174,10 @@ export class ChatState {
 					id: data.conversation.owner
 				}
 			})
+
+			if (!data.conversation.title) {
+				this.requestTitleGeneration(data.conversation.id)
+			}
 		} finally {
 			this.isLoading = false
 		}

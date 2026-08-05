@@ -4,6 +4,7 @@
 	type ConversationSummary = {
 		id: string
 		owner: string
+		title?: string
 		summary?: string
 		createdAt: string
 		updatedAt: string
@@ -93,8 +94,8 @@
 			{:else}
 				{#each conversations as conversation (conversation.id)}
 					<div class="conversation-row">
-						<button class="conversation-open" onclick={() => openConversation(conversation.id)}>
-							{formatDate(conversation.updatedAt)}
+						<button class="conversation-open" onclick={() => openConversation(conversation.id)} title={formatDate(conversation.updatedAt)}>
+							{conversation.title ?? formatDate(conversation.updatedAt)}
 						</button>
 						<button class="icon-button conversation-delete" title="Slett samtale" onclick={() => deleteConversation(conversation.id)}>
 							<span class="material-symbols-rounded">delete</span>
@@ -119,7 +120,9 @@
 		border: 1px solid var(--color-primary-30);
 		border-radius: 8px;
 		z-index: 10;
-		min-width: 14rem;
+		width: max-content;
+		min-width: 20rem;
+		max-width: 28rem;
 		max-height: 20rem;
 		overflow-y: auto;
 		box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
@@ -139,12 +142,16 @@
 	}
 	.conversation-open {
 		flex: 1;
+		min-width: 0;
 		border: none;
 		border-radius: 0;
 		background: none;
 		padding: 0.6rem 1rem;
 		text-align: left;
 		color: var(--color-primary);
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
 	}
 	.conversation-open:hover {
 		background-color: var(--color-primary-10);

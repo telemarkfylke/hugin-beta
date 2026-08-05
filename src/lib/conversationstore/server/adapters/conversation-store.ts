@@ -19,7 +19,7 @@ export class MongoConversationStore implements IConversationStore {
 		this.mongoClient = mongoClient
 		this.db = mongoDb		
 		this.conversationCollectionName = "conversations"
-		this.messagesCollectionName = "messages"
+		this.messagesCollectionName = "conversation-messages"
 	}
 
 	private async getDb(): Promise<Db> {
@@ -77,12 +77,23 @@ export class MongoConversationStore implements IConversationStore {
 		await collection.deleteOne({ _id: new ObjectId(conversationId), "owner": principal.userId  })
 	}
 
+	async updateConversationTitle(conversationId: string, title: string, principal: AuthenticatedPrincipal): Promise<void> {
+		const db = await this.getDb()
+		const collection: Collection<DbConversation> = db.collection(this.conversationCollectionName)
+		await collection.updateOne({ _id: new ObjectId(conversationId), "owner": principal.userId }, { $set: { title }, $currentDate: { updatedAt: true } })
+	}
+
 	async appendConversationMessage(conversationId: string, messagePair: NewConversationMessagePair, principal: AuthenticatedPrincipal): Promise<ConversationMessagePair> {
 		messagePair.owner = principal.userId
 		messagePair.conversationId = conversationId
 		const db = await this.getDb()
 		const collection: Collection<NewConversationMessagePair> = db.collection(this.messagesCollectionName)
 		const result = await collection.insertOne(messagePair)
+
+		// Keep the conversation's own updatedAt current too, since the "Samtaler" list sorts by it.
+		const conversationCollection: Collection<DbConversation> = db.collection(this.conversationCollectionName)
+		await conversationCollection.updateOne({ _id: new ObjectId(conversationId), "owner": principal.userId }, { $currentDate: { updatedAt: true } })
+
 		return { ...messagePair, id: result.insertedId.toString() }
 	}
 

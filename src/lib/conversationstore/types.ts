@@ -16,7 +16,8 @@ export type NewConversation =  Omit<Conversation, "id">
 export type Conversation = {
 	id: string
 	owner: string
-	summary?: string	
+	title?: string
+	summary?: string
 	createdAt:Date
 	updatedAt:Date
 }

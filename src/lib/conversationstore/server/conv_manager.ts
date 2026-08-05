@@ -1,17 +1,64 @@
-import type { ChatHistory, ChatResponseObject } from "$lib/types/chat";
-import type { Db, MongoClient } from "mongodb";
-import { MongoConversationStore } from "./adapters/conversation-store";
+import type { ChatHistory, ChatRequest, ChatResponseObject } from "$lib/types/chat";
 import type { IConversationStore } from "./adapters/interface";
 import type { AuthenticatedPrincipal } from "$lib/types/authentication";
 import type { Conversation, ConversationMessagePair, NewConversation, NewConversationMessagePair } from "../types";
 import type { ChatInputItem } from "$lib/types/chat-item";
+import type { OutputText } from "$lib/types/chat-item-content";
+import { chatHistoryToInputItems } from "$lib/chat-history";
+import { getVendor } from "$lib/server/ai-vendors";
+
+const TITLE_INSTRUCTION =
+	"Lag en kort, presis tittel (maks 6 ord) som oppsummerer denne samtalen. Svar kun med selve tittelen - ingen anførselstegn, ingen avsluttende punktum, ingen annen tekst."
+
+const extractResponseText = (response: ChatResponseObject): string => {
+	return response.outputs
+		.flatMap((output) => (output.type === "message.output" ? output.content : []))
+		.filter((content): content is OutputText => content.type === "output_text")
+		.map((content) => content.text)
+		.join("")
+}
 
 export class ConversationManager {
 
 	private converationStore:IConversationStore
-	
-	constructor(mongoClient: MongoClient, mongoDb: Db | null){
-		this.converationStore = new MongoConversationStore(mongoClient, mongoDb) 
+
+	constructor(conversationStore: IConversationStore){
+		this.converationStore = conversationStore
+	}
+
+	public async generateTitle(conversationId: string, principal: AuthenticatedPrincipal): Promise<void> {
+		const conversation = await this.converationStore.getConversation(conversationId, principal)
+		if (!conversation || conversation.title) {
+			return // Doesn't exist, or already has a title - nothing to do.
+		}
+
+		const history = await this.getChatHistoryFromDb(conversationId, principal)
+		const lastResponse = [...history].reverse().find((item): item is ChatResponseObject => item.type === "chat_response")
+		if (!lastResponse) {
+			return // No response yet to base a title on.
+		}
+
+		// Reuse whatever vendor/model this conversation is already using - no need for a separate "cheap model" path.
+		const titleRequest: ChatRequest = {
+			config: lastResponse.config,
+			inputs: [
+				...chatHistoryToInputItems(history),
+				{
+					type: "message.input",
+					role: "developer",
+					content: [{ type: "input_text", text: TITLE_INSTRUCTION }]
+				}
+			],
+			stream: false
+		}
+
+		const vendor = getVendor(lastResponse.config.vendorId)
+		const response = await vendor.createChatResponse(titleRequest)
+		const title = extractResponseText(response).trim()
+
+		if (title) {
+			await this.converationStore.updateConversationTitle(conversationId, title, principal)
+		}
 	}
 
 	public async generateSummary(conversationId: number){
