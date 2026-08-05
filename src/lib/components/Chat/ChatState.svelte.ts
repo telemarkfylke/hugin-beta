@@ -46,6 +46,8 @@ const fileToMessageContent = async (file: File, supportedFileTypes: string[], su
 	}
 }
 
+const supportsWebSearch = (config: ChatConfig): boolean => config.vendorId === "OPENAI" || config.vendorId === "MISTRAL"
+
 const placeHolderConfig: ChatConfig = {
 	_id: "",
 	name: "",
@@ -90,7 +92,7 @@ export class ChatState {
 	public configMode: boolean = $state(false)
 	public initialConfig: ChatConfig = $state(placeHolderConfig)
 	public configEdited: boolean = $derived(JSON.stringify(this.chat.config) !== JSON.stringify(this.initialConfig))
-	public webSearchEnabled: boolean = $state(false)
+	public webSearchEnabled: boolean = $state(true)
 	public datasourceEnabled: boolean = $state(false)
 
 	constructor(chat: Chat, user: AuthenticatedPrincipal, appConfig: AppConfig) {
@@ -113,7 +115,7 @@ export class ChatState {
 		this.chat.updatedAt = chat.updatedAt
 		this.chat.owner = chat.owner
 		this.initialConfig = JSON.parse(JSON.stringify(chat.config))
-		this.webSearchEnabled = false
+		this.webSearchEnabled = supportsWebSearch(chat.config)
 		this.datasourceEnabled = false
 	}
 
@@ -268,9 +270,10 @@ export class ChatState {
 			})
 			.filter((message) => message !== undefined)
 
-		const webSearchTools: typeof this.chat.config.tools = this.webSearchEnabled
-			? [{ type: "web_search" }, ...(this.chat.config.tools?.filter((t) => t.type !== "web_search") ?? [])]
-			: this.chat.config.tools?.filter((t) => t.type !== "web_search")
+		const webSearchTools: typeof this.chat.config.tools =
+			this.webSearchEnabled && supportsWebSearch(this.chat.config)
+				? [{ type: "web_search" }, ...(this.chat.config.tools?.filter((t) => t.type !== "web_search") ?? [])]
+				: this.chat.config.tools?.filter((t) => t.type !== "web_search")
 
 		const hasDatasources = (this.chat.config.dataSources?.length ?? 0) > 0
 		const activeTools: typeof this.chat.config.tools =
