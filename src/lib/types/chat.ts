@@ -92,6 +92,7 @@ export type ChatHistory = ChatHistoryItem[]
 
 export type Chat = {
 	_id: string
+	title?: string | undefined
 	config: ChatConfig
 	history: ChatHistory
 	createdAt: string

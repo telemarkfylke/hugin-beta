@@ -118,6 +118,7 @@ export class ChatState {
 			throw new Error("Chat config must have either a vendorAgent id or a model defined")
 		}
 		this.chat._id = chat._id
+		this.chat.title = chat.title
 		this.chat.config = chat.config
 		this.chat.history = chat.history
 		this.chat.createdAt = chat.createdAt
@@ -137,7 +138,7 @@ export class ChatState {
 	}
 
 	public newChat = (): void => {
-		if (this.chat._id && this.chat.history.length > 0) {
+		if (this.chat._id && !this.chat.title && this.chat.history.length > 0) {
 			this.requestTitleGeneration(this.chat._id)
 		}
 		this.chat.history = []
@@ -166,6 +167,7 @@ export class ChatState {
 
 			this.changeChat({
 				_id: data.conversation.id,
+				title: data.conversation.title,
 				config: lastResponse?.config ?? this.chat.config,
 				history: data.history,
 				createdAt: data.conversation.createdAt,
