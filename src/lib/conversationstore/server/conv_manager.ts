@@ -26,16 +26,16 @@ export class ConversationManager {
 		this.converationStore = conversationStore
 	}
 
-	public async generateTitle(conversationId: string, principal: AuthenticatedPrincipal): Promise<void> {
+	public async generateTitle(conversationId: string, principal: AuthenticatedPrincipal): Promise<string | null> {
 		const conversation = await this.converationStore.getConversation(conversationId, principal)
 		if (!conversation || conversation.title) {
-			return // Doesn't exist, or already has a title - nothing to do.
+			return conversation?.title ?? null // Doesn't exist, or already has a title - nothing to do.
 		}
 
 		const history = await this.getChatHistoryFromDb(conversationId, principal)
 		const lastResponse = [...history].reverse().find((item): item is ChatResponseObject => item.type === "chat_response")
 		if (!lastResponse) {
-			return // No response yet to base a title on.
+			return null // No response yet to base a title on.
 		}
 
 		// Reuse whatever vendor/model this conversation is already using - no need for a separate "cheap model" path.
@@ -56,9 +56,11 @@ export class ConversationManager {
 		const response = await vendor.createChatResponse(titleRequest)
 		const title = extractResponseText(response).trim()
 
-		if (title) {
-			await this.converationStore.updateConversationTitle(conversationId, title, principal)
+		if (!title) {
+			return null
 		}
+		await this.converationStore.updateConversationTitle(conversationId, title, principal)
+		return title
 	}
 
 	public async generateSummary(conversationId: number){

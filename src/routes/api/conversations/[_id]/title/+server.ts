@@ -17,15 +17,16 @@ const generateConversationTitle: ApiNextFunction = async ({ requestEvent, user }
 		throw new HTTPError(400, "_id parameter is required")
 	}
 
+	let title: string | null = null
 	try {
-		await getConversationManager().generateTitle(conversationId, user)
+		title = await getConversationManager().generateTitle(conversationId, user)
 	} catch (error) {
 		logger.errorException(error, "Failed to generate conversation title")
 	}
 
 	return {
 		isAuthorized: true,
-		response: json({ message: "Title generation requested" })
+		response: json({ title })
 	}
 }
 

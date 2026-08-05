@@ -130,11 +130,23 @@ export class ChatState {
 	}
 
 	// Fire-and-forget - the endpoint is idempotent (no-ops if a title already exists), so callers
-	// never need to know in advance whether one is needed.
+	// never need to know in advance whether one is needed. If the user is still looking at the
+	// same conversation once the (real, LLM-backed) response comes back, reflect the title right away
+	// instead of waiting for the next time the conversation list happens to be reopened.
 	private requestTitleGeneration = (conversationId: string): void => {
-		fetch(`/api/conversations/${conversationId}/title`, { method: "POST" }).catch((error) => {
-			console.error("Error requesting conversation title generation:", error)
-		})
+		fetch(`/api/conversations/${conversationId}/title`, { method: "POST" })
+			.then(async (result) => {
+				if (!result.ok) {
+					return
+				}
+				const data: { title: string | null } = await result.json()
+				if (data.title && this.chat._id === conversationId) {
+					this.chat.title = data.title
+				}
+			})
+			.catch((error) => {
+				console.error("Error requesting conversation title generation:", error)
+			})
 	}
 
 	public newChat = (): void => {
