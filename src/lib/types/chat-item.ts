@@ -17,8 +17,14 @@ export type ChatOutputMessage = {
 	content: Array<ChatOutputMessageContent>
 }
 
+export type ChatSummary = {
+	type: "message.summary"
+	role: "system"
+	content: string
+}
+
 export type ChatInputItem = ChatInputMessage | ChatOutputMessage
 
 export type ChatOutputItem = ChatOutputMessage
 
-export type ChatItem = ChatInputItem | ChatOutputItem
+export type ChatItem = ChatInputItem | ChatOutputItem | ChatSummary

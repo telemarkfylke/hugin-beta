@@ -1,41 +1,7 @@
 import { invalidateAll } from "$app/navigation"
+import { addMessageDeltaToChatItem, applyChatSseEventToResponseObject } from "$lib/chat-response-builder"
 import { parseSse } from "$lib/streaming"
 import type { Chat, ChatRequest, ChatResponseObject } from "$lib/types/chat"
-import type { ChatOutputMessage } from "$lib/types/chat-item"
-
-export const addMessageDeltaToChatItem = (chatResponseObject: ChatResponseObject, itemId: string, messageDelta: string): ChatOutputMessage => {
-	if (!chatResponseObject?.outputs || !Array.isArray(chatResponseObject.outputs)) {
-		throw new Error("No chatResponseObject.outputs to add message delta to")
-	}
-	if (!itemId) {
-		throw new Error("No message ID provided for agent message delta")
-	}
-	if (!messageDelta) {
-		throw new Error("No message delta content provided")
-	}
-	let outputMessage = chatResponseObject.outputs.find((output) => output.type === "message.output" && output.id === itemId) as ChatOutputMessage | undefined
-	if (!outputMessage) {
-		outputMessage = {
-			id: itemId,
-			type: "message.output",
-			role: "assistant",
-			content: [
-				{
-					type: "output_text",
-					text: ""
-				}
-			]
-		}
-		chatResponseObject.outputs.push(outputMessage)
-	}
-	const messageContent = outputMessage.content[0] // Since we create it ourselves above, it's the first one (for now at least...)
-	if (!messageContent || messageContent.type !== "output_text") {
-		throw new Error("Agent message content is not of type output_text - what? Devs messed up")
-	}
-	// console.log("Adding message delta to output message ID:", itemId, "Delta:", messageDelta)
-	messageContent.text += messageDelta
-	return outputMessage
-}
 
 export const postChatMessage = async (chatRequest: ChatRequest, chatResponseObject: ChatResponseObject, chat: Chat) => {
 	try {
@@ -82,47 +48,15 @@ export const postChatMessage = async (chatRequest: ChatRequest, chatResponseObje
 				for (const chatResult of chatResponse) {
 					switch (chatResult.event) {
 						case "conversation.created": {
-							console.log("Conversation created with ID:", chatResult.data.conversationId)
 							chat.config.conversationId = chatResult.data.conversationId // Trolig ikke greit i følge svelte... siden vi endrer state i en annet scope enn den som eier staten
 							break
 						}
-						case "response.started": {
-							const { responseId } = chatResult.data
-							console.log("Response started with ID:", chatResult.data.responseId)
-							chatResponseObject.id = responseId
-							chatResponseObject.status = "in_progress"
-							break
-						}
-						case "response.output_text.delta": {
-							addMessageDeltaToChatItem(chatResponseObject, chatResult.data.itemId, chatResult.data.content)
-							break
-						}
-						case "response.searching": {
-							chatResponseObject.status = "searching"
-							break
-						}
-						case "response.done": {
-							console.log("Response done. Total tokens used:", chatResult.data.usage.totalTokens)
-							chatResponseObject.status = "completed"
-							chatResponseObject.usage = chatResult.data.usage
-							break
-						}
-						case "response.annotations": {
-							const outputMessage = chatResponseObject.outputs.find((o) => o.type === "message.output" && o.id === chatResult.data.itemId)
-							if (outputMessage?.type === "message.output" && outputMessage.content[0]?.type === "output_text") {
-								const existing = outputMessage.content[0].annotations ?? []
-								outputMessage.content[0].annotations = [...existing, ...chatResult.data.annotations]
-							}
-							break
-						}
-						case "response.error": {
-							console.error("Response error:", chatResult.data.code, chatResult.data.message)
-							addMessageDeltaToChatItem(chatResponseObject, `error_${Date.now()}`, `\n\n[Error: ${chatResult.data.message}]`)
-							chatResponseObject.status = "failed"
+						case "hugin_conversation.created": {
+							chat._id = chatResult.data.huginConversationId // Samme som over - endrer state utenfor eierscopet
 							break
 						}
 						default: {
-							console.warn("Unhandled chat result event:", chatResult.event)
+							applyChatSseEventToResponseObject(chatResponseObject, chatResult)
 							break
 						}
 					}

@@ -1,4 +1,5 @@
 import { goto } from "$app/navigation"
+import { chatHistoryToInputItems } from "$lib/chat-history"
 import type { AppConfig } from "$lib/types/app-config"
 import type { AuthenticatedPrincipal } from "$lib/types/authentication"
 import type { Chat, ChatConfig, ChatHistory, ChatRequest, ChatResponseObject } from "$lib/types/chat"
@@ -46,6 +47,16 @@ const fileToMessageContent = async (file: File, supportedFileTypes: string[], su
 	}
 }
 
+const STORE_CHAT_STORAGE_KEY = "hugin_default_store_chat"
+
+const getDefaultStoreChat = (): boolean => {
+	if (typeof localStorage === "undefined") {
+		return true
+	}
+	const saved = localStorage.getItem(STORE_CHAT_STORAGE_KEY)
+	return saved === null ? true : saved === "true"
+}
+
 const placeHolderConfig: ChatConfig = {
 	_id: "",
 	name: "",
@@ -83,7 +94,7 @@ export class ChatState {
 		}
 	})
 	public streamResponse: boolean = $state(true)
-	public storeChat: boolean = $state(false)
+	public storeChat: boolean = $state(getDefaultStoreChat())
 	public isLoading: boolean = $state(false)
 	public user: AuthenticatedPrincipal
 	public APP_CONFIG: AppConfig
@@ -107,6 +118,7 @@ export class ChatState {
 			throw new Error("Chat config must have either a vendorAgent id or a model defined")
 		}
 		this.chat._id = chat._id
+		this.chat.title = chat.title
 		this.chat.config = chat.config
 		this.chat.history = chat.history
 		this.chat.createdAt = chat.createdAt
@@ -117,114 +129,72 @@ export class ChatState {
 		this.datasourceEnabled = false
 	}
 
+	// Fire-and-forget - the endpoint is idempotent (no-ops if a title already exists), so callers
+	// never need to know in advance whether one is needed. If the user is still looking at the
+	// same conversation once the (real, LLM-backed) response comes back, reflect the title right away
+	// instead of waiting for the next time the conversation list happens to be reopened.
+	private requestTitleGeneration = (conversationId: string): void => {
+		fetch(`/api/conversations/${conversationId}/title`, { method: "POST" })
+			.then(async (result) => {
+				if (!result.ok) {
+					return
+				}
+				const data: { title: string | null } = await result.json()
+				if (data.title && this.chat._id === conversationId) {
+					this.chat.title = data.title
+				}
+			})
+			.catch((error) => {
+				console.error("Error requesting conversation title generation:", error)
+			})
+	}
+
 	public newChat = (): void => {
+		if (this.chat._id && !this.chat.title && this.chat.history.length > 0) {
+			this.requestTitleGeneration(this.chat._id)
+		}
 		this.chat.history = []
 		this.chat._id = ""
 		this.chat.createdAt = new Date().toISOString()
 		this.chat.updatedAt = new Date().toISOString()
 	}
 
-	public loadChat = async (chatId: string): Promise<void> => {
-		// Fetch from API and update state
-		this.isLoading = true
-		// Sleep
-		await new Promise((resolve) => setTimeout(resolve, 1000))
-		this.isLoading = false
-		// Mocked response
-		const response: Chat = {
-			_id: chatId,
-			createdAt: new Date().toISOString(),
-			updatedAt: new Date().toISOString(),
-			owner: {
-				id: "owner-id-123",
-				name: "Owner Name"
-			},
-			config: {
-				_id: "config-id-123",
-				name: "Example Chat Config",
-				description: "This is an example chat configuration.",
-				vendorId: "OPENAI",
-				project: "DEFAULT",
-				model: "gpt-4",
-				accessGroups: ["all"],
-				type: "private",
-				created: {
-					at: new Date().toISOString(),
-					by: {
-						id: "owner-id-123",
-						name: "Owner Name"
-					}
-				},
-				updated: {
-					at: new Date().toISOString(),
-					by: {
-						id: "owner-id-123",
-						name: "Owner Name"
-					}
-				}
-			},
-			history: [
-				{
-					type: "message.input",
-					role: "user",
-					content: [
-						{
-							type: "input_text",
-							text: "Hello, how are you?"
-						}
-					]
-				},
-				{
-					id: "response-id-123",
-					type: "chat_response",
-					config: {
-						_id: "config-id-123",
-						name: "Example Chat Config",
-						description: "This is an example chat configuration.",
-						vendorId: "OPENAI",
-						project: "DEFAULT",
-						model: "gpt-4",
-						accessGroups: ["all"],
-						type: "private",
-						created: {
-							at: new Date().toISOString(),
-							by: {
-								id: "owner-id-123",
-								name: "Owner Name"
-							}
-						},
-						updated: {
-							at: new Date().toISOString(),
-							by: {
-								id: "owner-id-123",
-								name: "Owner Name"
-							}
-						}
-					},
-					createdAt: new Date().toISOString(),
-					outputs: [
-						{
-							id: "output-message-id-123",
-							type: "message.output",
-							role: "assistant",
-							content: [
-								{
-									type: "output_text",
-									text: "I'm doing well, thank you!"
-								}
-							]
-						}
-					],
-					status: "completed",
-					usage: {
-						inputTokens: 5,
-						outputTokens: 7,
-						totalTokens: 12
-					}
-				}
-			]
+	public toggleStoreChat = (): void => {
+		this.storeChat = !this.storeChat
+		if (typeof localStorage !== "undefined") {
+			localStorage.setItem(STORE_CHAT_STORAGE_KEY, String(this.storeChat))
 		}
-		this.changeChat(response)
+	}
+
+	public loadChat = async (conversationId: string): Promise<void> => {
+		this.isLoading = true
+		try {
+			const result = await fetch(`/api/conversations/${conversationId}`)
+			if (!result.ok) {
+				throw new Error(`Failed to load conversation: ${result.status} ${result.statusText}`)
+			}
+			const data: { conversation: { id: string; owner: string; title?: string; createdAt: string; updatedAt: string }; history: ChatHistory } = await result.json()
+
+			const lastResponse = [...data.history].reverse().find((item): item is ChatResponseObject => item.type === "chat_response")
+
+			this.changeChat({
+				_id: data.conversation.id,
+				title: data.conversation.title,
+				config: lastResponse?.config ?? this.chat.config,
+				history: data.history,
+				createdAt: data.conversation.createdAt,
+				updatedAt: data.conversation.updatedAt,
+				owner: {
+					id: data.conversation.owner
+				}
+			})
+
+			if (!data.conversation.title) {
+				this.requestTitleGeneration(data.conversation.id)
+			}
+		} finally {
+			this.isLoading = false
+		}
 	}
 
 	public promptChat = async (inputText: string, inputFiles: FileList) => {
@@ -259,14 +229,7 @@ export class ChatState {
 			text: inputText
 		})
 
-		const chatInput = this.chat.history
-			.flatMap((chatItem) => {
-				if (chatItem.type === "chat_response") {
-					return chatItem.outputs
-				}
-				return chatItem
-			})
-			.filter((message) => message !== undefined)
+		const chatInput = chatHistoryToInputItems(this.chat.history)
 
 		const webSearchTools: typeof this.chat.config.tools = this.webSearchEnabled
 			? [{ type: "web_search" }, ...(this.chat.config.tools?.filter((t) => t.type !== "web_search") ?? [])]
@@ -282,9 +245,11 @@ export class ChatState {
 				name: this.chat.config.name || this.chat.config.model || "Ukjent navn",
 				tools: activeTools
 			},
-			inputs: [...chatInput, userMessage],
+			// Uten lagring (store=false) har backend ingen historikk å bygge kontekst fra, så da må vi fortsatt sende hele samtalen selv.
+			inputs: this.storeChat ? [userMessage] : [...chatInput, userMessage],
 			stream: this.streamResponse,
-			store: this.storeChat
+			store: this.storeChat,
+			huginConversationId: this.storeChat ? this.chat._id || undefined : undefined
 		}
 
 		this.chat.history.push(userMessage)

@@ -63,6 +63,7 @@ export type ChatRequest = {
 	inputs: ChatInputItem[]
 	store?: boolean
 	stream?: boolean
+	huginConversationId?: string | undefined
 }
 
 export type ChatResponseStream = ReadableStream<Uint8Array>
@@ -91,6 +92,7 @@ export type ChatHistory = ChatHistoryItem[]
 
 export type Chat = {
 	_id: string
+	title?: string | undefined
 	config: ChatConfig
 	history: ChatHistory
 	createdAt: string
