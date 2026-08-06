@@ -117,7 +117,7 @@ export class MongoConversationStore implements IConversationStore {
 		const collection: Collection<DbConversationMessagePair> = db.collection(this.messagesCollectionName)
 		const query: Filter<DbConversationMessagePair> = 
 				{ "owner": principal.userId, "conversationId": conversationId, "includedInSummary":false }
-		const conversationMessages = await collection.find(query).sort('createdAt', 'asc' ).toArray()
+		const conversationMessages = await collection.find(query).sort('_id', 'asc' ).toArray()
 		return conversationMessages.map((message) => ({ ...message, id: message._id.toString() }))
 	}
 
