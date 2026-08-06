@@ -1,6 +1,5 @@
-
-import type { AuthenticatedPrincipal } from "../../../types/authentication"
 import type { Conversation, ConversationMessagePair, NewConversation, NewConversationMessagePair } from "$lib/conversationstore/types"
+import type { AuthenticatedPrincipal } from "../../../types/authentication"
 
 export interface IConversationStore {
 	// Conversations
@@ -12,8 +11,8 @@ export interface IConversationStore {
 	updateConversationTitle(conversationId: string, title: string, principal: AuthenticatedPrincipal): Promise<void>
 
 	// Messages
-	appendConversationMessage(conversationId: string, messagePair: NewConversationMessagePair, principal: AuthenticatedPrincipal): Promise<ConversationMessagePair> 
-	getConversationMessages(conversationId: string, last: number | null, cursor: string | null, principal: AuthenticatedPrincipal): Promise<ConversationMessagePair[]> 
-	deleteConversationMessages(conversationId: string, principal: AuthenticatedPrincipal): Promise<void>	
-	getUnsummarizedConversationMessages(conversationId: string, principal: AuthenticatedPrincipal): Promise<ConversationMessagePair[]> 
+	appendConversationMessage(conversationId: string, messagePair: NewConversationMessagePair, principal: AuthenticatedPrincipal): Promise<ConversationMessagePair>
+	getConversationMessages(conversationId: string, last: number | null, cursor: string | null, principal: AuthenticatedPrincipal): Promise<ConversationMessagePair[]>
+	deleteConversationMessages(conversationId: string, principal: AuthenticatedPrincipal): Promise<void>
+	getUnsummarizedConversationMessages(conversationId: string, principal: AuthenticatedPrincipal): Promise<ConversationMessagePair[]>
 }

@@ -16,9 +16,7 @@ export class MockConversationStore implements IConversationStore {
 	}
 
 	async getConversations(principal: AuthenticatedPrincipal): Promise<Conversation[]> {
-		return mockConversations
-			.filter((c) => c.owner === principal.userId)
-			.sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime())
+		return mockConversations.filter((c) => c.owner === principal.userId).sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime())
 	}
 
 	async createConversation(conversation: NewConversation, principal: AuthenticatedPrincipal): Promise<Conversation> {
@@ -62,9 +60,7 @@ export class MockConversationStore implements IConversationStore {
 	}
 
 	async getConversationMessages(conversationId: string, last: number | null, cursor: string | null, principal: AuthenticatedPrincipal): Promise<ConversationMessagePair[]> {
-		let messages = mockMessages
-			.filter((m) => m.conversationId === conversationId && m.owner === principal.userId)
-			.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
+		let messages = mockMessages.filter((m) => m.conversationId === conversationId && m.owner === principal.userId).sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
 
 		if (cursor) {
 			const cursorIndex = messages.findIndex((m) => m.id === cursor)
@@ -77,9 +73,7 @@ export class MockConversationStore implements IConversationStore {
 	}
 
 	async getUnsummarizedConversationMessages(conversationId: string, principal: AuthenticatedPrincipal): Promise<ConversationMessagePair[]> {
-		return mockMessages
-			.filter((m) => m.conversationId === conversationId && m.owner === principal.userId && !m.includedInSummary)
-			.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime())
+		return mockMessages.filter((m) => m.conversationId === conversationId && m.owner === principal.userId && !m.includedInSummary).sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime())
 	}
 
 	async deleteConversationMessages(conversationId: string, principal: AuthenticatedPrincipal): Promise<void> {
