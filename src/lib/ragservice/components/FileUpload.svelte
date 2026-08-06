@@ -26,10 +26,7 @@
 			}
 			const res = await api.uploadFile(storeId, formData, normalizeChuncks)
 			if (!res.ok) {
-				uploadError =
-					res.status === 415
-						? "Filtypen støttes ikke av datakilden"
-						: `Opplasting feilet (${res.status})`
+				uploadError = res.status === 415 ? "Filtypen støttes ikke av datakilden" : `Opplasting feilet (${res.status})`
 				return
 			}
 			onFileUploaded()
