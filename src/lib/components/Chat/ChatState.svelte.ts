@@ -169,10 +169,16 @@ export class ChatState {
 			})
 	}
 
-	public newChat = (): void => {
+	// Untitled conversations only ever get a title when we're about to leave them behind - either
+	// by starting a new one, or by switching to a different conversation from the history list.
+	private requestTitleForAbandonedChat = (): void => {
 		if (this.chat._id && !this.chat.title && this.chat.history.length > 0) {
 			this.requestTitleGeneration(this.chat._id)
 		}
+	}
+
+	public newChat = (): void => {
+		this.requestTitleForAbandonedChat()
 		this.chat.history = []
 		this.chat._id = ""
 		this.chat.createdAt = new Date().toISOString()
@@ -212,6 +218,9 @@ export class ChatState {
 	// or bring its history into the current one - stash it in pendingConversationLoad and let the
 	// UI ask (see LoadConversationDialog + continueWithOriginalAgent/continueWithCurrentAgent).
 	public loadChat = async (conversationId: string): Promise<void> => {
+		if (conversationId !== this.chat._id) {
+			this.requestTitleForAbandonedChat()
+		}
 		this.isLoading = true
 		try {
 			const result = await fetch(`/api/conversations/${conversationId}`)
