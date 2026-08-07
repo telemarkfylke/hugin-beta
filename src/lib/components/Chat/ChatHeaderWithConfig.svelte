@@ -5,6 +5,7 @@
 	import type { ChatState } from "./ChatState.svelte"
 	import ConversationExport from "./ConversationExport.svelte"
 	import ConversationList from "./ConversationList.svelte"
+	import LoadConversationDialog from "./LoadConversationDialog.svelte"
 	import NewChatDialog from "./NewChatDialog.svelte"
 
 	type Props = {
@@ -92,6 +93,8 @@
 <ChatConfigPanel bind:chatState />
 
 <NewChatDialog bind:show={showNewChatDialog} onConfirm={() => chatState.newChat()} />
+
+<LoadConversationDialog bind:chatState />
 
 {#if showDescription}
 	<div class="info-box" transition:slide={{ duration: 200 }}>

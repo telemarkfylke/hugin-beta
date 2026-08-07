@@ -58,6 +58,16 @@ const getDefaultStoreChat = (): boolean => {
 	return saved === null ? true : saved === "true"
 }
 
+// A loaded conversation whose last agent differs from the one we're currently on. Left for the
+// UI to resolve via continueWithOriginalAgent/continueWithCurrentAgent - see loadChat.
+export type PendingConversationLoad = {
+	conversationId: string
+	conversation: { id: string; owner: string; title?: string; createdAt: string; updatedAt: string }
+	history: ChatHistory
+	originalConfig: ChatConfig
+}
+const supportsWebSearch = (config: ChatConfig): boolean => config.vendorId === "OPENAI" || config.vendorId === "MISTRAL"
+
 const placeHolderConfig: ChatConfig = {
 	_id: "",
 	name: "",
@@ -105,8 +115,11 @@ export class ChatState {
 	public configMode: boolean = $state(false)
 	public initialConfig: ChatConfig = $state(placeHolderConfig)
 	public configEdited: boolean = $derived(JSON.stringify(this.chat.config) !== JSON.stringify(this.initialConfig))
-	public webSearchEnabled: boolean = $state(false)
+	public webSearchEnabled: boolean = $state(true)
 	public datasourceEnabled: boolean = $state(false)
+	// Set by loadChat when the conversation being opened last belonged to a different agent than
+	// the one we're currently on - the UI must show a choice before we touch this.chat.
+	public pendingConversationLoad: PendingConversationLoad | null = $state(null)
 
 	constructor(chat: Chat, user: AuthenticatedPrincipal, appConfig: AppConfig) {
 		this.user = user
@@ -133,7 +146,7 @@ export class ChatState {
 		this.chat.updatedAt = chat.updatedAt
 		this.chat.owner = chat.owner
 		this.initialConfig = JSON.parse(JSON.stringify(chat.config))
-		this.webSearchEnabled = false
+		this.webSearchEnabled = supportsWebSearch(chat.config)
 		this.datasourceEnabled = false
 	}
 
@@ -157,10 +170,16 @@ export class ChatState {
 			})
 	}
 
-	public newChat = (): void => {
+	// Untitled conversations only ever get a title when we're about to leave them behind - either
+	// by starting a new one, or by switching to a different conversation from the history list.
+	private requestTitleForAbandonedChat = (): void => {
 		if (this.chat._id && !this.chat.title && this.chat.history.length > 0) {
 			this.requestTitleGeneration(this.chat._id)
 		}
+	}
+
+	public newChat = (): void => {
+		this.requestTitleForAbandonedChat()
 		this.chat.history = []
 		this.chat._id = ""
 		this.chat.createdAt = new Date().toISOString()
@@ -177,7 +196,32 @@ export class ChatState {
 		}
 	}
 
+	private applyLoadedConversation = (conversation: { id: string; owner: string; title?: string; createdAt: string; updatedAt: string }, history: ChatHistory, config: ChatConfig): void => {
+		this.changeChat({
+			_id: conversation.id,
+			title: conversation.title,
+			config,
+			history,
+			createdAt: conversation.createdAt,
+			updatedAt: conversation.updatedAt,
+			owner: {
+				id: conversation.owner
+			}
+		})
+
+		if (!conversation.title) {
+			this.requestTitleGeneration(conversation.id)
+		}
+	}
+
+	// Loads a stored conversation. If it last belonged to a different agent than the one we're
+	// currently on, we don't know yet whether the caller wants to resume it as that original agent
+	// or bring its history into the current one - stash it in pendingConversationLoad and let the
+	// UI ask (see LoadConversationDialog + continueWithOriginalAgent/continueWithCurrentAgent).
 	public loadChat = async (conversationId: string): Promise<void> => {
+		if (conversationId !== this.chat._id) {
+			this.requestTitleForAbandonedChat()
+		}
 		this.isLoading = true
 		try {
 			const result = await fetch(`/api/conversations/${conversationId}`)
@@ -187,25 +231,44 @@ export class ChatState {
 			const data: { conversation: { id: string; owner: string; title?: string; createdAt: string; updatedAt: string }; history: ChatHistory } = await result.json()
 
 			const lastResponse = [...data.history].reverse().find((item): item is ChatResponseObject => item.type === "chat_response")
+			const originalConfig = lastResponse?.config
 
-			this.changeChat({
-				_id: data.conversation.id,
-				title: data.conversation.title,
-				config: lastResponse?.config ?? this.chat.config,
-				history: data.history,
-				createdAt: data.conversation.createdAt,
-				updatedAt: data.conversation.updatedAt,
-				owner: {
-					id: data.conversation.owner
-				}
-			})
-
-			if (!data.conversation.title) {
-				this.requestTitleGeneration(data.conversation.id)
+			const isDifferentAgent = Boolean(originalConfig?._id) && originalConfig?._id !== this.chat.config._id
+			if (isDifferentAgent && originalConfig) {
+				this.pendingConversationLoad = { conversationId, conversation: data.conversation, history: data.history, originalConfig }
+				return
 			}
+
+			this.applyLoadedConversation(data.conversation, data.history, originalConfig ?? this.chat.config)
 		} finally {
 			this.isLoading = false
 		}
+	}
+
+	// Bring the pending conversation's history into the agent we're currently on - its own config
+	// (already authorized for this page) is used going forward, not the conversation's old one.
+	public continueWithCurrentAgent = (): void => {
+		if (!this.pendingConversationLoad) {
+			return
+		}
+		const { conversation, history } = this.pendingConversationLoad
+		this.applyLoadedConversation(conversation, history, this.chat.config)
+		this.pendingConversationLoad = null
+	}
+
+	// Resume the conversation as the agent it originally belonged to - navigate there and let that
+	// page's own load (which re-checks access) pick the conversation back up once it's mounted.
+	public continueWithOriginalAgent = (): void => {
+		if (!this.pendingConversationLoad) {
+			return
+		}
+		const { conversationId, originalConfig } = this.pendingConversationLoad
+		this.pendingConversationLoad = null
+		goto(`/agents/${originalConfig._id}?loadConversation=${conversationId}`)
+	}
+
+	public cancelPendingConversationLoad = (): void => {
+		this.pendingConversationLoad = null
 	}
 
 	public promptChat = async (inputText: string, inputFiles: FileList) => {
@@ -242,9 +305,10 @@ export class ChatState {
 
 		const chatInput = chatHistoryToInputItems(this.chat.history)
 
-		const webSearchTools: typeof this.chat.config.tools = this.webSearchEnabled
-			? [{ type: "web_search" }, ...(this.chat.config.tools?.filter((t) => t.type !== "web_search") ?? [])]
-			: this.chat.config.tools?.filter((t) => t.type !== "web_search")
+		const webSearchTools: typeof this.chat.config.tools =
+			this.webSearchEnabled && supportsWebSearch(this.chat.config)
+				? [{ type: "web_search" }, ...(this.chat.config.tools?.filter((t) => t.type !== "web_search") ?? [])]
+				: this.chat.config.tools?.filter((t) => t.type !== "web_search")
 
 		const hasDatasources = (this.chat.config.dataSources?.length ?? 0) > 0
 		const activeTools: typeof this.chat.config.tools =

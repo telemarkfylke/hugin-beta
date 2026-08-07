@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { RagServiceApi } from "$lib/ragservice/adapters/ragserviceApi"
+	import { RERANK_ENABLED } from "$lib/ragservice/feature-flags"
 	import type { SearchOptions, StoreResponse, VectorMatch, VectorSearch } from "$lib/ragservice/types"
 	import "./ragservice-shared.css"
 	import InfoTooltip from "./InfoTooltip.svelte"
@@ -150,11 +151,13 @@
 					<option value="or">Or</option>
 				</select>
 			</div>
-			<NullableBooleanField
-				label="Rerank"
-				bind:value={rerank}
-				help="Ekstra steg som sorterer treffene på nytt for bedre relevans, på bekostning av noe høyere søketid. 'Ikke satt' bruker standard oppførsel."
-			/>
+			{#if RERANK_ENABLED}
+				<NullableBooleanField
+					label="Rerank"
+					bind:value={rerank}
+					help="Ekstra steg som sorterer treffene på nytt for bedre relevans, på bekostning av noe høyere søketid. 'Ikke satt' bruker standard oppførsel."
+				/>
+			{/if}
 		</div>
 	</div>
 
