@@ -13,6 +13,10 @@
 
 	let { onDone }: Props = $props()
 
+	// TODO: Bare embeddinggemma:300m er reelt støttet foreløpig, så vi skjuler valg av
+	// embedding-modell/dimensjoner i UI inntil flere modeller er på plass. Sett til true for å vise dem igjen.
+	const showEmbeddingModelFields = false
+
 	let methodOptions: EmbeddingModel[] = $state(["embeddinggemma:300m"])
 	let dimensionsOptions: EmbeddingDimensions[] = $state([])
 
@@ -20,7 +24,7 @@
 		name: "",
 		description: "",
 		embeddingMethod: "embeddinggemma:300m",
-		dimensions: 1024,
+		dimensions: 768,
 		searchOptions: null
 	})
 
@@ -81,37 +85,39 @@
 			<span class="rag-field-label">Beskrivelse</span>
 			<input type="text" bind:value={store.description} />
 		</div>
-		<div class="rag-simple-field">
-			<span class="rag-field-label">
-				Method
-				<InfoTooltip
-					text="Embedding-modellen som brukes til å generere vector-representasjoner av tekst i biblioteket. Kan ikke endres etter opprettelse."
-				/>
-			</span>
-			<select
-				bind:value={store.embeddingMethod}
-				onchange={() => {
-					loadDimensions();
-				}}
-			>
-				{#each methodOptions as option}
-					<option value={option}>{option}</option>
-				{/each}
-			</select>
-		</div>
-		<div class="rag-simple-field">
-			<span class="rag-field-label">
-				Dimensions
-				<InfoTooltip
-					text="Antall dimensjoner i vector-representasjonen. Flere dimensjoner kan gi bedre presisjon, men bruker mer lagringsplass. Kan ikke endres etter opprettelse."
-				/>
-			</span>
-			<select bind:value={store.dimensions}>
-				{#each dimensionsOptions as option}
-					<option value={option}>{option}</option>
-				{/each}
-			</select>
-		</div>
+		{#if showEmbeddingModelFields}
+			<div class="rag-simple-field">
+				<span class="rag-field-label">
+					Method
+					<InfoTooltip
+						text="Embedding-modellen som brukes til å generere vector-representasjoner av tekst i biblioteket. Kan ikke endres etter opprettelse."
+					/>
+				</span>
+				<select
+					bind:value={store.embeddingMethod}
+					onchange={() => {
+						loadDimensions();
+					}}
+				>
+					{#each methodOptions as option}
+						<option value={option}>{option}</option>
+					{/each}
+				</select>
+			</div>
+			<div class="rag-simple-field">
+				<span class="rag-field-label">
+					Dimensions
+					<InfoTooltip
+						text="Antall dimensjoner i vector-representasjonen. Flere dimensjoner kan gi bedre presisjon, men bruker mer lagringsplass. Kan ikke endres etter opprettelse."
+					/>
+				</span>
+				<select bind:value={store.dimensions}>
+					{#each dimensionsOptions as option}
+						<option value={option}>{option}</option>
+					{/each}
+				</select>
+			</div>			
+		{/if}		
 	</div>
 
 	<h3 class="rag-section-title">Søkevekting</h3>

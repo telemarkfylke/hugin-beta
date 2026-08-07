@@ -101,10 +101,10 @@
 					<span class="rag-field-label">Beskrivelse</span>
 					<span>{store.description}</span>
 				</div>
-				<div class="rag-simple-field">
+				<!--div class="rag-simple-field">
 					<span class="rag-field-label">Method</span>
 					<span>{store.embeddingMethod}</span>
-				</div>
+				</div-->
 				<div class="rag-simple-field">
 					<span class="rag-field-label">Dimensions</span>
 					<span>{store.dimensions}</span>

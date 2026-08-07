@@ -66,12 +66,15 @@
 				{#if !chatState.APP_CONFIG.CONVERSATION_EXPORT_DISABLED}
 					<ConversationExport bind:chat={chatState.chat} />
 				{/if}
-				<ConversationList bind:chatState />
+				{#if !chatState.forcedIncognito}
+					<ConversationList bind:chatState />
+				{/if}
 				<button
 					class="header-action"
 					class:active={!chatState.storeChat}
 					onclick={() => chatState.toggleStoreChat()}
-					title={chatState.storeChat ? "Samtalen lagres" : "Inkognito: samtalen lagres ikke"}
+					disabled={chatState.forcedIncognito}
+					title={chatState.forcedIncognito ? "Inkognito: samtaler lagres aldri for studenter" : chatState.storeChat ? "Samtalen lagres" : "Inkognito: samtalen lagres ikke"}
 				>
 					Inkognito
 				</button>

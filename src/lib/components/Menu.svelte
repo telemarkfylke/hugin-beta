@@ -12,8 +12,9 @@
 		appName: string
 		isEmployee: boolean
 		canvasEnabled: boolean
+		isStudentOnly: boolean
 	}
-	let { authenticatedUser, appName, isEmployee, canvasEnabled }: Props = $props()
+	let { authenticatedUser, appName, isEmployee, canvasEnabled, isStudentOnly }: Props = $props()
 
 	let menuOpen = $state(true)
 	let menuAgents: { isLoading: boolean; agents: ChatConfig[]; error: string | null } = $state({ isLoading: false, agents: [], error: null })
@@ -184,7 +185,9 @@
 						{#if canvasEnabled}
 							<a class="menu-item" class:active={page.url.pathname === "/canvas"} href="/canvas">Kladdeboka</a>
 						{/if}
-						<a class="menu-item" class:active={page.url.pathname === "/ragservice"} href="/ragservice">Datakilder</a>
+						{#if !isStudentOnly}
+							<a class="menu-item" class:active={page.url.pathname === "/ragservice"} href="/ragservice">Datakilder</a>
+						{/if}
 					</div>
 				</div>
 			{/if}

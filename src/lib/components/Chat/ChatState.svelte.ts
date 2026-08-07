@@ -1,4 +1,5 @@
 import { goto } from "$app/navigation"
+import { isStudentOnly } from "$lib/authorization"
 import { chatHistoryToInputItems } from "$lib/chat-history"
 import type { AppConfig } from "$lib/types/app-config"
 import type { AuthenticatedPrincipal } from "$lib/types/authentication"
@@ -98,6 +99,9 @@ export class ChatState {
 	public isLoading: boolean = $state(false)
 	public user: AuthenticatedPrincipal
 	public APP_CONFIG: AppConfig
+	// Students-only accounts (role STUDENT and nothing else) never get their conversations stored -
+	// forced incognito, no toggle, no history. See isStudentOnly in $lib/authorization.
+	public forcedIncognito: boolean = $state(false)
 	public configMode: boolean = $state(false)
 	public initialConfig: ChatConfig = $state(placeHolderConfig)
 	public configEdited: boolean = $derived(JSON.stringify(this.chat.config) !== JSON.stringify(this.initialConfig))
@@ -107,6 +111,10 @@ export class ChatState {
 	constructor(chat: Chat, user: AuthenticatedPrincipal, appConfig: AppConfig) {
 		this.user = user
 		this.APP_CONFIG = appConfig
+		this.forcedIncognito = isStudentOnly(user, appConfig.APP_ROLES)
+		if (this.forcedIncognito) {
+			this.storeChat = false
+		}
 		this.changeChat(chat)
 	}
 
@@ -160,6 +168,9 @@ export class ChatState {
 	}
 
 	public toggleStoreChat = (): void => {
+		if (this.forcedIncognito) {
+			return
+		}
 		this.storeChat = !this.storeChat
 		if (typeof localStorage !== "undefined") {
 			localStorage.setItem(STORE_CHAT_STORAGE_KEY, String(this.storeChat))

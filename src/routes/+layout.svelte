@@ -5,6 +5,7 @@
 	import favicon32 from "$lib/assets/favicon-32x32.png"
 	import "../style.css" // Add global css (and make it hot reload)
 	import "../lib/axe.js"
+	import { isStudentOnly } from "$lib/authorization"
 	import Menu from "$lib/components/Menu.svelte"
 	import type { LayoutProps } from "./$types.js"
 
@@ -32,7 +33,13 @@
 </svelte:head>
 
 <main>
-	<Menu authenticatedUser={data.authenticatedUser} appName={data.APP_CONFIG.NAME} isEmployee={data.authenticatedUser.roles.includes(data.APP_CONFIG.APP_ROLES.EMPLOYEE)} canvasEnabled={data.APP_CONFIG.CANVAS_ENABLED} />
+	<Menu
+		authenticatedUser={data.authenticatedUser}
+		appName={data.APP_CONFIG.NAME}
+		isEmployee={data.authenticatedUser.roles.includes(data.APP_CONFIG.APP_ROLES.EMPLOYEE)}
+		canvasEnabled={data.APP_CONFIG.CANVAS_ENABLED}
+		isStudentOnly={isStudentOnly(data.authenticatedUser, data.APP_CONFIG.APP_ROLES)}
+	/>
 	<div class="page-content">
 		{#if children}
 			{@render children()}

@@ -1,6 +1,6 @@
 import { json, type RequestHandler } from "@sveltejs/kit"
 import { logger } from "@vestfoldfylke/loglady"
-import { canPromptConfig } from "$lib/authorization"
+import { canPromptConfig, isStudentOnly } from "$lib/authorization"
 import { chatHistoryToInputItems } from "$lib/chat-history"
 import { applyChatSseEventToResponseObject } from "$lib/chat-response-builder"
 import type { ConversationManager } from "$lib/conversationstore/server/conv_manager"
@@ -66,6 +66,12 @@ const supahChat: ApiNextFunction = async ({ requestEvent, user }) => {
 	const body = await requestEvent.request.json()
 
 	const chatRequest = parseChatRequest(body)
+
+	// Students' conversations must never be persisted - enforce server-side regardless of
+	// what the client sent, since the incognito toggle is only hidden/disabled client-side.
+	if (isStudentOnly(user, APP_CONFIG.APP_ROLES)) {
+		chatRequest.store = false
+	}
 
 	if (!canPromptConfig(user, APP_CONFIG, chatRequest.config)) {
 		throw new HTTPError(403, "Not authorized to use this chat configuration")

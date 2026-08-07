@@ -1,5 +1,7 @@
 import { error, type RequestHandler } from "@sveltejs/kit"
 import { env } from "$env/dynamic/private"
+import { isStudentOnly } from "$lib/authorization"
+import { APP_CONFIG } from "$lib/server/app-config/app-config"
 import { MS_AUTH_TOKEN_HEADER } from "$lib/server/auth/auth-constants"
 import { getAuthenticatedPrincipal } from "$lib/server/auth/get-authenticated-user"
 import { getUserGroups } from "$lib/server/auth/get-user-groups"
@@ -16,6 +18,13 @@ async function proxyToRag(request: Request, path: string, url: URL): Promise<Res
 		error(401, "Ikke autentisert")
 	}
 	const userId = principal.userId
+
+	// Students don't have access to data sources yet - not just to existing libraries (those are
+	// already gated per-store via AccessRow), but they could otherwise create their own libraries
+	// too, which nothing else here would stop. Block the whole proxy for them.
+	if (isStudentOnly(principal, APP_CONFIG.APP_ROLES)) {
+		error(403, "Ikke tilgang til datakilder")
+	}
 
 	if (env.MOCK_AUTH === "true") {
 		if (!env.RAGSERVICE_TOKEN) error(500, "RAGSERVICE_TOKEN er ikke satt i .env for lokal utvikling")
