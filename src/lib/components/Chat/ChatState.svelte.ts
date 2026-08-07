@@ -66,6 +66,7 @@ export type PendingConversationLoad = {
 	history: ChatHistory
 	originalConfig: ChatConfig
 }
+const supportsWebSearch = (config: ChatConfig): boolean => config.vendorId === "OPENAI" || config.vendorId === "MISTRAL"
 
 const placeHolderConfig: ChatConfig = {
 	_id: "",
@@ -114,7 +115,7 @@ export class ChatState {
 	public configMode: boolean = $state(false)
 	public initialConfig: ChatConfig = $state(placeHolderConfig)
 	public configEdited: boolean = $derived(JSON.stringify(this.chat.config) !== JSON.stringify(this.initialConfig))
-	public webSearchEnabled: boolean = $state(false)
+	public webSearchEnabled: boolean = $state(true)
 	public datasourceEnabled: boolean = $state(false)
 	// Set by loadChat when the conversation being opened last belonged to a different agent than
 	// the one we're currently on - the UI must show a choice before we touch this.chat.
@@ -145,7 +146,7 @@ export class ChatState {
 		this.chat.updatedAt = chat.updatedAt
 		this.chat.owner = chat.owner
 		this.initialConfig = JSON.parse(JSON.stringify(chat.config))
-		this.webSearchEnabled = false
+		this.webSearchEnabled = supportsWebSearch(chat.config)
 		this.datasourceEnabled = false
 	}
 
@@ -304,9 +305,10 @@ export class ChatState {
 
 		const chatInput = chatHistoryToInputItems(this.chat.history)
 
-		const webSearchTools: typeof this.chat.config.tools = this.webSearchEnabled
-			? [{ type: "web_search" }, ...(this.chat.config.tools?.filter((t) => t.type !== "web_search") ?? [])]
-			: this.chat.config.tools?.filter((t) => t.type !== "web_search")
+		const webSearchTools: typeof this.chat.config.tools =
+			this.webSearchEnabled && supportsWebSearch(this.chat.config)
+				? [{ type: "web_search" }, ...(this.chat.config.tools?.filter((t) => t.type !== "web_search") ?? [])]
+				: this.chat.config.tools?.filter((t) => t.type !== "web_search")
 
 		const hasDatasources = (this.chat.config.dataSources?.length ?? 0) > 0
 		const activeTools: typeof this.chat.config.tools =
