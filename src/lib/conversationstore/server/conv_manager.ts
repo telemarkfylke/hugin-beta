@@ -1,14 +1,13 @@
-import type { ChatHistory, ChatRequest, ChatResponseObject } from "$lib/types/chat";
-import type { IConversationStore } from "./adapters/interface";
-import type { AuthenticatedPrincipal } from "$lib/types/authentication";
-import type { Conversation, ConversationMessagePair, NewConversation, NewConversationMessagePair } from "../types";
-import type { ChatInputItem } from "$lib/types/chat-item";
-import type { OutputText } from "$lib/types/chat-item-content";
-import { chatHistoryToInputItems } from "$lib/chat-history";
-import { getVendor } from "$lib/server/ai-vendors";
+import { chatHistoryToInputItems } from "$lib/chat-history"
+import { getVendor } from "$lib/server/ai-vendors"
+import type { AuthenticatedPrincipal } from "$lib/types/authentication"
+import type { ChatHistory, ChatRequest, ChatResponseObject } from "$lib/types/chat"
+import type { ChatInputItem } from "$lib/types/chat-item"
+import type { OutputText } from "$lib/types/chat-item-content"
+import type { Conversation, ConversationMessagePair, NewConversation, NewConversationMessagePair } from "../types"
+import type { IConversationStore } from "./adapters/interface"
 
-const TITLE_INSTRUCTION =
-	"Lag en kort, presis tittel (maks 6 ord) som oppsummerer denne samtalen. Svar kun med selve tittelen - ingen anførselstegn, ingen avsluttende punktum, ingen annen tekst."
+const TITLE_INSTRUCTION = "Lag en kort, presis tittel (maks 6 ord) som oppsummerer denne samtalen. Svar kun med selve tittelen - ingen anførselstegn, ingen avsluttende punktum, ingen annen tekst."
 
 const extractResponseText = (response: ChatResponseObject): string => {
 	return response.outputs
@@ -19,10 +18,9 @@ const extractResponseText = (response: ChatResponseObject): string => {
 }
 
 export class ConversationManager {
+	private converationStore: IConversationStore
 
-	private converationStore:IConversationStore
-
-	constructor(conversationStore: IConversationStore){
+	constructor(conversationStore: IConversationStore) {
 		this.converationStore = conversationStore
 	}
 
@@ -63,18 +61,18 @@ export class ConversationManager {
 		return title
 	}
 
-	public async generateSummary(conversationId: number){
+	public async generateSummary(_conversationId: number) {
 		// need to hook up a llm call here
 		// Do this at a later stage
 	}
 
-	public async getChatHistoryFromDb(conversatonId: string, principal: AuthenticatedPrincipal):Promise<ChatHistory> {
-		const result:ChatHistory = []
+	public async getChatHistoryFromDb(conversatonId: string, principal: AuthenticatedPrincipal): Promise<ChatHistory> {
+		const result: ChatHistory = []
 		//const conversation = this.converationStore.getConversation(conversatonId, principal)
 		const messages = await this.converationStore.getUnsummarizedConversationMessages(conversatonId, principal)
-		for(const messagePair of messages){
-			result.push( messagePair.userInput)
-			result.push( messagePair.response)
+		for (const messagePair of messages) {
+			result.push(messagePair.userInput)
+			result.push(messagePair.response)
 		}
 		return result
 	}
@@ -97,18 +95,18 @@ export class ConversationManager {
 		return conversation.id
 	}
 
-	public async appendConversationMessage(conversatonId: string | null, userInput:ChatInputItem, response:ChatResponseObject , principal: AuthenticatedPrincipal):Promise<ConversationMessagePair> {
+	public async appendConversationMessage(conversatonId: string | null, userInput: ChatInputItem, response: ChatResponseObject, principal: AuthenticatedPrincipal): Promise<ConversationMessagePair> {
 		const resolvedConversationId = await this.getOrCreateConversationId(conversatonId, principal)
 
 		const pair: NewConversationMessagePair = {
-			userInput:userInput,
-			response:response,
-			owner:principal.userId,
-			includedInSummary:false,
-			timestamp:new Date,
-			conversationId:resolvedConversationId
+			userInput: userInput,
+			response: response,
+			owner: principal.userId,
+			includedInSummary: false,
+			timestamp: new Date(),
+			conversationId: resolvedConversationId
 		}
-		return await this.converationStore.appendConversationMessage(resolvedConversationId,pair,principal)
+		return await this.converationStore.appendConversationMessage(resolvedConversationId, pair, principal)
 	}
 
 	public async listConversations(principal: AuthenticatedPrincipal): Promise<Conversation[]> {
