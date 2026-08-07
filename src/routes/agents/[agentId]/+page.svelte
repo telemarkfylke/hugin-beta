@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { replaceState } from "$app/navigation"
 	import { page } from "$app/state"
 	import ChatComponent from "$lib/components/Chat/Chat.svelte"
 	import { ChatState } from "$lib/components/Chat/ChatState.svelte"
@@ -29,22 +30,29 @@
 	// Reset the chat only when the url param agentId actually changes
 	$effect(() => {
 		const agentId = page.params.agentId
-		if (agentId === loadedAgentId) {
-			return
+		if (agentId !== loadedAgentId) {
+			loadedAgentId = agentId
+			const newChat: Chat = {
+				_id: "",
+				createdAt: "",
+				updatedAt: "",
+				owner: {
+					id: data.authenticatedUser.userId,
+					name: data.authenticatedUser.name
+				},
+				config: data.agent,
+				history: []
+			}
+			agentChatState.changeChat(newChat)
 		}
-		loadedAgentId = agentId
-		const newChat: Chat = {
-			_id: "",
-			createdAt: "",
-			updatedAt: "",
-			owner: {
-				id: data.authenticatedUser.userId,
-				name: data.authenticatedUser.name
-			},
-			config: data.agent,
-			history: []
+
+		// Picked up after LoadConversationDialog sends us here to resume a conversation as this
+		// agent - runs after the reset above so the loaded conversation wins, not the blank chat.
+		const pendingConversationId = page.url.searchParams.get("loadConversation")
+		if (pendingConversationId) {
+			agentChatState.loadChat(pendingConversationId)
+			replaceState(page.url.pathname, {})
 		}
-		agentChatState.changeChat(newChat)
 	})
 </script>
   <ChatComponent chatState={agentChatState} />
