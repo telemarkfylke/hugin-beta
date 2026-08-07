@@ -1,8 +1,10 @@
 <script lang="ts">
+	import type { Snippet } from "svelte"
 	import { fade } from "svelte/transition"
+	import { simpleMarkdownFormatter } from "$lib/formatting/simple-markdown-formatter"
 	import { dismissSpotlightPermanently, isSpotlightDismissed } from "$lib/util/spotlight-util"
 
-	type FixedPlacement = "center" | "top-right" | "bottom-right" | "bottom-left" | "top-left"
+	type FixedPlacement = "center" | "top-center" | "top-right" | "bottom-right" | "bottom-left" | "top-left"
 	type AnchorSide = "top" | "bottom" | "left" | "right"
 	type Coords = { top: number; left: number; transform: string }
 
@@ -13,11 +15,13 @@
 		text: string
 		subtext?: string
 		active?: boolean
+		backdrop?: boolean
 		placement?: FixedPlacement
 		anchor?: HTMLElement | null
 		anchorSide?: AnchorSide
 		anchorOffset?: number
 		onDismiss?: () => void
+		children?: Snippet
 	}
 
 	let {
@@ -27,23 +31,25 @@
 		text,
 		subtext,
 		active = true,
+		backdrop = false,
 		placement = "bottom-right",
 		anchor = null,
 		anchorSide = "bottom",
 		anchorOffset = 10,
-		onDismiss
+		onDismiss,
+		children
 	}: Props = $props()
 
-	let dismissedPermanently = $state(false)
+	// Computed synchronously (not in an $effect) so the very first render already
+	// reflects dismissal state - an $effect only runs after that first render commits,
+	// which would flash the box visible for a frame before hiding it.
+	let dismissedPermanently = $derived(isSpotlightDismissed(id))
 	let closedThisSession = $state(false)
 	let dontShowAgain = $state(false)
 	let coords: Coords | null = $state(null)
 
-	$effect(() => {
-		dismissedPermanently = isSpotlightDismissed(id)
-	})
-
 	let visible = $derived(active && !dismissedPermanently && !closedThisSession)
+	let renderedText = $derived(simpleMarkdownFormatter(text))
 
 	$effect(() => {
 		if (!visible || !anchor) {
@@ -92,10 +98,14 @@
 </script>
 
 {#if visible && (!anchor || coords)}
+	{#if backdrop}
+		<div class="spotlight-backdrop" transition:fade={{ duration: 150 }}></div>
+	{/if}
 	<div
 		class="spotlight"
 		class:anchored={!!anchor}
 		class:center={!anchor && placement === "center"}
+		class:top-center={!anchor && placement === "top-center"}
 		class:top-right={!anchor && placement === "top-right"}
 		class:bottom-right={!anchor && placement === "bottom-right"}
 		class:bottom-left={!anchor && placement === "bottom-left"}
@@ -116,10 +126,15 @@
 			{/if}
 			<div class="spotlight-text">
 				<h4>{header}</h4>
-				<p>{text}</p>
+				<div class="spotlight-body">{@html renderedText}</div>
 				{#if subtext}<p class="spotlight-subtext">{subtext}</p>{/if}
 			</div>
 		</div>
+		{#if children}
+			<div class="spotlight-extra">
+				{@render children()}
+			</div>
+		{/if}
 		<label class="checkbox-label">
 			<input type="checkbox" bind:checked={dontShowAgain} />
 			Ikke vis denne igjen
@@ -128,6 +143,14 @@
 {/if}
 
 <style>
+	.spotlight-backdrop {
+		position: fixed;
+		inset: 0;
+		z-index: 149;
+		background-color: rgba(0, 0, 0, 0.15);
+		backdrop-filter: blur(2px);
+	}
+
 	.spotlight {
 		position: fixed;
 		z-index: 150;
@@ -142,6 +165,11 @@
 		gap: 0.75rem;
 	}
 
+	.spotlight.top-center {
+		top: 5rem;
+		left: 50%;
+		transform: translateX(-50%);
+	}
 	.spotlight.top-right {
 		top: 1rem;
 		right: 1rem;
@@ -206,6 +234,39 @@
 		margin: 0;
 		font-size: 0.9rem;
 		line-height: 1.4;
+	}
+
+	.spotlight-body :global(p) {
+		margin: 0 0 0.5rem 0;
+		font-size: 0.9rem;
+		line-height: 1.4;
+	}
+	.spotlight-body :global(p:last-child) {
+		margin-bottom: 0;
+	}
+
+	/* Deliberately does NOT mimic a real button (no pointer cursor, no hover state) -
+	   this is a reference chip for "this is what to look for", not a clickable control. */
+	.spotlight-body :global(.spotlight-pill) {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.2rem;
+		background-color: var(--color-primary-10);
+		color: var(--color-primary);
+		border-radius: 4px;
+		padding: 0.05rem 0.4rem;
+		font-weight: 600;
+		white-space: nowrap;
+		cursor: default;
+	}
+	.spotlight-body :global(.spotlight-pill .material-symbols-rounded) {
+		font-size: 1em;
+		vertical-align: -0.15em;
+	}
+
+	.spotlight-extra {
+		display: flex;
+		justify-content: center;
 	}
 
 	.spotlight-subtext {

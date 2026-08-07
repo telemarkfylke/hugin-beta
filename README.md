@@ -31,6 +31,7 @@ Hugin Beta is an internal AI-agent web application designed to provide a democra
   - [Streaming Architecture](#streaming-architecture)
 - [Features](#features)
   - [Canvas](#canvas)
+  - [Feature Spotlight](#feature-spotlight)
 - [Getting Started](#getting-started)
   - [Prerequisites](#prerequisites)
   - [Installation](#installation)
@@ -174,6 +175,109 @@ Canvas is gated behind the `CANVAS_ENABLED` environment variable and requires th
 | `src/routes/canvas/+page.server.ts` | Page load with auth/feature-flag check |
 | `src/routes/api/canvas/+server.ts` | POST endpoint — streams AI response |
 | `src/lib/types/canvas.ts` | Zod request schema |
+
+---
+
+### Feature Spotlight
+
+A generic "hey, look at this new feature" callout for announcing changes to users. It's a non-blocking box with an icon, header, body text, and an optional subtext line, always paired with a "Ikke vis denne igjen" (don't show again) checkbox and a close button. Dismissal is self-managed — the component checks localStorage on mount and simply doesn't render if the user has already opted out, so callers don't need to wire up any `show`/`open` state themselves.
+
+**Simple example** (fixed to a corner of the screen — the common case):
+
+```svelte
+<script lang="ts">
+	import FeatureSpotlight from "$lib/components/FeatureSpotlight.svelte"
+</script>
+
+<FeatureSpotlight
+	id="canvas-feature-2026-08"
+	icon="auto_awesome"
+	header="Nytt: Kladdeboka"
+	text="Nå kan du bruke Kladdeboka til å jobbe med lengre tekster sammen med KI-assistenten."
+	subtext="Du finner den i menyen til venstre."
+/>
+```
+
+`id` is required and must be unique per announcement — it's the key used to remember that this specific spotlight was dismissed. `placement` defaults to `"bottom-right"`, so the example above needs nothing else to show up as a toast in the corner.
+
+**Text formatting:** `text` supports a small set of Markdown — a blank line starts a new paragraph, a single line break becomes a `<br>`, and `**bold**`/`*italic*` work as usual:
+
+```svelte
+<FeatureSpotlight
+	id="canvas-feature-2026-08"
+	header="Nytt: Kladdeboka"
+	text={"Nå kan du bruke Kladdeboka til å jobbe med lengre tekster.\nStøtter **fet** og *kursiv* tekst.\n\nOg flere avsnitt om nødvendig."}
+/>
+```
+
+This is rendered through its own small `markdown-it` instance (`src/lib/formatting/simple-markdown-formatter.ts`), separate from the one used for chat/canvas content — so changing this doesn't affect how AI responses render. `header` and `subtext` are plain text, not Markdown.
+
+**Anchored example** (pinned next to the element it's highlighting, instead of a fixed corner):
+
+```svelte
+<script lang="ts">
+	let configButtonEl: HTMLButtonElement
+</script>
+
+<button bind:this={configButtonEl}>Konfigurer</button>
+
+<FeatureSpotlight
+	id="config-panel-spotlight-2026-08"
+	icon="build"
+	header="Nytt: Konfigurer assistent"
+	text="Du kan nå justere modell og systemprompt direkte her."
+	anchor={configButtonEl}
+	anchorSide="bottom"
+/>
+```
+
+**Pointing at real UI** (e.g. showing a preview of the button an announcement is about): pass a `children` snippet and reuse the site's real markup/classes for it, rather than a screenshot. A screenshot goes stale the moment the real element's icon/label/styling changes; reusing the actual classes from `src/style.css` means the preview always matches and needs no separate asset:
+
+```svelte
+<FeatureSpotlight id="history-feature-2026-08" header="Nytt: Historikk" text="Se tidligere samtaler når du vil.">
+	{#snippet children()}
+		<button class="header-action" type="button" tabindex="-1" aria-hidden="true">
+			<span class="material-symbols-rounded">history</span>
+			Samtaler
+		</button>
+	{/snippet}
+</FeatureSpotlight>
+```
+
+`tabindex="-1"`/`aria-hidden="true"` and no `onclick` keep it a purely decorative, non-interactive preview — it doesn't actually toggle anything. Rendered full-width below the text, centered, before the checkbox.
+
+**Dismissal behavior:**
+
+- Closing via the X button only hides the box for the current page load.
+- Checking "Ikke vis denne igjen" before closing persists the dismissal to `localStorage` (key `hugin_dismissed_spotlights`, a JSON array of ids) so it won't be shown again on that browser.
+
+**Props:**
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `id` | `string` | — | Required. Unique key used to remember dismissal. |
+| `header` | `string` | — | Required. Title text. |
+| `text` | `string` | — | Required. Main body text. Supports a small set of Markdown — see "Text formatting" above. |
+| `icon` | `string` | `undefined` | Optional [Material Symbol](https://fonts.google.com/icons) name shown in a round badge. |
+| `subtext` | `string` | `undefined` | Optional smaller line below the main text. |
+| `active` | `boolean` | `true` | One-way gate — set to `false` to keep it hidden regardless of dismissal state. |
+| `backdrop` | `boolean` | `false` | Adds a subtle darken + blur behind the box. Off by default since most spotlights are non-blocking toasts; turn on for a more attention-grabbing splash (e.g. `placement="center"`/`"top-center"`). Purely visual — the backdrop doesn't dismiss the box on click, matching the checkbox/close-button-only dismissal model. |
+| `placement` | `"center" \| "top-center" \| "top-right" \| "bottom-right" \| "bottom-left" \| "top-left"` | `"bottom-right"` | Fixed screen position. Ignored when `anchor` is set. |
+| `anchor` | `HTMLElement \| null` | `null` | Element to pin the box near instead of using a fixed `placement`. |
+| `anchorSide` | `"top" \| "bottom" \| "left" \| "right"` | `"bottom"` | Which side of the anchor to place the box on. |
+| `anchorOffset` | `number` | `10` | Gap in pixels between the anchor and the box. |
+| `onDismiss` | `() => void` | `undefined` | Called whenever the box is closed, whether or not "don't show again" was checked. |
+| `children` | `Snippet` | `undefined` | Optional extra content rendered below the text, e.g. a preview of a real UI element — see "Pointing at real UI" above. |
+
+**Not yet supported:** auto-flip near a viewport edge, an arrow/pointer pointing at the anchor, and multi-step guided tours. These are deliberately deferred — see the plan/design notes for the cost/benefit of adding them later (a small positioning library like `@floating-ui/dom` for robust anchoring, or a thin wrapper component for multi-step tours).
+
+**Relevant files:**
+
+| File | Purpose |
+|------|---------|
+| `src/lib/components/FeatureSpotlight.svelte` | The component |
+| `src/lib/util/spotlight-util.ts` | localStorage read/write for tracking dismissed spotlight ids |
+| `src/lib/formatting/simple-markdown-formatter.ts` | Renders `text`'s Markdown subset (paragraphs, line breaks, bold, italic) |
 
 ---
 
