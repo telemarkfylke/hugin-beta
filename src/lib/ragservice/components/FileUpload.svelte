@@ -13,23 +13,50 @@
 	let fileInput: HTMLInputElement
 	let uploading = $state(false)
 	let uploadError: string | null = $state(null)
+	let uploadNotice: string | null = $state(null)
+
+	// En gateway/proxy kan gi opp og lukke forbindelsen før datakilden er ferdig med å
+	// behandle filen (embedding tar tid), uten at vi vet om jobben til slutt lykkes eller
+	// feiler. Vi later derfor ikke som vi vet utfallet - vi sier bare at vi ikke fikk svar,
+	// og laster fillisten på nytt (flere ganger) så den faktiske statusen kommer til syne.
+	function isGatewayTimeout(status: number) {
+		return status === 502 || status === 503 || status === 504
+	}
+
+	function refreshRepeatedlyAfterTimeout() {
+		onFileUploaded()
+		setTimeout(onFileUploaded, 15_000)
+		setTimeout(onFileUploaded, 45_000)
+		setTimeout(onFileUploaded, 120_000)
+	}
 
 	async function handleUpload() {
 		if (!fileInput.files || fileInput.files.length === 0) return
 
 		uploading = true
 		uploadError = null
+		uploadNotice = null
 		try {
 			const formData = new FormData()
 			for (let i = 0; i < fileInput.files.length; i++) {
 				formData.append("files[]", fileInput.files[i] as File)
 			}
 			const res = await api.uploadFile(storeId, formData, normalizeChuncks)
-			if (!res.ok) {
-				uploadError = res.status === 415 ? "Filtypen støttes ikke av datakilden" : `Opplasting feilet (${res.status})`
+			if (res.ok) {
+				onFileUploaded()
 				return
 			}
-			onFileUploaded()
+			if (isGatewayTimeout(res.status)) {
+				uploadNotice = "Fikk ikke svar fra datakilden i tide. Se statuskolonnen i filisten under for å følge med på om opplastingen fullføres."
+				refreshRepeatedlyAfterTimeout()
+				return
+			}
+			uploadError = res.status === 415 ? "Filtypen støttes ikke av datakilden" : `Opplasting feilet (${res.status})`
+		} catch {
+			// Nettverksfeil, f.eks. at forbindelsen ble brutt av en proxy/gateway. Samme
+			// resonnement som over: vi vet ikke utfallet, så vi sjekker status i stedet.
+			uploadNotice = "Fikk ikke svar fra datakilden i tide. Se statuskolonnen i filisten under for å følge med på om opplastingen fullføres."
+			refreshRepeatedlyAfterTimeout()
 		} finally {
 			uploading = false
 			fileInput.value = ""
@@ -60,6 +87,10 @@
 	<p class="error">{uploadError}</p>
 {/if}
 
+{#if uploadNotice}
+	<p class="notice">{uploadNotice}</p>
+{/if}
+
 <style>
 	form.upload-form {
 		display: flex;
@@ -70,6 +101,11 @@
 
 	p.error {
 		color: var(--color-danger);
+		margin-top: 12px;
+	}
+
+	p.notice {
+		opacity: 0.75;
 		margin-top: 12px;
 	}
 
