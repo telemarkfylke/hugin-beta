@@ -32,7 +32,12 @@
 		<FileUpload storeId={store.storeId} onFileUploaded={() => loadFiles()} />
 	{/if}
 
-	<h3 class="rag-section-title">Filer</h3>
+	<h3 class="rag-section-title files-title">
+		Filer
+		<button class="icon-button" onclick={loadFiles} title="Oppdater filstatus">
+			<span class="material-symbols-outlined">refresh</span>
+		</button>
+	</h3>
 	<table class="rag-table">
 		<thead>
 			<tr>
@@ -59,5 +64,18 @@
 	button.danger {
 		color: var(--color-danger);
 		border-color: var(--color-danger);
+	}
+
+	.files-title {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+	}
+
+	.files-title button.icon-button {
+		height: 1.6rem;
+		width: 1.6rem;
+		padding: 0;
+		justify-content: center;
 	}
 </style>
