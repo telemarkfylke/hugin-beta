@@ -23,7 +23,7 @@ export async function GET() {
         slidesPath,
         "-o",
         pptxPath,
-        `--reference-doc=${templatePath}`
+        `--reference-doc=${templatePath}` 
     ]);
     // leser inn pptx fila og sender den som nedlastning
     const donwloand_file = await fs.readFile(pptxPath);

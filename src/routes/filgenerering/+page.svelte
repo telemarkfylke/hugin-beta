@@ -1,6 +1,9 @@
 <script>
     import Chat from '$lib/components/Chat/Chat.svelte';
     import GrowingTextArea from '$lib/components/GrowingTextArea.svelte';
+    import path from 'node:path';
+
+
 
     let previewUrl = $state('/filgenerering/pptx/reveal?t=' + Date.now());
     let prompt = $state('');
@@ -25,6 +28,16 @@
         previewUrl = '/filgenerering/pptx/reveal?t=' + Date.now();
     }
 
+
+    async function resetPrompt() {
+        try {
+            const response = await fetch("http://localhost:3000/api/tom-fil", {
+                method: "POST"
+            });
+        } catch (error) {
+            console.error("Feil ved tilbakestilling av prompt:", error);
+        }
+    }
 
     async function sendMessage() {
         console.log("Du trykket på knappen")
@@ -91,6 +104,10 @@
             >
                 {loading ? 'Genererer...' : 'Generer fil'}
             </button>
+
+            <button class="reset_btn" type="button" onclick={resetPrompt}>
+                Reset
+            </button>
         </div>
     </div>
 </main>
@@ -149,5 +166,19 @@
     button.send_btn:disabled {
         opacity: 0.5;
         cursor: not-allowed;
+    }
+
+    .reset_btn {
+        align-self: flex-end;
+        background-color: var(--color-primary);
+        color: white;
+        border: none;
+        border-radius: 4px;
+        padding: 0.5rem 1.25rem;
+        height: 2rem;
+        font-family: inherit;
+        font-size: 0.9rem;
+        cursor: pointer;
+        transition: background-color 0.15s;
     }
 </style>
