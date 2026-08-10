@@ -110,12 +110,7 @@ export class RagServiceApi {
 		return await del(`/stores/${id}`)
 	}
 
-	async uploadFile(
-		storeId: string,
-		formData: FormData,
-		normalizeChuncks: boolean,
-		useOcr: UseOcr = "auto"
-	): Promise<Response> {
+	async uploadFile(storeId: string, formData: FormData, normalizeChuncks: boolean, useOcr: UseOcr = "auto"): Promise<Response> {
 		let url = `${BASE}/stores/${storeId}/textfiles`
 		const params = new URLSearchParams()
 		if (normalizeChuncks) params.set("normalizeChunks", "true")
