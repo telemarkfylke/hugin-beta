@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { RagServiceApi } from "$lib/ragservice/adapters/ragserviceApi"
+	import type { UseOcr } from "$lib/ragservice/types"
 
 	type Props = {
 		storeId: string
@@ -7,6 +8,7 @@
 	}
 
 	let normalizeChuncks: boolean = $state(true)
+	let useOcr: UseOcr = $state("auto")
 	let { storeId, onFileUploaded }: Props = $props()
 
 	const api = new RagServiceApi()
@@ -41,7 +43,7 @@
 			for (let i = 0; i < fileInput.files.length; i++) {
 				formData.append("files[]", fileInput.files[i] as File)
 			}
-			const res = await api.uploadFile(storeId, formData, normalizeChuncks)
+			const res = await api.uploadFile(storeId, formData, normalizeChuncks, useOcr)
 			if (res.ok) {
 				onFileUploaded()
 				return
@@ -78,6 +80,14 @@
 		accept=".txt,.md,.csv,.json,.log,.yaml,.yml,.html,.htm,.xml,.pdf,.docx,.pptx,.xlsx,text/*,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 	/>
 	<label><input type="checkbox" bind:checked={normalizeChuncks} /> Normaliser chunks</label>
+	<label>
+		OCR
+		<select bind:value={useOcr}>
+			<option value="auto">Auto</option>
+			<option value="true">Ja</option>
+			<option value="false">Nei</option>
+		</select>
+	</label>
 	<button type="submit" class="filled" disabled={uploading}>
 		{uploading ? "Laster opp..." : "Last opp"}
 	</button>

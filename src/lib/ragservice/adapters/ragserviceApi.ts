@@ -12,6 +12,7 @@ import type {
 	StoreResponse,
 	UnrestrictedAccess,
 	UpdateStoreValues,
+	UseOcr,
 	VectorMatch,
 	VectorSearch,
 	VectorStoreFile
@@ -109,9 +110,18 @@ export class RagServiceApi {
 		return await del(`/stores/${id}`)
 	}
 
-	async uploadFile(storeId: string, formData: FormData, normalizeChuncks: boolean): Promise<Response> {
+	async uploadFile(
+		storeId: string,
+		formData: FormData,
+		normalizeChuncks: boolean,
+		useOcr: UseOcr = "auto"
+	): Promise<Response> {
 		let url = `${BASE}/stores/${storeId}/textfiles`
-		if (normalizeChuncks) url += "?normalizeChunks=true"
+		const params = new URLSearchParams()
+		if (normalizeChuncks) params.set("normalizeChunks", "true")
+		if (useOcr !== "auto") params.set("useOcr", useOcr)
+		const query = params.toString()
+		if (query) url += `?${query}`
 		return await fetch(url, {
 			method: "POST",
 			body: formData

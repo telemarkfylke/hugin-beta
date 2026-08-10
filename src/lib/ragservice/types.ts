@@ -16,6 +16,7 @@ export type StoreState = {
 
 export type EmbeddingDimensions = 512 | 768 | 1024
 export type EmbeddingModel = "embeddinggemma:300m" | "mock" | "voyage-4-lite" | "voyage-4-large" | "voyage-4" | "voyage-context-3" | "voyage-multimodal-3.5" | "qwen3-embedding"
+export type UseOcr = "true" | "false" | "auto"
 
 export type SearchWeights = {
 	text?: number
