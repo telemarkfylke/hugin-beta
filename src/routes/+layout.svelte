@@ -32,22 +32,30 @@
 	</style>
 </svelte:head>
 
-<main>
-	<Menu
-		authenticatedUser={data.authenticatedUser}
-		appName={data.APP_CONFIG.NAME}
-		isEmployee={data.authenticatedUser.roles.includes(data.APP_CONFIG.APP_ROLES.EMPLOYEE)}
-		canvasEnabled={data.APP_CONFIG.CANVAS_ENABLED}
-		isStudentOnly={isStudentOnly(data.authenticatedUser, data.APP_CONFIG.APP_ROLES)}
-	/>
-	<div class="page-content">
-		{#if children}
-			{@render children()}
-		{:else}
-			<p>fallback content</p>
-		{/if}
-	</div>
-</main>
+{#if data.isEmbedRoute}
+	{#if children}
+		{@render children()}
+	{:else}
+		<p>fallback content</p>
+	{/if}
+{:else}
+	<main>
+		<Menu
+			authenticatedUser={data.authenticatedUser}
+			appName={data.APP_CONFIG.NAME}
+			isEmployee={data.authenticatedUser.roles.includes(data.APP_CONFIG.APP_ROLES.EMPLOYEE)}
+			canvasEnabled={data.APP_CONFIG.CANVAS_ENABLED}
+			isStudentOnly={isStudentOnly(data.authenticatedUser, data.APP_CONFIG.APP_ROLES)}
+		/>
+		<div class="page-content">
+			{#if children}
+				{@render children()}
+			{:else}
+				<p>fallback content</p>
+			{/if}
+		</div>
+	</main>
+{/if}
 
 <style>
 	main {

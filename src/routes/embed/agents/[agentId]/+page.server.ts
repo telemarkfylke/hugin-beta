@@ -4,7 +4,9 @@ import type { ChatConfig } from "$lib/types/chat"
 import type { ServerLoadNextFunction } from "$lib/types/middleware/http-request"
 import type { PageServerLoad } from "./$types"
 
-const agentPageLoad: ServerLoadNextFunction<{ agent: ChatConfig }> = async ({ requestEvent, user }) => {
+// Authenticated embed - same auth/authorization as /agents/[agentId], just rendered chrome-less
+// (see +layout.server.ts isEmbedRoute). Intended for embedding internal agents on internal pages.
+const embedAgentPageLoad: ServerLoadNextFunction<{ agent: ChatConfig }> = async ({ requestEvent, user }) => {
 	const agent = await loadAgentForPrompt(user, requestEvent.params.agentId)
 	return {
 		data: {
@@ -14,6 +16,4 @@ const agentPageLoad: ServerLoadNextFunction<{ agent: ChatConfig }> = async ({ re
 	}
 }
 
-export const load: PageServerLoad = async (requestEvent): Promise<{ agent: ChatConfig }> => {
-	return serverLoadRequestMiddleware(requestEvent, agentPageLoad)
-}
+export const load: PageServerLoad = async (requestEvent) => serverLoadRequestMiddleware(requestEvent, embedAgentPageLoad)

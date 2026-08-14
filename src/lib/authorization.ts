@@ -14,6 +14,13 @@ export const canPublishChatConfig = (user: AuthenticatedPrincipal, appRoles: App
 	return user.roles.includes(appRoles.AGENT_MAINTAINER) || user.roles.includes(appRoles.ADMIN)
 }
 
+// Gates ChatConfig.allowAnonymousEmbed - independent of type/canPublishChatConfig, since an
+// anonymous, unauthenticated embed is a materially bigger exposure than sharing with other
+// logged-in users. Deliberately stricter (admin-only) than "published".
+export const canSetAnonymousEmbed = (user: AuthenticatedPrincipal, appRoles: AppRoles): boolean => {
+	return user.roles.includes(appRoles.ADMIN)
+}
+
 export const canEditChatConfig = (chat: Chat, user: AuthenticatedPrincipal, appRoles: AppRoles): boolean => {
 	if (chat.config._id === "") {
 		return true
@@ -36,6 +43,13 @@ export const canUpdateChatConfig = (user: AuthenticatedPrincipal, appRoles: AppR
 	}
 	if (user.roles.includes(appRoles.ADMIN)) {
 		return true
+	}
+	// Only gate an actual attempted CHANGE to allowAnonymousEmbed - not every update to a config
+	// that already has it set. Otherwise a non-admin owner would be permanently locked out of
+	// deleting/editing their own config (DELETE calls this with chatConfigToUpdate === chatConfigInput,
+	// so the value never "changes" there either way) the moment an admin turns the flag on for them.
+	if (chatConfigInput.allowAnonymousEmbed !== chatConfigToUpdate.allowAnonymousEmbed && !canSetAnonymousEmbed(user, appRoles)) {
+		return false
 	}
 	if (chatConfigToUpdate.created.by.id === user.userId) {
 		return true
@@ -61,7 +75,7 @@ export const canPromptConfig = (user: AuthenticatedPrincipal, appConfig: AppConf
 	if (user.roles.includes(appConfig.APP_ROLES.ADMIN)) {
 		return true
 	}
-	if (chatConfig.shared) {
+	if (chatConfig.shared || chatConfig.allowAnonymousEmbed) {
 		return true
 	}
 	if (chatConfig.type === "private" && chatConfig.created.by.id === user.userId) {

@@ -2,7 +2,7 @@
 	import { onMount } from "svelte"
 	import { slide } from "svelte/transition"
 	import { page } from "$app/state"
-	import { canEditPredefinedConfig, canPublishChatConfig } from "$lib/authorization"
+	import { canEditPredefinedConfig, canPublishChatConfig, canSetAnonymousEmbed } from "$lib/authorization"
 	import { RagServiceApi } from "$lib/ragservice/adapters/ragserviceApi"
 	import type { StoreConfig } from "$lib/ragservice/types"
 	import type { ChatConfig, VendorId } from "$lib/types/chat"
@@ -17,6 +17,9 @@
 	let { chatState = $bindable() }: Props = $props()
 
 	let userCanEditPredefinedConfig = $derived(canEditPredefinedConfig(chatState.user, chatState.APP_CONFIG.APP_ROLES))
+	let userCanSetAnonymousEmbed = $derived(canSetAnonymousEmbed(chatState.user, chatState.APP_CONFIG.APP_ROLES))
+	let embedUrl = $derived(chatState.chat.config._id ? `${page.url.origin}/embed/agents/${chatState.chat.config._id}` : "")
+	let publicEmbedUrl = $derived(chatState.chat.config._id ? `${page.url.origin}/public/embed/agents/${chatState.chat.config._id}` : "")
 
 	// Not reactive state, to "remember" predefined vs manual config when toggling
 	let predefinedConfigCache: Partial<ChatConfig> = {
@@ -144,6 +147,51 @@
 					Ved å dele din assistent kan de som har lenken bruke den, men den blir ikke listet opp noe sted.
 				</div>
 			</div>
+
+			<!-- Embed link (chrome-less, but still requires login + normal access rules) -->
+			{#if chatState.chat.config._id}
+				<div class="config-section">
+					<div class="share-row">
+						<span>Embed-lenke (for iframe på interne sider)</span>
+						<button class="icon-button" onclick={() => navigator.clipboard.writeText(embedUrl)} title="Kopier embed-lenke">
+							<span class="material-symbols-outlined">content_copy</span>
+						</button>
+					</div>
+					<div class="share-description">
+						Chrome-løst chatvindu uten meny/header. Krever fortsatt innlogging og de samme tilgangsreglene som selve assistenten.
+					</div>
+				</div>
+			{/if}
+
+			<!-- Anonymous embed - independent of type/shared, admin-only -->
+			{#if userCanSetAnonymousEmbed}
+				<div class="config-section">
+					<div class="share-row">
+						<label class="toggle-label">
+							<span>Tillat anonym embedding (ingen innlogging)</span>
+							<span class="toggle">
+								<input type="checkbox" bind:checked={chatState.chat.config.allowAnonymousEmbed} />
+								<span class="toggle-track"></span>
+							</span>
+						</label>
+					</div>
+					<div class="share-description">
+						Gjør assistenten tilgjengelig helt uten innlogging via en egen embed-URL, uansett publiseringsstatus under. Listes ikke opp noe sted - kun de med lenken kan bruke den. Samtaler lagres aldri.
+					</div>
+					{#if chatState.chat.config.allowAnonymousEmbed && publicEmbedUrl}
+						<div class="config-item">
+							<label for="public-embed-url">Offentlig embed-URL</label>
+							<div class="share-row">
+								<input id="public-embed-url" type="text" readonly value={publicEmbedUrl} />
+								<button class="icon-button" onclick={() => navigator.clipboard.writeText(publicEmbedUrl)} title="Kopier offentlig embed-URL">
+									<span class="material-symbols-outlined">content_copy</span>
+								</button>
+							</div>
+							<div class="share-description">Lim inn i en &lt;iframe src="..."&gt; på en ekstern side.</div>
+						</div>
+					{/if}
+				</div>
+			{/if}
 
 			<!-- Publish options -->
 			{#if canPublishChatConfig(chatState.user, chatState.APP_CONFIG.APP_ROLES)}

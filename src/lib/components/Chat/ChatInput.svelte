@@ -35,6 +35,9 @@
 	let webSearchEnabled = $derived(chatState.webSearchEnabled)
 	let datasourceEnabled = $derived(chatState.datasourceEnabled)
 	let hasDatasources = $derived((chatState.chat.config.dataSources?.length ?? 0) > 0)
+	// When set (see ChatStateOptions.lockedTools, used by /public/embed/**), the values above are
+	// pinned by ChatState itself - don't offer buttons that would just get overridden right back.
+	let toolsLocked = $derived(chatState.lockedTools !== null)
 
 	// Konverter filarrayen til en liste med filer
 	const filesToFileList = (files: File[]): FileList => {
@@ -210,7 +213,7 @@
 						hidden
 					/>
 				{/if}
-				{#if chatState.chat.config.vendorId === "OPENAI" || chatState.chat.config.vendorId === "MISTRAL"}
+				{#if !toolsLocked && (chatState.chat.config.vendorId === "OPENAI" || chatState.chat.config.vendorId === "MISTRAL")}
 					<button
 						class="icon-button input-action-button"
 						class:active={webSearchEnabled}
@@ -223,7 +226,7 @@
 						<span class="material-symbols-outlined">travel_explore</span>
 					</button>
 				{/if}
-				{#if hasDatasources}
+				{#if !toolsLocked && hasDatasources}
 					<button
 						class="icon-button input-action-button"
 						class:active={datasourceEnabled}

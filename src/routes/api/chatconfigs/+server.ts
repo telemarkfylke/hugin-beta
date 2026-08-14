@@ -1,5 +1,5 @@
 import { json, type RequestHandler } from "@sveltejs/kit"
-import { canPublishChatConfig } from "$lib/authorization"
+import { canPublishChatConfig, canSetAnonymousEmbed } from "$lib/authorization"
 import { APP_CONFIG } from "$lib/server/app-config/app-config"
 import { getChatConfigStore } from "$lib/server/db/get-db"
 import { HTTPError } from "$lib/server/middleware/http-error"
@@ -37,6 +37,10 @@ const createChatConfig: ApiNextFunction = async ({ requestEvent, user }) => {
 
 	if (chatConfig.type === "published" && !canPublishChatConfig(user, APP_CONFIG.APP_ROLES)) {
 		throw new HTTPError(403, "User is not authorized to create published chat configs")
+	}
+
+	if (chatConfig.allowAnonymousEmbed && !canSetAnonymousEmbed(user, APP_CONFIG.APP_ROLES)) {
+		throw new HTTPError(403, "User is not authorized to enable anonymous embedding")
 	}
 
 	const chatConfigToCreate: NewChatConfig = {

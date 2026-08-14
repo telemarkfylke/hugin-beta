@@ -38,6 +38,9 @@ export type ChatConfig = {
 	dataSources?: DataSource[] | undefined | null
 	type: "published" | "private"
 	shared?: boolean | undefined
+	// Independent of type/shared - lets an anonymous visitor use this config via /public/embed/**,
+	// with no login and no listing anywhere. See $lib/authorization.canSetAnonymousEmbed (admin-only).
+	allowAnonymousEmbed?: boolean | undefined
 	accessGroups: (RoleAccessGroups | EntraAccessGroup)[]
 	created: {
 		at: string
@@ -134,6 +137,7 @@ export const ChatConfigSchema = schemaForType<ChatConfig>()(
 			.nullable()
 			.optional(), // Update as per ChatTool for now
 		shared: z.boolean().optional(),
+		allowAnonymousEmbed: z.boolean().optional(),
 		instructions: z.string().optional(),
 		conversationId: z.string().optional(),
 		type: z.enum(["published", "private"]), // Update as per ChatConfig for now
