@@ -6,10 +6,11 @@ import type { ChatConfig, ChatRequest, ChatResponseObject } from "$lib/types/cha
 // back to its non-rewritten/non-titled behavior. A hung or very slow backend (model not warmed
 // up, KI-server misbehaving, ...) would otherwise block the caller indefinitely - this doesn't
 // cancel the underlying HTTP call, just stops waiting on it, which is enough to keep a bad utility
-// model from taking the whole RAG/chat flow down with it. Override via UTILITY_LLM_TIMEOUT_MS -
-// useful locally where a cold-start model load (first request after Ollama hasn't run it yet) can
-// easily take longer than the production default.
-const UTILITY_TIMEOUT_MS = Number(env.UTILITY_LLM_TIMEOUT_MS) || 10_000
+// model from taking the whole RAG/chat flow down with it. Set generously high (60s) since a
+// cold-start model load on the KI-server is a rare, one-time-per-restart event worth tolerating a
+// long wait for - a warm call afterward is much faster and won't come close to this ceiling.
+// Override via UTILITY_LLM_TIMEOUT_MS.
+const UTILITY_TIMEOUT_MS = Number(env.UTILITY_LLM_TIMEOUT_MS) || 60_000
 
 // Model used for small, mechanical text tasks (RAG query rewriting, conversation titles, ...)
 // that don't need the (often large/expensive) model the user's own chat is configured with, and
