@@ -1,5 +1,5 @@
 import { chatHistoryToInputItems } from "$lib/chat-history"
-import { getVendor } from "$lib/server/ai-vendors"
+import { buildUtilityConfig, createUtilityChatResponse } from "$lib/server/utility-llm"
 import type { AuthenticatedPrincipal } from "$lib/types/authentication"
 import type { ChatHistory, ChatRequest, ChatResponseObject } from "$lib/types/chat"
 import type { ChatInputItem } from "$lib/types/chat-item"
@@ -36,22 +36,16 @@ export class ConversationManager {
 			return null // No response yet to base a title on.
 		}
 
-		// Reuse whatever vendor/model this conversation is already using - no need for a separate "cheap model" path.
+		// Runs on the dedicated small utility model (see $lib/server/utility-llm) rather than
+		// whatever vendor/model this conversation itself uses - titling is a small, mechanical
+		// summarization task that doesn't need a large/expensive model.
 		const titleRequest: ChatRequest = {
-			config: lastResponse.config,
-			inputs: [
-				...chatHistoryToInputItems(history),
-				{
-					type: "message.input",
-					role: "developer",
-					content: [{ type: "input_text", text: TITLE_INSTRUCTION }]
-				}
-			],
+			config: buildUtilityConfig(TITLE_INSTRUCTION),
+			inputs: chatHistoryToInputItems(history),
 			stream: false
 		}
 
-		const vendor = getVendor(lastResponse.config.vendorId)
-		const response = await vendor.createChatResponse(titleRequest)
+		const response = await createUtilityChatResponse(titleRequest)
 		const title = extractResponseText(response).trim()
 
 		if (!title) {

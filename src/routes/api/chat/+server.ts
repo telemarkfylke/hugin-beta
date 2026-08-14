@@ -10,6 +10,7 @@ import { APP_CONFIG } from "$lib/server/app-config/app-config"
 import { MS_AUTH_TOKEN_HEADER } from "$lib/server/auth/auth-constants"
 import { HTTPError } from "$lib/server/middleware/http-error"
 import { apiRequestMiddleware } from "$lib/server/middleware/http-request"
+import { rewriteRagQuery } from "$lib/server/ragservice/rag-query-rewrite"
 import { searchRagStores } from "$lib/server/ragservice/rag-search"
 import { createSse, parseSse, responseStream } from "$lib/streaming"
 import type { AuthenticatedPrincipal } from "$lib/types/authentication"
@@ -77,14 +78,25 @@ const supahChat: ApiNextFunction = async ({ requestEvent, user }) => {
 		throw new HTTPError(403, "Not authorized to use this chat configuration")
 	}
 
+	const userInputMessage = [...chatRequest.inputs].reverse().find((i): i is ChatInputMessage => i.type === "message.input" && i.role === "user")
+
+	// Resolve/prepend history before the RAG step below, so query rewriting has the full
+	// conversation to resolve pronouns/references against - not just the newest message.
+	let huginConversationId: string | undefined
+	if (chatRequest.store && userInputMessage) {
+		const conversationManager = getConversationManager()
+		huginConversationId = await conversationManager.getOrCreateConversationId(chatRequest.huginConversationId ?? null, user)
+
+		const priorHistory = await conversationManager.getChatHistoryFromDb(huginConversationId, user)
+		chatRequest.inputs = [...chatHistoryToInputItems(priorHistory), ...chatRequest.inputs]
+	}
+
 	const datasourceToolActive = chatRequest.config.tools?.some((t) => t.type === "datasource") ?? false
 	const ragStoreIds = datasourceToolActive ? (chatRequest.config.dataSources?.filter((s) => s.type === "ragservice").map((s) => s.id) ?? []) : []
 
 	if (ragStoreIds.length > 0) {
-		const lastUserMsg = [...chatRequest.inputs].reverse().find((i): i is ChatInputMessage => i.type === "message.input" && i.role === "user")
-
 		const queryText =
-			lastUserMsg?.content
+			userInputMessage?.content
 				.filter((c): c is InputText => c.type === "input_text")
 				.map((c) => c.text)
 				.join(" ")
@@ -92,7 +104,8 @@ const supahChat: ApiNextFunction = async ({ requestEvent, user }) => {
 
 		if (queryText) {
 			const graphToken = requestEvent.request.headers.get(MS_AUTH_TOKEN_HEADER)
-			const matches = await searchRagStores(ragStoreIds, queryText, user, graphToken)
+			const rewrittenQuery = await rewriteRagQuery({ chatRequest, queryText, ragStoreIds, user, graphToken })
+			const matches = await searchRagStores(ragStoreIds, rewrittenQuery, user, graphToken)
 
 			if (matches.length > 0) {
 				const contextText = matches.map((m) => m.text).join("\n\n---\n\n")
@@ -105,17 +118,6 @@ const supahChat: ApiNextFunction = async ({ requestEvent, user }) => {
 	chatRequest.config.tools = chatRequest.config.tools?.filter((t) => t.type !== "datasource")
 
 	const vendor = getVendor(chatRequest.config.vendorId)
-
-	const userInputMessage = [...chatRequest.inputs].reverse().find((i): i is ChatInputMessage => i.type === "message.input" && i.role === "user")
-
-	let huginConversationId: string | undefined
-	if (chatRequest.store && userInputMessage) {
-		const conversationManager = getConversationManager()
-		huginConversationId = await conversationManager.getOrCreateConversationId(chatRequest.huginConversationId ?? null, user)
-
-		const priorHistory = await conversationManager.getChatHistoryFromDb(huginConversationId, user)
-		chatRequest.inputs = [...chatHistoryToInputItems(priorHistory), ...chatRequest.inputs]
-	}
 
 	if (chatRequest.stream) {
 		const stream = await vendor.createChatResponseStream(chatRequest)
