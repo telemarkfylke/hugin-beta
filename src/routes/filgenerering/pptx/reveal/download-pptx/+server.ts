@@ -1,12 +1,15 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
-import { resolve } from 'node:dns';
-import { rejects } from 'node:assert';
 
-export async function GET() {
-    const slidesPath = path.join(process.cwd(), 'src', 'routes', 'filgenerering', 'pptx', 'content.md'); // siten for .md fila for presangtasjonen
-    const pptxPath = path.join(process.cwd(), "content", "dist", "presentation.pptx"); // for hvor pptx fila skal lagres
+export async function GET({ cookies }) {
+    const userID = cookies.get('userID');
+    if (!userID) {
+        return new Response('userID mangler', { status: 400 });
+    }
+
+    const slidesPath = path.join(process.cwd(), 'src', 'routes', 'filgenerering', 'pptx', 'data', `${userID}.md`); // siten for .md fila for presangtasjonen
+    const pptxPath = path.join(process.cwd(), "content", "dist", `${userID}.pptx`); // for hvor pptx fila skal lagres
 
     // Skjekk om slides.md finnes
     if (!slidesPath) {

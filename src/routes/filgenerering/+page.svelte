@@ -2,8 +2,10 @@
     import Chat from '$lib/components/Chat/Chat.svelte';
     import GrowingTextArea from '$lib/components/GrowingTextArea.svelte';
     import path from 'node:path';
+    import { tr } from 'zod/locales';
+    import { onMount } from 'svelte'
 
-
+    let userID = $state(null);
 
     let previewUrl = $state('/filgenerering/pptx/reveal?t=' + Date.now());
     let prompt = $state('');
@@ -28,15 +30,25 @@
         previewUrl = '/filgenerering/pptx/reveal?t=' + Date.now();
     }
 
+        const STORAGE_KEY = 'filgenerering_user_id';
 
-    async function resetPrompt() {
-        try {
-            const response = await fetch("http://localhost:3000/api/tom-fil", {
-                method: "POST"
-            });
-        } catch (error) {
-            console.error("Feil ved tilbakestilling av prompt:", error);
+    export function generateUserID() {
+        if (typeof localStorage === 'undefined') {
+            return crypto.randomUUID();
         }
+
+        let userID = localStorage.getItem(STORAGE_KEY);
+        if (!userID) {
+            userID = crypto.randomUUID();
+            localStorage.setItem(STORAGE_KEY, userID);
+        }
+
+        // Sender med userID som cookie på alle forespørsler til serveren,
+        // slik at den ikke må ligge synlig i URL-en.
+        document.cookie = `userID=${userID}; path=/; max-age=31536000`;
+
+        console.log("UserID:", userID);
+        return userID;
     }
 
     async function sendMessage() {
@@ -47,7 +59,7 @@
 
         const previousResponseId = agentResponseIDHistory[agentResponseIds];
 
-        const respons = await fetch('/api/filgenerering', {
+        const respons = await fetch('/api/generate', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ message: prompt, previousResponseId })
@@ -74,69 +86,101 @@
         loading = false;
 
     }
+
+onMount(() => {
+    userID = generateUserID();
+})
+
+
 </script>
 
-<main>
-    <div class="reveal_container">
-        <div class="reveal_vindu">
-            <h1>Presentasjon</h1>
-            <div class="actions">
-                <a href="/filgenerering/pptx/reveal/download-pptx" target="_blank">
-                    <button>Last ned PowerPoint</button>
-                </a>
-            </div>
-            <iframe bind:this={display} src={previewUrl} title="Reveal.js preview"></iframe>
+<main class="filgenerering-page">
+    <h1>Filgenerering</h1>
+    <p class="lead">Beskriv hvilken presentasjon du vil lage, og se den bygges live under.</p>
+
+    <div class="reveal_card">
+        <div class="reveal_header">
+            <h2>Forhåndsvisning</h2>
+            <a href="/filgenerering/pptx/reveal/download-pptx" target="_blank">
+                <button class="filled">Last ned PowerPoint</button>
+            </a>
         </div>
+        <iframe bind:this={display} src={previewUrl} title="Reveal.js preview"></iframe>
     </div>
 
-    <div class="chat_container">
+    <div class="chat_card">
         <div class="input_wrapper" bind:this={input}>
             <GrowingTextArea
                 bind:value={prompt}
                 placeholder="Beskriv hva du vil lage..."
                 style="input"
             />
-            <button
-                bind:this={send_btn}
-                class="send_btn"
-                onclick={sendMessage}
-                disabled={loading}
-            >
-                {loading ? 'Genererer...' : 'Generer fil'}
-            </button>
-
-            <button class="reset_btn" type="button" onclick={resetPrompt}>
-                Reset
-            </button>
+            <div class="chat_actions">
+                <button class="reset_btn" type="button" onclick={resetPrompt}>
+                    Reset
+                </button>
+                <button
+                    bind:this={send_btn}
+                    class="send_btn filled"
+                    onclick={sendMessage}
+                    disabled={loading}
+                >
+                    {loading ? 'Genererer...' : 'Generer fil'}
+                </button>
+            </div>
         </div>
     </div>
 </main>
 
 <style>
-    .reveal_container {
-        width: 90%;
-        margin-left: auto;
-        margin-right: auto;
+    .filgenerering-page {
+        max-width: 1600px;
+        margin: 0 auto;
+        padding: 1rem 1.25rem 3rem;
     }
 
-    .chat_container {
-        width: 50%;
-        margin-top: 2rem;
-        margin-left: auto;
-        margin-right: auto;
+    h1 {
+        color: var(--color-primary);
+        margin-bottom: 0.5rem;
     }
 
-    .actions {
+    .lead {
+        color: var(--color-primary-80);
+        margin-top: 0;
+        margin-bottom: 1.5rem;
+    }
+
+    .reveal_card,
+    .chat_card {
+        background-color: var(--color-secondary-10);
+        border: 2px solid var(--color-secondary-30);
+        border-radius: 8px;
+        padding: 1.25rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .reveal_header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 0.75rem;
         margin-bottom: 1rem;
     }
 
+    .reveal_header h2 {
+        margin: 0;
+        font-size: 1.15rem;
+        color: var(--color-primary);
+    }
+
     iframe {
-        width: 80%;
+        width: 100%;
         height: 600px;
-        border-radius: 10px;
-        margin-left: auto;
-        margin-right: auto;
+        border-radius: 8px;
+        border: 1px solid var(--color-primary-20);
         display: block;
+        background-color: white;
     }
 
     .input_wrapper {
@@ -145,40 +189,20 @@
         gap: 0.75rem;
     }
 
-    button.send_btn {
-        align-self: flex-end;
-        background-color: var(--color-primary);
-        color: white;
-        border: none;
-        border-radius: 4px;
-        padding: 0.5rem 1.25rem;
-        height: 2rem;
-        font-family: inherit;
-        font-size: 0.9rem;
-        cursor: pointer;
-        transition: background-color 0.15s;
+    .chat_actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 0.75rem;
     }
 
-    button.send_btn:hover:not(:disabled) {
-        background-color: var(--color-primary-80);
+    button.send_btn,
+    button.reset_btn {
+        padding: 0 1.25rem;
+        font-size: 0.9rem;
     }
 
     button.send_btn:disabled {
         opacity: 0.5;
         cursor: not-allowed;
-    }
-
-    .reset_btn {
-        align-self: flex-end;
-        background-color: var(--color-primary);
-        color: white;
-        border: none;
-        border-radius: 4px;
-        padding: 0.5rem 1.25rem;
-        height: 2rem;
-        font-family: inherit;
-        font-size: 0.9rem;
-        cursor: pointer;
-        transition: background-color 0.15s;
     }
 </style>

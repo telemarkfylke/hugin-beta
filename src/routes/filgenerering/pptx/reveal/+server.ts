@@ -2,10 +2,14 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
 
-export async function GET() {
-    const slidesPath = path.join(process.cwd(), 'src', 'routes', 'filgenerering', 'pptx', 'content.md');
+export async function GET({ cookies }) {
+    const userID = cookies.get('userID');
+    if (!userID) {
+        return new Response('userID mangler', { status: 400 });
+    }
+    const slidesPath = path.join(process.cwd(), 'src', 'routes', 'filgenerering', 'pptx', 'data', `${userID}.md`);
     const outputDir = path.join(process.cwd(), 'content', 'dist');
-    const htmlPath = path.join(outputDir, 'index.html');
+    const htmlPath = path.join(outputDir, `${userID}.html`);
 
     await fs.mkdir(outputDir, { recursive: true });
 
