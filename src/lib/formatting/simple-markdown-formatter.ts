@@ -1,5 +1,11 @@
 import markdownit from "markdown-it"
 
+// A second, separate markdown-it instance from $lib/formatting/markdown-formatter.ts (the one
+// used for chat/canvas). Not duplication for its own sake: that instance carries KaTeX/syntax-
+// highlighting plugins irrelevant here, and flipping its breaks/html options would silently
+// change how AI chat responses render. This one is standard CommonMark plus two options - no
+// custom syntax, nothing chat/canvas-specific.
+//
 // breaks: true - a single newline becomes <br>, not just a space, since callers
 // author this as plain text rather than hard-wrapped CommonMark.
 // html: true - lets callers embed a small inline reference (e.g. a ".spotlight-pill"

@@ -1,27 +1,32 @@
 <script lang="ts">
-	import type { Snippet } from "svelte"
+	import { browser } from "$app/environment"
 	import { fade } from "svelte/transition"
 	import { simpleMarkdownFormatter } from "$lib/formatting/simple-markdown-formatter"
 	import { dismissSpotlightPermanently, isSpotlightDismissed } from "$lib/util/spotlight-util"
 
-	type FixedPlacement = "center" | "top-center" | "top-right" | "bottom-right" | "bottom-left" | "top-left"
-	type AnchorSide = "top" | "bottom" | "left" | "right"
-	type Coords = { top: number; left: number; transform: string }
+	// Four independent, composable concerns, each owned by its own module:
+	// - content: header/icon/text/subtext props, rendered via simpleMarkdownFormatter below
+	// - positioning: FixedPlacement, applied via the class: bindings below - fixed corners only,
+	//   no anchored/pinned-to-an-element mode (removed - see git history if that's ever needed
+	//   again, but a real positioning/tour library is a better foundation than reviving this)
+	// - dismissal: spotlight-util.ts (localStorage), read into `dismissedPermanently`
+	// - audience: not this component's concern at all - callers gate the `active` prop with
+	//   canSeeSpotlight from $lib/authorization (see README's "Restricting the audience")
+	type FixedPlacement = "center" | "top-center" | "top-right" | "bottom-right" | "bottom-center" | "bottom-left" | "top-left"
 
 	type Props = {
 		id: string
-		icon?: string
+		// `| undefined` (not just `?`) on these four: SpotlightHost passes them straight through
+		// from a data object where they're optional, so the value can be the literal `undefined`,
+		// not just omitted - exactOptionalPropertyTypes (see tsconfig.json) treats those differently.
+		icon?: string | undefined
 		header: string
 		text: string
-		subtext?: string
+		subtext?: string | undefined
 		active?: boolean
-		backdrop?: boolean
-		placement?: FixedPlacement
-		anchor?: HTMLElement | null
-		anchorSide?: AnchorSide
-		anchorOffset?: number
+		backdrop?: boolean | undefined
+		placement?: FixedPlacement | undefined
 		onDismiss?: () => void
-		children?: Snippet
 	}
 
 	let {
@@ -32,12 +37,8 @@
 		subtext,
 		active = true,
 		backdrop = false,
-		placement = "bottom-right",
-		anchor = null,
-		anchorSide = "bottom",
-		anchorOffset = 10,
-		onDismiss,
-		children
+		placement = "top-center",
+		onDismiss
 	}: Props = $props()
 
 	// Computed synchronously (not in an $effect) so the very first render already
@@ -46,49 +47,12 @@
 	let dismissedPermanently = $derived(isSpotlightDismissed(id))
 	let closedThisSession = $state(false)
 	let dontShowAgain = $state(false)
-	let coords: Coords | null = $state(null)
 
-	let visible = $derived(active && !dismissedPermanently && !closedThisSession)
+	// `browser` gates this too: server-rendered HTML can't know the real localStorage
+	// dismissal state (see isSpotlightDismissed), so rendering nothing until we're
+	// definitely on the client avoids a wrong-then-corrected flash on SSR'd routes.
+	let visible = $derived(browser && active && !dismissedPermanently && !closedThisSession)
 	let renderedText = $derived(simpleMarkdownFormatter(text))
-
-	$effect(() => {
-		if (!visible || !anchor) {
-			coords = null
-			return
-		}
-
-		const update = () => {
-			if (!anchor) return
-			const rect = anchor.getBoundingClientRect()
-			let top = rect.top
-			let left = rect.left
-			let transform = ""
-			if (anchorSide === "bottom") {
-				top = rect.bottom + anchorOffset
-			} else if (anchorSide === "top") {
-				top = rect.top - anchorOffset
-				transform = "translateY(-100%)"
-			} else if (anchorSide === "right") {
-				left = rect.right + anchorOffset
-			} else if (anchorSide === "left") {
-				left = rect.left - anchorOffset
-				transform = "translateX(-100%)"
-			}
-			coords = {
-				top: Math.min(Math.max(top, 8), window.innerHeight - 8),
-				left: Math.min(Math.max(left, 8), window.innerWidth - 8),
-				transform
-			}
-		}
-
-		update()
-		window.addEventListener("resize", update)
-		window.addEventListener("scroll", update, true)
-		return () => {
-			window.removeEventListener("resize", update)
-			window.removeEventListener("scroll", update, true)
-		}
-	})
 
 	const close = () => {
 		if (dontShowAgain) dismissSpotlightPermanently(id)
@@ -97,22 +61,19 @@
 	}
 </script>
 
-{#if visible && (!anchor || coords)}
+{#if visible}
 	{#if backdrop}
 		<div class="spotlight-backdrop" transition:fade={{ duration: 150 }}></div>
 	{/if}
 	<div
 		class="spotlight"
-		class:anchored={!!anchor}
-		class:center={!anchor && placement === "center"}
-		class:top-center={!anchor && placement === "top-center"}
-		class:top-right={!anchor && placement === "top-right"}
-		class:bottom-right={!anchor && placement === "bottom-right"}
-		class:bottom-left={!anchor && placement === "bottom-left"}
-		class:top-left={!anchor && placement === "top-left"}
-		style:top={coords ? `${coords.top}px` : undefined}
-		style:left={coords ? `${coords.left}px` : undefined}
-		style:transform={coords?.transform || undefined}
+		class:center={placement === "center"}
+		class:top-center={placement === "top-center"}
+		class:top-right={placement === "top-right"}
+		class:bottom-right={placement === "bottom-right"}
+		class:bottom-center={placement === "bottom-center"}
+		class:bottom-left={placement === "bottom-left"}
+		class:top-left={placement === "top-left"}
 		transition:fade={{ duration: 150 }}
 	>
 		<button class="icon-button close-button" onclick={close} title="Lukk">
@@ -130,15 +91,13 @@
 				{#if subtext}<p class="spotlight-subtext">{subtext}</p>{/if}
 			</div>
 		</div>
-		{#if children}
-			<div class="spotlight-extra">
-				{@render children()}
-			</div>
-		{/if}
-		<label class="checkbox-label">
-			<input type="checkbox" bind:checked={dontShowAgain} />
-			Ikke vis denne igjen
-		</label>
+		<div class="spotlight-footer">
+			<label class="checkbox-label">
+				<input type="checkbox" bind:checked={dontShowAgain} />
+				Ikke vis denne igjen
+			</label>
+			<button onclick={close}>Lukk</button>
+		</div>
 	</div>
 {/if}
 
@@ -175,12 +134,17 @@
 		right: 1rem;
 	}
 	.spotlight.bottom-right {
-		bottom: 1rem;
+		bottom: 2rem;
 		right: 1rem;
 	}
 	.spotlight.bottom-left {
-		bottom: 1rem;
+		bottom: 2rem;
 		left: 1rem;
+	}
+	.spotlight.bottom-center {
+		bottom: 2rem;
+		left: 50%;
+		transform: translateX(-50%);
 	}
 	.spotlight.top-left {
 		top: 1rem;
@@ -264,11 +228,6 @@
 		vertical-align: -0.15em;
 	}
 
-	.spotlight-extra {
-		display: flex;
-		justify-content: center;
-	}
-
 	.spotlight-subtext {
 		font-size: 0.8rem !important;
 		color: #666;
@@ -286,6 +245,13 @@
 
 	.close-button span {
 		font-size: 1.1rem;
+	}
+
+	.spotlight-footer {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 0.75rem;
 	}
 
 	.checkbox-label {

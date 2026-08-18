@@ -182,7 +182,9 @@ Canvas is gated behind the `CANVAS_ENABLED` environment variable and requires th
 
 A generic "hey, look at this new feature" callout for announcing changes to users. It's a non-blocking box with an icon, header, body text, and an optional subtext line, always paired with a "Ikke vis denne igjen" (don't show again) checkbox and a close button. Dismissal is self-managed — the component checks localStorage on mount and simply doesn't render if the user has already opted out, so callers don't need to wire up any `show`/`open` state themselves.
 
-**Simple example** (fixed to a corner of the screen — the common case):
+**Two components, split by concern:** `FeatureSpotlight.svelte` is the presentational box itself — content, positioning, dismissal — and stays agnostic about where its `active` gate or its data comes from, so it can be used standalone with hardcoded props (all the examples below do exactly that). `SpotlightHost.svelte` is the app-specific wiring on top: it owns the static `SPOTLIGHTS` registry, resolves each entry's audience via `canSeeSpotlight`, and renders one `FeatureSpotlight` per eligible entry — mounted once, globally, in `+layout.svelte`. For the common case (see "Adding an announcement" below) you never touch `FeatureSpotlight` or `canSeeSpotlight` directly — just add an entry to `SPOTLIGHTS`.
+
+**Simple example** (defaults to a top-center splash, the common case):
 
 ```svelte
 <script lang="ts">
@@ -198,7 +200,7 @@ A generic "hey, look at this new feature" callout for announcing changes to user
 />
 ```
 
-`id` is required and must be unique per announcement — it's the key used to remember that this specific spotlight was dismissed. `placement` defaults to `"bottom-right"`, so the example above needs nothing else to show up as a toast in the corner.
+`id` is required and must be unique per announcement — it's the key used to remember that this specific spotlight was dismissed. `placement` defaults to `"top-center"`, so the example above needs nothing else to show up top-center; pass e.g. `placement="bottom-right"` for a corner toast instead.
 
 **Text formatting:** `text` supports a small set of Markdown — a blank line starts a new paragraph, a single line break becomes a `<br>`, and `**bold**`/`*italic*` work as usual:
 
@@ -212,39 +214,35 @@ A generic "hey, look at this new feature" callout for announcing changes to user
 
 This is rendered through its own small `markdown-it` instance (`src/lib/formatting/simple-markdown-formatter.ts`), separate from the one used for chat/canvas content — so changing this doesn't affect how AI responses render. `header` and `subtext` are plain text, not Markdown.
 
-**Anchored example** (pinned next to the element it's highlighting, instead of a fixed corner):
+**Pointing at real UI inline** (e.g. referencing the button an announcement is about, mid-sentence): embed a small `.spotlight-pill` span directly in `text`. `text` is rendered with `html: true`, so this flows inline with the surrounding sentence instead of sitting in its own block:
 
 ```svelte
-<script lang="ts">
-	let configButtonEl: HTMLButtonElement
-</script>
-
-<button bind:this={configButtonEl}>Konfigurer</button>
-
 <FeatureSpotlight
-	id="config-panel-spotlight-2026-08"
-	icon="build"
-	header="Nytt: Konfigurer assistent"
-	text="Du kan nå justere modell og systemprompt direkte her."
-	anchor={configButtonEl}
-	anchorSide="bottom"
+	id="history-feature-2026-08"
+	header="Nytt: Historikk"
+	text={'Du finner tidligere samtaler under <span class="spotlight-pill"><span class="material-symbols-rounded">history</span>Samtaler</span> i toppmenyen.'}
 />
 ```
 
-**Pointing at real UI** (e.g. showing a preview of the button an announcement is about): pass a `children` snippet and reuse the site's real markup/classes for it, rather than a screenshot. A screenshot goes stale the moment the real element's icon/label/styling changes; reusing the actual classes from `src/style.css` means the preview always matches and needs no separate asset:
+`.spotlight-pill` is deliberately styled *unlike* a real button (no pointer cursor, no hover state, a subtle background instead of the transparent-hover-highlight look real buttons have) — it's a reference chip saying "this is what to look for," not a clickable mimic that could confuse users into clicking it. `text` is standard Markdown throughout — this inline HTML isn't a separate mechanism layered on top, it's CommonMark's normal inline-HTML passthrough, just correctly left enabled.
+
+**Restricting the audience:** not every announcement applies to every user (e.g. a conversation-history announcement is meaningless for student-only accounts, who never get history stored — see `isStudentOnly` in `src/lib/authorization.ts`). There's no dedicated prop for this — reuse the existing `active` gate with `canSeeSpotlight`, which shares the exact same `accessGroups` semantics as `ChatConfig.accessGroups`/`canPromptConfig`, so an announcement's audience is declared the same way an agent's audience is:
 
 ```svelte
-<FeatureSpotlight id="history-feature-2026-08" header="Nytt: Historikk" text="Se tidligere samtaler når du vil.">
-	{#snippet children()}
-		<button class="header-action" type="button" tabindex="-1" aria-hidden="true">
-			<span class="material-symbols-rounded">history</span>
-			Samtaler
-		</button>
-	{/snippet}
-</FeatureSpotlight>
+<script lang="ts">
+	import { canSeeSpotlight } from "$lib/authorization"
+	import type { RoleAccessGroups } from "$lib/types/chat"
+
+	const accessGroups: RoleAccessGroups[] = ["employee", "edu_employee"] // excludes "student"
+</script>
+
+<FeatureSpotlight
+	...
+	active={canSeeSpotlight(data.authenticatedUser, data.APP_CONFIG.APP_ROLES, accessGroups)}
+/>
 ```
 
-`tabindex="-1"`/`aria-hidden="true"` and no `onclick` keep it a purely decorative, non-interactive preview — it doesn't actually toggle anything. Rendered full-width below the text, centered, before the checkbox.
+`canSeeSpotlight` always returns `true` for `ADMIN`, matching `canPromptConfig`'s convention.
 
 **Dismissal behavior:**
 
@@ -262,20 +260,34 @@ This is rendered through its own small `markdown-it` instance (`src/lib/formatti
 | `subtext` | `string` | `undefined` | Optional smaller line below the main text. |
 | `active` | `boolean` | `true` | One-way gate — set to `false` to keep it hidden regardless of dismissal state. |
 | `backdrop` | `boolean` | `false` | Adds a subtle darken + blur behind the box. Off by default since most spotlights are non-blocking toasts; turn on for a more attention-grabbing splash (e.g. `placement="center"`/`"top-center"`). Purely visual — the backdrop doesn't dismiss the box on click, matching the checkbox/close-button-only dismissal model. |
-| `placement` | `"center" \| "top-center" \| "top-right" \| "bottom-right" \| "bottom-left" \| "top-left"` | `"bottom-right"` | Fixed screen position. Ignored when `anchor` is set. |
-| `anchor` | `HTMLElement \| null` | `null` | Element to pin the box near instead of using a fixed `placement`. |
-| `anchorSide` | `"top" \| "bottom" \| "left" \| "right"` | `"bottom"` | Which side of the anchor to place the box on. |
-| `anchorOffset` | `number` | `10` | Gap in pixels between the anchor and the box. |
+| `placement` | `"center" \| "top-center" \| "top-right" \| "bottom-right" \| "bottom-center" \| "bottom-left" \| "top-left"` | `"top-center"` | Fixed screen position. |
 | `onDismiss` | `() => void` | `undefined` | Called whenever the box is closed, whether or not "don't show again" was checked. |
-| `children` | `Snippet` | `undefined` | Optional extra content rendered below the text, e.g. a preview of a real UI element — see "Pointing at real UI" above. |
 
-**Not yet supported:** auto-flip near a viewport edge, an arrow/pointer pointing at the anchor, and multi-step guided tours. These are deliberately deferred — see the plan/design notes for the cost/benefit of adding them later (a small positioning library like `@floating-ui/dom` for robust anchoring, or a thin wrapper component for multi-step tours).
+**Not supported:** pinning the box next to a specific element, and multi-step guided tours — only fixed screen-corner placement. An earlier `anchor`/`anchorSide`/`anchorOffset` implementation was removed: it required `bind:this` wiring at every call site (tightly coupling the announcement to whatever element it pointed at) and still didn't handle auto-flipping near a viewport edge or an arrow pointing at the anchor. If element-pointing or guided tours become a real need, a proper library (e.g. `@floating-ui/dom` for positioning, or a dedicated tour library) is a better foundation than reviving this DIY version — see git history for reference if useful.
+
+**Adding an announcement in this app:** to launch or update an announcement in hugin-beta specifically, add or edit an entry in the `SPOTLIGHTS` array in `src/lib/spotlights.ts` — `SpotlightHost.svelte` (mounted once in `src/routes/+layout.svelte`) loops over it, resolves each entry's `active` prop via `canSeeSpotlight`, and renders one `<FeatureSpotlight>` per eligible entry. There's no `<FeatureSpotlight>` markup to touch for the common case:
+
+```ts
+export const SPOTLIGHTS: SpotlightDefinition[] = [
+	{
+		id: "unique-id-2026-08",
+		icon: "auto_awesome",
+		header: "…",
+		text: "…",
+		accessGroups: ["employee", "edu_employee"] // omit for everyone
+	}
+]
+```
+
+As before, give an entry a new unique `id` whenever its copy changes, or users who dismissed the old copy won't see the update. Multiple entries can be active at once — each gets its own dismissal state — though nothing resolves visual overlap if two share the same fixed `placement`.
 
 **Relevant files:**
 
 | File | Purpose |
 |------|---------|
 | `src/lib/components/FeatureSpotlight.svelte` | The component |
+| `src/lib/spotlights.ts` | Static array of announcement definitions — the thing to edit to launch/update one |
+| `src/lib/components/SpotlightHost.svelte` | Loops the array, resolves `active` per entry via `canSeeSpotlight`, mounted once in `+layout.svelte` |
 | `src/lib/util/spotlight-util.ts` | localStorage read/write for tracking dismissed spotlight ids |
 | `src/lib/formatting/simple-markdown-formatter.ts` | Renders `text`'s Markdown subset (paragraphs, line breaks, bold, italic) |
 
