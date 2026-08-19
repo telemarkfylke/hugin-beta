@@ -156,8 +156,8 @@
 									{agent.name}
 								</a>
 							{/each}
-							<a class="menu-item" class:active={page.url.pathname === "/agents"} href="/agents">
-								<span class="material-symbols-outlined">more_horiz</span>Se alle assistenter
+							<a class="menu-item" class:active={page.url.pathname === "/agents" && page.url.searchParams.get("view") === "published"} href="/agents?view=published">
+								<span class="material-symbols-outlined">visibility</span>Vis alle publiserte
 							</a>
 						</div>
 					</div>
@@ -169,6 +169,9 @@
 									{agent.name}
 								</a>
 							{/each}
+							<a class="menu-item" class:active={page.url.pathname === "/agents" && page.url.searchParams.get("view") === "private"} href="/agents?view=private">
+								<span class="material-symbols-outlined">visibility</span>Vis alle private
+							</a>
 							<a class="menu-item" class:active={page.url.pathname === "/agents/create"} href="/agents/create">
 								<span class="material-symbols-outlined">add</span>Lag ny assistent
 							</a>
