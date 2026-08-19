@@ -53,6 +53,19 @@ export type StoreConfig = CreateVectorStoreInput & {
 	}
 }
 
+export type StoreLanguage = {
+	language: string
+	percentage: number
+}
+
+// Response of the search-scoped GET /stores/{storeId}/searchinfo - unlike the full store object,
+// this only requires search access, so it's safe to call from the query-rewrite path.
+export type StoreSearchInfo = {
+	/** Store-wide language aggregate (see `StoreOutput.languages` for how it's computed). */
+	languages?: StoreLanguage[]
+	files: { id: string; name: string; languages?: StoreLanguage[] }[]
+}
+
 // The only values that we allow to be altered after creation
 export type UpdateStoreValues = {
 	name?: string

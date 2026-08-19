@@ -1,15 +1,24 @@
 <script lang="ts">
+	import { page } from "$app/state"
 	import AgentCard from "$lib/components/AgentCard.svelte"
 	import type { PageProps } from "./$types"
 
 	let { data }: PageProps = $props()
+
+	let view = $derived(page.url.searchParams.get("view"))
+	let showOnlyPrivate = $derived(view === "private")
+	let showOnlyPublished = $derived(view === "published")
+	let privateAgents = $derived(data.agents.filter((agent) => agent.type === "private"))
+	let publishedAgents = $derived(data.agents.filter((agent) => agent.type === "published"))
+
+	let heading = $derived(showOnlyPrivate ? "Dine assistenter" : showOnlyPublished ? "Publiserte assistenter" : "Assistenter")
 </script>
 
 <!-- -->
 <div class="agents-page">
 	<header class="page-header">
 		<div>&nbsp;</div>
-		<h1>Assistenter</h1>
+		<h1>{heading}</h1>
 		<a href="/agents/create" class="new-agent-link">
 			<button class="filled">
 				<span class="material-symbols-outlined">add</span>
@@ -18,7 +27,35 @@
 		</a>
 	</header>
 
-	{#if data.agents.length === 0}
+	{#if showOnlyPrivate}
+		{#if privateAgents.length === 0}
+			<div class="empty-state">
+				<span class="material-symbols-outlined empty-icon">smart_toy</span>
+				<p>Ingen egne assistenter funnet</p>
+				<a href="/agents/create">Opprett din første assistent</a>
+			</div>
+		{:else}
+			<div class="agents-grid">
+				{#each privateAgents as agent}
+					<AgentCard {agent} />
+				{/each}
+			</div>
+		{/if}
+	{:else if showOnlyPublished}
+		{#if publishedAgents.length === 0}
+			<div class="empty-state">
+				<span class="material-symbols-outlined empty-icon">smart_toy</span>
+				<p>Ingen publiserte assistenter funnet</p>
+				<a href="/agents/create">Opprett din første assistent</a>
+			</div>
+		{:else}
+			<div class="agents-grid">
+				{#each publishedAgents as agent}
+					<AgentCard {agent} />
+				{/each}
+			</div>
+		{/if}
+	{:else if data.agents.length === 0}
 		<div class="empty-state">
 			<span class="material-symbols-outlined empty-icon">smart_toy</span>
 			<p>Ingen assistenter funnet</p>
@@ -27,13 +64,13 @@
 	{:else}
 		<h3>Publiserte</h3>
 		<div class="agents-grid">
-			{#each data.agents.filter(agent => agent.type === "published") as agent}
+			{#each publishedAgents as agent}
 				<AgentCard {agent} />
 			{/each}
 		</div>
 		<h3>Private</h3>
 		<div class="agents-grid">
-			{#each data.agents.filter(agent => agent.type === "private") as agent}
+			{#each privateAgents as agent}
 				<AgentCard {agent} />
 			{/each}
 		</div>
