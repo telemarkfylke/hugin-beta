@@ -20,6 +20,13 @@
 	let userCanSetAnonymousEmbed = $derived(canSetAnonymousEmbed(chatState.user, chatState.APP_CONFIG.APP_ROLES))
 	let embedUrl = $derived(chatState.chat.config._id ? `${page.url.origin}/embed/agents/${chatState.chat.config._id}` : "")
 	let publicEmbedUrl = $derived(chatState.chat.config._id ? `${page.url.origin}/public/embed/agents/${chatState.chat.config._id}` : "")
+	// Recommended snippet - drops a floating, ready-styled chat bubble via static/widget.js, rather
+	// than requiring the embedding site to build/style its own <iframe> around publicEmbedUrl.
+	// The escape below is required, not defensive: the closing tag's raw text (unescaped) would
+	// truncate this file's own enclosing script block at compile time, since both Svelte's and
+	// Biome's script-boundary scanners work off raw text, not JS syntax.
+	// biome-ignore lint/suspicious/noUselessEscapeInString: see comment above
+	let widgetSnippet = $derived(chatState.chat.config._id ? `<script src="${page.url.origin}/widget.js" data-agent-id="${chatState.chat.config._id}"><\/script>` : "")
 
 	// Not reactive state, to "remember" predefined vs manual config when toggling
 	let predefinedConfigCache: Partial<ChatConfig> = {
@@ -180,14 +187,24 @@
 					</div>
 					{#if chatState.chat.config.allowAnonymousEmbed && publicEmbedUrl}
 						<div class="config-item">
-							<label for="public-embed-url">Offentlig embed-URL</label>
+							<label for="public-embed-widget-snippet">Widget-kode (anbefalt)</label>
+							<div class="share-row">
+								<input id="public-embed-widget-snippet" type="text" readonly value={widgetSnippet} />
+								<button class="icon-button" onclick={() => navigator.clipboard.writeText(widgetSnippet)} title="Kopier widget-kode">
+									<span class="material-symbols-outlined">content_copy</span>
+								</button>
+							</div>
+							<div class="share-description">Lim inn på en ekstern side - gir en ferdig styled, flytende chat-boble nederst til høyre.</div>
+						</div>
+						<div class="config-item">
+							<label for="public-embed-url">Offentlig embed-URL (avansert)</label>
 							<div class="share-row">
 								<input id="public-embed-url" type="text" readonly value={publicEmbedUrl} />
 								<button class="icon-button" onclick={() => navigator.clipboard.writeText(publicEmbedUrl)} title="Kopier offentlig embed-URL">
 									<span class="material-symbols-outlined">content_copy</span>
 								</button>
 							</div>
-							<div class="share-description">Lim inn i en &lt;iframe src="..."&gt; på en ekstern side.</div>
+							<div class="share-description">For manuell &lt;iframe src="..."&gt;-embedding uten widget-boblen (egen styling/plassering).</div>
 						</div>
 					{/if}
 				</div>

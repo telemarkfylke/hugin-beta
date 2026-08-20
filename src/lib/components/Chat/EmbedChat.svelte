@@ -45,7 +45,10 @@
 		flex-direction: column;
 		position: relative;
 		flex: 1;
-		height: 100vh;
+		/* 100% (not 100vh) so this also works nested inside EmbedWidgetChrome's flex layout, below its
+		   topbar - the bare full-iframe usage (/embed/agents/[agentId]) still fills the same space
+		   either way, since html/body are height:100% and app.html's wrapper is display:contents. */
+		height: 100%;
 		padding-bottom: 1.5rem;
 	}
 	.chat-items-container {

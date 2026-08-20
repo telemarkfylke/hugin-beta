@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { ANONYMOUS_PRINCIPAL } from "$lib/anonymous-principal"
 	import { ChatState } from "$lib/components/Chat/ChatState.svelte"
-	import EmbedChat from "$lib/components/Chat/EmbedChat.svelte"
+	import EmbedWidgetChrome from "$lib/components/Chat/EmbedWidgetChrome.svelte"
 	import type { Chat } from "$lib/types/chat"
 	import type { PageProps } from "./$types"
 
@@ -30,4 +30,4 @@
 	})
 </script>
 
-<EmbedChat chatState={embedChatState} />
+<EmbedWidgetChrome chatState={embedChatState} />
