@@ -7,6 +7,10 @@
  * same "setChatbotFrameSize" postMessage protocol, same responsive behavior (desktop: corner
  * widget, mobile: full-screen overlay), just pointed at Hugin's own embed route.
  *
+ * Public agents only, for now - embedding an internal/authenticated agent this same way (a
+ * floating bubble on an internal page, rather than a plain host-sized iframe) is parked until
+ * there's a real need for it.
+ *
  * Usage:
  * <script src="https://<hugin-host>/widget.js" data-agent-id="<chatConfig._id>"></script>
  */

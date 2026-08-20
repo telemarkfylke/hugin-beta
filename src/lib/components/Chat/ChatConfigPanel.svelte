@@ -26,7 +26,7 @@
 	// truncate this file's own enclosing script block at compile time, since both Svelte's and
 	// Biome's script-boundary scanners work off raw text, not JS syntax.
 	// biome-ignore lint/suspicious/noUselessEscapeInString: see comment above
-	let widgetSnippet = $derived(chatState.chat.config._id ? `<script src="${page.url.origin}/widget.js" data-agent-id="${chatState.chat.config._id}"><\/script>` : "")
+	let publicWidgetSnippet = $derived(chatState.chat.config._id ? `<script src="${page.url.origin}/widget.js" data-agent-id="${chatState.chat.config._id}"><\/script>` : "")
 
 	// Not reactive state, to "remember" predefined vs manual config when toggling
 	let predefinedConfigCache: Partial<ChatConfig> = {
@@ -189,8 +189,8 @@
 						<div class="config-item">
 							<label for="public-embed-widget-snippet">Widget-kode (anbefalt)</label>
 							<div class="share-row">
-								<input id="public-embed-widget-snippet" type="text" readonly value={widgetSnippet} />
-								<button class="icon-button" onclick={() => navigator.clipboard.writeText(widgetSnippet)} title="Kopier widget-kode">
+								<input id="public-embed-widget-snippet" type="text" readonly value={publicWidgetSnippet} />
+								<button class="icon-button" onclick={() => navigator.clipboard.writeText(publicWidgetSnippet)} title="Kopier widget-kode">
 									<span class="material-symbols-outlined">content_copy</span>
 								</button>
 							</div>
