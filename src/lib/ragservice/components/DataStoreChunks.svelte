@@ -36,7 +36,8 @@
 		adding = true
 		successMessage = ""
 		try {
-			await api.addChunks(store.storeId, [{ data: newChunkText, extraInfo: buildExtraInfo() }])
+			const extraInfo = buildExtraInfo()
+			await api.addChunks(store.storeId, [extraInfo ? { data: newChunkText, extraInfo } : { data: newChunkText }])
 			newChunkText = ""
 			newChunkFields = []
 			successMessage = "Chunk lagt til."
