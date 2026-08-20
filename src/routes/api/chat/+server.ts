@@ -105,10 +105,22 @@ const supahChat: ApiNextFunction = async ({ requestEvent, user }) => {
 		if (queryText) {
 			const graphToken = requestEvent.request.headers.get(MS_AUTH_TOKEN_HEADER)
 			const rewrittenQuery = await rewriteRagQuery({ chatRequest, queryText, ragStoreIds, user, graphToken })
-			const matches = await searchRagStores(ragStoreIds, rewrittenQuery, user, graphToken)
+
+			// Degrade gracefully if ragservice is unreachable or auth/token resolution fails - same
+			// outcome as a non-2xx response from ragservice (searchRagStores returns [] for that case
+			// already): answer without RAG context rather than failing the whole chat request.
+			let matches: Awaited<ReturnType<typeof searchRagStores>> = []
+			try {
+				matches = await searchRagStores(ragStoreIds, rewrittenQuery, user, graphToken)
+			} catch (error) {
+				logger.errorException(error, "searchRagStores failed - continuing without RAG context")
+			}
 
 			if (matches.length > 0) {
-				const contextText = matches.map((m) => m.text).join("\n\n---\n\n")
+				// Prefix each chunk with the file it came from, so the model can attribute answers
+				// back to a specific source (e.g. "hva sier Clara.pdf om xxx") instead of treating
+				// the whole context blob as one undifferentiated source.
+				const contextText = matches.map((m) => (m.fileName ? `### Fil: ${m.fileName}\n\n${m.text}` : m.text)).join("\n\n---\n\n")
 				chatRequest.config.instructions = `${chatRequest.config.instructions ?? ""}\n\n#Relevant kontekst fra datakilder:\n\n${contextText}`
 			}
 		}

@@ -5,6 +5,9 @@ export type VectorStoreFile = {
 	bytes: number
 	status: string
 	summary?: string
+	languages?: StoreLanguage[]
+	/** E.g. "350 / 362" (chunks behandlet / totalt) mens filen prosesseres. */
+	progress?: string
 }
 
 export type StoreState = {
@@ -89,6 +92,7 @@ export type VectorMatch = {
 	id?: string
 	storeId: string
 	fileId: string
+	fileName?: string
 	score: number
 	vectorScore: number | null
 	textScore: number | null
