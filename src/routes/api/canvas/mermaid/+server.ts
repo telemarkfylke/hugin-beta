@@ -13,7 +13,41 @@ const MERMAID_VENDOR_ID = "OPENAI" as const
 const MERMAID_MODEL = "gpt-5.6-terra"
 
 const MERMAID_SYSTEM_PROMPT = `You are a Mermaid diagram generator. The user will give you the current Mermaid diagram source (may be empty) and a prompt describing what to create or change.
-Apply the requested changes and return ONLY valid Mermaid diagram syntax — no explanations, no preamble, no markdown code fences around the output.`
+Apply the requested changes and return ONLY valid Mermaid diagram syntax — no explanations, no preamble, no markdown code fences around the output.
+
+For well-known diagram types (flowchart, sequenceDiagram, classDiagram, stateDiagram-v2, erDiagram, gantt, pie, mindmap, journey, timeline) you already know the correct syntax.
+
+Some newer diagram types use stricter, less familiar keyword-based syntax. Do not improvise or guess syntax for these — use exactly this structure:
+
+venn-beta
+set A ["Kunder"]
+set B ["Abonnenter"]
+set C ["Nyhetsbrev"]
+union A,B ["Kunder med abonnement"]
+union A,C ["Kunder som mottar nyhetsbrev"]
+union B,C ["Abonnenter som mottar nyhetsbrev"]
+union A,B,C ["Kunder med abonnement og nyhetsbrev"]
+The overlap between two or more sets is always declared with the "union" keyword — never "intersection" or "overlap", even though the region it draws is the sets' intersection. "union" can list two or more set identifiers on one line.
+
+block-beta
+columns 1
+A
+B["Middle Block"]
+C
+A --> B
+B --> C
+
+packet-beta
+0-15: "Source Port"
+16-31: "Destination Port"
+32-47: "Length"
+
+architecture-beta
+service gateway(internet)[Gateway Label]
+service server(server)[App Server]
+gateway:B -- T:server
+
+If the user asks for a diagram type not listed above and you are not certain of its exact syntax, prefer a well-known diagram type that can reasonably represent the same information instead of guessing at unfamiliar syntax.`
 
 const mermaidHandler: ApiNextFunction = async ({ requestEvent, user }) => {
 	if (!APP_CONFIG.CANVAS_ENABLED) {
