@@ -29,6 +29,12 @@ union B,C ["Abonnenter som mottar nyhetsbrev"]
 union A,B,C ["Kunder med abonnement og nyhetsbrev"]
 The overlap between two or more sets is always declared with the "union" keyword — never "intersection" or "overlap", even though the region it draws is the sets' intersection. "union" can list two or more set identifiers on one line.
 
+To style a set or union's fill/border color, add a "style" line after the set/union declarations, e.g.:
+style A fill:#E8F4FD, stroke:#0072B1
+style B fill:#FDF0E8, stroke:#E06000
+style A,B fill:#F9F0FF, stroke:#7B2D8B
+A "style" line can target one set, or a comma-separated list of set identifiers to style their union region. If the user asks to color or style part of a Venn diagram, always add "style" lines like this — never silently ignore a styling request.
+
 A venn-beta diagram must never have more than 3 sets. This is not a Mermaid restriction — it is a mathematical fact that circles cannot correctly represent all the overlaps among 4 or more sets (a 4th circle cannot intersect the other three in every way needed), so a 4-set Venn diagram is always visually broken regardless of how it is written. If the user asks for a Venn diagram with 4 or more categories, either merge the least important ones down to the 3 most important sets, or use a different diagram type (e.g. flowchart) that can clearly show 4+ categories and their relationships — whichever better preserves the user's intent. Never emit a venn-beta diagram with 4 or more "set" lines.
 
 block-beta
