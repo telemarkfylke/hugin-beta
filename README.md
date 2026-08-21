@@ -146,7 +146,7 @@ All events are validated using Zod discriminated unions for type-safe handling.
 
 ### Canvas
 
-Canvas is an AI-assisted document editor available at `/canvas`. It lets users create and refine markdown documents through natural language prompts, with optional web search for sourcing content.
+Canvas is an AI-assisted document editor available at `/canvas/document`. It lets users create and refine markdown documents through natural language prompts, with optional web search for sourcing content.
 
 **How it works:**
 
@@ -171,8 +171,11 @@ Canvas is gated behind the `CANVAS_ENABLED` environment variable and requires th
 
 | File | Purpose |
 |------|---------|
-| `src/routes/canvas/+page.svelte` | Canvas UI — editor, prompt bar, export |
-| `src/routes/canvas/+page.server.ts` | Page load with auth/feature-flag check |
+| `src/routes/canvas/+layout.server.ts` | Auth/feature-flag gate (shell) |
+| `src/routes/canvas/+layout.svelte` | Shell frame + conditional tool tab strip |
+| `src/routes/canvas/document/+page.svelte` | Document editor UI — editor, prompt bar, export |
+| `src/routes/canvas/PromptBar.svelte` | Prompt input component |
+| `src/routes/canvas/tools.ts` | Tool registry |
 | `src/routes/api/canvas/+server.ts` | POST endpoint — streams AI response |
 | `src/lib/types/canvas.ts` | Canvas request type (plain TypeScript) |
 

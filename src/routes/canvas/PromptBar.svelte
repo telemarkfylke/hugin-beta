@@ -10,7 +10,7 @@
 		onSubmit: () => void
 		actions?: Snippet
 	}
-	let { value = $bindable(""), placeholder, isLoading = false, sendDisabled = false, onSubmit, actions }: Props = $props()
+	let { value = $bindable(), placeholder, isLoading = false, sendDisabled = false, onSubmit, actions }: Props = $props()
 
 	let textArea: HTMLTextAreaElement
 	let wrapDiv: HTMLDivElement
