@@ -60,6 +60,10 @@ const mermaidHandler: ApiNextFunction = async ({ requestEvent, user }) => {
 
 	const text = extractTextOutput(response.outputs)
 
+	if (!text.trim()) {
+		throw new HTTPError(502, "Fikk ikke gyldig diagram fra modellen")
+	}
+
 	return { isAuthorized: true, response: json({ diagram: text }) }
 }
 

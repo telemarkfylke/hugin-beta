@@ -4,7 +4,7 @@
 	import PromptBar from "../PromptBar.svelte"
 	import { CANVAS_TOOLS, shouldShowToolTabs } from "../tools"
 
-	mermaid.initialize({ startOnLoad: false, theme: "neutral" })
+	mermaid.initialize({ startOnLoad: false, theme: "neutral", suppressErrorRendering: true })
 
 	let code = $state("")
 	let prompt = $state("")
@@ -42,7 +42,7 @@
 
 	$effect(() => {
 		const currentCode = code
-		if (!currentCode.trim()) {
+		if (isEditing || !currentCode.trim()) {
 			svg = ""
 			renderError = ""
 			return
@@ -93,6 +93,10 @@
 				a.click()
 				URL.revokeObjectURL(pngUrl)
 			}, "image/png")
+			URL.revokeObjectURL(svgUrl)
+		}
+		img.onerror = () => {
+			errorMessage = "Kunne ikke laste ned diagrammet som bilde"
 			URL.revokeObjectURL(svgUrl)
 		}
 		img.src = svgUrl
