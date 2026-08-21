@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { browser } from "$app/environment"
 	import { fade } from "svelte/transition"
+	import { browser } from "$app/environment"
 	import { simpleMarkdownFormatter } from "$lib/formatting/simple-markdown-formatter"
 	import { dismissSpotlightPermanently, isSpotlightDismissed } from "$lib/util/spotlight-util"
 
@@ -29,17 +29,7 @@
 		onDismiss?: () => void
 	}
 
-	let {
-		id,
-		icon,
-		header,
-		text,
-		subtext,
-		active = true,
-		backdrop = false,
-		placement = "top-center",
-		onDismiss
-	}: Props = $props()
+	let { id, icon, header, text, subtext, active = true, backdrop = false, placement = "top-center", onDismiss }: Props = $props()
 
 	// Computed synchronously (not in an $effect) so the very first render already
 	// reflects dismissal state - an $effect only runs after that first render commits,
