@@ -29,6 +29,8 @@ union B,C ["Abonnenter som mottar nyhetsbrev"]
 union A,B,C ["Kunder med abonnement og nyhetsbrev"]
 The overlap between two or more sets is always declared with the "union" keyword — never "intersection" or "overlap", even though the region it draws is the sets' intersection. "union" can list two or more set identifiers on one line.
 
+A venn-beta diagram must never have more than 3 sets. This is not a Mermaid restriction — it is a mathematical fact that circles cannot correctly represent all the overlaps among 4 or more sets (a 4th circle cannot intersect the other three in every way needed), so a 4-set Venn diagram is always visually broken regardless of how it is written. If the user asks for a Venn diagram with 4 or more categories, either merge the least important ones down to the 3 most important sets, or use a different diagram type (e.g. flowchart) that can clearly show 4+ categories and their relationships — whichever better preserves the user's intent. Never emit a venn-beta diagram with 4 or more "set" lines.
+
 block-beta
 columns 1
 A
