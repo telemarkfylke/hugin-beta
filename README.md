@@ -211,6 +211,14 @@ MOCK_DB="true"                    # Use in-memory database (required for local d
 MONGODB_CONNECTION_STRING="mongodb+srv://..." # Production MongoDB connection
 MONGODB_DB_NAME="mugin" # Name of database
 
+# Conversation encryption (optional - if unset, messages/titles/summaries are stored in plaintext)
+# Covers conversation-messages (userInput/response) and conversations (title/summary).
+# Key versions are free-form strings (a counter, a date, "prod-1" - whatever helps you track rotations).
+# Generate a key with: node -e "console.log(require('node:crypto').randomBytes(32).toString('base64'))"
+# Use a DIFFERENT keyset per environment (dev/prod) - each environment's own .env supplies its own.
+CONVERSATION_ENCRYPTION_KEYS='{"2026-08":"<base64 of 32 random bytes>"}' # keyed by key version
+CONVERSATION_ENCRYPTION_ACTIVE_KEY="2026-08" # which key version new writes are encrypted with
+
 # Authentication
 MOCK_AUTH="true"                  # Enable mock authentication for local development
 MOCK_AUTH_ROLES="Employee,Admin"  # Comma-separated role values
