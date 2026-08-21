@@ -146,7 +146,7 @@ All events are validated using Zod discriminated unions for type-safe handling.
 
 ### Canvas
 
-Canvas is an AI-assisted document editor available at `/canvas`. It lets users create and refine markdown documents through natural language prompts, with optional web search for sourcing content.
+Canvas is an AI-assisted document editor available at `/canvas/document`. It lets users create and refine markdown documents through natural language prompts, with optional web search for sourcing content.
 
 **How it works:**
 
@@ -161,7 +161,7 @@ Canvas is an AI-assisted document editor available at `/canvas`. It lets users c
 - Toggle between rendered preview and raw markdown editing
 - Web search toggle — enables live internet sourcing, with citations appended to the document
 - Export to `.txt` or `.docx` (with proper heading, bold, italic, bullet, and horizontal rule formatting)
-- Hardcoded to OpenAI `gpt-5.4` — no model selection needed
+- Hardcoded to OpenAI `gpt-5.6-terra` — no model selection needed
 
 **Access control:**
 
@@ -171,10 +171,13 @@ Canvas is gated behind the `CANVAS_ENABLED` environment variable and requires th
 
 | File | Purpose |
 |------|---------|
-| `src/routes/canvas/+page.svelte` | Canvas UI — editor, prompt bar, export |
-| `src/routes/canvas/+page.server.ts` | Page load with auth/feature-flag check |
+| `src/routes/canvas/+layout.server.ts` | Auth/feature-flag gate (shell) |
+| `src/routes/canvas/+layout.svelte` | Shell frame + conditional tool tab strip |
+| `src/routes/canvas/document/+page.svelte` | Document editor UI — editor, prompt bar, export |
+| `src/routes/canvas/PromptBar.svelte` | Prompt input component |
+| `src/routes/canvas/tools.ts` | Tool registry |
 | `src/routes/api/canvas/+server.ts` | POST endpoint — streams AI response |
-| `src/lib/types/canvas.ts` | Zod request schema |
+| `src/lib/types/canvas.ts` | Canvas request type (plain TypeScript) |
 
 ---
 
@@ -372,7 +375,7 @@ src/
 │   │   ├── chat-item.ts         # Message types
 │   │   ├── chat-item-content.ts # Content types (text, file, image)
 │   │   ├── streaming.ts         # SSE event types
-│   │   ├── canvas.ts            # Canvas request schema
+│   │   ├── canvas.ts            # Canvas request type
 │   │   └── authentication.ts    # Auth types
 │   ├── server/                   # Server-only code
 │   │   ├── ai-vendors.ts        # Vendor factory
