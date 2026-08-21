@@ -1,6 +1,6 @@
 import type { AppConfig, AppRoles } from "./types/app-config"
 import type { AuthenticatedPrincipal } from "./types/authentication"
-import type { Chat, ChatConfig } from "./types/chat"
+import type { Chat, ChatConfig, EntraAccessGroup, RoleAccessGroups } from "./types/chat"
 
 export const canViewAllChatConfigs = (user: AuthenticatedPrincipal, appRoles: AppRoles): boolean => {
 	return user.roles.includes(appRoles.ADMIN)
@@ -51,6 +51,28 @@ export const canUpdateChatConfig = (user: AuthenticatedPrincipal, appRoles: AppR
 // Used to force incognito mode and hide conversation history everywhere, client and server.
 export const canUseHistory = (user: AuthenticatedPrincipal, appRoles: AppRoles): boolean => {
 	return !(user.roles.includes(appRoles.STUDENT) && user.roles.every((role) => role === appRoles.STUDENT))
+}
+
+// Same accessGroups semantics as ChatConfig.accessGroups/canPromptConfig - reused here so a
+// FeatureSpotlight's audience is declared the same way an agent's audience is, rather than a
+// second bespoke convention. ADMIN always sees everything, mirroring canPromptConfig.
+export const canSeeSpotlight = (user: AuthenticatedPrincipal, appRoles: AppRoles, accessGroups: (RoleAccessGroups | EntraAccessGroup)[]): boolean => {
+	if (user.roles.includes(appRoles.ADMIN)) {
+		return true
+	}
+	if (accessGroups.includes("all")) {
+		return true
+	}
+	if (accessGroups.includes("employee") && user.roles.includes(appRoles.EMPLOYEE)) {
+		return true
+	}
+	if (accessGroups.includes("edu_employee") && user.roles.includes(appRoles.EDU_EMPLOYEE)) {
+		return true
+	}
+	if (accessGroups.includes("student") && (user.roles.includes(appRoles.STUDENT) || user.roles.includes(appRoles.EDU_EMPLOYEE))) {
+		return true
+	}
+	return accessGroups.some((group) => typeof group !== "string" && user.groups.includes(group.id))
 }
 
 export const canUseCanvas = (user: AuthenticatedPrincipal, appRoles: AppRoles): boolean => {

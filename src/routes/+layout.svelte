@@ -6,6 +6,7 @@
 	import "../style.css" // Add global css (and make it hot reload)
 	import "../lib/axe.js"
 	import Menu from "$lib/components/Menu.svelte"
+	import SpotlightHost from "$lib/components/SpotlightHost.svelte"
 	import type { LayoutProps } from "./$types.js"
 
 	let { children, data }: LayoutProps = $props()
@@ -47,6 +48,8 @@
 		{/if}
 	</div>
 </main>
+
+<SpotlightHost authenticatedUser={data.authenticatedUser} appRoles={data.APP_CONFIG.APP_ROLES} />
 
 <style>
 	main {
