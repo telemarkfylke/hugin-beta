@@ -1,8 +1,10 @@
 <script lang="ts">
 	import { Document, Packer, Paragraph, TextRun } from "docx"
+	import { page } from "$app/state"
 	import { markdownFormatter } from "$lib/formatting/markdown-formatter"
 	import { parseSse } from "$lib/streaming"
 	import PromptBar from "../PromptBar.svelte"
+	import { CANVAS_TOOLS, shouldShowToolTabs } from "../tools"
 
 	let docContent = $state("")
 	let prompt = $state("")
@@ -153,28 +155,36 @@
 
 <div class="document-page">
 	<div class="canvas-topbar">
-		<button onclick={() => (isEditing = !isEditing)} disabled={!docContent} title={isEditing ? "Forhåndsvis" : "Rediger"}>
-			<span class="material-symbols-outlined">{isEditing ? "preview" : "edit"}</span>
-			{isEditing ? "Forhåndsvis" : "Rediger"}
-		</button>
-		<div class="export-buttons">
-			<button onclick={downloadText} disabled={!docContent} title="Last ned som tekstfil">
-				<span class="material-symbols-outlined">download</span>
-				Tekst
+		{#if shouldShowToolTabs(CANVAS_TOOLS)}
+			<nav class="canvas-tabs">
+				{#each CANVAS_TOOLS as tool (tool.id)}
+					<a class="canvas-tab" class:active={page.url.pathname.startsWith(tool.href)} href={tool.href}>
+						<span class="material-symbols-outlined">{tool.icon}</span>
+						{tool.label}
+					</a>
+				{/each}
+			</nav>
+		{/if}
+		<div class="topbar-actions">
+			<button onclick={() => (isEditing = !isEditing)} disabled={!docContent} title={isEditing ? "Forhåndsvis" : "Rediger"}>
+				<span class="material-symbols-outlined">{isEditing ? "preview" : "edit"}</span>
+				{isEditing ? "Forhåndsvis" : "Rediger"}
 			</button>
-			<button onclick={downloadDocx} disabled={!docContent} title="Last ned som Word-dokument">
-				<span class="material-symbols-outlined">download</span>
-				Word
-			</button>
+			<div class="export-buttons">
+				<button onclick={downloadText} disabled={!docContent} title="Last ned som tekstfil">
+					<span class="material-symbols-outlined">download</span>
+					Tekst
+				</button>
+				<button onclick={downloadDocx} disabled={!docContent} title="Last ned som Word-dokument">
+					<span class="material-symbols-outlined">download</span>
+					Word
+				</button>
+			</div>
 		</div>
 	</div>
 
 	<div class="canvas-body" bind:this={canvasBody}>
 		<div class="canvas-content">
-			<header class="canvas-header">
-				<h1>Kladdeboka</h1>
-				<p>Skriv og bearbeid dokumenter sammen med kunstig intelligens. Beskriv hva du vil ha, så hjelper Hugin deg med å skrive og redigere. Du kan også redigere dokumentet selv. Bruk funksjonene på toppen av siden.</p>
-			</header>
 			<div class="canvas-paper">
 				{#if isEditing}
 					<textarea
@@ -230,13 +240,44 @@
 	.canvas-topbar {
 		display: flex;
 		align-items: center;
-		justify-content: flex-end;
+		justify-content: space-between;
 		flex-wrap: wrap;
 		gap: 0.5rem;
 		padding: 0.5rem 1.5rem;
 		background-color: #f0f0ef;
 		border-bottom: 1px solid var(--color-primary-30);
 		flex-shrink: 0;
+	}
+
+	.canvas-tabs {
+		display: flex;
+		gap: 0.5rem;
+		overflow-x: auto;
+		white-space: nowrap;
+	}
+
+	.canvas-tab {
+		display: flex;
+		align-items: center;
+		gap: 0.25rem;
+		padding: 0.35rem 0.75rem;
+		border-radius: 14px;
+		color: var(--color-primary);
+		flex-shrink: 0;
+		text-decoration: none;
+	}
+
+	.canvas-tab.active {
+		background-color: var(--color-primary);
+		color: white;
+		font-weight: 700;
+	}
+
+	.topbar-actions {
+		display: flex;
+		align-items: center;
+		flex-wrap: wrap;
+		gap: 0.5rem;
 	}
 
 	.export-buttons {
@@ -263,27 +304,6 @@
 		width: 100%;
 		max-width: 210mm;
 		align-self: flex-start;
-	}
-
-	.canvas-header {
-		margin-bottom: 1.5rem;
-	}
-
-	.canvas-header h1 {
-		margin: 0 0 0.5rem;
-		font-size: 1.5rem;
-		color: var(--color-primary);
-	}
-
-	.canvas-header p {
-		margin: 0 0 0.35rem;
-		color: var(--color-primary-80);
-		font-size: 0.9rem;
-		line-height: 1.5;
-	}
-
-	.canvas-header p:last-child {
-		margin-bottom: 0;
 	}
 
 	.canvas-paper {
@@ -315,11 +335,15 @@
 
 	.canvas-bottom {
 		flex-shrink: 0;
+		width: 100%;
+		max-width: 210mm;
+		align-self: center;
 		padding: 0.75rem 1.5rem;
 		background-color: #f0f0ef;
 		display: flex;
 		flex-direction: column;
 		gap: 0.5rem;
+		box-sizing: border-box;
 	}
 
 	.input-action-button {

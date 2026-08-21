@@ -7,4 +7,4 @@ export type CanvasTool = {
 
 export const CANVAS_TOOLS: CanvasTool[] = [{ id: "document", label: "Dokument", icon: "description", href: "/canvas/document" }]
 
-export const shouldShowToolTabs = (tools: CanvasTool[]): boolean => tools.length > 1
+export const shouldShowToolTabs = (tools: CanvasTool[]): boolean => tools.length > 0
