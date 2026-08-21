@@ -46,14 +46,18 @@ export const canUpdateChatConfig = (user: AuthenticatedPrincipal, appRoles: AppR
 	return false
 }
 
-// Students' conversations must never be stored. "Student-only" means STUDENT is the *only*
-// role the user has - someone who is e.g. both STUDENT and EDU_EMPLOYEE keeps normal history.
+// Students' conversations must never be stored. Everyone can use history except a user whose
+// *only* role is STUDENT - someone who is e.g. both STUDENT and EDU_EMPLOYEE keeps it.
 // Used to force incognito mode and hide conversation history everywhere, client and server.
-export const isStudentOnly = (user: AuthenticatedPrincipal, appRoles: AppRoles): boolean => {
-	return user.roles.includes(appRoles.STUDENT) && user.roles.every((role) => role === appRoles.STUDENT)
+export const canUseHistory = (user: AuthenticatedPrincipal, appRoles: AppRoles): boolean => {
+	return !(user.roles.includes(appRoles.STUDENT) && user.roles.every((role) => role === appRoles.STUDENT))
 }
 
 export const canUseCanvas = (user: AuthenticatedPrincipal, appRoles: AppRoles): boolean => {
+	return user.roles.includes(appRoles.EMPLOYEE) || user.roles.includes(appRoles.ADMIN)
+}
+
+export const canUseRagservice = (user: AuthenticatedPrincipal, appRoles: AppRoles): boolean => {
 	return user.roles.includes(appRoles.EMPLOYEE) || user.roles.includes(appRoles.ADMIN)
 }
 

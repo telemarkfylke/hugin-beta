@@ -2,7 +2,7 @@
 	import { onMount } from "svelte"
 	import { slide } from "svelte/transition"
 	import { page } from "$app/state"
-	import { canEditPredefinedConfig, canPublishChatConfig } from "$lib/authorization"
+	import { canEditPredefinedConfig, canPublishChatConfig, canUseRagservice } from "$lib/authorization"
 	import { RagServiceApi } from "$lib/ragservice/adapters/ragserviceApi"
 	import type { StoreConfig } from "$lib/ragservice/types"
 	import type { ChatConfig, VendorId } from "$lib/types/chat"
@@ -17,6 +17,7 @@
 	let { chatState = $bindable() }: Props = $props()
 
 	let userCanEditPredefinedConfig = $derived(canEditPredefinedConfig(chatState.user, chatState.APP_CONFIG.APP_ROLES))
+	let userCanUseRagservice = $derived(canUseRagservice(chatState.user, chatState.APP_CONFIG.APP_ROLES))
 
 	// Not reactive state, to "remember" predefined vs manual config when toggling
 	let predefinedConfigCache: Partial<ChatConfig> = {
@@ -57,7 +58,9 @@
 	let availableStores: StoreConfig[] = $state([])
 
 	onMount(async () => {
-		availableStores = await ragApi.getStores()
+		if (userCanUseRagservice) {
+			availableStores = await ragApi.getStores()
+		}
 	})
 
 	function addDataSource(storeId: string) {
@@ -222,23 +225,25 @@
 			{/if}
 
 			<!-- Data sources -->
-			<div class="config-section">
-				<div class="config-item">
-					<label>Datakilder</label>
-					{#each chatState.chat.config.dataSources ?? [] as source}
-						<div class="source-row">
-							<span>{availableStores.find((s) => s.storeId === source.id)?.name ?? source.id}</span>
-							<button class="remove-source" onclick={() => removeDataSource(source.id)}>×</button>
-						</div>
-					{/each}
-					<select onchange={(e) => { addDataSource(e.currentTarget.value); e.currentTarget.value = "" }}>
-						<option value="">Legg til datakilde...</option>
-						{#each availableStores.filter((s) => !(chatState.chat.config.dataSources ?? []).some((d) => d.id === s.storeId)) as store}
-							<option value={store.storeId}>{store.name}</option>
+			{#if userCanUseRagservice}
+				<div class="config-section">
+					<div class="config-item">
+						<label>Datakilder</label>
+						{#each chatState.chat.config.dataSources ?? [] as source}
+							<div class="source-row">
+								<span>{availableStores.find((s) => s.storeId === source.id)?.name ?? source.id}</span>
+								<button class="remove-source" onclick={() => removeDataSource(source.id)}>×</button>
+							</div>
 						{/each}
-					</select>
+						<select onchange={(e) => { addDataSource(e.currentTarget.value); e.currentTarget.value = "" }}>
+							<option value="">Legg til datakilde...</option>
+							{#each availableStores.filter((s) => !(chatState.chat.config.dataSources ?? []).some((d) => d.id === s.storeId)) as store}
+								<option value={store.storeId}>{store.name}</option>
+							{/each}
+						</select>
+					</div>
 				</div>
-			</div>
+			{/if}
 
 			<!-- Vendor agent (only for predefined config) -->
 			{#if chatState.chat.config.vendorAgent}

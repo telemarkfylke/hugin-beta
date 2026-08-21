@@ -5,8 +5,10 @@
 	import type { CreateVectorStoreInput, EmbeddingDimensions, EmbeddingModel, StoreConfig } from "../types"
 	import "./ragservice-shared.css"
 	import InfoTooltip from "./InfoTooltip.svelte"
+	import LogicRadioField from "./LogicRadioField.svelte"
 	import NullableBooleanField from "./NullableBooleanField.svelte"
 	import NullableRangeField from "./NullableRangeField.svelte"
+	import VennLogicIcon from "./VennLogicIcon.svelte"
 
 	type Props = {
 		onDone: (storeId: StoreConfig | null) => void
@@ -61,9 +63,22 @@
 		}
 	}
 
+	let creating = $state(false)
+	let createError: string | null = $state(null)
+
 	async function addStore() {
-		const reply = await api.createStore(store)
-		onDone(reply)
+		creating = true
+		createError = null
+		try {
+			const reply = await api.createStore(store)
+			if (reply) {
+				onDone(reply)
+			} else {
+				createError = "Kunne ikke opprette biblioteket. Prøv igjen."
+			}
+		} finally {
+			creating = false
+		}
 	}
 
 	async function cancel() {
@@ -138,15 +153,27 @@
 	<h3 class="rag-section-title">Terskler</h3>
 	<div class="rag-field-grid">
 		<NullableRangeField
-			label="Text Treshhold"
+			label="Text Threshold"
 			min={0}
 			max={50}
 			step={1}
 			bind:value={thresholdsText}
 			help="Minimum tekst-score et treff må ha for å bli tatt med. Skru av for å ikke filtrere på tekst-score."
 		/>
+
+		<LogicRadioField
+			highlight
+			disabled={thresholdsText === null || thresholdsVector === null}
+			bind:value={thresholdsLogic}
+			help="'And' krever at treffet passerer både tekst- og vector-terskel. 'Or' krever at minst én av dem er oppfylt."
+		>
+			{#snippet icon()}
+				<VennLogicIcon mode={thresholdsLogic} />
+			{/snippet}
+		</LogicRadioField>
+
 		<NullableRangeField
-			label="Vector Treshhold"
+			label="Vector Threshold"
 			min={0}
 			max={1}
 			step={0.01}
@@ -154,16 +181,6 @@
 			bind:value={thresholdsVector}
 			help="Minimum vector-score (semantisk likhet) et treff må ha for å bli tatt med. Skru av for å ikke filtrere på vector-score."
 		/>
-		<div class="rag-simple-field">
-			<span class="rag-field-label">
-				Logikk
-				<InfoTooltip text="'And' krever at treffet passerer både tekst- og vector-terskel. 'Or' krever at minst én av dem er oppfylt." />
-			</span>
-			<select bind:value={thresholdsLogic}>
-				<option value="and">And</option>
-				<option value="or">Or</option>
-			</select>
-		</div>
 		{#if RERANK_ENABLED}
 			<NullableBooleanField
 				label="Rerank"
@@ -174,9 +191,15 @@
 	</div>
 
 	<div class="actions">
-		<button onclick={() => cancel()}>Avbryt</button>
-		<button class="filled" onclick={() => addStore()}>Legg til</button>
+		<button onclick={() => cancel()} disabled={creating}>Avbryt</button>
+		<button class="filled" onclick={() => addStore()} disabled={creating}>
+			{creating ? "Legger til..." : "Legg til"}
+		</button>
 	</div>
+
+	{#if createError}
+		<p class="error">{createError}</p>
+	{/if}
 </main>
 
 <style>
@@ -184,5 +207,10 @@
 		display: flex;
 		gap: 8px;
 		margin-top: 20px;
+	}
+
+	p.error {
+		color: var(--color-danger);
+		margin-top: 12px;
 	}
 </style>

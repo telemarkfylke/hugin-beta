@@ -50,6 +50,13 @@
 		return Math.min(100, Math.round((Number(done) / totalNum) * 100))
 	}
 
+	// status is a free-form string from ragservice - "done" (checked case-insensitively) is the
+	// only value we can rely on, so that's the only one we badge/translate rather than guessing
+	// at other literal status strings.
+	function isDone(status: string): boolean {
+		return status.toLowerCase() === "done"
+	}
+
 	onMount(() => {
 		loadFiles()
 	})
@@ -83,8 +90,8 @@
 			{#each files as file}
 				<tr>
 					<td>
-						{file.status}
-						{#if file.progress && file.status.toLowerCase() !== "done"}
+						<span class="status-badge" class:status-done={isDone(file.status)}>{isDone(file.status) ? "Ferdig" : file.status}</span>
+						{#if file.progress && !isDone(file.status)}
 							{@const percent = progressPercent(file.progress)}
 							<div class="file-progress" title={file.progress}>
 								{#if percent !== null}
@@ -150,5 +157,21 @@
 		font-size: 0.75rem;
 		font-variant-numeric: tabular-nums;
 		color: var(--color-primary-70);
+	}
+
+	span.status-badge {
+		display: inline-block;
+		padding: 2px 8px;
+		border-radius: 999px;
+		font-size: 0.8rem;
+		font-weight: 600;
+		white-space: nowrap;
+		background-color: var(--color-primary-10);
+		color: var(--color-primary-80);
+	}
+
+	span.status-badge.status-done {
+		background-color: var(--color-secondary-20);
+		color: var(--color-primary);
 	}
 </style>

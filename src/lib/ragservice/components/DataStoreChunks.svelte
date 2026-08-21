@@ -15,7 +15,11 @@
 	let newChunkText: string = $state("")
 	let newChunkFields: KVPair[] = $state([])
 	let adding: boolean = $state(false)
-	let successMessage: string = $state("")
+	let justAdded: boolean = $state(false)
+
+	// Same reasoning as DataStoreTextSearch's save-defaults button: confirmation lives in the
+	// button's own label instead of a separate message, so it clears itself automatically.
+	const ADDED_CONFIRMATION_MS = 2000
 
 	function addField() {
 		newChunkFields.push({ key: "", value: "" })
@@ -34,13 +38,16 @@
 	async function addChunk() {
 		if (!newChunkText.trim()) return
 		adding = true
-		successMessage = ""
+		justAdded = false
 		try {
 			const extraInfo = buildExtraInfo()
 			await api.addChunks(store.storeId, [extraInfo ? { data: newChunkText, extraInfo } : { data: newChunkText }])
 			newChunkText = ""
 			newChunkFields = []
-			successMessage = "Chunk lagt til."
+			justAdded = true
+			setTimeout(() => {
+				justAdded = false
+			}, ADDED_CONFIRMATION_MS)
 		} finally {
 			adding = false
 		}
@@ -68,11 +75,8 @@
 
 	<div class="form-actions">
 		<button class="filled" onclick={addChunk} disabled={adding || !newChunkText.trim()}>
-			{adding ? "Legger til..." : "Legg til chunk"}
+			{adding ? "Legger til..." : justAdded ? "Lagt til ✓" : "Legg til chunk"}
 		</button>
-		{#if successMessage}
-			<span class="success">{successMessage}</span>
-		{/if}
 	</div>
 </div>
 
@@ -131,10 +135,5 @@
 		display: flex;
 		align-items: center;
 		gap: 12px;
-	}
-
-	span.success {
-		font-size: small;
-		color: var(--color-primary);
 	}
 </style>

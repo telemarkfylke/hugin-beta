@@ -20,6 +20,10 @@ import type {
 
 const BASE = "/api/obo/rag"
 
+// A real search can legitimately take a while (embedding + vector + text search combined), so
+// this is generous - it's a "stop hanging forever" backstop, not a normal-latency budget.
+const SEARCH_TIMEOUT_MS = 30_000
+
 async function get<T>(path: string): Promise<T | null> {
 	try {
 		const res = await fetch(`${BASE}${path}`)
@@ -131,8 +135,25 @@ export class RagServiceApi {
 		return await del(`/stores/${storeId}/files/${fileId}`)
 	}
 
+	// Deliberately doesn't go through the shared post() helper: that swallows every failure into
+	// null, which textSearch would otherwise turn into an empty array - indistinguishable from a
+	// real "no matches" result. Callers need to tell those apart to show a proper error instead
+	// of silently rendering nothing (see DataStoreTextSearch's searchError).
 	async textSearch(storeId: string, query: VectorSearch): Promise<VectorMatch[]> {
-		return (await post<VectorMatch[]>(`/stores/${storeId}/search/text`, query)) ?? []
+		const controller = new AbortController()
+		const timeout = setTimeout(() => controller.abort(), SEARCH_TIMEOUT_MS)
+		try {
+			const res = await fetch(`${BASE}/stores/${storeId}/search/text`, {
+				method: "POST",
+				headers: { "content-type": "application/json" },
+				body: JSON.stringify(query),
+				signal: controller.signal
+			})
+			if (!res.ok) throw new Error(`Søket feilet (${res.status})`)
+			return (await res.json()) as VectorMatch[]
+		} finally {
+			clearTimeout(timeout)
+		}
 	}
 
 	async getAccess(storeId: string): Promise<Access> {

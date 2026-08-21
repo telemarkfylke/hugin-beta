@@ -1,22 +1,24 @@
 <script lang="ts">
 	type Props = {
 		show: boolean
-		jobName: string
+		message: string
+		subtext?: string
+		confirmLabel?: string
 		onConfirm: () => void
 	}
 
-	let { show = $bindable(), jobName, onConfirm }: Props = $props()
+	let { show = $bindable(), message, subtext, confirmLabel = "Slett", onConfirm }: Props = $props()
 </script>
 
 {#if show}
 	<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
 	<div class="dialog-backdrop" onclick={() => (show = false)}>
 		<div class="dialog" onclick={(e) => e.stopPropagation()}>
-			<p>Er du sikker på at du vil slette <strong>{jobName}</strong>?</p>
-			<p class="dialog-sub">Lydfilen og eventuelle dokumenter vil bli slettet fra serveren.</p>
+			<p>{message}</p>
+			{#if subtext}<p class="dialog-sub">{subtext}</p>{/if}
 			<div class="dialog-actions">
 				<button onclick={() => (show = false)}>Avbryt</button>
-				<button class="filled danger" onclick={() => { show = false; onConfirm() }}>Slett</button>
+				<button class="filled danger" onclick={() => { show = false; onConfirm() }}>{confirmLabel}</button>
 			</div>
 		</div>
 	</div>

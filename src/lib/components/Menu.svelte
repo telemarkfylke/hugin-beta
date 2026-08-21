@@ -12,9 +12,9 @@
 		appName: string
 		isEmployee: boolean
 		canvasEnabled: boolean
-		isStudentOnly: boolean
+		isAdmin: boolean
 	}
-	let { authenticatedUser, appName, isEmployee, canvasEnabled, isStudentOnly }: Props = $props()
+	let { authenticatedUser, appName, isEmployee, canvasEnabled, isAdmin }: Props = $props()
 
 	let menuOpen = $state(true)
 	let menuAgents: { isLoading: boolean; agents: ChatConfig[]; error: string | null } = $state({ isLoading: false, agents: [], error: null })
@@ -180,7 +180,7 @@
 				{/if}
 			</div>
 			<!-- Hugin-only services. Hidden unless APP_NAME="Hugin" (defaults to "Mugin"); set it in your .env for local dev. -->
-			{#if appName === "Hugin" && isEmployee}
+			{#if appName === "Hugin" && (isEmployee || isAdmin)}
 				<div class="menu-section">
 					<div class="menu-section-title">Andre tjenester</div>
 					<div class="menu-items">
@@ -188,7 +188,7 @@
 						{#if canvasEnabled}
 							<a class="menu-item" class:active={page.url.pathname === "/canvas"} href="/canvas">Kladdeboka</a>
 						{/if}
-						{#if !isStudentOnly}
+						{#if isAdmin}
 							<a class="menu-item" class:active={page.url.pathname === "/ragservice"} href="/ragservice">Datakilder</a>
 						{/if}
 					</div>

@@ -697,7 +697,12 @@
 	</div>
 {/if}
 
-<ConfirmDeleteDialog bind:show={deleteDialogShow} jobName={deleteDialogJob?.fileName ?? ""} onConfirm={confirmDelete} />
+<ConfirmDeleteDialog
+	bind:show={deleteDialogShow}
+	message={`Er du sikker på at du vil slette "${deleteDialogJob?.fileName ?? ""}"?`}
+	subtext="Lydfilen og eventuelle dokumenter vil bli slettet fra serveren."
+	onConfirm={confirmDelete}
+/>
 
 <style>
 	.transcription-page {
