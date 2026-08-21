@@ -186,7 +186,7 @@
 					<div class="menu-items">
 						<a class="menu-item" class:active={page.url.pathname === "/transcription"} href="/transcription">Tale-til-notat</a>
 						{#if canvasEnabled}
-							<a class="menu-item" class:active={page.url.pathname === "/canvas"} href="/canvas">Kladdeboka</a>
+							<a class="menu-item" class:active={page.url.pathname.startsWith("/canvas")} href="/canvas/document">Kladdeboka</a>
 						{/if}
 						{#if isAdmin}
 							<a class="menu-item" class:active={page.url.pathname === "/ragservice"} href="/ragservice">Datakilder</a>

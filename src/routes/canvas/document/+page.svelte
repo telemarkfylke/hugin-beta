@@ -1,20 +1,11 @@
 <script lang="ts">
 	import { Document, Packer, Paragraph, TextRun } from "docx"
-	import TypingDots from "$lib/components/TypingDots.svelte"
 	import { markdownFormatter } from "$lib/formatting/markdown-formatter"
 	import { parseSse } from "$lib/streaming"
+	import PromptBar from "../PromptBar.svelte"
 
 	let docContent = $state("")
 	let prompt = $state("")
-	let promptWrapDiv: HTMLDivElement = $state() as HTMLDivElement
-	let promptTextArea: HTMLTextAreaElement = $state() as HTMLTextAreaElement
-
-	$effect(() => {
-		prompt
-		if (promptWrapDiv && promptTextArea) {
-			promptWrapDiv.setAttribute("data-replicated-value", promptTextArea.value)
-		}
-	})
 	let isLoading = $state(false)
 	let errorMessage = $state("")
 	let isEditing = $state(false)
@@ -97,13 +88,6 @@
 		}
 	}
 
-	const onKeydown = (e: KeyboardEvent) => {
-		if (e.key === "Enter" && !e.shiftKey) {
-			e.preventDefault()
-			submitPrompt()
-		}
-	}
-
 	const downloadText = () => {
 		const blob = new Blob([docContent], { type: "text/plain" })
 		const url = URL.createObjectURL(blob)
@@ -167,8 +151,7 @@
 	}
 </script>
 
-<div class="canvas-page">
-	<!-- Top bar: export buttons -->
+<div class="document-page">
 	<div class="canvas-topbar">
 		<button onclick={() => (isEditing = !isEditing)} disabled={!docContent} title={isEditing ? "Forhåndsvis" : "Rediger"}>
 			<span class="material-symbols-outlined">{isEditing ? "preview" : "edit"}</span>
@@ -186,7 +169,6 @@
 		</div>
 	</div>
 
-	<!-- Canvas document area -->
 	<div class="canvas-body" bind:this={canvasBody}>
 		<div class="canvas-content">
 			<header class="canvas-header">
@@ -194,33 +176,34 @@
 				<p>Skriv og bearbeid dokumenter sammen med kunstig intelligens. Beskriv hva du vil ha, så hjelper Hugin deg med å skrive og redigere. Du kan også redigere dokumentet selv. Bruk funksjonene på toppen av siden.</p>
 			</header>
 			<div class="canvas-paper">
-			{#if isEditing}
-				<textarea class="document-editor" bind:this={documentEditor} bind:value={docContent} oninput={(e) => { const t = e.currentTarget; const scroll = canvasBody?.scrollTop ?? 0; t.style.height = "auto"; t.style.height = t.scrollHeight + "px"; if (canvasBody) canvasBody.scrollTop = scroll }}></textarea>
-			{:else if docContent}
-				{@html markdownFormatter(docContent)}
-			{:else}
-				<p class="empty-hint">Dokumentet er tomt. Skriv en instruksjon nedenfor for å komme i gang.</p>
-			{/if}
+				{#if isEditing}
+					<textarea
+						class="document-editor"
+						bind:this={documentEditor}
+						bind:value={docContent}
+						oninput={(e) => {
+							const t = e.currentTarget
+							const scroll = canvasBody?.scrollTop ?? 0
+							t.style.height = "auto"
+							t.style.height = t.scrollHeight + "px"
+							if (canvasBody) canvasBody.scrollTop = scroll
+						}}
+					></textarea>
+				{:else if docContent}
+					{@html markdownFormatter(docContent)}
+				{:else}
+					<p class="empty-hint">Dokumentet er tomt. Skriv en instruksjon nedenfor for å komme i gang.</p>
+				{/if}
 			</div>
 		</div>
 	</div>
 
-	<!-- Bottom prompt bar -->
 	<div class="canvas-bottom">
 		{#if errorMessage}
 			<div class="error-banner">{errorMessage}</div>
 		{/if}
-		<div class="prompt-wrapper">
-			<div class="grow-wrap" bind:this={promptWrapDiv}>
-				<textarea
-					bind:this={promptTextArea}
-					placeholder="Beskriv hva du vil gjøre med dokumentet…"
-					bind:value={prompt}
-					onkeydown={onKeydown}
-					rows={1}
-				></textarea>
-			</div>
-			<div class="prompt-actions">
+		<PromptBar bind:value={prompt} placeholder="Beskriv hva du vil gjøre med dokumentet…" {isLoading} sendDisabled={!prompt.trim()} onSubmit={submitPrompt}>
+			{#snippet actions()}
 				<button
 					class="icon-button input-action-button"
 					class:active={webSearchEnabled}
@@ -230,36 +213,26 @@
 				>
 					<span class="material-symbols-outlined">travel_explore</span>
 				</button>
-				<div class="prompt-submit">
-					{#if isLoading}
-						<button class="icon-button send-button" disabled title="Sender...">
-							<TypingDots />
-						</button>
-					{:else}
-						<button class="icon-button filled send-button" onclick={submitPrompt} disabled={!prompt.trim()} title="Send (Enter)">
-							<span class="material-symbols-outlined">arrow_upward</span>
-						</button>
-					{/if}
-				</div>
-			</div>
-		</div>
+			{/snippet}
+		</PromptBar>
 	</div>
 </div>
 
 <style>
-	.canvas-page {
+	.document-page {
 		display: flex;
 		flex-direction: column;
-		height: 100%;
+		flex: 1;
 		overflow: hidden;
-		background-color: #f0f0ef;
+		min-height: 0;
 	}
 
-	/* Top bar */
 	.canvas-topbar {
 		display: flex;
 		align-items: center;
 		justify-content: flex-end;
+		flex-wrap: wrap;
+		gap: 0.5rem;
 		padding: 0.5rem 1.5rem;
 		background-color: #f0f0ef;
 		border-bottom: 1px solid var(--color-primary-30);
@@ -278,7 +251,6 @@
 		font-size: small;
 	}
 
-	/* Scrollable canvas area */
 	.canvas-body {
 		flex: 1;
 		overflow-y: auto;
@@ -287,14 +259,12 @@
 		justify-content: center;
 	}
 
-	/* Content column (header + paper) */
 	.canvas-content {
 		width: 100%;
 		max-width: 210mm;
 		align-self: flex-start;
 	}
 
-	/* Page header */
 	.canvas-header {
 		margin-bottom: 1.5rem;
 	}
@@ -316,11 +286,10 @@
 		margin-bottom: 0;
 	}
 
-	/* Paper card — A4 page (210 × 297 mm) */
 	.canvas-paper {
 		background: white;
 		border-radius: 2px;
-		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.10), 0 0 0 1px rgba(0, 0, 0, 0.04);
+		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(0, 0, 0, 0.04);
 		padding: 25mm 20mm;
 		width: 100%;
 		min-height: 297mm;
@@ -344,7 +313,6 @@
 		box-sizing: border-box;
 	}
 
-	/* Bottom prompt bar */
 	.canvas-bottom {
 		flex-shrink: 0;
 		padding: 0.75rem 1.5rem;
@@ -352,57 +320,6 @@
 		display: flex;
 		flex-direction: column;
 		gap: 0.5rem;
-	}
-
-	.prompt-wrapper {
-		display: flex;
-		flex-direction: column;
-		gap: 0.25rem;
-		padding: 0.5rem 1rem;
-		border: 1px solid var(--color-primary);
-		border-radius: 24px;
-		background: white;
-		transition: box-shadow 0.2s;
-	}
-
-	.prompt-wrapper:focus-within {
-		border-color: var(--color-primary-80);
-		box-shadow: 0 0 0 2px var(--color-primary-20);
-	}
-
-	.grow-wrap {
-		flex: 1;
-		display: grid;
-		padding: 0.5rem 0;
-	}
-
-	.grow-wrap::after {
-		content: attr(data-replicated-value) " ";
-		white-space: pre-wrap;
-		visibility: hidden;
-		max-height: 8rem;
-	}
-
-	.grow-wrap > textarea,
-	.grow-wrap::after {
-		font: inherit;
-		grid-area: 1 / 1 / 2 / 2;
-		border: none;
-		outline: none;
-		resize: none;
-		background: transparent;
-		max-height: 8rem;
-		overflow-y: auto;
-	}
-
-	.grow-wrap > textarea::placeholder {
-		color: var(--color-primary-70);
-	}
-
-	.prompt-actions {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
 	}
 
 	.input-action-button {
@@ -415,14 +332,6 @@
 		border-radius: 50%;
 	}
 
-	.send-button {
-		width: 2.5rem;
-		height: 2.5rem;
-		border-radius: 50%;
-		justify-content: center;
-		transition: background-color 0.2s;
-	}
-
 	.error-banner {
 		padding: 0.4rem 0.75rem;
 		background-color: #fde8e8;
@@ -430,5 +339,20 @@
 		border-radius: 4px;
 		font-size: small;
 		color: #b71c1c;
+	}
+
+	@media (max-width: 768px) {
+		.canvas-body {
+			padding: 1rem;
+		}
+
+		.canvas-paper {
+			padding: 1rem;
+			min-height: 40vh;
+		}
+
+		.document-editor {
+			min-height: 30vh;
+		}
 	}
 </style>
