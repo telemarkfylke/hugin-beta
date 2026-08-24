@@ -231,7 +231,10 @@ export class ChatState {
 			}
 			const data: { conversation: { id: string; owner: string; title?: string; createdAt: string; updatedAt: string }; history: ChatHistory } = await result.json()
 
-			const lastResponse = [...data.history].reverse().find((item): item is ChatResponseObject => item.type === "chat_response")
+			// config._id === "" marks a synthetic response (e.g. a message that couldn't be decrypted,
+			// see buildDecryptionFailureResponse) - skip past it rather than treating its placeholder
+			// name/id as the conversation's real last agent.
+			const lastResponse = [...data.history].reverse().find((item): item is ChatResponseObject => item.type === "chat_response" && item.config._id !== "")
 			const originalConfig = lastResponse?.config
 
 			const isDifferentAgent = Boolean(originalConfig?._id) && originalConfig?._id !== this.chat.config._id
