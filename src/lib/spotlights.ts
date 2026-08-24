@@ -41,7 +41,7 @@ export const SPOTLIGHTS: SpotlightDefinition[] = [
 		placement: "top-center",
 		backdrop: true,
 		// Excludes "student": student-only accounts are forced incognito and never get
-		// history stored (see isStudentOnly in $lib/authorization), so this doesn't apply.
+		// history stored (see canUseHistory in $lib/authorization), so this doesn't apply.
 		accessGroups: ["employee", "edu_employee"]
 	}
 ]

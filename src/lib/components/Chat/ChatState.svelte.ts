@@ -152,7 +152,7 @@ export class ChatState {
 		this.APP_CONFIG = appConfig
 		this.apiEndpoint = options?.apiEndpoint ?? "/api/chat"
 		this.lockedTools = options?.lockedTools ?? null
-		this.canUseHistory = !options?.forceIncognito && canUseHistory(user, appConfig.APP_ROLES)
+		this.canUseHistory = options?.forceIncognito ? false : canUseHistory(user, appConfig.APP_ROLES)
 		if (!this.canUseHistory) {
 			this.storeChat = false
 		}
