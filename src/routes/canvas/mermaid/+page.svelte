@@ -4,7 +4,8 @@
 	import PromptBar from "../PromptBar.svelte"
 	import { CANVAS_TOOLS, shouldShowToolTabs } from "../tools"
 
-	mermaid.initialize({ startOnLoad: false, theme: "neutral", suppressErrorRendering: true })
+	// htmlLabels renders labels via <foreignObject>, which taints the canvas used for PNG export in downloadImage()
+	mermaid.initialize({ startOnLoad: false, theme: "neutral", suppressErrorRendering: true, htmlLabels: false })
 
 	let code = $state("")
 	let prompt = $state("")
@@ -69,20 +70,28 @@
 
 	const downloadImage = () => {
 		if (!svg) return
+		// img.width/height reflect the browser's generic replaced-element default size (300x150),
+		// not the diagram's actual size, because the rendered root <svg> has width="100%" and no
+		// height attribute. Read the real dimensions from the viewBox instead.
+		const svgEl = new DOMParser().parseFromString(svg, "image/svg+xml").documentElement
+		const viewBox = svgEl.getAttribute("viewBox")?.split(/\s+/).map(Number)
+		const width = viewBox?.[2] || 800
+		const height = viewBox?.[3] || 600
+
 		const svgBlob = new Blob([svg], { type: "image/svg+xml;charset=utf-8" })
 		const svgUrl = URL.createObjectURL(svgBlob)
 		const img = new Image()
 		img.onload = () => {
 			const scale = 2
 			const canvas = document.createElement("canvas")
-			canvas.width = img.width * scale
-			canvas.height = img.height * scale
+			canvas.width = width * scale
+			canvas.height = height * scale
 			const ctx = canvas.getContext("2d")
 			if (ctx) {
 				ctx.scale(scale, scale)
 				ctx.fillStyle = "white"
-				ctx.fillRect(0, 0, img.width, img.height)
-				ctx.drawImage(img, 0, 0)
+				ctx.fillRect(0, 0, width, height)
+				ctx.drawImage(img, 0, 0, width, height)
 			}
 			canvas.toBlob((blob) => {
 				if (!blob) return
@@ -213,7 +222,7 @@
 
 	.canvas-content {
 		width: 100%;
-		max-width: 210mm;
+		max-width: 297mm;
 		align-self: flex-start;
 	}
 
@@ -221,9 +230,9 @@
 		background: white;
 		border-radius: 2px;
 		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(0, 0, 0, 0.04);
-		padding: 25mm 20mm;
+		padding: 20mm 25mm;
 		width: 100%;
-		min-height: 297mm;
+		min-height: 210mm;
 		box-sizing: border-box;
 		display: flex;
 		align-items: flex-start;
@@ -241,7 +250,7 @@
 
 	.document-editor {
 		width: 100%;
-		min-height: 247mm;
+		min-height: 160mm;
 		border: none;
 		outline: none;
 		resize: none;
@@ -254,7 +263,7 @@
 	.canvas-bottom {
 		flex-shrink: 0;
 		width: 100%;
-		max-width: 210mm;
+		max-width: 297mm;
 		align-self: center;
 		padding: 0.75rem 1.5rem;
 		background-color: #f0f0ef;
