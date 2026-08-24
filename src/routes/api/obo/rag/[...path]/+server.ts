@@ -1,6 +1,6 @@
 import { error, type RequestHandler } from "@sveltejs/kit"
 import { env } from "$env/dynamic/private"
-import { isStudentOnly } from "$lib/authorization"
+import { canUseRagservice } from "$lib/authorization"
 import { APP_CONFIG } from "$lib/server/app-config/app-config"
 import { MS_AUTH_TOKEN_HEADER } from "$lib/server/auth/auth-constants"
 import { getAuthenticatedPrincipal } from "$lib/server/auth/get-authenticated-user"
@@ -19,10 +19,10 @@ async function proxyToRag(request: Request, path: string, url: URL): Promise<Res
 	}
 	const userId = principal.userId
 
-	// Students don't have access to data sources yet - not just to existing libraries (those are
-	// already gated per-store via AccessRow), but they could otherwise create their own libraries
-	// too, which nothing else here would stop. Block the whole proxy for them.
-	if (isStudentOnly(principal, APP_CONFIG.APP_ROLES)) {
+	// Admin-only while the ragservice GUI still needs a deeper review - not just for existing
+	// libraries (those are already gated per-store via AccessRow), but anyone let through here
+	// could otherwise create their own libraries too, which nothing else here would stop.
+	if (!canUseRagservice(principal, APP_CONFIG.APP_ROLES)) {
 		error(403, "Ikke tilgang til datakilder")
 	}
 

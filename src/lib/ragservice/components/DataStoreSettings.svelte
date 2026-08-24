@@ -4,8 +4,10 @@
 	import type { StoreResponse, UpdateStoreValues } from "../types"
 	import "./ragservice-shared.css"
 	import InfoTooltip from "./InfoTooltip.svelte"
+	import LogicRadioField from "./LogicRadioField.svelte"
 	import NullableBooleanField from "./NullableBooleanField.svelte"
 	import NullableRangeField from "./NullableRangeField.svelte"
+	import VennLogicIcon from "./VennLogicIcon.svelte"
 
 	type Props = {
 		store: StoreResponse
@@ -26,10 +28,16 @@
 	let rerank: boolean | null = $state(store.searchOptions?.rerank ?? null)
 
 	let saving = $state(false)
+	let justSaved = $state(false)
 	let saveError: string | null = $state(null)
+
+	// Same reasoning as DataStoreTextSearch's save-defaults button: confirmation lives in the
+	// button's own label instead of a separate message, so it clears itself automatically.
+	const SAVED_CONFIRMATION_MS = 2000
 
 	async function save() {
 		saving = true
+		justSaved = false
 		saveError = null
 		const values: UpdateStoreValues = {
 			name,
@@ -44,6 +52,10 @@
 			const updated = await api.updateStore(store.storeId, values)
 			if (updated) {
 				onSaved()
+				justSaved = true
+				setTimeout(() => {
+					justSaved = false
+				}, SAVED_CONFIRMATION_MS)
 			} else {
 				saveError = "Kunne ikke lagre innstillinger"
 			}
@@ -83,15 +95,27 @@
 	<h3 class="rag-section-title">Terskler</h3>
 	<div class="rag-field-grid">
 		<NullableRangeField
-			label="Text Treshhold"
+			label="Text Threshold"
 			min={0}
 			max={50}
 			step={1}
 			bind:value={thresholdsText}
 			help="Minimum tekst-score et treff må ha for å bli tatt med. Skru av for å ikke filtrere på tekst-score."
 		/>
+
+		<LogicRadioField
+			highlight
+			disabled={thresholdsText === null || thresholdsVector === null}
+			bind:value={thresholdsLogic}
+			help="'And' krever at treffet passerer både tekst- og vector-terskel. 'Or' krever at minst én av dem er oppfylt."
+		>
+			{#snippet icon()}
+				<VennLogicIcon mode={thresholdsLogic} />
+			{/snippet}
+		</LogicRadioField>
+
 		<NullableRangeField
-			label="Vector Treshhold"
+			label="Vector Threshold"
 			min={0}
 			max={1}
 			step={0.01}
@@ -99,16 +123,6 @@
 			bind:value={thresholdsVector}
 			help="Minimum vector-score (semantisk likhet) et treff må ha for å bli tatt med. Skru av for å ikke filtrere på vector-score."
 		/>
-		<div class="rag-simple-field">
-			<span class="rag-field-label">
-				Logikk
-				<InfoTooltip text="'And' krever at treffet passerer både tekst- og vector-terskel. 'Or' krever at minst én av dem er oppfylt." />
-			</span>
-			<select bind:value={thresholdsLogic}>
-				<option value="and">And</option>
-				<option value="or">Or</option>
-			</select>
-		</div>
 		{#if RERANK_ENABLED}
 			<NullableBooleanField
 				label="Rerank"
@@ -118,13 +132,15 @@
 		{/if}
 	</div>
 
+	<div class="actions">
+		<button class="filled" onclick={() => save()} disabled={saving}>
+			{saving ? "Lagrer..." : justSaved ? "Lagret ✓" : "Lagre"}
+		</button>
+	</div>
+
 	{#if saveError}
 		<p class="error">{saveError}</p>
 	{/if}
-
-	<div class="actions">
-		<button class="filled" onclick={() => save()} disabled={saving}>Lagre</button>
-	</div>
 </main>
 
 <style>

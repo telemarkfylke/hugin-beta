@@ -13,9 +13,14 @@
 
 	const api = new RagServiceApi()
 	let fileInput: HTMLInputElement
+	let selectedFileNames: string[] = $state([])
 	let uploading = $state(false)
 	let uploadError: string | null = $state(null)
 	let uploadNotice: string | null = $state(null)
+
+	function onFilesChosen() {
+		selectedFileNames = fileInput.files ? Array.from(fileInput.files).map((f) => f.name) : []
+	}
 
 	// En gateway/proxy kan gi opp og lukke forbindelsen før datakilden er ferdig med å
 	// behandle filen (embedding tar tid), uten at vi vet om jobben til slutt lykkes eller
@@ -62,6 +67,7 @@
 		} finally {
 			uploading = false
 			fileInput.value = ""
+			selectedFileNames = []
 		}
 	}
 </script>
@@ -73,12 +79,24 @@
 		handleUpload();
 	}}
 >
-	<input
-		id="file-to-upload"
-		type="file"
-		bind:this={fileInput}
-		accept=".txt,.md,.csv,.json,.log,.yaml,.yml,.html,.htm,.xml,.pdf,.docx,.pptx,.xlsx,text/*,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-	/>
+	<div class="file-picker-row">
+		<button type="button" onclick={() => fileInput.click()}>
+			<span class="material-symbols-outlined">folder_open</span>
+			Velg filer
+		</button>
+		<span class="file-names">
+			{selectedFileNames.length > 0 ? selectedFileNames.join(", ") : "Ingen filer valgt"}
+		</span>
+		<input
+			id="file-to-upload"
+			type="file"
+			multiple
+			bind:this={fileInput}
+			onchange={onFilesChosen}
+			accept=".txt,.md,.csv,.json,.log,.yaml,.yml,.html,.htm,.xml,.pdf,.docx,.pptx,.xlsx,text/*,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+			hidden
+		/>
+	</div>
 	<label><input type="checkbox" bind:checked={normalizeChuncks} /> Normaliser chunks</label>
 	<label>
 		OCR
@@ -88,7 +106,7 @@
 			<option value="false">Nei</option>
 		</select>
 	</label>
-	<button type="submit" class="filled" disabled={uploading}>
+	<button type="submit" class="filled" disabled={uploading || selectedFileNames.length === 0}>
 		{uploading ? "Laster opp..." : "Last opp"}
 	</button>
 </form>
@@ -128,5 +146,24 @@
 
 	form.upload-form input[type="checkbox"] {
 		accent-color: var(--color-primary);
+	}
+
+	form.upload-form select {
+		font-family: var(--font-family);
+		padding: 4px 6px;
+		border: 1px solid var(--color-primary-30);
+		border-radius: 4px;
+	}
+
+	div.file-picker-row {
+		display: flex;
+		align-items: center;
+		gap: 12px;
+	}
+
+	span.file-names {
+		font-size: 0.85rem;
+		color: var(--color-primary-80);
+		font-style: italic;
 	}
 </style>

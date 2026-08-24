@@ -27,6 +27,14 @@
 	// refocus, which would otherwise wipe the in-progress conversation).
 	let loadedAgentId = $state(page.params.agentId)
 
+	// Track which `loadConversation` query param we've already acted on, for the same reason as
+	// loadedAgentId above: this effect re-runs on unrelated `data`/`page` updates (tab refocus
+	// etc.), and replaceState below itself changes `page.url`, which this effect reads - both can
+	// re-trigger it. Without this guard, every re-run would call loadChat(pendingConversationId)
+	// again with that same now-stale id, clobbering any conversation the user picked manually
+	// afterward (symptom: switching to a different conversation "flickers" back to this one).
+	let consumedConversationId: string | null = null
+
 	// Reset the chat only when the url param agentId actually changes
 	$effect(() => {
 		const agentId = page.params.agentId
@@ -49,7 +57,8 @@
 		// Picked up after LoadConversationDialog sends us here to resume a conversation as this
 		// agent - runs after the reset above so the loaded conversation wins, not the blank chat.
 		const pendingConversationId = page.url.searchParams.get("loadConversation")
-		if (pendingConversationId) {
+		if (pendingConversationId && pendingConversationId !== consumedConversationId) {
+			consumedConversationId = pendingConversationId
 			agentChatState.loadChat(pendingConversationId)
 			replaceState(page.url.pathname, {})
 		}

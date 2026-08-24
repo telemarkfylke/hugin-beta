@@ -1,6 +1,6 @@
 import type { AppConfig, AppRoles } from "./types/app-config"
 import type { AuthenticatedPrincipal } from "./types/authentication"
-import type { Chat, ChatConfig } from "./types/chat"
+import type { Chat, ChatConfig, EntraAccessGroup, RoleAccessGroups } from "./types/chat"
 
 export const canViewAllChatConfigs = (user: AuthenticatedPrincipal, appRoles: AppRoles): boolean => {
 	return user.roles.includes(appRoles.ADMIN)
@@ -60,14 +60,40 @@ export const canUpdateChatConfig = (user: AuthenticatedPrincipal, appRoles: AppR
 	return false
 }
 
-// Students' conversations must never be stored. "Student-only" means STUDENT is the *only*
-// role the user has - someone who is e.g. both STUDENT and EDU_EMPLOYEE keeps normal history.
+// Students' conversations must never be stored. Everyone can use history except a user whose
+// *only* role is STUDENT - someone who is e.g. both STUDENT and EDU_EMPLOYEE keeps it.
 // Used to force incognito mode and hide conversation history everywhere, client and server.
-export const isStudentOnly = (user: AuthenticatedPrincipal, appRoles: AppRoles): boolean => {
-	return user.roles.includes(appRoles.STUDENT) && user.roles.every((role) => role === appRoles.STUDENT)
+export const canUseHistory = (user: AuthenticatedPrincipal, appRoles: AppRoles): boolean => {
+	return !(user.roles.includes(appRoles.STUDENT) && user.roles.every((role) => role === appRoles.STUDENT))
+}
+
+// Same accessGroups semantics as ChatConfig.accessGroups/canPromptConfig - reused here so a
+// FeatureSpotlight's audience is declared the same way an agent's audience is, rather than a
+// second bespoke convention. ADMIN always sees everything, mirroring canPromptConfig.
+export const canSeeSpotlight = (user: AuthenticatedPrincipal, appRoles: AppRoles, accessGroups: (RoleAccessGroups | EntraAccessGroup)[]): boolean => {
+	if (user.roles.includes(appRoles.ADMIN)) {
+		return true
+	}
+	if (accessGroups.includes("all")) {
+		return true
+	}
+	if (accessGroups.includes("employee") && user.roles.includes(appRoles.EMPLOYEE)) {
+		return true
+	}
+	if (accessGroups.includes("edu_employee") && user.roles.includes(appRoles.EDU_EMPLOYEE)) {
+		return true
+	}
+	if (accessGroups.includes("student") && (user.roles.includes(appRoles.STUDENT) || user.roles.includes(appRoles.EDU_EMPLOYEE))) {
+		return true
+	}
+	return accessGroups.some((group) => typeof group !== "string" && user.groups.includes(group.id))
 }
 
 export const canUseCanvas = (user: AuthenticatedPrincipal, appRoles: AppRoles): boolean => {
+	return user.roles.includes(appRoles.EMPLOYEE) || user.roles.includes(appRoles.ADMIN)
+}
+
+export const canUseRagservice = (user: AuthenticatedPrincipal, appRoles: AppRoles): boolean => {
 	return user.roles.includes(appRoles.EMPLOYEE) || user.roles.includes(appRoles.ADMIN)
 }
 

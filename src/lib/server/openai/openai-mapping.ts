@@ -1,6 +1,6 @@
 import { logger } from "@vestfoldfylke/loglady"
 import type { Response } from "openai/resources/responses/responses.js"
-import type { ResponseInputItem, ResponseOutputItem, ResponseOutputMessage } from "openai/resources/responses/responses.mjs"
+import type { EasyInputMessage, ResponseInputItem, ResponseOutputItem, ResponseOutputMessage } from "openai/resources/responses/responses.mjs"
 import type { ChatConfig, ChatResponseObject } from "$lib/types/chat"
 import type { ChatInputItem, ChatInputMessage, ChatOutputItem, ChatOutputMessage } from "$lib/types/chat-item"
 
@@ -37,34 +37,33 @@ const chatInputMessageToOpenAIInputMessage = (inputItem: ChatInputMessage): Resp
 	return openAIItem
 }
 
-const chatOutputMessageToOpenAIOutputMessage = (outputItem: ChatOutputMessage): ResponseOutputMessage => {
-	const openAIItem: ResponseOutputMessage = {
-		id: outputItem.id,
-		status: "completed", // Dont care
-		type: "message",
-		role: outputItem.role,
-		content: []
-	}
+// Replays a past assistant turn as plain {role, content} - the EasyInputMessage shape, not a
+// full ResponseOutputMessage. outputItem.id is our own internal id, not necessarily one OpenAI
+// ever issued (it may come from another vendor after a mid-conversation switch, from Hugin's own
+// synthetic error/unsupported-output placeholders, or from a stored conversation loaded back in).
+// Hugin always calls OpenAI with store: false (see openai-vendor.ts), so OpenAI never needs that id
+// for its own continuity - but it does validate it when present, so a foreign/fabricated id gets
+// the request rejected. Every subsequent request replays the same poisoned history in incognito
+// mode, permanently breaking the conversation. Dropping id/status/type here keeps the content
+// (context is preserved) while removing the field OpenAI has no way to recognize.
+const chatOutputMessageToOpenAIEasyInputMessage = (outputItem: ChatOutputMessage): EasyInputMessage => {
+	const textParts: string[] = []
 	for (const contentItem of outputItem.content) {
 		switch (contentItem.type) {
 			case "output_text": {
-				openAIItem.content.push({
-					type: "output_text",
-					annotations: [], // hmmm
-					text: contentItem.text
-				})
+				textParts.push(contentItem.text)
 				break
 			}
 			case "output_refusal": {
-				openAIItem.content.push({
-					type: "refusal",
-					refusal: contentItem.reason
-				})
+				textParts.push(contentItem.reason)
 				break
 			}
 		}
 	}
-	return openAIItem
+	return {
+		role: outputItem.role,
+		content: textParts.join("\n")
+	}
 }
 
 export const chatInputToOpenAIInput = (inputItem: ChatInputItem): ResponseInputItem => {
@@ -73,7 +72,7 @@ export const chatInputToOpenAIInput = (inputItem: ChatInputItem): ResponseInputI
 			return chatInputMessageToOpenAIInputMessage(inputItem)
 		}
 		case "message.output": {
-			return chatOutputMessageToOpenAIOutputMessage(inputItem)
+			return chatOutputMessageToOpenAIEasyInputMessage(inputItem)
 		}
 		default: {
 			throw new Error(`Unsupported ChatInputItem: ${JSON.stringify(inputItem)}`)

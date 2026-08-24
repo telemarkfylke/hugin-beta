@@ -67,18 +67,17 @@
 				{#if !chatState.APP_CONFIG.CONVERSATION_EXPORT_DISABLED}
 					<ConversationExport bind:chat={chatState.chat} />
 				{/if}
-				{#if !chatState.forcedIncognito}
+				{#if chatState.canUseHistory}
 					<ConversationList bind:chatState />
+					<button
+						class="header-action"
+						class:active={!chatState.storeChat}
+						onclick={() => chatState.toggleStoreChat()}
+						title={chatState.storeChat ? "Samtalen lagres" : "Inkognito: samtalen lagres ikke"}
+					>
+						Inkognito
+					</button>
 				{/if}
-				<button
-					class="header-action"
-					class:active={!chatState.storeChat}
-					onclick={() => chatState.toggleStoreChat()}
-					disabled={chatState.forcedIncognito}
-					title={chatState.forcedIncognito ? "Inkognito: samtaler lagres aldri for studenter" : chatState.storeChat ? "Samtalen lagres" : "Inkognito: samtalen lagres ikke"}
-				>
-					Inkognito
-				</button>
 				{#if userCanEditConfig}
 					<button class="header-action" class:glow={chatState.configEdited} onclick={() => chatState.configMode = true} title="Konfigurer assistent">
 						<span class="material-symbols-rounded">build</span>

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { goto } from "$app/navigation"
+	import ConfirmDeleteDialog from "$lib/components/ConfirmDeleteDialog.svelte"
 	import type { StoreConfig, StoreResponse } from "$lib/ragservice/types"
 	import { RagServiceApi } from "../adapters/ragserviceApi"
 	import DataStoreAccess from "../components/DataStoreAccess.svelte"
@@ -36,17 +37,28 @@
 		}
 	}
 
+	// Deliberately doesn't reuse loadStore: this re-fetches the *same* store after a save (from
+	// Innstillinger or the Søk tab's "lagre som standard"), so it must not null out `store` first
+	// (that would tear down and remount the active tab's component, wiping its own local state -
+	// e.g. the Søk tab's search text/results) or recompute activeTab (that would bounce the user
+	// to a different tab based on access flags every time they save).
 	async function refreshStore() {
 		if (!store) return
-		await loadStore(store.storeId)
+		const updated = await api.getStore(store.storeId, true)
+		if (updated) store = updated
 	}
+
+	let showDeleteConfirm = $state(false)
+	let deleteError: string | null = $state(null)
 
 	async function deleteStore() {
 		if (!store) return
-		const doDelete = confirm("Er du HELT sikker på at du vil slette ?")
-		if (doDelete) {
-			const success = await api.deleteStore(store.storeId)
-			if (success) await goto("/")
+		deleteError = null
+		const success = await api.deleteStore(store.storeId)
+		if (success) {
+			await goto("/")
+		} else {
+			deleteError = "Kunne ikke slette biblioteket. Prøv igjen."
 		}
 	}
 
@@ -88,12 +100,22 @@
 				<button
 					disabled={!store._embedded.access.admin}
 					class="filled danger"
-					onclick={() => deleteStore()}
+					onclick={() => (showDeleteConfirm = true)}
 				>
 					<span class="material-symbols-outlined">delete</span>Slett bibliotek
 				</button>
 			{/if}
 		</div>
+
+		<ConfirmDeleteDialog
+			bind:show={showDeleteConfirm}
+			message={`Er du sikker på at du vil slette "${store?.name ?? ""}"?`}
+			subtext="Biblioteket og alt innhold i det slettes permanent og kan ikke gjenopprettes."
+			onConfirm={deleteStore}
+		/>
+		{#if deleteError}
+			<p class="delete-error">{deleteError}</p>
+		{/if}
 
 		{#if store}
 			<div class="rag-card store-info">
@@ -164,7 +186,7 @@
 				{#if activeTab === "files"}
 					<FileList {store} />
 				{:else if activeTab === "search"}
-					<DataStoreTextSearch {store} />
+					<DataStoreTextSearch {store} onSaved={refreshStore} />
 				{:else if activeTab === "access"}
 					<DataStoreAccess {store} />
 				{:else if activeTab === "chunks"}
@@ -208,5 +230,10 @@
 
 	div.tab-content {
 		margin-top: 16px;
+	}
+
+	p.delete-error {
+		color: var(--color-danger);
+		margin: 0 0 16px;
 	}
 </style>

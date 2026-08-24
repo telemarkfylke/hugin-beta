@@ -52,6 +52,12 @@
 		suggestions = []
 	}
 
+	const TYPE_LABELS: Record<AccessType, string> = {
+		user: "Bruker",
+		group: "Gruppe",
+		role: "Rolle"
+	}
+
 	function onTypeChange() {
 		newAccess.id = ""
 		searchInput = ""
@@ -106,24 +112,24 @@
 <main class="rag-card">
 	<h3 class="rag-section-title">Åpen tilgang</h3>
 	<div class="rag-field-grid">
-		<div class="rag-simple-field">
-			<span class="rag-field-label">Alle kan se</span>
+		<label class="rag-field-label">
 			<input
 				type="checkbox"
 				checked={unrestricted?.view ?? false}
 				onchange={(e) => updateUnrestricted({ view: (e.target as HTMLInputElement).checked })}
 				disabled={!store._embedded.access.admin}
 			/>
-		</div>
-		<div class="rag-simple-field">
-			<span class="rag-field-label">Alle kan søke</span>
+			Alle kan se
+		</label>
+		<label class="rag-field-label">
 			<input
 				type="checkbox"
 				checked={unrestricted?.search ?? false}
 				onchange={(e) => updateUnrestricted({ search: (e.target as HTMLInputElement).checked })}
 				disabled={!store._embedded.access.admin}
 			/>
-		</div>
+			Alle kan søke
+		</label>
 		{#if unrestricted}
 			<div>
 				<button onclick={removeUnrestricted} disabled={!store._embedded.access.admin}> Fjern åpen tilgang </button>
@@ -136,8 +142,8 @@
 		<div class="rag-simple-field">
 			<span class="rag-field-label">Type</span>
 			<select bind:value={newAccess.type} onchange={onTypeChange}>
-				<option value={"user"}>User</option>
-				<option value={"group"}>Group</option>
+				<option value={"user"}>Bruker</option>
+				<option value={"group"}>Gruppe</option>
 			</select>
 		</div>
 		<div class="rag-simple-field">
@@ -167,22 +173,22 @@
 				<span class="selected-id">{newAccess.id}</span>
 			</div>
 		{/if}
-		<div class="rag-simple-field">
-			<span class="rag-field-label">Kan se</span>
+		<label class="rag-field-label">
 			<input type="checkbox" bind:checked={newAccess.view} disabled={!store._embedded.access.admin} />
-		</div>
-		<div class="rag-simple-field">
-			<span class="rag-field-label">Kan søke</span>
+			Kan se
+		</label>
+		<label class="rag-field-label">
 			<input type="checkbox" bind:checked={newAccess.search} disabled={!store._embedded.access.admin} />
-		</div>
-		<div class="rag-simple-field">
-			<span class="rag-field-label">Kan laste opp</span>
+			Kan søke
+		</label>
+		<label class="rag-field-label">
 			<input type="checkbox" bind:checked={newAccess.upload} disabled={!store._embedded.access.admin} />
-		</div>
-		<div class="rag-simple-field">
-			<span class="rag-field-label">Kan administrere</span>
+			Kan laste opp
+		</label>
+		<label class="rag-field-label">
 			<input type="checkbox" bind:checked={newAccess.admin} disabled={!store._embedded.access.admin} />
-		</div>
+			Kan administrere
+		</label>
 		<div>
 			<button class="filled" onclick={() => setAccess(newAccess)} disabled={!store._embedded.access.admin}>Sett tilganger</button>
 		</div>
@@ -204,7 +210,7 @@
 		<tbody>
 			{#each userAccesses as accessRow}
 				<tr>
-					<td>{accessRow.type}</td>
+					<td>{TYPE_LABELS[accessRow.type]}</td>
 					<td title={accessRow.id}>{accessRow.name ?? accessRow.id}</td>
 					<td>
 						<input

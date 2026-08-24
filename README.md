@@ -31,6 +31,7 @@ Hugin Beta is an internal AI-agent web application designed to provide a democra
   - [Streaming Architecture](#streaming-architecture)
 - [Features](#features)
   - [Canvas](#canvas)
+  - [Feature Spotlight](#feature-spotlight)
 - [Getting Started](#getting-started)
   - [Prerequisites](#prerequisites)
   - [Installation](#installation)
@@ -145,7 +146,7 @@ All events are validated using Zod discriminated unions for type-safe handling.
 
 ### Canvas
 
-Canvas is an AI-assisted document editor available at `/canvas`. It lets users create and refine markdown documents through natural language prompts, with optional web search for sourcing content.
+Canvas is an AI-assisted document editor available at `/canvas/document`. It lets users create and refine markdown documents through natural language prompts, with optional web search for sourcing content.
 
 **How it works:**
 
@@ -160,7 +161,7 @@ Canvas is an AI-assisted document editor available at `/canvas`. It lets users c
 - Toggle between rendered preview and raw markdown editing
 - Web search toggle — enables live internet sourcing, with citations appended to the document
 - Export to `.txt` or `.docx` (with proper heading, bold, italic, bullet, and horizontal rule formatting)
-- Hardcoded to OpenAI `gpt-5.4` — no model selection needed
+- Hardcoded to OpenAI `gpt-5.6-terra` — no model selection needed
 
 **Access control:**
 
@@ -170,10 +171,128 @@ Canvas is gated behind the `CANVAS_ENABLED` environment variable and requires th
 
 | File | Purpose |
 |------|---------|
-| `src/routes/canvas/+page.svelte` | Canvas UI — editor, prompt bar, export |
-| `src/routes/canvas/+page.server.ts` | Page load with auth/feature-flag check |
+| `src/routes/canvas/+layout.server.ts` | Auth/feature-flag gate (shell) |
+| `src/routes/canvas/+layout.svelte` | Shell frame + conditional tool tab strip |
+| `src/routes/canvas/document/+page.svelte` | Document editor UI — editor, prompt bar, export |
+| `src/routes/canvas/PromptBar.svelte` | Prompt input component |
+| `src/routes/canvas/tools.ts` | Tool registry |
 | `src/routes/api/canvas/+server.ts` | POST endpoint — streams AI response |
-| `src/lib/types/canvas.ts` | Zod request schema |
+| `src/lib/types/canvas.ts` | Canvas request type (plain TypeScript) |
+
+---
+
+### Feature Spotlight
+
+A generic "hey, look at this new feature" callout for announcing changes to users. It's a non-blocking box with an icon, header, body text, and an optional subtext line, always paired with a "Ikke vis denne igjen" (don't show again) checkbox and a close button. Dismissal is self-managed — the component checks localStorage on mount and simply doesn't render if the user has already opted out, so callers don't need to wire up any `show`/`open` state themselves.
+
+**Two components, split by concern:** `FeatureSpotlight.svelte` is the presentational box itself — content, positioning, dismissal — and stays agnostic about where its `active` gate or its data comes from, so it can be used standalone with hardcoded props (all the examples below do exactly that). `SpotlightHost.svelte` is the app-specific wiring on top: it owns the static `SPOTLIGHTS` registry, resolves each entry's audience via `canSeeSpotlight`, and renders one `FeatureSpotlight` per eligible entry — mounted once, globally, in `+layout.svelte`. For the common case (see "Adding an announcement" below) you never touch `FeatureSpotlight` or `canSeeSpotlight` directly — just add an entry to `SPOTLIGHTS`.
+
+**Simple example** (defaults to a top-center splash, the common case):
+
+```svelte
+<script lang="ts">
+	import FeatureSpotlight from "$lib/components/FeatureSpotlight.svelte"
+</script>
+
+<FeatureSpotlight
+	id="canvas-feature-2026-08"
+	icon="auto_awesome"
+	header="Nytt: Kladdeboka"
+	text="Nå kan du bruke Kladdeboka til å jobbe med lengre tekster sammen med KI-assistenten."
+	subtext="Du finner den i menyen til venstre."
+/>
+```
+
+`id` is required and must be unique per announcement — it's the key used to remember that this specific spotlight was dismissed. `placement` defaults to `"top-center"`, so the example above needs nothing else to show up top-center; pass e.g. `placement="bottom-right"` for a corner toast instead.
+
+**Text formatting:** `text` supports a small set of Markdown — a blank line starts a new paragraph, a single line break becomes a `<br>`, and `**bold**`/`*italic*` work as usual:
+
+```svelte
+<FeatureSpotlight
+	id="canvas-feature-2026-08"
+	header="Nytt: Kladdeboka"
+	text={"Nå kan du bruke Kladdeboka til å jobbe med lengre tekster.\nStøtter **fet** og *kursiv* tekst.\n\nOg flere avsnitt om nødvendig."}
+/>
+```
+
+This is rendered through its own small `markdown-it` instance (`src/lib/formatting/simple-markdown-formatter.ts`), separate from the one used for chat/canvas content — so changing this doesn't affect how AI responses render. `header` and `subtext` are plain text, not Markdown.
+
+**Pointing at real UI inline** (e.g. referencing the button an announcement is about, mid-sentence): embed a small `.spotlight-pill` span directly in `text`. `text` is rendered with `html: true`, so this flows inline with the surrounding sentence instead of sitting in its own block:
+
+```svelte
+<FeatureSpotlight
+	id="history-feature-2026-08"
+	header="Nytt: Historikk"
+	text={'Du finner tidligere samtaler under <span class="spotlight-pill"><span class="material-symbols-rounded">history</span>Samtaler</span> i toppmenyen.'}
+/>
+```
+
+`.spotlight-pill` is deliberately styled *unlike* a real button (no pointer cursor, no hover state, a subtle background instead of the transparent-hover-highlight look real buttons have) — it's a reference chip saying "this is what to look for," not a clickable mimic that could confuse users into clicking it. `text` is standard Markdown throughout — this inline HTML isn't a separate mechanism layered on top, it's CommonMark's normal inline-HTML passthrough, just correctly left enabled.
+
+**Restricting the audience:** not every announcement applies to every user (e.g. a conversation-history announcement is meaningless for student-only accounts, who never get history stored — see `isStudentOnly` in `src/lib/authorization.ts`). There's no dedicated prop for this — reuse the existing `active` gate with `canSeeSpotlight`, which shares the exact same `accessGroups` semantics as `ChatConfig.accessGroups`/`canPromptConfig`, so an announcement's audience is declared the same way an agent's audience is:
+
+```svelte
+<script lang="ts">
+	import { canSeeSpotlight } from "$lib/authorization"
+	import type { RoleAccessGroups } from "$lib/types/chat"
+
+	const accessGroups: RoleAccessGroups[] = ["employee", "edu_employee"] // excludes "student"
+</script>
+
+<FeatureSpotlight
+	...
+	active={canSeeSpotlight(data.authenticatedUser, data.APP_CONFIG.APP_ROLES, accessGroups)}
+/>
+```
+
+`canSeeSpotlight` always returns `true` for `ADMIN`, matching `canPromptConfig`'s convention.
+
+**Dismissal behavior:**
+
+- Closing via the X button only hides the box for the current page load.
+- Checking "Ikke vis denne igjen" before closing persists the dismissal to `localStorage` (key `hugin_dismissed_spotlights`, a JSON array of ids) so it won't be shown again on that browser.
+
+**Props:**
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `id` | `string` | — | Required. Unique key used to remember dismissal. |
+| `header` | `string` | — | Required. Title text. |
+| `text` | `string` | — | Required. Main body text. Supports a small set of Markdown — see "Text formatting" above. |
+| `icon` | `string` | `undefined` | Optional [Material Symbol](https://fonts.google.com/icons) name shown in a round badge. |
+| `subtext` | `string` | `undefined` | Optional smaller line below the main text. |
+| `active` | `boolean` | `true` | One-way gate — set to `false` to keep it hidden regardless of dismissal state. |
+| `backdrop` | `boolean` | `false` | Adds a subtle darken + blur behind the box. Off by default since most spotlights are non-blocking toasts; turn on for a more attention-grabbing splash (e.g. `placement="center"`/`"top-center"`). Purely visual — the backdrop doesn't dismiss the box on click, matching the checkbox/close-button-only dismissal model. |
+| `placement` | `"center" \| "top-center" \| "top-right" \| "bottom-right" \| "bottom-center" \| "bottom-left" \| "top-left"` | `"top-center"` | Fixed screen position. |
+| `onDismiss` | `() => void` | `undefined` | Called whenever the box is closed, whether or not "don't show again" was checked. |
+
+**Not supported:** pinning the box next to a specific element, and multi-step guided tours — only fixed screen-corner placement. An earlier `anchor`/`anchorSide`/`anchorOffset` implementation was removed: it required `bind:this` wiring at every call site (tightly coupling the announcement to whatever element it pointed at) and still didn't handle auto-flipping near a viewport edge or an arrow pointing at the anchor. If element-pointing or guided tours become a real need, a proper library (e.g. `@floating-ui/dom` for positioning, or a dedicated tour library) is a better foundation than reviving this DIY version — see git history for reference if useful.
+
+**Adding an announcement in this app:** to launch or update an announcement in hugin-beta specifically, add or edit an entry in the `SPOTLIGHTS` array in `src/lib/spotlights.ts` — `SpotlightHost.svelte` (mounted once in `src/routes/+layout.svelte`) loops over it, resolves each entry's `active` prop via `canSeeSpotlight`, and renders one `<FeatureSpotlight>` per eligible entry. There's no `<FeatureSpotlight>` markup to touch for the common case:
+
+```ts
+export const SPOTLIGHTS: SpotlightDefinition[] = [
+	{
+		id: "unique-id-2026-08",
+		icon: "auto_awesome",
+		header: "…",
+		text: "…",
+		accessGroups: ["employee", "edu_employee"] // omit for everyone
+	}
+]
+```
+
+As before, give an entry a new unique `id` whenever its copy changes, or users who dismissed the old copy won't see the update. Multiple entries can be active at once — each gets its own dismissal state — though nothing resolves visual overlap if two share the same fixed `placement`.
+
+**Relevant files:**
+
+| File | Purpose |
+|------|---------|
+| `src/lib/components/FeatureSpotlight.svelte` | The component |
+| `src/lib/spotlights.ts` | Static array of announcement definitions — the thing to edit to launch/update one |
+| `src/lib/components/SpotlightHost.svelte` | Loops the array, resolves `active` per entry via `canSeeSpotlight`, mounted once in `+layout.svelte` |
+| `src/lib/util/spotlight-util.ts` | localStorage read/write for tracking dismissed spotlight ids |
+| `src/lib/formatting/simple-markdown-formatter.ts` | Renders `text`'s Markdown subset (paragraphs, line breaks, bold, italic) |
 
 ---
 
@@ -210,6 +329,14 @@ MOCK_DB="true"                    # Use in-memory database (required for local d
 # Or production Database Configuration
 MONGODB_CONNECTION_STRING="mongodb+srv://..." # Production MongoDB connection
 MONGODB_DB_NAME="mugin" # Name of database
+
+# Conversation encryption (optional - if unset, messages/titles/summaries are stored in plaintext)
+# Covers conversation-messages (userInput/response) and conversations (title/summary).
+# Key versions are free-form strings (a counter, a date, "prod-1" - whatever helps you track rotations).
+# Generate a key with: node -e "console.log(require('node:crypto').randomBytes(32).toString('base64'))"
+# Use a DIFFERENT keyset per environment (dev/prod) - each environment's own .env supplies its own.
+CONVERSATION_ENCRYPTION_KEYS='{"2026-08":"<base64 of 32 random bytes>"}' # keyed by key version
+CONVERSATION_ENCRYPTION_ACTIVE_KEY="2026-08" # which key version new writes are encrypted with
 
 # Authentication
 MOCK_AUTH="true"                  # Enable mock authentication for local development
@@ -256,7 +383,7 @@ src/
 │   │   ├── chat-item.ts         # Message types
 │   │   ├── chat-item-content.ts # Content types (text, file, image)
 │   │   ├── streaming.ts         # SSE event types
-│   │   ├── canvas.ts            # Canvas request schema
+│   │   ├── canvas.ts            # Canvas request type
 │   │   └── authentication.ts    # Auth types
 │   ├── server/                   # Server-only code
 │   │   ├── ai-vendors.ts        # Vendor factory

@@ -1,5 +1,5 @@
 import { goto } from "$app/navigation"
-import { isStudentOnly } from "$lib/authorization"
+import { canUseHistory } from "$lib/authorization"
 import { chatHistoryToInputItems } from "$lib/chat-history"
 import type { AppConfig } from "$lib/types/app-config"
 import type { AuthenticatedPrincipal } from "$lib/types/authentication"
@@ -102,8 +102,8 @@ export type ChatStateOptions = {
 	// Where promptChat posts to - defaults to "/api/chat". Used by /public/embed/** to point at
 	// the separate, unauthenticated /public/embed/api/chat endpoint instead.
 	apiEndpoint?: string
-	// Same effect as isStudentOnly - forces storeChat off with no toggle. Used by /public/embed/**
-	// since there is no real user to own a stored conversation.
+	// Forces canUseHistory to false regardless of the user's own roles - forces storeChat off with
+	// no toggle. Used by /public/embed/** since there is no real user to own a stored conversation.
 	forceIncognito?: boolean
 	// Pins webSearchEnabled/datasourceEnabled to fixed values for this ChatState's lifetime and
 	// hides their toggle buttons in ChatInput entirely (see ChatInput's use of chatState.lockedTools).
@@ -135,8 +135,9 @@ export class ChatState {
 	// See ChatStateOptions.lockedTools - null means the user is free to toggle both, same as today.
 	public lockedTools: { webSearch: boolean; datasource: boolean } | null = null
 	// Students-only accounts (role STUDENT and nothing else) never get their conversations stored -
-	// forced incognito, no toggle, no history. See isStudentOnly in $lib/authorization.
-	public forcedIncognito: boolean = $state(false)
+	// incognito isn't a separate toggle for them, it's just what having no history means. See
+	// canUseHistory in $lib/authorization.
+	public canUseHistory: boolean = $state(true)
 	public configMode: boolean = $state(false)
 	public initialConfig: ChatConfig = $state(placeHolderConfig)
 	public configEdited: boolean = $derived(JSON.stringify(this.chat.config) !== JSON.stringify(this.initialConfig))
@@ -151,8 +152,8 @@ export class ChatState {
 		this.APP_CONFIG = appConfig
 		this.apiEndpoint = options?.apiEndpoint ?? "/api/chat"
 		this.lockedTools = options?.lockedTools ?? null
-		this.forcedIncognito = Boolean(options?.forceIncognito) || isStudentOnly(user, appConfig.APP_ROLES)
-		if (this.forcedIncognito) {
+		this.canUseHistory = !options?.forceIncognito && canUseHistory(user, appConfig.APP_ROLES)
+		if (!this.canUseHistory) {
 			this.storeChat = false
 		}
 		this.changeChat(chat)
@@ -214,7 +215,7 @@ export class ChatState {
 	}
 
 	public toggleStoreChat = (): void => {
-		if (this.forcedIncognito) {
+		if (!this.canUseHistory) {
 			return
 		}
 		this.storeChat = !this.storeChat
@@ -257,7 +258,10 @@ export class ChatState {
 			}
 			const data: { conversation: { id: string; owner: string; title?: string; createdAt: string; updatedAt: string }; history: ChatHistory } = await result.json()
 
-			const lastResponse = [...data.history].reverse().find((item): item is ChatResponseObject => item.type === "chat_response")
+			// config._id === "" marks a synthetic response (e.g. a message that couldn't be decrypted,
+			// see buildDecryptionFailureResponse) - skip past it rather than treating its placeholder
+			// name/id as the conversation's real last agent.
+			const lastResponse = [...data.history].reverse().find((item): item is ChatResponseObject => item.type === "chat_response" && item.config._id !== "")
 			const originalConfig = lastResponse?.config
 
 			const isDifferentAgent = Boolean(originalConfig?._id) && originalConfig?._id !== this.chat.config._id

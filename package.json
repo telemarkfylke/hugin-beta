@@ -38,6 +38,7 @@
 		"jwt-decode": "^4.0.0",
 		"katex": "^0.16.45",
 		"markdown-it": "^14.1.1",
+		"mermaid": "^11.17.0",
 		"mongodb": "^7.1.1",
 		"ollama": "^0.6.3",
 		"openai": "^6.34.0",
