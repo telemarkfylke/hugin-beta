@@ -8,7 +8,10 @@ export async function GET({ cookies }) {
         return new Response('userID mangler', { status: 400 });
     }
 
-    const slidesPath = path.join(process.cwd(), 'src', 'routes', 'filgenerering', 'pptx', 'data', `${userID}.md`); // siten for .md fila for presangtasjonen
+    let slidesPath = path.join(process.cwd(), 'src', 'routes', 'filgenerering', 'pptx', 'data', `${userID}.md`); // siten for .md fila for presangtasjonen
+    if (!slidesPath) {
+        slidesPath = path.join(process.cwd(), 'src', 'routes', 'filgenerering', 'pptx', 'data', `introduction.md`); // siten for .md fila for presangtasjonen
+    }
     const pptxPath = path.join(process.cwd(), "content", "dist", `${userID}.pptx`); // for hvor pptx fila skal lagres
 
     // Skjekk om slides.md finnes
@@ -17,7 +20,7 @@ export async function GET({ cookies }) {
             status: 404
         });
         
-    }
+    } 
 
     // Oppretter output-mappa for å søgre for at den finnes
     const templatePath = path.join(process.cwd(), 'Template.pptx');

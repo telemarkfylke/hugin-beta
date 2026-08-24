@@ -3,6 +3,7 @@ import { json } from '@sveltejs/kit';
 import OpenAI from "openai";
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { cwd } from 'node:process';
 
 
 // Bruk systemInstruks fra systeminstruks.js, eller fallback til standardverdi
@@ -37,7 +38,11 @@ export async function POST({ request, cookies }) {
         }
 
         // Stien til markdown-filen som pandoc leser fra
-        const contentPath = path.join(process.cwd(), 'src', 'routes', 'filgenerering', 'pptx', 'data', `${userID}.md`);
+        let contentPath = path.join(process.cwd(), 'src', 'routes', 'filgenerering', 'pptx', 'data', `${userID}.md`);
+        if (!contentPath) {
+            contentPath = path.join(process.cwd(), 'src', 'routes', 'filgenerering', 'pptx', 'data', `introduction.md`);
+        }
+
 
         // Oppretter en forespørsel til OpenAI API med melding, systeminstruksjoner og tidligere response ID, og mottar svaret
         const response = await client.responses.create({

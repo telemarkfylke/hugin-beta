@@ -7,7 +7,10 @@ export async function GET({ cookies }) {
     if (!userID) {
         return new Response('userID mangler', { status: 400 });
     }
-    const slidesPath = path.join(process.cwd(), 'src', 'routes', 'filgenerering', 'pptx', 'data', `${userID}.md`);
+    let slidesPath = path.join(process.cwd(), 'src', 'routes', 'filgenerering', 'pptx', 'data', `${userID}.md`);
+    if (!slidesPath){
+        slidesPath = path.join(process.cwd(), 'src', 'routes', 'filgenerering', 'pptx', 'data', `introduction.md`);
+    }
     const outputDir = path.join(process.cwd(), 'content', 'dist');
     const htmlPath = path.join(outputDir, `${userID}.html`);
 
