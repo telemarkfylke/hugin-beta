@@ -25,7 +25,7 @@
 	// it's forced on since there's no config UI here for anyone to turn it on themselves.
 	const embedChatState = new ChatState(initialChat, ANONYMOUS_PRINCIPAL, data.APP_CONFIG, {
 		apiEndpoint: "/public/embed/api/chat",
-		forceIncognito: true,
+		canUseHistory: false,
 		lockedTools: { webSearch: false, datasource: true }
 	})
 </script>

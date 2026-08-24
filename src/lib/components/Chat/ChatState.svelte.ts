@@ -102,9 +102,9 @@ export type ChatStateOptions = {
 	// Where promptChat posts to - defaults to "/api/chat". Used by /public/embed/** to point at
 	// the separate, unauthenticated /public/embed/api/chat endpoint instead.
 	apiEndpoint?: string
-	// Forces canUseHistory to false regardless of the user's own roles - forces storeChat off with
-	// no toggle. Used by /public/embed/** since there is no real user to own a stored conversation.
-	forceIncognito?: boolean
+	// Overrides the role-based canUseHistory default below. Used by /public/embed/** (pass false)
+	// since there is no real user to own a stored conversation - storeChat also forces off with it.
+	canUseHistory?: boolean
 	// Pins webSearchEnabled/datasourceEnabled to fixed values for this ChatState's lifetime and
 	// hides their toggle buttons in ChatInput entirely (see ChatInput's use of chatState.lockedTools).
 	// Used by /public/embed/**: an anonymous visitor should never be able to switch on live web
@@ -152,7 +152,7 @@ export class ChatState {
 		this.APP_CONFIG = appConfig
 		this.apiEndpoint = options?.apiEndpoint ?? "/api/chat"
 		this.lockedTools = options?.lockedTools ?? null
-		this.canUseHistory = options?.forceIncognito ? false : canUseHistory(user, appConfig.APP_ROLES)
+		this.canUseHistory = options?.canUseHistory ?? canUseHistory(user, appConfig.APP_ROLES)
 		if (!this.canUseHistory) {
 			this.storeChat = false
 		}
