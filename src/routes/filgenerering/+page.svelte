@@ -5,8 +5,8 @@
     import { tr } from 'zod/locales';
     import { onMount } from 'svelte'
 
+    let currentMarkdownContent = $state('');
     let userID = $state(null);
-
     let previewUrl = $state('/filgenerering/pptx/reveal?t=' + Date.now());
     let prompt = $state('');
     let loading = $state(false);
@@ -25,7 +25,6 @@
     }
 
     console.log("ResponsID_Historikk:", agentResponseIDHistory)
-
     function refreshPreview() {
         previewUrl = '/filgenerering/pptx/reveal?t=' + Date.now();
     }
@@ -64,6 +63,13 @@
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ message: prompt, previousResponseId })
         });
+
+        const data = await respons.json();
+        currentMarkdownContent = data.markdown;
+        console.log("Response fra OpenAI: ", currentMarkdownContent)
+
+        loading = false;
+
         console.log(respons)
         // TODO: behandle respons her
 
@@ -86,6 +92,8 @@
         loading = false;
 
     }
+
+
 
 onMount(() => {
     userID = generateUserID();
