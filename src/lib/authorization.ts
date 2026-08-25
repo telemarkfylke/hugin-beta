@@ -46,11 +46,20 @@ export const canUpdateChatConfig = (user: AuthenticatedPrincipal, appRoles: AppR
 	return false
 }
 
-// Students' conversations must never be stored. Everyone can use history except a user whose
-// *only* role is STUDENT - someone who is e.g. both STUDENT and EDU_EMPLOYEE keeps it.
-// Used to force incognito mode and hide conversation history everywhere, client and server.
+// "Student-only" means STUDENT is the *only* role the user has - someone who is e.g. both STUDENT
+// and EDU_EMPLOYEE does not count. Standalone on purpose: this is a plain role-identity check, not
+// tied to any one feature - canUseHistory below happens to be built from it today, but other gates
+// (e.g. Datakilder menu visibility) may key off this same identity independently, and shouldn't be
+// wired through canUseHistory just because the two currently agree.
+export const isStudentOnly = (user: AuthenticatedPrincipal, appRoles: AppRoles): boolean => {
+	return user.roles.includes(appRoles.STUDENT) && user.roles.every((role) => role === appRoles.STUDENT)
+}
+
+// Students' conversations must never be stored. Everyone can use history except a student-only
+// user (see isStudentOnly above). Used to force incognito mode and hide conversation history
+// everywhere, client and server.
 export const canUseHistory = (user: AuthenticatedPrincipal, appRoles: AppRoles): boolean => {
-	return !(user.roles.includes(appRoles.STUDENT) && user.roles.every((role) => role === appRoles.STUDENT))
+	return !isStudentOnly(user, appRoles)
 }
 
 // Same accessGroups semantics as ChatConfig.accessGroups/canPromptConfig - reused here so a
