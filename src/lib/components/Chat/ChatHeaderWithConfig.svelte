@@ -65,7 +65,7 @@
 					Ny samtale
 				</button>
 				{#if !chatState.APP_CONFIG.CONVERSATION_EXPORT_DISABLED}
-					<ConversationExport bind:chat={chatState.chat} />
+					<ConversationExport bind:chatState />
 				{/if}
 				{#if chatState.canUseHistory}
 					<ConversationList bind:chatState />

@@ -1,5 +1,6 @@
 <script lang="ts">
-	import type { Chat, ChatHistory } from "$lib/types/chat"
+	import type { ChatHistory } from "$lib/types/chat"
+	import type { ChatState } from "./ChatState.svelte"
 
 	type MenuState = "closed" | "open" | "filename"
 
@@ -8,15 +9,17 @@
 	let menuState: MenuState = $state("closed")
 
 	type Props = {
-		chat: Chat
+		chatState: ChatState
 	}
 
-	let { chat = $bindable() }: Props = $props()
+	let { chatState = $bindable() }: Props = $props()
 
 	let fileInput: HTMLInputElement
 
 	let filename = $state("")
 	let container: HTMLDivElement
+	let saving = $state(false)
+	let saveError: string | null = $state(null)
 
 	function handleOutsideClick(event: MouseEvent) {
 		if (menuState !== "closed" && !container.contains(event.target as Node)) {
@@ -37,7 +40,7 @@
 				const conversationJson = await selectedFile?.text()
 				if (conversationJson) {
 					const fileContent: RavenFile = JSON.parse(conversationJson) as RavenFile
-					chat.history = fileContent.history
+					chatState.chat.history = fileContent.history
 					const fileParts = selectedFile.name.split(".")
 					if (fileParts.length > 1) {
 						fileParts.pop()
@@ -56,7 +59,7 @@
 	const saveConversation = async () => {
 		menuState = "closed"
 
-		const ravenFile: RavenFile = { meta: { fileversion: 1 }, history: chat.history }
+		const ravenFile: RavenFile = { meta: { fileversion: 1 }, history: chatState.chat.history }
 		const content = JSON.stringify(ravenFile)
 
 		const blob = new Blob([content], { type: "text/plain" })
@@ -69,6 +72,24 @@
 		a.click()
 		document.body.removeChild(a)
 		URL.revokeObjectURL(url)
+	}
+
+	// For a conversation with history but no conversationId - an import, or one that has been
+	// incognito since its very first message - there is otherwise no way to turn it into a real,
+	// stored conversation. This bulk-persists the whole thing as a new one.
+	const handleSaveAsNew = async (event: MouseEvent) => {
+		event.stopPropagation()
+		menuState = "closed"
+		saving = true
+		saveError = null
+		try {
+			await chatState.saveCurrentAsNewConversation()
+		} catch (error) {
+			console.error("Error saving conversation as new:", error)
+			saveError = "Kunne ikke lagre samtalen som ny samtale."
+		} finally {
+			saving = false
+		}
 	}
 </script>
 
@@ -102,6 +123,11 @@
 			<button onclick={(e) => { e.stopPropagation(); openSave() }}>
 				<span class="material-symbols-rounded">download</span>Eksport
 			</button>
+			{#if chatState.canUseHistory}
+				<button disabled={saving || chatState.chat.history.length === 0} onclick={handleSaveAsNew}>
+					<span class="material-symbols-rounded">save</span>{saving ? "Lagrer…" : "Lagre gjeldende samtale som ny samtale"}
+				</button>
+			{/if}
 		</div>
 	{:else if menuState === "filename"}
 		<div class="splitmenu filename-form">
@@ -114,6 +140,9 @@
 		</div>
 	{/if}
 </div>
+{#if saveError}
+	<span class="save-error">{saveError}</span>
+{/if}
 
 <style>
 	.splitbutton {
@@ -144,8 +173,18 @@
 		text-align: left;
 		color: var(--color-primary);
 	}
-	.splitmenu button:hover {
+	.splitmenu button:hover:not(:disabled) {
 		background-color: var(--color-primary-10);
+	}
+	.splitmenu button:disabled {
+		opacity: 0.5;
+		cursor: default;
+	}
+	.save-error {
+		display: inline-block;
+		margin-left: 0.5rem;
+		color: var(--color-danger);
+		font-size: smaller;
 	}
 	.filename-form {
 		display: flex;

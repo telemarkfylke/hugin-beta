@@ -197,6 +197,26 @@ export class ChatState {
 		}
 	}
 
+	// Persists the current in-memory history (e.g. an imported .kráa file, or a conversation that has
+	// been incognito - and so never got a conversationId - since its very first message) as a brand
+	// new, real conversation. Independent of the storeChat toggle: this fires once, on demand, rather
+	// than gating every future send.
+	public saveCurrentAsNewConversation = async (): Promise<void> => {
+		if (!this.canUseHistory || this.chat.history.length === 0) {
+			return
+		}
+		const result = await fetch("/api/conversations", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ history: this.chat.history })
+		})
+		if (!result.ok) {
+			throw new Error(`Failed to save conversation: ${result.status} ${result.statusText}`)
+		}
+		const conversation: { id: string } = await result.json()
+		this.chat._id = conversation.id
+	}
+
 	private applyLoadedConversation = (conversation: { id: string; owner: string; title?: string; createdAt: string; updatedAt: string }, history: ChatHistory, config: ChatConfig): void => {
 		this.changeChat({
 			_id: conversation.id,
