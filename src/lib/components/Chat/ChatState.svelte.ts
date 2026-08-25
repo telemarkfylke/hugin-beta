@@ -318,6 +318,11 @@ export class ChatState {
 		const activeTools: typeof this.chat.config.tools =
 			hasDatasources && this.datasourceEnabled ? [{ type: "datasource" }, ...(webSearchTools?.filter((t) => t.type !== "datasource") ?? [])] : webSearchTools?.filter((t) => t.type !== "datasource")
 
+		// Historikk uten conversationId kan bare komme fra en importert fil (changeChat/newChat setter alltid begge sammen) —
+		// da har vi ingen lagret kontekst å bygge videre på, så vi må late som om inkognito er på uansett bryter-status.
+		const looksImported = this.chat.history.length > 0 && !this.chat._id
+		const effectiveStoreChat = this.storeChat && !looksImported
+
 		const chatRequest: ChatRequest = {
 			config: {
 				...this.chat.config,
@@ -325,10 +330,10 @@ export class ChatState {
 				tools: activeTools
 			},
 			// Uten lagring (store=false) har backend ingen historikk å bygge kontekst fra, så da må vi fortsatt sende hele samtalen selv.
-			inputs: this.storeChat ? [userMessage] : [...chatInput, userMessage],
+			inputs: effectiveStoreChat ? [userMessage] : [...chatInput, userMessage],
 			stream: this.streamResponse,
-			store: this.storeChat,
-			huginConversationId: this.storeChat ? this.chat._id || undefined : undefined
+			store: effectiveStoreChat,
+			huginConversationId: effectiveStoreChat ? this.chat._id || undefined : undefined
 		}
 
 		this.chat.history.push(userMessage)
