@@ -8,10 +8,13 @@ import { getConversationManager } from "$lib/conversationstore/server/get-conver
 import { getVendor } from "$lib/server/ai-vendors"
 import { APP_CONFIG } from "$lib/server/app-config/app-config"
 import { MS_AUTH_TOKEN_HEADER } from "$lib/server/auth/auth-constants"
+import { categorizeQuestion, guessUncategorizedTopic } from "$lib/server/categorize-question"
+import { getStatsStore } from "$lib/server/db/get-db"
 import { HTTPError } from "$lib/server/middleware/http-error"
 import { apiRequestMiddleware } from "$lib/server/middleware/http-request"
 import { rewriteRagQuery } from "$lib/server/ragservice/rag-query-rewrite"
 import { searchRagStores } from "$lib/server/ragservice/rag-search"
+import { FALLBACK_CATEGORY } from "$lib/statsstore/types"
 import { createSse, parseSse, responseStream } from "$lib/streaming"
 import type { AuthenticatedPrincipal } from "$lib/types/authentication"
 import type { ChatConfig, ChatRequest, ChatResponseObject } from "$lib/types/chat"
@@ -80,6 +83,24 @@ const supahChat: ApiNextFunction = async ({ requestEvent, user }) => {
 
 	const userInputMessage = [...chatRequest.inputs].reverse().find((i): i is ChatInputMessage => i.type === "message.input" && i.role === "user")
 
+	const queryText =
+		userInputMessage?.content
+			.filter((c): c is InputText => c.type === "input_text")
+			.map((c) => c.text)
+			.join(" ")
+			.trim() ?? ""
+
+	// Write-time, anonymous question-category statistics (see $lib/statsstore/types) - deliberately
+	// independent of chatRequest.store/incognito below, since that's often forced off (canUseHistory
+	// above) and is the whole reason this can't just be derived from stored conversation history
+	// afterwards. Fire-and-forget: must never block or slow down the actual chat response, and a
+	// failure here is only logged, never surfaced to the user.
+	if (chatRequest.config.categories?.length && queryText) {
+		recordQuestionCategoryStat(chatRequest.config._id, queryText, chatRequest.config.categories).catch((error) => {
+			logger.errorException(error, "Failed to record question category stat")
+		})
+	}
+
 	// Resolve/prepend history before the RAG step below, so query rewriting has the full
 	// conversation to resolve pronouns/references against - not just the newest message.
 	let huginConversationId: string | undefined
@@ -95,13 +116,6 @@ const supahChat: ApiNextFunction = async ({ requestEvent, user }) => {
 	const ragStoreIds = datasourceToolActive ? (chatRequest.config.dataSources?.filter((s) => s.type === "ragservice").map((s) => s.id) ?? []) : []
 
 	if (ragStoreIds.length > 0) {
-		const queryText =
-			userInputMessage?.content
-				.filter((c): c is InputText => c.type === "input_text")
-				.map((c) => c.text)
-				.join(" ")
-				.trim() ?? ""
-
 		if (queryText) {
 			const graphToken = requestEvent.request.headers.get(MS_AUTH_TOKEN_HEADER)
 			const rewrittenQuery = await rewriteRagQuery({ chatRequest, queryText, ragStoreIds, user, graphToken })
@@ -227,6 +241,18 @@ const captureAndPersistStream = async (
 		if (done) break
 	}
 	await conversationManager.appendConversationMessage(huginConversationId, userInputMessage, chatResponseObject, user)
+}
+
+// Classifies one question and writes the (agentId, category, date[, suggestedTopic]) event to the
+// stats store - see $lib/server/categorize-question and $lib/statsstore/types. When the question
+// didn't match any configured category, also asks for a short, generalized topic guess (never the
+// question verbatim) so a bot author can spot unanticipated question types under "Ukategorisert".
+// Caller is responsible for not awaiting this blocking-ly (fire-and-forget with a .catch), since
+// none of this should ever slow down or fail the actual chat response.
+async function recordQuestionCategoryStat(agentId: string, questionText: string, categories: string[]): Promise<void> {
+	const category = await categorizeQuestion(questionText, categories)
+	const suggestedTopic = category === FALLBACK_CATEGORY ? await guessUncategorizedTopic(questionText) : undefined
+	await getStatsStore().recordQuestionCategory(agentId, category, new Date(), suggestedTopic)
 }
 
 export const POST: RequestHandler = async (requestEvent) => {

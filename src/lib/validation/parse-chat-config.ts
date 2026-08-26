@@ -33,6 +33,7 @@ export const parseChatConfig = (input: unknown, APP_CONFIG: AppConfig): ChatConf
 				id: parsedConfig.vendorAgent.id
 			},
 			dataSources: parsedConfig.dataSources,
+			categories: parsedConfig.categories,
 			shared: parsedConfig.shared,
 			allowAnonymousEmbed: parsedConfig.allowAnonymousEmbed,
 			accessGroups: parsedConfig.accessGroups,
@@ -58,6 +59,7 @@ export const parseChatConfig = (input: unknown, APP_CONFIG: AppConfig): ChatConf
 		conversationId: parsedConfig.conversationId,
 		tools: parsedConfig.tools || [],
 		dataSources: parsedConfig.dataSources,
+		categories: parsedConfig.categories,
 		shared: parsedConfig.shared,
 		allowAnonymousEmbed: parsedConfig.allowAnonymousEmbed,
 		accessGroups: parsedConfig.accessGroups,
