@@ -208,7 +208,9 @@ export class ChatState {
 	}
 
 	public toggleStoreChat = (): void => {
-		if (!this.canUseHistory) {
+		// Locked (hasUnsavedHistory) conversations don't reflect the toggle either way - flipping it
+		// here would silently change the stored default for later, with no visible effect right now.
+		if (!this.canUseHistory || this.hasUnsavedHistory) {
 			return
 		}
 		this.storeChat = !this.storeChat

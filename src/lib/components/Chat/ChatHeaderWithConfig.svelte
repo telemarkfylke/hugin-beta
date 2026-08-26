@@ -66,9 +66,10 @@
 					<button
 						class="header-action"
 						class:active={!chatState.storeChat || chatState.hasUnsavedHistory}
+						disabled={chatState.hasUnsavedHistory}
 						onclick={() => chatState.toggleStoreChat()}
 						title={chatState.hasUnsavedHistory
-							? "Denne samtalen er ikke lagret (importert, eller startet i inkognito). Lagre den via «Ny samtale»-menyen for å ta den ut av inkognito-tilstand."
+							? "Denne samtalen er låst i inkognito-tilstand (importert, eller startet i inkognito) og lagres ikke. Bryteren er deaktivert til du lagrer den via «Ny samtale»-menyen."
 							: chatState.storeChat
 								? "Samtalen lagres"
 								: "Inkognito: samtalen lagres ikke"}
