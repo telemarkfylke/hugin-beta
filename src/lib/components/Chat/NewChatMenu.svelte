@@ -6,13 +6,19 @@
 
 	type RavenFile = { meta: { fileversion: number }; history: ChatHistory }
 
-	let menuState: MenuState = $state("closed")
-
 	type Props = {
 		chatState: ChatState
+		onNewChat: () => void
+		exportDisabled: boolean
 	}
 
-	let { chatState = $bindable() }: Props = $props()
+	let { chatState = $bindable(), onNewChat, exportDisabled }: Props = $props()
+
+	let menuState: MenuState = $state("closed")
+
+	// Nothing to show in the dropdown at all if file import/export is turned off for this org and
+	// this user can't have history stored either - then it's just a plain "Ny samtale" button.
+	let hasMenuOptions = $derived(!exportDisabled || chatState.canUseHistory)
 
 	let fileInput: HTMLInputElement
 
@@ -31,6 +37,10 @@
 		fileInput.click()
 	}
 
+	function toggleMenu() {
+		menuState = menuState === "closed" ? "open" : "closed"
+	}
+
 	async function handleFileSelect(event: Event) {
 		menuState = "closed"
 		const input = event.target as HTMLInputElement
@@ -40,7 +50,7 @@
 				const conversationJson = await selectedFile?.text()
 				if (conversationJson) {
 					const fileContent: RavenFile = JSON.parse(conversationJson) as RavenFile
-					chatState.chat.history = fileContent.history
+					chatState.importHistory(fileContent.history)
 					const fileParts = selectedFile.name.split(".")
 					if (fileParts.length > 1) {
 						fileParts.pop()
@@ -100,32 +110,32 @@
 		id="hidden-file-input"
 		type="file"
 		bind:this={fileInput}
-		onchange={handleFileSelect}		
+		onchange={handleFileSelect}
 		style="display: none"
 		accept=".kráa"
 	/>
-	<button
-		onclick={() => {
-			if(menuState === "closed")
-					menuState = "open"
-			else{
-					menuState = "closed"
-			}
-		}}
-		class="header-action"
-		title="Import/Eksport"><span class="material-symbols-rounded">import_export</span> Import/Eksport</button
-	>
+	<button class="header-action" onclick={onNewChat} title="Ny samtale">
+		<span class="material-symbols-rounded">edit_square</span>
+		Ny samtale
+	</button>
+	{#if hasMenuOptions}
+		<button class="icon-button caret" onclick={toggleMenu} title="Flere valg">
+			<span class="material-symbols-rounded">expand_more</span>
+		</button>
+	{/if}
 	{#if menuState === "open"}
 		<div class="splitmenu">
-			<button onclick={(e) => { e.stopPropagation(); triggerFileSelect() }}>
-				<span class="material-symbols-rounded">upload</span>Import
-			</button>
-			<button onclick={(e) => { e.stopPropagation(); openSave() }}>
-				<span class="material-symbols-rounded">download</span>Eksport
-			</button>
+			{#if !exportDisabled}
+				<button onclick={(e) => { e.stopPropagation(); triggerFileSelect() }}>
+					<span class="material-symbols-rounded">upload</span>Import
+				</button>
+				<button onclick={(e) => { e.stopPropagation(); openSave() }}>
+					<span class="material-symbols-rounded">download</span>Eksport
+				</button>
+			{/if}
 			{#if chatState.canUseHistory}
 				<button disabled={saving || chatState.chat.history.length === 0} onclick={handleSaveAsNew}>
-					<span class="material-symbols-rounded">save</span>{saving ? "Lagrer…" : "Lagre gjeldende samtale som ny samtale"}
+					<span class="material-symbols-rounded">save</span>{saving ? "Lagrer…" : "Lagre gjeldende samtale"}
 				</button>
 			{/if}
 		</div>
@@ -147,7 +157,11 @@
 <style>
 	.splitbutton {
 		position: relative;
-		display: inline-block;
+		display: inline-flex;
+	}
+	.caret {
+		border-left: 1px solid var(--color-primary-20);
+		border-radius: 0 6px 6px 0;
 	}
 	.splitmenu {
 		position: absolute;
@@ -157,12 +171,13 @@
 		border: 1px solid var(--color-primary-30);
 		border-radius: 8px;
 		z-index: 10;
-		min-width: 10rem;
+		min-width: 14rem;
 		box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
 		overflow: hidden;
 	}
 	.splitmenu button {
 		display: flex;
+		white-space: nowrap;
 		align-items: center;
 		gap: 0.5rem;
 		width: 100%;
