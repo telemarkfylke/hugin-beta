@@ -3,8 +3,8 @@
 A multi-provider AI chat application built with SvelteKit, providing a unified interface to multiple AI providers with enterprise-grade authentication and real-time streaming responses.
 
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue.svg)](https://www.typescriptlang.org/)
-[![SvelteKit](https://img.shields.io/badge/SvelteKit-2.22-orange.svg)](https://kit.svelte.dev/)
-[![Svelte 5](https://img.shields.io/badge/Svelte-5.0-red.svg)](https://svelte.dev/)
+[![SvelteKit](https://img.shields.io/badge/SvelteKit-2.57-orange.svg)](https://kit.svelte.dev/)
+[![Svelte 5](https://img.shields.io/badge/Svelte-5.55-red.svg)](https://svelte.dev/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ## Overview
@@ -13,11 +13,15 @@ Hugin Beta is an internal AI-agent web application designed to provide a democra
 
 ### Key Features
 
-- **Multi-Provider Support** - Unified interface for OpenAI and Mistral AI (Ollama support in development)
+- **Multi-Provider Support** - Unified interface for OpenAI, Mistral AI, Ollama, and LiteLLM
 - **Real-Time Streaming** - Server-Sent Events (SSE) for incremental AI responses
-- **Enterprise Authentication** - Microsoft Entra ID integration with role-based access control
+- **Enterprise Authentication** - Microsoft Entra ID integration with role-based and group-based access control
 - **Multi-Modal Input** - Support for text, images, and document uploads
-- **Canvas** - AI-assisted document editor with web search, manual editing, and export to text and Word
+- **Canvas** - AI-assisted document editor with web search, manual editing, Mermaid diagram generation, and export to text and Word
+- **Transcription (Tale-til-notat)** - Audio upload and transcription via an internal service, with group-gated sensitive use cases
+- **Datakilder (RAG)** - Retrieval-augmented data sources, injected into agent instructions via an on-behalf-of proxy *(actively under development)*
+- **Conversation Persistence** - Optional history with auto-generated titles, incognito mode, and at-rest encryption
+- **Agent Management** - Create, publish, and share reusable chat configurations ("agents")
 - **Modern UI** - Svelte 5 Runes for reactive state management with markdown and LaTeX rendering
 
 ---
@@ -29,8 +33,13 @@ Hugin Beta is an internal AI-agent web application designed to provide a democra
   - [Vendor Abstraction](#vendor-abstraction)
   - [Authentication Flow](#authentication-flow)
   - [Streaming Architecture](#streaming-architecture)
+  - [Authorization](#authorization)
 - [Features](#features)
   - [Canvas](#canvas)
+  - [Transcription (Tale-til-notat)](#transcription-tale-til-notat)
+  - [Datakilder (RAG)](#datakilder-rag)
+  - [Conversation History & Encryption](#conversation-history--encryption)
+  - [Agent Management](#agent-management)
   - [Feature Spotlight](#feature-spotlight)
 - [Getting Started](#getting-started)
   - [Prerequisites](#prerequisites)
@@ -72,10 +81,10 @@ Hugin Beta follows an API-first architecture where all frontend capabilities are
                                                     │
 ┌───────────────────────────────────────────────────▼─────────────┐
 │                      AI Provider Layer                          │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐             │
-│  │   OpenAI    │  │  Mistral AI │  │   Ollama    │             │
-│  │   Vendor    │  │   Vendor    │  │   Vendor    │             │
-│  └─────────────┘  └─────────────┘  └─────────────┘             │
+│  ┌───────────┐ ┌───────────┐ ┌───────────┐ ┌───────────┐        │
+│  │  OpenAI   │ │ Mistral AI│ │  Ollama   │ │  LiteLLM  │        │
+│  │  Vendor   │ │  Vendor   │ │  Vendor   │ │  Vendor   │        │
+│  └───────────┘ └───────────┘ └───────────┘ └───────────┘        │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -90,13 +99,15 @@ interface IAIVendor {
 }
 ```
 
-Each vendor implementation consists of three components:
+Four vendors are implemented today: OpenAI, Mistral AI, Ollama, and LiteLLM (`src/lib/server/{openai,mistral,ollama,litellm}/`), each following the same three-file pattern:
 
 | File | Purpose |
 |------|---------|
 | `{vendor}-vendor.ts` | Implements `IAIVendor` interface |
 | `{vendor}-mapping.ts` | Converts between internal types and vendor SDK types |
 | `{vendor}-stream.ts` | Handles SSE streaming and event normalization |
+
+Vendors are registered in `src/lib/server/ai-vendors.ts` and enabled/configured per-vendor via `APP_CONFIG.VENDORS` (`src/lib/server/app-config/app-config.ts`). **`vendorId` values are uppercase** (`"OPENAI"`, `"MISTRAL"`, `"OLLAMA"`, `"LITELLM"`), matching the `VENDORS` keys in `APP_CONFIG`.
 
 **Data Flow:**
 ```
@@ -108,7 +119,7 @@ ChatRequest → Mapping Layer → Vendor SDK → Vendor Response → Mapping Lay
 **Production (Microsoft Entra ID):**
 1. Azure App Service EasyAuth validates JWT token
 2. Claims passed via `X-MS-CLIENT-PRINCIPAL` header (base64-encoded)
-3. Middleware extracts and validates claims with Zod
+3. `src/lib/server/auth/get-authenticated-user.ts` decodes the header and parses claims with **hand-written type guards** — not Zod. A Zod schema (`AuthenticatedPrincipalSchema` in `src/lib/types/authentication.ts`) exists but is currently used only for `z.infer` to derive the TypeScript type, not for runtime validation
 4. `AuthenticatedPrincipal` object created with userId, name, roles, and groups
 
 **Development (Mock Authentication):**
@@ -129,16 +140,31 @@ Real-time AI responses use Server-Sent Events with the following event types:
 | `response.done` | Completion with token usage statistics |
 | `response.error` | Error information |
 | `conversation.created` | New conversation identifier |
+| `hugin_conversation.created` | Internal Hugin conversation id (`huginConversationId`), used for persisted history |
 
-All events are validated using Zod discriminated unions for type-safe handling.
+All events are validated using Zod discriminated unions (`MuginSse` in `src/lib/types/streaming.ts`) for type-safe handling — this is one of the few places in the codebase where Zod defines the primary type (see [Type System](#type-system)).
 
 ---
 
 ### Authorization
-- Uses the functions in authorization.ts
-- Regular users can define their own chatConfigs and test basically any config against the api/chat endpoint
-  - But they cannot define chatconfigs with predefined agent/prompt-ids where the config is set up in a vendor.
-  - They can use predefined chatconfigs only if they have access to the agentId in some defined chatconfig in db - which is created by a user with more permissions.
+
+All access-control decisions go through named functions in `src/lib/authorization.ts`, taking the `AuthenticatedPrincipal` (and usually `AppRoles`/`AppConfig`) and returning a boolean:
+
+| Function | Grants access when... |
+|----------|------------------------|
+| `canViewAllChatConfigs` | user has the `ADMIN` role |
+| `canEditPredefinedConfig` | `AGENT_MAINTAINER` or `ADMIN` |
+| `canPublishChatConfig` | `AGENT_MAINTAINER` or `ADMIN` |
+| `canEditChatConfig` | new config (`_id === ""`), `ADMIN`, `AGENT_MAINTAINER` on a published config, or the private config's own creator |
+| `canUpdateChatConfig` | same as above, plus validates the existing/incoming config `_id`s match before checking |
+| `canPromptConfig` | `ADMIN`; a `shared` config; a private config owned by the user; or a published config matching the user's role/group via `accessGroups` (`"all"`, `"employee"`, `"edu_employee"`, `"student"`, or an explicit Entra group id) |
+| `canUseCanvas` | `EMPLOYEE` or `ADMIN` |
+| `canUseRagservice` | `EMPLOYEE` or `ADMIN` |
+| `isStudentOnly` | `STUDENT` is the user's *only* role (a user who is both `STUDENT` and `EDU_EMPLOYEE` does not count) |
+| `canUseHistory` | anyone except a student-only user — students are always forced into incognito, no history is ever stored |
+| `canSeeSpotlight` | audience gate for [Feature Spotlight](#feature-spotlight) announcements; uses the same `accessGroups` semantics as `canPromptConfig` |
+
+Regular users can define their own chat configs and test them against `/api/chat`, but cannot create configs pointing at predefined agent/prompt IDs configured in a vendor — those are only usable via a predefined chat config in the database, created by a user with `AGENT_MAINTAINER` or `ADMIN` permissions. Transcription access is currently gated separately from this table — see [Transcription](#transcription-tale-til-notat).
 
 ---
 
@@ -161,6 +187,7 @@ Canvas is an AI-assisted document editor available at `/canvas/document`. It let
 - Toggle between rendered preview and raw markdown editing
 - Web search toggle — enables live internet sourcing, with citations appended to the document
 - Export to `.txt` or `.docx` (with proper heading, bold, italic, bullet, and horizontal rule formatting)
+- Mermaid diagram generation and editing via a separate endpoint (`POST /api/canvas/mermaid`)
 - Hardcoded to OpenAI `gpt-5.6-terra` — no model selection needed
 
 **Access control:**
@@ -178,6 +205,89 @@ Canvas is gated behind the `CANVAS_ENABLED` environment variable and requires th
 | `src/routes/canvas/tools.ts` | Tool registry |
 | `src/routes/api/canvas/+server.ts` | POST endpoint — streams AI response |
 | `src/lib/types/canvas.ts` | Canvas request type (plain TypeScript) |
+
+---
+
+### Transcription (Tale-til-notat)
+
+Audio-to-text transcription via an internal service ("tale-til-notat"), available at `/transcription`. Users upload an audio/video file, the app proxies it to an internal Copyparty file server, triggers transcription, and polls/receives a callback with the result.
+
+**How it works:**
+
+1. User selects a file (accepted: `.mp3`, `.mp4`, `.wav`, `.m4a`, `.ogg`, `.webm`, `.flac`, `.mkv`, `.avi`, `.wma`) and a mode — "open" or "red" (sensitive use case)
+2. The app creates a job, proxies the upload to Copyparty, and triggers the external transcription service with a callback URL
+3. The external service calls back `POST /api/transcription/callback` (secret-gated via `TRANSCRIPTION_CALLBACK_SECRET`) when done
+4. The finished transcription can be downloaded as a `.docx`
+
+**Access control:** "Red" (sensitive) use cases are gated by Entra ID group membership — `TRANSCRIPTION_GROUP_N_ID`/`TRANSCRIPTION_GROUP_N_LABEL` env vars (dynamically scanned, `N = 1, 2, 3, …`) define the available groups, checked against the user's Entra groups.
+
+**Relevant files:**
+
+| File | Purpose |
+|------|---------|
+| `src/routes/transcription/+page.svelte` | UI — job list, upload, mode toggle, download, delete |
+| `src/routes/api/transcription/+server.ts` | Create/list/update transcription jobs |
+| `src/routes/api/transcription/callback/+server.ts` | Secret-gated webhook called by the external service |
+| `src/routes/api/transcription/[id]/download/+server.ts` | Download a finished transcription as `.docx` |
+| `src/routes/api/transcription/upload/[...path]/+server.ts` | Proxies large audio uploads to Copyparty |
+| `src/lib/server/transcription/job-store.ts` | In-memory job store — **jobs do not survive a restart or work across instances** |
+| `src/lib/server/transcription/tale-til-notat.ts` | Calls the external transcription service |
+| `src/lib/server/transcription/types.ts` | Zod schemas for job/callback payloads |
+
+---
+
+### Datakilder (RAG)
+
+*Actively under development.* Retrieval-augmented data sources, available at `/ragservice`. Lets `EMPLOYEE`/`ADMIN` users manage data stores and have their retrieval results injected into an agent's `instructions` at prompt time.
+
+Requests are proxied to an external ragservice through an on-behalf-of (OBO) token exchange — Hugin's own Entra app registration (`ENTRA_TENANT_ID`, `ENTRA_CLIENT_ID`, `ENTRA_CLIENT_SECRET`) exchanges the user's token for one scoped to the ragservice, rather than the user talking to it directly.
+
+**Access control:** Gated by `canUseRagservice` (`EMPLOYEE` or `ADMIN`).
+
+**Relevant files:**
+
+| File | Purpose |
+|------|---------|
+| `src/routes/ragservice/+page.svelte` | UI — data store management |
+| `src/routes/api/obo/rag/[...path]/+server.ts` | OBO token exchange + proxy to the external ragservice |
+| `src/lib/ragservice/components/` | Data store, chunk, file upload, access, and settings components |
+| `src/lib/ragservice/adapters/ragserviceApi.ts` | Client for the external ragservice API |
+| `src/lib/server/ragservice/get-rag-token.ts` | OBO token exchange logic |
+
+---
+
+### Conversation History & Encryption
+
+Conversations can be persisted so users can revisit earlier chats, with an auto-generated title and optional at-rest encryption for message content and titles/summaries.
+
+- **History** — `canUseHistory` gates this: everyone except a student-only user (see [Authorization](#authorization)) — student conversations are never stored, forcing incognito mode everywhere, client and server.
+- **Incognito** — any chat can opt out of persistence per-request (`store: false`), regardless of role.
+- **Encryption** — optional; if `CONVERSATION_ENCRYPTION_KEYS`/`CONVERSATION_ENCRYPTION_ACTIVE_KEY` are unset, messages/titles/summaries are stored in plaintext. When set, encryption is keyed by a free-form "key version" string so keys can be rotated per environment.
+
+**Relevant files:**
+
+| File | Purpose |
+|------|---------|
+| `src/lib/conversationstore/server/conv_manager.ts` | Conversation persistence logic |
+| `src/lib/conversationstore/server/message-encryption.ts` | At-rest encryption for messages/titles/summaries |
+| `src/lib/conversationstore/server/adapters/` | Storage adapters (MongoDB, in-memory mock) |
+| `src/routes/api/conversations/+server.ts` | List the user's stored conversations |
+| `src/routes/api/conversations/[_id]/+server.ts` | Fetch one conversation's history |
+| `src/routes/api/conversations/[_id]/title/+server.ts` | Fire-and-forget auto-title generation (no-ops if already titled) |
+
+---
+
+### Agent Management
+
+The UI for creating, editing, and publishing the `ChatConfig`s referenced throughout [Authorization](#authorization) — available at `/agents`.
+
+**Relevant files:**
+
+| File | Purpose |
+|------|---------|
+| `src/routes/agents/+page.svelte` | List published/private agents |
+| `src/routes/agents/[agentId]/+page.svelte` | Agent detail/edit view |
+| `src/routes/agents/create/+page.svelte` | Agent creation flow |
 
 ---
 
@@ -300,7 +410,7 @@ As before, give an entry a new unique `id` whenever its copy changes, or users w
 
 ### Prerequisites
 
-- **Node.js** - Latest LTS version (v20+)
+- **Node.js** - v22 (matches CI, see `.github/workflows/publish-*.yml`)
 - **npm** - Package manager (included with Node.js)
 - **API Keys** - At least one of: Mistral API key, OpenAI API key, or local Ollama instance
 
@@ -323,6 +433,7 @@ Create a `.env` file in the project root:
 # AI Provider API Keys (at least one required)
 MISTRAL_API_KEY_PROJECT_DEFAULT="your-mistral-api-key"
 OPENAI_API_KEY_PROJECT_DEFAULT="your-openai-api-key"
+# OLLAMA_HOST / LITELLM_BASE_URL enable the Ollama / LiteLLM vendors if set
 
 # Mock Database Configuration
 MOCK_DB="true"                    # Use in-memory database (required for local dev)
@@ -342,16 +453,39 @@ CONVERSATION_ENCRYPTION_ACTIVE_KEY="2026-08" # which key version new writes are 
 MOCK_AUTH="true"                  # Enable mock authentication for local development
 MOCK_AUTH_ROLES="Employee,Admin"  # Comma-separated role values
 MOCK_AUTH_GROUPS="group-id-123"   # Comma-separated group IDs
+MOCK_AUTH_FORCE_401="false"       # Simulate an unauthenticated request (local testing only)
+MOCK_AUTH_FORCE_403="false"       # Simulate an unauthorized request (local testing only)
 
 # Application Roles
 APP_ROLE_EMPLOYEE="Employee"
 APP_ROLE_STUDENT="Student"
 APP_ROLE_ADMIN="Admin"
 APP_ROLE_AGENT_MAINTAINER="AgentMaintainer"
+APP_ROLE_EDU_EMPLOYEE="eduemployee" # optional - defaults to "eduemployee" if unset
 
 # Feature flags
 CANVAS_ENABLED="true"             # Enable the Canvas document editor
+DEFAULT_AGENT_ID=""                # Agent loaded by default on the home page
+
+# Transcription (Tale-til-notat) - see the Transcription feature section
+TALE_TIL_NOTAT_URL="http://<ki-server>:<port>"
+COPYPARTY_BASE_URL="http://<copyparty-host>/copyparty"
+TRANSCRIPTION_CALLBACK_SECRET="<random-secret>"
+# Sensitive ("red") use case groups - define as many as needed (TRANSCRIPTION_GROUP_2_ID, _3_ID, ...)
+TRANSCRIPTION_GROUP_1_ID=""
+TRANSCRIPTION_GROUP_1_LABEL=""
+
+# Datakilder (RAG) - see the Datakilder feature section
+RAGSERVICE_URL="https://ragservice.example.com"
+RAGSERVICE_SCOPE="api://<scope>/.default"
+RAGSERVICE_TOKEN=""                # For local testing only - paste a token here
+# Hugin's own Entra app registration, used for the on-behalf-of token exchange to ragservice
+ENTRA_TENANT_ID=""
+ENTRA_CLIENT_ID=""
+ENTRA_CLIENT_SECRET=""
 ```
+
+> **`BODY_SIZE_LIMIT` gotcha:** `APP_CONFIG.BODY_SIZE_LIMIT_BYTES` only honours values ending in `M` (e.g. `"512M"`) — a raw byte count like `"536870912"` silently falls back to a 10 MB default. `adapter-node` reads the raw env var separately for its own request limit, so the two can disagree if you set a raw byte count.
 
 ---
 
@@ -377,33 +511,49 @@ CANVAS_ENABLED="true"             # Enable the Canvas document editor
 ```
 src/
 ├── lib/                          # Shared library code
-│   ├── types/                    # Zod schemas and TypeScript types
+│   ├── types/                    # Domain types (mostly plain TS; Zod only at trust boundaries)
 │   │   ├── AIVendor.ts          # Core vendor interface
-│   │   ├── chat.ts              # Chat request/response types
+│   │   ├── chat.ts              # Chat request/response types (+ ChatConfigSchema)
 │   │   ├── chat-item.ts         # Message types
 │   │   ├── chat-item-content.ts # Content types (text, file, image)
-│   │   ├── streaming.ts         # SSE event types
+│   │   ├── streaming.ts         # SSE event types (Zod discriminated union)
 │   │   ├── canvas.ts            # Canvas request type
 │   │   └── authentication.ts    # Auth types
-│   ├── server/                   # Server-only code
+│   ├── validation/                # Boundary parse functions (plain TS guards → HTTPError)
+│   ├── server/                    # Server-only code
 │   │   ├── ai-vendors.ts        # Vendor factory
 │   │   ├── openai/              # OpenAI implementation
 │   │   ├── mistral/             # Mistral implementation
+│   │   ├── ollama/              # Ollama implementation
+│   │   ├── litellm/             # LiteLLM implementation
+│   │   ├── ragservice/          # RAG on-behalf-of token exchange
+│   │   ├── transcription/       # Transcription job store + external service client
 │   │   ├── auth/                # Authentication handlers
 │   │   ├── middleware/          # HTTP middleware
+│   │   ├── app-config/          # APP_CONFIG - vendors, models, roles, feature flags
 │   │   └── db/                  # Database abstraction
-│   ├── components/              # Svelte components
-│   │   └── Chat/                # Chat UI components
-│   └── streaming.ts             # SSE utilities
+│   ├── conversationstore/         # Conversation persistence + at-rest encryption
+│   ├── ragservice/                # Datakilder UI components + API adapter (client-side)
+│   ├── components/                # Svelte components
+│   │   └── Chat/                 # Chat UI components
+│   ├── authorization.ts           # Access-control functions (see Authorization section)
+│   ├── spotlights.ts               # Feature Spotlight announcement registry
+│   └── streaming.ts               # SSE utilities
 ├── routes/                       # SvelteKit routes
 │   ├── +layout.server.ts        # Root auth middleware
 │   ├── +page.svelte             # Home page
 │   ├── api/
 │   │   ├── chat/+server.ts      # Chat streaming endpoint
-│   │   ├── canvas/+server.ts    # Canvas streaming endpoint
-│   │   └── chatconfigs/         # Config CRUD endpoints
+│   │   ├── canvas/+server.ts    # Canvas streaming endpoint (+ mermaid/+server.ts)
+│   │   ├── chatconfigs/         # Config CRUD endpoints
+│   │   ├── conversations/       # Conversation history endpoints
+│   │   ├── transcription/       # Transcription job + upload/download endpoints
+│   │   └── obo/rag/             # On-behalf-of proxy to the external ragservice
 │   ├── canvas/                  # Canvas document editor
-│   └── agents/                  # Agent management pages
+│   ├── transcription/           # Tale-til-notat UI
+│   ├── ragservice/              # Datakilder UI
+│   ├── agents/                  # Agent management pages
+│   └── admin/                   # Admin pages
 └── app.d.ts                     # Global type definitions
 ```
 
@@ -422,7 +572,7 @@ Send a message and receive an AI response (streaming or non-streaming).
     _id: string,
     name: string,
     description: string,
-    vendorId: "openai" | "mistral",
+    vendorId: "OPENAI" | "MISTRAL" | "OLLAMA" | "LITELLM",
     project: string,
     model?: string,
     instructions?: string,
@@ -457,36 +607,81 @@ Submit a prompt (and optionally the current document) to the AI document editor.
 
 Emits `response.output_text.delta` events with the updated document, and `response.annotations` events with URL citations when web search is used.
 
-### POST `/api/chatconfigs`
+### POST `/api/canvas/mermaid`
 
-Create a new chat configuration.
+Generate or edit a Mermaid diagram from a prompt. Same access control and streaming response shape as `/api/canvas`; hardcoded to OpenAI `gpt-5.6-terra`.
 
-### PATCH `/api/chatconfigs/[_id]`
+### GET / POST `/api/chatconfigs`
+
+List, or create, chat configurations.
+
+### PUT `/api/chatconfigs/[_id]`
 
 Update an existing chat configuration.
+
+### DELETE `/api/chatconfigs/[_id]`
+
+Delete a chat configuration.
+
+### GET `/api/conversations`
+
+List the authenticated user's stored conversations.
+
+### GET `/api/conversations/[_id]`
+
+Fetch one conversation's full message history.
+
+### POST `/api/conversations/[_id]/title`
+
+Fire-and-forget: auto-generate a title for a conversation. No-op if the conversation is already titled.
+
+### GET / POST / PATCH `/api/transcription`
+
+List, create, or update transcription jobs. See [Transcription](#transcription-tale-til-notat).
+
+### POST `/api/transcription/callback`
+
+Webhook called by the external tale-til-notat service when a job completes. Authenticated via a shared secret (`TRANSCRIPTION_CALLBACK_SECRET`) query param, not user auth.
+
+### GET `/api/transcription/[id]/download`
+
+Download a finished transcription as a `.docx` file.
+
+### `/api/transcription/upload/[...path]`
+
+Proxies large audio/video uploads to the internal Copyparty file server.
+
+### `/api/obo/rag/[...path]`
+
+On-behalf-of token exchange, then proxies the request to the external ragservice. Gated by `canUseRagservice`. See [Datakilder](#datakilder-rag).
 
 ---
 
 ## Type System
 
-The application uses a **Zod-first** approach where all types are defined as Zod schemas, then TypeScript types are inferred:
+Domain types are **plain TypeScript**, not Zod schemas. Runtime validation with Zod is used only at a handful of external trust boundaries — API request bodies and the SSE event stream — where a discriminated-union validator genuinely earns its keep:
 
 ```typescript
-// Schema definition
-const ChatConfigSchema = z.object({
-  _id: z.string(),
-  name: z.string(),
-  vendorId: z.enum(["openai", "mistral", "ollama"]),
-  model: z.string().optional(),
+// Most domain types: plain TypeScript, no Zod
+type ChatConfig = {
+  _id: string
+  name: string
+  vendorId: "OPENAI" | "MISTRAL" | "OLLAMA" | "LITELLM"
+  model?: string
   // ...
-})
+}
 
-// Type inference
-type ChatConfig = z.infer<typeof ChatConfigSchema>
+// Zod used at a boundary - built from the plain type via schemaForType<T>(),
+// not the other way around
+const ChatConfigSchema = schemaForType<ChatConfig>()(z.object({ /* ... */ }))
 
-// Runtime validation
-const result = ChatConfigSchema.safeParse(data)
+// Boundary validation, in a route handler
+const result = ChatConfigSchema.safeParse(requestBody)
 ```
+
+Where Zod is used: `ChatConfigSchema` ([chat.ts](src/lib/types/chat.ts), validates incoming chat config bodies), `MuginSse` ([streaming.ts](src/lib/types/streaming.ts), validates SSE events from vendors), and transcription job/callback payloads ([types.ts](src/lib/server/transcription/types.ts)). `AuthenticatedPrincipalSchema` ([authentication.ts](src/lib/types/authentication.ts)) exists but is used only for `z.infer`, not runtime validation — see [Authentication Flow](#authentication-flow).
+
+Everywhere else, validation is hand-written parse functions in `src/lib/validation/` (e.g. `parse-chat-config.ts`, `parse-canvas-request.ts`, `file-input.ts`) that throw `HTTPError(400)` on invalid input.
 
 ### Core Types
 
@@ -497,7 +692,7 @@ const result = ChatConfigSchema.safeParse(data)
 | `ChatResponseObject` | Complete response with outputs and usage | [chat.ts](src/lib/types/chat.ts) |
 | `ChatInputMessage` | User/system input message | [chat-item.ts](src/lib/types/chat-item.ts) |
 | `ChatOutputMessage` | Assistant output message | [chat-item.ts](src/lib/types/chat-item.ts) |
-| `MuginSse` | SSE event discriminated union | [streaming.ts](src/lib/types/streaming.ts) |
+| `MuginSse` | SSE event discriminated union (Zod) | [streaming.ts](src/lib/types/streaming.ts) |
 | `AuthenticatedPrincipal` | User identity with roles/groups | [authentication.ts](src/lib/types/authentication.ts) |
 
 ---
@@ -545,13 +740,14 @@ npm run test  # Runs: tsc → biome → build → vitest
 npm run build
 ```
 
-The build uses `@sveltejs/adapter-node` for Node.js deployment.
+The build uses `@sveltejs/adapter-node` for Node.js deployment. `npm run build` runs Vite in `--mode build`, which loads `.env.build` (placeholder values) rather than your local `.env` — real values are supplied by the deployment environment, not baked in at build time.
 
 ### Production Environment Variables
 
 ```bash
 # Required
-MONGO_DB_URI="mongodb+srv://..."
+MONGODB_CONNECTION_STRING="mongodb+srv://..."
+MONGODB_DB_NAME="mugin"
 MISTRAL_API_KEY_PROJECT_DEFAULT="sk-..."
 OPENAI_API_KEY_PROJECT_DEFAULT="sk-..."
 
@@ -581,14 +777,16 @@ CANVAS_ENABLED="true"
 
 | Category | Technology |
 |----------|------------|
-| Framework | SvelteKit 2.22, Svelte 5 |
+| Framework | SvelteKit 2.57, Svelte 5.55 |
 | Language | TypeScript 5.9 |
-| AI Providers | OpenAI, Mistral AI |
-| Database | MongoDB |
-| Validation | Zod 4.1 |
+| AI Providers | OpenAI, Mistral AI, Ollama, LiteLLM |
+| Database | MongoDB (`mongodb` driver 7.x) |
+| Validation | Zod 4.3 (boundary validation only — see [Type System](#type-system)) |
 | Linting | Biome |
 | Testing | Vitest |
 | Markdown | markdown-it, highlight.js, KaTeX |
+| Documents | `docx` (Canvas/Transcription export), `mermaid` (diagram generation), `pdf-lib` |
+| Logging | `@vestfoldfylke/loglady` (structured logging) |
 
 ---
 
