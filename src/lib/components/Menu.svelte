@@ -11,9 +11,10 @@
 		authenticatedUser: AuthenticatedPrincipal
 		appName: string
 		isEmployee: boolean
+		canUseTranscription: boolean
 		canvasEnabled: boolean
 	}
-	let { authenticatedUser, appName, isEmployee, canvasEnabled }: Props = $props()
+	let { authenticatedUser, appName, isEmployee, canUseTranscription, canvasEnabled }: Props = $props()
 
 	let menuOpen = $state(true)
 	let menuAgents: { isLoading: boolean; agents: ChatConfig[]; error: string | null } = $state({ isLoading: false, agents: [], error: null })
@@ -180,7 +181,9 @@
 				<div class="menu-section">
 					<div class="menu-section-title">Andre tjenester</div>
 					<div class="menu-items">
-						<a class="menu-item" class:active={page.url.pathname === "/transcription"} href="/transcription">Tale-til-notat</a>
+						{#if canUseTranscription}
+							<a class="menu-item" class:active={page.url.pathname === "/transcription"} href="/transcription">Tale-til-notat</a>
+						{/if}
 						{#if canvasEnabled}
 							<a class="menu-item" class:active={page.url.pathname === "/canvas"} href="/canvas">Kladdeboka</a>
 						{/if}
