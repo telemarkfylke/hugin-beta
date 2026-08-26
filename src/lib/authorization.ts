@@ -50,6 +50,13 @@ export const canUseCanvas = (user: AuthenticatedPrincipal, appRoles: AppRoles): 
 	return user.roles.includes(appRoles.EMPLOYEE) || user.roles.includes(appRoles.ADMIN)
 }
 
+export const canUseTranscription = (user: AuthenticatedPrincipal, appConfig: AppConfig): boolean => {
+	if (user.roles.includes(appConfig.APP_ROLES.ADMIN)) {
+		return true
+	}
+	return appConfig.TRANSCRIPTION_GREEN_GROUP_ID !== undefined && user.groups.includes(appConfig.TRANSCRIPTION_GREEN_GROUP_ID)
+}
+
 export const canPromptConfig = (user: AuthenticatedPrincipal, appConfig: AppConfig, chatConfig: ChatConfig): boolean => {
 	if (user.roles.includes(appConfig.APP_ROLES.ADMIN)) {
 		return true
