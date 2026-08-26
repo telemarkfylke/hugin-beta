@@ -66,7 +66,10 @@ export const postChatMessage = async (chatRequest: ChatRequest, chatResponseObje
 			return
 		}
 		// Handle non-streaming response
-		const responseData: ChatResponseObject = await response.json()
+		const responseData: ChatResponseObject & { huginConversationId?: string } = await response.json()
+		if (responseData.huginConversationId) {
+			chat._id = responseData.huginConversationId // Samme som for streaming-grenen over - endrer state utenfor eierscopet
+		}
 		Object.assign(chatResponseObject, responseData)
 		return
 	} catch (error) {

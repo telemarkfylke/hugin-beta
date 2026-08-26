@@ -103,6 +103,23 @@ export class ConversationManager {
 		return await this.converationStore.appendConversationMessage(resolvedConversationId, pair, principal)
 	}
 
+	// Bulk-persists an already-assembled history (e.g. an imported .kráa file, or a conversation that
+	// was incognito from its very first message and so never got a conversationId) as a brand new,
+	// real conversation. Reuses the same per-pair append used for normal turns - just called in a loop -
+	// so encryption/updatedAt bookkeeping stays identical to the regular one-pair-at-a-time path.
+	public async createConversationWithHistory(pairs: { userInput: ChatInputItem; response: ChatResponseObject }[], principal: AuthenticatedPrincipal): Promise<Conversation> {
+		const newConversation: NewConversation = {
+			owner: principal.userId,
+			createdAt: new Date(),
+			updatedAt: new Date()
+		}
+		const conversation = await this.converationStore.createConversation(newConversation, principal)
+		for (const pair of pairs) {
+			await this.appendConversationMessage(conversation.id, pair.userInput, pair.response, principal)
+		}
+		return conversation
+	}
+
 	public async listConversations(principal: AuthenticatedPrincipal): Promise<Conversation[]> {
 		return await this.converationStore.getConversations(principal)
 	}

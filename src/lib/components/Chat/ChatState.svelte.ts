@@ -141,6 +141,11 @@ export class ChatState {
 	public configMode: boolean = $state(false)
 	public initialConfig: ChatConfig = $state(placeHolderConfig)
 	public configEdited: boolean = $derived(JSON.stringify(this.chat.config) !== JSON.stringify(this.initialConfig))
+	// History without a conversationId can only come from an import, or a conversation that's been
+	// incognito since its very first message (changeChat/newChat always set both together) - there's
+	// no stored context to build on, so the send path must behave as incognito no matter the toggle,
+	// and the UI should tell the user why "Inkognito" looks off yet nothing is actually being saved.
+	public hasUnsavedHistory: boolean = $derived(this.chat.history.length > 0 && !this.chat._id)
 	public webSearchEnabled: boolean = $state(true)
 	public datasourceEnabled: boolean = $state(false)
 	// Set by loadChat when the conversation being opened last belonged to a different agent than
@@ -175,7 +180,9 @@ export class ChatState {
 		this.chat.owner = chat.owner
 		this.initialConfig = JSON.parse(JSON.stringify(chat.config))
 		this.webSearchEnabled = this.lockedTools ? this.lockedTools.webSearch : supportsWebSearch(chat.config)
-		this.datasourceEnabled = this.lockedTools ? this.lockedTools.datasource : false
+		// Same default-on-if-available rule as web search - if an agent has a datasource configured,
+		// it's presumably configured for a reason, so it starts active rather than needing a click.
+		this.datasourceEnabled = this.lockedTools ? this.lockedTools.datasource : (chat.config.dataSources?.length ?? 0) > 0
 	}
 
 	// Fire-and-forget - the endpoint is idempotent (no-ops if a title already exists), so callers
@@ -214,14 +221,52 @@ export class ChatState {
 		this.chat.updatedAt = new Date().toISOString()
 	}
 
+	// An imported .kráa file must never silently become a continuation of whatever real, stored
+	// conversation happened to be open - it needs to detach from it exactly like newChat() does,
+	// just keeping the imported history instead of clearing it. Without resetting _id here, the
+	// next message would be saved onto the previous conversation's real id, with the DB content
+	// having nothing to do with what's actually shown on screen.
+	public importHistory = (history: ChatHistory): void => {
+		this.requestTitleForAbandonedChat()
+		this.chat.history = history
+		this.chat._id = ""
+		this.chat.createdAt = new Date().toISOString()
+		this.chat.updatedAt = new Date().toISOString()
+	}
+
 	public toggleStoreChat = (): void => {
-		if (!this.canUseHistory) {
+		// Locked (hasUnsavedHistory) conversations don't reflect the toggle either way - flipping it
+		// here would silently change the stored default for later, with no visible effect right now.
+		if (!this.canUseHistory || this.hasUnsavedHistory) {
 			return
 		}
 		this.storeChat = !this.storeChat
 		if (typeof localStorage !== "undefined") {
 			localStorage.setItem(STORE_CHAT_STORAGE_KEY, String(this.storeChat))
 		}
+	}
+
+	// Persists the current in-memory history (e.g. an imported .kráa file, or a conversation that has
+	// been incognito - and so never got a conversationId - since its very first message) as a brand
+	// new, real conversation. Independent of the storeChat toggle: this fires once, on demand, rather
+	// than gating every future send.
+	public saveCurrentAsNewConversation = async (): Promise<void> => {
+		if (!this.canUseHistory || this.chat.history.length === 0) {
+			return
+		}
+		const result = await fetch("/api/conversations", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ history: this.chat.history })
+		})
+		if (!result.ok) {
+			throw new Error(`Failed to save conversation: ${result.status} ${result.statusText}`)
+		}
+		const conversation: { id: string } = await result.json()
+		this.chat._id = conversation.id
+		// The whole history just got persisted in one go, so there's already enough context to
+		// title it now - no need to wait for the usual "about to abandon an untitled chat" trigger.
+		this.requestTitleGeneration(conversation.id)
 	}
 
 	private applyLoadedConversation = (conversation: { id: string; owner: string; title?: string; createdAt: string; updatedAt: string }, history: ChatHistory, config: ChatConfig): void => {
@@ -345,6 +390,8 @@ export class ChatState {
 		const activeTools: typeof this.chat.config.tools =
 			hasDatasources && this.datasourceEnabled ? [{ type: "datasource" }, ...(webSearchTools?.filter((t) => t.type !== "datasource") ?? [])] : webSearchTools?.filter((t) => t.type !== "datasource")
 
+		const effectiveStoreChat = this.storeChat && !this.hasUnsavedHistory
+
 		const chatRequest: ChatRequest = {
 			config: {
 				...this.chat.config,
@@ -352,10 +399,10 @@ export class ChatState {
 				tools: activeTools
 			},
 			// Uten lagring (store=false) har backend ingen historikk å bygge kontekst fra, så da må vi fortsatt sende hele samtalen selv.
-			inputs: this.storeChat ? [userMessage] : [...chatInput, userMessage],
+			inputs: effectiveStoreChat ? [userMessage] : [...chatInput, userMessage],
 			stream: this.streamResponse,
-			store: this.storeChat,
-			huginConversationId: this.storeChat ? this.chat._id || undefined : undefined
+			store: effectiveStoreChat,
+			huginConversationId: effectiveStoreChat ? this.chat._id || undefined : undefined
 		}
 
 		this.chat.history.push(userMessage)

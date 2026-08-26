@@ -5,6 +5,7 @@
 	import favicon32 from "$lib/assets/favicon-32x32.png"
 	import "../style.css" // Add global css (and make it hot reload)
 	import "../lib/axe.js"
+	import { isStudentOnly } from "$lib/authorization"
 	import Menu from "$lib/components/Menu.svelte"
 	import SpotlightHost from "$lib/components/SpotlightHost.svelte"
 	import type { LayoutProps } from "./$types.js"
@@ -46,6 +47,7 @@
 			isEmployee={data.authenticatedUser.roles.includes(data.APP_CONFIG.APP_ROLES.EMPLOYEE)}
 			canvasEnabled={data.APP_CONFIG.CANVAS_ENABLED}
 			isAdmin={data.authenticatedUser.roles.includes(data.APP_CONFIG.APP_ROLES.ADMIN)}
+			isStudentOnly={isStudentOnly(data.authenticatedUser, data.APP_CONFIG.APP_ROLES)}
 		/>
 		<div class="page-content">
 			{#if children}
@@ -55,6 +57,7 @@
 			{/if}
 		</div>
 	</main>
+
 
 	<!-- Feature-announcement overlay - never on embed routes, that's someone else's page/an anonymous
 	     visitor, not a Hugin user we'd be onboarding. -->

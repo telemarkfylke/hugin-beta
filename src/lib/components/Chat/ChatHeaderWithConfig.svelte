@@ -3,10 +3,10 @@
 	import { canEditChatConfig } from "$lib/authorization"
 	import ChatConfigPanel from "./ChatConfigPanel.svelte"
 	import type { ChatState } from "./ChatState.svelte"
-	import ConversationExport from "./ConversationExport.svelte"
 	import ConversationList from "./ConversationList.svelte"
 	import LoadConversationDialog from "./LoadConversationDialog.svelte"
 	import NewChatDialog from "./NewChatDialog.svelte"
+	import NewChatMenu from "./NewChatMenu.svelte"
 
 	type Props = {
 		chatState: ChatState
@@ -60,21 +60,23 @@
 	<div class="chat-header-right">
 		<div class="chat-actions">
 			{#if !chatState.configMode}
-				<button class="header-action" onclick={handleNewChat} title="Ny samtale">
-					<span class="material-symbols-rounded">edit_square</span>
-					Ny samtale
-				</button>
-				{#if !chatState.APP_CONFIG.CONVERSATION_EXPORT_DISABLED}
-					<ConversationExport bind:chat={chatState.chat} />
-				{/if}
+				<NewChatMenu bind:chatState onNewChat={handleNewChat} exportDisabled={chatState.APP_CONFIG.CONVERSATION_EXPORT_DISABLED} />
 				{#if chatState.canUseHistory}
 					<ConversationList bind:chatState />
 					<button
 						class="header-action"
-						class:active={!chatState.storeChat}
+						class:active={!chatState.storeChat || chatState.hasUnsavedHistory}
+						disabled={chatState.hasUnsavedHistory}
 						onclick={() => chatState.toggleStoreChat()}
-						title={chatState.storeChat ? "Samtalen lagres" : "Inkognito: samtalen lagres ikke"}
+						title={chatState.hasUnsavedHistory
+							? "Denne samtalen er låst i inkognito-tilstand (importert, eller startet i inkognito) og lagres ikke. Bryteren er deaktivert til du lagrer den via «Ny samtale»-menyen."
+							: chatState.storeChat
+								? "Samtalen lagres"
+								: "Inkognito: samtalen lagres ikke"}
 					>
+						{#if chatState.hasUnsavedHistory}
+							<span class="material-symbols-rounded">lock</span>
+						{/if}
 						Inkognito
 					</button>
 				{/if}
