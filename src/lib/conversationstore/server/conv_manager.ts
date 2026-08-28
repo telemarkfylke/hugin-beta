@@ -46,13 +46,35 @@ export class ConversationManager {
 		}
 
 		const response = await createUtilityChatResponse(titleRequest)
-		const title = extractResponseText(response).trim()
+		if (response.status !== "completed") {
+			// Truncated/filtered/empty response from the utility model - don't save whatever
+			// (if anything) came back as the title. Left titleless; a later retry can pick it up.
+			return null
+		}
 
+		const title = extractResponseText(response).trim()
 		if (!title) {
 			return null
 		}
 		await this.converationStore.updateConversationTitle(conversationId, title, principal)
 		return title
+	}
+
+	// User-driven rename - unlike generateTitle, this always overwrites (no "already has a title"
+	// no-op), since the whole point is letting someone replace a title they don't like.
+	public async renameConversation(conversationId: string, title: string, principal: AuthenticatedPrincipal): Promise<string> {
+		const conversation = await this.converationStore.getConversation(conversationId, principal)
+		if (!conversation) {
+			throw new Error("Conversation not found")
+		}
+
+		const trimmedTitle = title.trim()
+		if (!trimmedTitle) {
+			throw new Error("Title must not be empty")
+		}
+
+		await this.converationStore.updateConversationTitle(conversationId, trimmedTitle, principal)
+		return trimmedTitle
 	}
 
 	public async generateSummary(_conversationId: number) {
