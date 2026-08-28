@@ -35,6 +35,40 @@
 		return { fromIso, toIso }
 	}
 
+	let exporting = $state(false)
+	let exportError = $state<string | null>(null)
+
+	// Downloads the same data as this whole tab (totals + a per-category trend sheet each +
+	// Ukategorisert samples), as a real .xlsx built server-side - see the export route for the sheet
+	// layout. Uses the same fetch-then-Blob-download pattern as NewChatMenu.svelte's .kráa export.
+	async function exportToExcel() {
+		exporting = true
+		exportError = null
+		try {
+			const { fromIso, toIso } = rangeParams()
+			const res = await fetch(`/api/chatconfigs/${chatConfigId}/stats/export?${new URLSearchParams({ from: fromIso, to: toIso })}`)
+			if (!res.ok) throw new Error(`${res.status} ${res.statusText}`)
+
+			const blob = await res.blob()
+			const url = URL.createObjectURL(blob)
+			const contentDisposition = res.headers.get("Content-Disposition")
+			const fileName = contentDisposition?.match(/filename="(.+)"/)?.[1] ?? "statistikk.xlsx"
+
+			const a = document.createElement("a")
+			a.href = url
+			a.download = fileName
+			document.body.appendChild(a)
+			a.click()
+			document.body.removeChild(a)
+			URL.revokeObjectURL(url)
+		} catch (error) {
+			console.error("Error exporting stats to Excel:", error)
+			exportError = "Kunne ikke eksportere statistikken."
+		} finally {
+			exporting = false
+		}
+	}
+
 	async function loadTotals() {
 		totalsLoading = true
 		totalsError = null
@@ -118,7 +152,14 @@
 			<input id="stats-from" type="date" bind:value={from} max={to} />
 			<span>til</span>
 			<input id="stats-to" type="date" bind:value={to} min={from} max={toDateInputValue(today)} />
+			<button onclick={exportToExcel} disabled={exporting} title="Last ned all statistikk for perioden som Excel-fil">
+				<span class="material-symbols-outlined">download</span>
+				{exporting ? "Eksporterer..." : "Eksporter til Excel"}
+			</button>
 		</div>
+		{#if exportError}
+			<div class="stats-hint error">{exportError}</div>
+		{/if}
 
 		{#if totalsLoading}
 			<div class="stats-hint">Henter statistikk...</div>
