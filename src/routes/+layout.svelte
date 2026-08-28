@@ -5,8 +5,9 @@
 	import favicon32 from "$lib/assets/favicon-32x32.png"
 	import "../style.css" // Add global css (and make it hot reload)
 	import "../lib/axe.js"
-	import { canUseTranscription } from "$lib/authorization"
+	import { canUseTranscription, isStudentOnly } from "$lib/authorization"
 	import Menu from "$lib/components/Menu.svelte"
+	import SpotlightHost from "$lib/components/SpotlightHost.svelte"
 	import type { LayoutProps } from "./$types.js"
 
 	let { children, data }: LayoutProps = $props()
@@ -39,6 +40,8 @@
 		isEmployee={data.authenticatedUser.roles.includes(data.APP_CONFIG.APP_ROLES.EMPLOYEE)}
 		canUseTranscription={canUseTranscription(data.authenticatedUser, data.APP_CONFIG)}
 		canvasEnabled={data.APP_CONFIG.CANVAS_ENABLED}
+		isAdmin={data.authenticatedUser.roles.includes(data.APP_CONFIG.APP_ROLES.ADMIN)}
+		isStudentOnly={isStudentOnly(data.authenticatedUser, data.APP_CONFIG.APP_ROLES)}
 	/>
 	<div class="page-content">
 		{#if children}
@@ -48,6 +51,8 @@
 		{/if}
 	</div>
 </main>
+
+<SpotlightHost authenticatedUser={data.authenticatedUser} appRoles={data.APP_CONFIG.APP_ROLES} />
 
 <style>
 	main {

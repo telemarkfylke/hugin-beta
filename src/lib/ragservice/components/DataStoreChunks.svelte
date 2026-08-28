@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { RagServiceApi } from "$lib/ragservice/adapters/ragserviceApi"
 	import type { StoreResponse } from "$lib/ragservice/types"
+	import "./ragservice-shared.css"
 
 	const api = new RagServiceApi()
 
@@ -14,7 +15,11 @@
 	let newChunkText: string = $state("")
 	let newChunkFields: KVPair[] = $state([])
 	let adding: boolean = $state(false)
-	let successMessage: string = $state("")
+	let justAdded: boolean = $state(false)
+
+	// Same reasoning as DataStoreTextSearch's save-defaults button: confirmation lives in the
+	// button's own label instead of a separate message, so it clears itself automatically.
+	const ADDED_CONFIRMATION_MS = 2000
 
 	function addField() {
 		newChunkFields.push({ key: "", value: "" })
@@ -33,19 +38,23 @@
 	async function addChunk() {
 		if (!newChunkText.trim()) return
 		adding = true
-		successMessage = ""
+		justAdded = false
 		try {
-			await api.addChunks(store.storeId, [{ data: newChunkText, extraInfo: buildExtraInfo() }])
+			const extraInfo = buildExtraInfo()
+			await api.addChunks(store.storeId, [extraInfo ? { data: newChunkText, extraInfo } : { data: newChunkText }])
 			newChunkText = ""
 			newChunkFields = []
-			successMessage = "Chunk lagt til."
+			justAdded = true
+			setTimeout(() => {
+				justAdded = false
+			}, ADDED_CONFIRMATION_MS)
 		} finally {
 			adding = false
 		}
 	}
 </script>
 
-<div class="chunks-form">
+<div class="rag-card chunks-form">
 	<textarea rows="6" bind:value={newChunkText} placeholder="Skriv inn tekst for ny chunk..."></textarea>
 
 	<div class="extra-info">
@@ -54,7 +63,7 @@
 			<div class="kv-row">
 				<input type="text" placeholder="Nøkkel" bind:value={field.key} />
 				<input type="text" placeholder="Verdi" bind:value={field.value} />
-				<button type="button" onclick={() => removeField(i)} title="Fjern felt">
+				<button type="button" class="icon-button" onclick={() => removeField(i)} title="Fjern felt">
 					<span class="material-symbols-outlined">close</span>
 				</button>
 			</div>
@@ -65,12 +74,9 @@
 	</div>
 
 	<div class="form-actions">
-		<button onclick={addChunk} disabled={adding || !newChunkText.trim()}>
-			{adding ? "Legger til..." : "Legg til chunk"}
+		<button class="filled" onclick={addChunk} disabled={adding || !newChunkText.trim()}>
+			{adding ? "Legger til..." : justAdded ? "Lagt til ✓" : "Legg til chunk"}
 		</button>
-		{#if successMessage}
-			<span class="success">{successMessage}</span>
-		{/if}
 	</div>
 </div>
 
@@ -78,20 +84,21 @@
 	div.chunks-form {
 		display: flex;
 		flex-direction: column;
-		gap: 10px;
+		gap: 12px;
 		max-width: 600px;
-		padding-top: 8px;
 	}
 
 	div.chunks-form textarea {
 		font: inherit;
-		padding: 6px;
+		padding: 8px;
+		border: 1px solid var(--color-primary-30);
+		border-radius: 4px;
 	}
 
 	div.extra-info {
 		display: flex;
 		flex-direction: column;
-		gap: 4px;
+		gap: 6px;
 	}
 
 	span.extra-info-label {
@@ -107,42 +114,26 @@
 
 	div.kv-row input {
 		flex: 1;
-		font: inherit;
-		padding: 3px 6px;
-	}
-
-	div.kv-row button {
-		padding: 2px 4px;
-		background: none;
-		border: none;
-		cursor: pointer;
-		color: #888;
-	}
-
-	div.kv-row button:hover {
-		color: #c00;
+		font-family: var(--font-family);
+		padding: 4px 6px;
+		border: 1px solid var(--color-primary-30);
+		border-radius: 4px;
 	}
 
 	button.add-field-btn {
 		align-self: flex-start;
+		height: auto;
 		font-size: small;
 		background: none;
-		border: 1px dashed #aaa;
+		border: 1px dashed var(--color-primary-30);
+		color: var(--color-primary);
 		cursor: pointer;
-		padding: 3px 8px;
-		display: flex;
-		align-items: center;
-		gap: 2px;
+		padding: 4px 8px;
 	}
 
 	div.form-actions {
 		display: flex;
 		align-items: center;
 		gap: 12px;
-	}
-
-	span.success {
-		font-size: small;
-		color: green;
 	}
 </style>

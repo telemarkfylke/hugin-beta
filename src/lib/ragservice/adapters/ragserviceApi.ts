@@ -10,12 +10,19 @@ import type {
 	GraphUser,
 	StoreConfig,
 	StoreResponse,
+	UnrestrictedAccess,
+	UpdateStoreValues,
+	UseOcr,
 	VectorMatch,
 	VectorSearch,
 	VectorStoreFile
 } from "../types"
 
 const BASE = "/api/obo/rag"
+
+// A real search can legitimately take a while (embedding + vector + text search combined), so
+// this is generous - it's a "stop hanging forever" backstop, not a normal-latency budget.
+const SEARCH_TIMEOUT_MS = 30_000
 
 async function get<T>(path: string): Promise<T | null> {
 	try {
@@ -45,6 +52,20 @@ async function put<T>(path: string, body: unknown): Promise<T | null> {
 	try {
 		const res = await fetch(`${BASE}${path}`, {
 			method: "PUT",
+			headers: { "content-type": "application/json" },
+			body: JSON.stringify(body)
+		})
+		if (!res.ok) return null
+		return (await res.json()) as T
+	} catch {
+		return null
+	}
+}
+
+async function patch<T>(path: string, body: unknown): Promise<T | null> {
+	try {
+		const res = await fetch(`${BASE}${path}`, {
+			method: "PATCH",
 			headers: { "content-type": "application/json" },
 			body: JSON.stringify(body)
 		})
@@ -85,12 +106,22 @@ export class RagServiceApi {
 		return await get<StoreResponse>(`/stores/${id}`)
 	}
 
+	async updateStore(id: string, values: UpdateStoreValues): Promise<StoreConfig | null> {
+		return await patch<StoreConfig>(`/stores/${id}`, values)
+	}
+
 	async deleteStore(id: string): Promise<boolean> {
 		return await del(`/stores/${id}`)
 	}
 
-	async uploadFile(storeId: string, formData: FormData): Promise<Response> {
-		return await fetch(`${BASE}/stores/${storeId}/textfiles`, {
+	async uploadFile(storeId: string, formData: FormData, normalizeChuncks: boolean, useOcr: UseOcr = "auto"): Promise<Response> {
+		let url = `${BASE}/stores/${storeId}/textfiles`
+		const params = new URLSearchParams()
+		if (normalizeChuncks) params.set("normalizeChunks", "true")
+		if (useOcr !== "auto") params.set("useOcr", useOcr)
+		const query = params.toString()
+		if (query) url += `?${query}`
+		return await fetch(url, {
 			method: "POST",
 			body: formData
 		})
@@ -104,12 +135,36 @@ export class RagServiceApi {
 		return await del(`/stores/${storeId}/files/${fileId}`)
 	}
 
+	// Deliberately doesn't go through the shared post() helper: that swallows every failure into
+	// null, which textSearch would otherwise turn into an empty array - indistinguishable from a
+	// real "no matches" result. Callers need to tell those apart to show a proper error instead
+	// of silently rendering nothing (see DataStoreTextSearch's searchError).
 	async textSearch(storeId: string, query: VectorSearch): Promise<VectorMatch[]> {
-		return (await post<VectorMatch[]>(`/stores/${storeId}/search/text`, query)) ?? []
+		const controller = new AbortController()
+		const timeout = setTimeout(() => controller.abort(), SEARCH_TIMEOUT_MS)
+		try {
+			const res = await fetch(`${BASE}/stores/${storeId}/search/text`, {
+				method: "POST",
+				headers: { "content-type": "application/json" },
+				body: JSON.stringify(query),
+				signal: controller.signal
+			})
+			if (!res.ok) throw new Error(`Søket feilet (${res.status})`)
+			return (await res.json()) as VectorMatch[]
+		} finally {
+			clearTimeout(timeout)
+		}
 	}
 
 	async getAccess(storeId: string): Promise<Access> {
-		return (await get<Access>(`/stores/${storeId}/access/`)) ?? {}
+		return (
+			(await get<Access>(`/stores/${storeId}/access/`)) ?? {
+				unrestricted: {
+					view: false,
+					search: false
+				}
+			}
+		)
 	}
 
 	async setAccess(storeId: string, type: AccessType, userId: string, accessRow: AccessRow): Promise<void> {
@@ -118,6 +173,18 @@ export class RagServiceApi {
 
 	async removeAccess(storeId: string, type: AccessType, userId: string): Promise<void> {
 		await del(`/stores/${storeId}/access/${this.typePath(type)}/${userId}`)
+	}
+
+	async getUnrestrictedAccess(storeId: string): Promise<UnrestrictedAccess | null> {
+		return await get<UnrestrictedAccess>(`/stores/${storeId}/access/unrestricted`)
+	}
+
+	async setUnrestrictedAccess(storeId: string, access: UnrestrictedAccess): Promise<void> {
+		await put(`/stores/${storeId}/access/unrestricted`, access)
+	}
+
+	async deleteUnrestrictedAccess(storeId: string): Promise<void> {
+		await del(`/stores/${storeId}/access/unrestricted`)
 	}
 
 	async searchUsers(query: string): Promise<GraphUser[]> {

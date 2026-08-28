@@ -13,8 +13,16 @@
 		isEmployee: boolean
 		canUseTranscription: boolean
 		canvasEnabled: boolean
+		isAdmin: boolean
+		isStudentOnly: boolean
 	}
-	let { authenticatedUser, appName, isEmployee, canUseTranscription, canvasEnabled }: Props = $props()
+	let { authenticatedUser, appName, isEmployee, canUseTranscription, canvasEnabled, isAdmin, isStudentOnly }: Props = $props()
+
+	// Temporary feature flag for the Datakilder menu link's audience - flip to false to restrict it
+	// back to admin-only before a prod deploy. A plain hardcoded constant on purpose: this is a
+	// short-lived, manually-flipped toggle, not worth wiring a real env var through Terraform's
+	// lifecycle exclusions for. Remove this once the feature is ready for its real audience for good.
+	const DATASOURCES_MENU_OPEN_TO_ALL = false
 
 	let menuOpen = $state(true)
 	let menuAgents: { isLoading: boolean; agents: ChatConfig[]; error: string | null } = $state({ isLoading: false, agents: [], error: null })
@@ -156,8 +164,8 @@
 									{agent.name}
 								</a>
 							{/each}
-							<a class="menu-item" class:active={page.url.pathname === "/agents"} href="/agents">
-								<span class="material-symbols-outlined">more_horiz</span>Se alle assistenter
+							<a class="menu-item" class:active={page.url.pathname === "/agents" && page.url.searchParams.get("view") === "published"} href="/agents?view=published">
+								<span class="material-symbols-outlined">visibility</span>Vis alle publiserte
 							</a>
 						</div>
 					</div>
@@ -169,6 +177,9 @@
 									{agent.name}
 								</a>
 							{/each}
+							<a class="menu-item" class:active={page.url.pathname === "/agents" && page.url.searchParams.get("view") === "private"} href="/agents?view=private">
+								<span class="material-symbols-outlined">visibility</span>Vis alle private
+							</a>
 							<a class="menu-item" class:active={page.url.pathname === "/agents/create"} href="/agents/create">
 								<span class="material-symbols-outlined">add</span>Lag ny assistent
 							</a>
@@ -177,7 +188,7 @@
 				{/if}
 			</div>
 			<!-- Hugin-only services. Hidden unless APP_NAME="Hugin" (defaults to "Mugin"); set it in your .env for local dev. -->
-			{#if appName === "Hugin" && isEmployee}
+			{#if appName === "Hugin" && (isEmployee || isAdmin)}
 				<div class="menu-section">
 					<div class="menu-section-title">Andre tjenester</div>
 					<div class="menu-items">
@@ -185,9 +196,11 @@
 							<a class="menu-item" class:active={page.url.pathname === "/transcription"} href="/transcription">Tale-til-notat</a>
 						{/if}
 						{#if canvasEnabled}
-							<a class="menu-item" class:active={page.url.pathname === "/canvas"} href="/canvas">Kladdeboka</a>
+							<a class="menu-item" class:active={page.url.pathname.startsWith("/canvas")} href="/canvas/document">Kladdeboka</a>
 						{/if}
-						<!-- <a class="menu-item" class:active={page.url.pathname === "/ragservice"} href="/ragservice">Datakilder</a> -->
+						{#if DATASOURCES_MENU_OPEN_TO_ALL ? !isStudentOnly : isAdmin}
+							<a class="menu-item" class:active={page.url.pathname === "/ragservice"} href="/ragservice">Datakilder</a>
+						{/if}
 					</div>
 				</div>
 			{/if}

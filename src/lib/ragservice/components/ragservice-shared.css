@@ -1,0 +1,227 @@
+.rag-card {
+	background: white;
+	border: 1px solid var(--color-primary-20);
+	border-radius: 8px;
+	padding: 16px 20px;
+}
+
+.rag-section-title {
+	font-size: 0.85rem;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.03em;
+	color: var(--color-primary);
+	margin: 20px 0 10px;
+	padding-bottom: 4px;
+	border-bottom: 1px solid var(--color-primary-10);
+}
+
+.rag-section-title:first-child {
+	margin-top: 0;
+}
+
+.rag-field-grid {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+
+.rag-field {
+	display: grid;
+	grid-template-columns: minmax(150px, 220px) 1fr auto;
+	align-items: center;
+	gap: 14px;
+}
+
+.rag-field-label {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	font-size: 0.9rem;
+	color: #333;
+}
+
+label.rag-field-label {
+	cursor: pointer;
+}
+
+.rag-field input[type="range"] {
+	accent-color: var(--color-primary);
+	width: 100%;
+}
+
+.rag-field input[type="checkbox"],
+.rag-simple-field input[type="checkbox"],
+.rag-table input[type="checkbox"] {
+	accent-color: var(--color-primary);
+}
+
+/* A background fill here read as a jarring colored box on the plain-white .rag-card panels
+   (Innstillinger/create-store), even muted - so this uses the same quiet top/bottom-border
+   convention as .rag-section-title instead of a fill, which works the same on any backdrop.
+   No horizontal padding, deliberately: this row otherwise renders identically to every other
+   .rag-simple-field/.rag-field row, so its column 1 floors to the same width as its siblings'
+   (e.g. NullableRangeField's "Text Threshold"/"Vector Threshold") and their columns 2 stay
+   aligned - any left inset here would shift this row's columns out of line with the rest. */
+.rag-simple-field.highlight {
+	border-top: 1px solid var(--color-primary-20);
+	border-bottom: 1px solid var(--color-primary-20);
+	padding: 8px 0;
+}
+
+.rag-radio-group {
+	position: relative;
+	display: flex;
+	align-items: center;
+	gap: 16px;
+}
+
+.rag-radio {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	font-size: 0.9rem;
+	color: var(--color-primary-80);
+	cursor: pointer;
+}
+
+.rag-radio input[type="radio"] {
+	accent-color: var(--color-primary);
+	cursor: pointer;
+}
+
+.rag-simple-field.disabled .rag-field-label,
+.rag-simple-field.disabled .rag-radio {
+	opacity: 0.5;
+	cursor: help;
+}
+
+.rag-simple-field.disabled .rag-radio input[type="radio"] {
+	cursor: help;
+}
+
+.rag-radio-group .disabled-reason {
+	position: absolute;
+	bottom: calc(100% + 6px);
+	left: 0;
+	z-index: 20;
+	width: max-content;
+	max-width: 220px;
+	background: var(--color-primary);
+	color: white;
+	font-size: 0.8rem;
+	font-weight: 400;
+	line-height: 1.4;
+	padding: 6px 10px;
+	border-radius: 6px;
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+	opacity: 0;
+	visibility: hidden;
+	transition: opacity 0.1s ease;
+	pointer-events: none;
+}
+
+.rag-radio-group:hover .disabled-reason {
+	opacity: 1;
+	visibility: visible;
+}
+
+.rag-field select,
+.rag-field input[type="text"],
+.rag-simple-field select,
+.rag-simple-field input[type="text"] {
+	font-family: var(--font-family);
+	padding: 4px 6px;
+	border: 1px solid var(--color-primary-30);
+	border-radius: 4px;
+}
+
+.rag-field-value {
+	font-variant-numeric: tabular-nums;
+	font-size: 0.85rem;
+	color: var(--color-primary-80);
+	min-width: 5ch;
+	text-align: right;
+}
+
+.rag-simple-field {
+	display: grid;
+	grid-template-columns: minmax(150px, 220px) 1fr;
+	align-items: center;
+	gap: 14px;
+}
+
+.rag-table {
+	width: 100%;
+	border-collapse: collapse;
+	font-size: 0.9rem;
+}
+
+.rag-table th,
+.rag-table td {
+	text-align: left;
+	padding: 8px 10px;
+	border-bottom: 1px solid var(--color-primary-10);
+}
+
+.rag-table th {
+	color: var(--color-primary);
+	font-weight: 600;
+	border-bottom: 2px solid var(--color-primary-20);
+}
+
+.rag-table tbody tr:hover {
+	background-color: var(--color-primary-10);
+}
+
+.rag-info-icon {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	color: var(--color-primary-70);
+	cursor: help;
+	font-size: 0.85em;
+}
+
+.rag-tabs {
+	display: flex;
+	gap: 4px;
+	padding-top: 12px;
+	border-bottom: 2px solid var(--color-primary-20);
+}
+
+.rag-tab-button {
+	border: none;
+	background: none;
+	height: auto;
+	padding: 8px 14px;
+	font-size: 0.9rem;
+	color: var(--color-primary-80);
+	border-radius: 6px 6px 0 0;
+	cursor: pointer;
+}
+
+.rag-tab-button:hover {
+	background-color: var(--color-primary-10);
+}
+
+.rag-tab-button.active {
+	color: var(--color-primary);
+	font-weight: 600;
+	background-color: var(--color-primary-10);
+	box-shadow: inset 0 -2px 0 var(--color-primary);
+	cursor: default;
+}
+
+.rag-tab-button:disabled {
+	background-color: var(--color-primary-10);
+	color: var(--color-primary);
+	font-weight: 600;
+	cursor: default;
+	box-shadow: inset 0 -2px 0 var(--color-primary);
+}
+
+.rag-muted {
+	color: #666;
+	font-size: 0.85rem;
+}

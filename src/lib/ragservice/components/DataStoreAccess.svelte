@@ -1,7 +1,8 @@
 <script lang="ts">
 	import { onMount } from "svelte"
 	import { RagServiceApi } from "../adapters/ragserviceApi"
-	import type { AccessFlat, AccessType, GraphGroup, GraphUser, StoreResponse } from "../types"
+	import type { AccessFlat, AccessType, GraphGroup, GraphUser, StoreResponse, UnrestrictedAccess } from "../types"
+	import "./ragservice-shared.css"
 	import { flattenAccesses } from "../utils"
 
 	type Props = {
@@ -10,6 +11,7 @@
 	let { store }: Props = $props()
 
 	let userAccesses: AccessFlat[] = $state([])
+	let unrestricted: UnrestrictedAccess | null = $state(null)
 	const api = new RagServiceApi()
 
 	let newAccess: AccessFlat = $state({
@@ -50,6 +52,12 @@
 		suggestions = []
 	}
 
+	const TYPE_LABELS: Record<AccessType, string> = {
+		user: "Bruker",
+		group: "Gruppe",
+		role: "Rolle"
+	}
+
 	function onTypeChange() {
 		newAccess.id = ""
 		searchInput = ""
@@ -70,6 +78,24 @@
 	async function loadAccess() {
 		const access = await api.getAccess(store.storeId)
 		userAccesses = [...flattenAccesses(access.users || {}, "user"), ...flattenAccesses(access.groups || {}, "group")]
+		unrestricted = access.unrestricted
+	}
+
+	/*
+	async function loadUnrestricted() {
+		unrestricted = await api.getUnrestrictedAccess(store.storeId)
+	}*/
+
+	async function updateUnrestricted(patch: Partial<UnrestrictedAccess>) {
+		const current = unrestricted ?? { view: false, search: false }
+		const updated = { ...current, ...patch }
+		await api.setUnrestrictedAccess(store.storeId, updated)
+		unrestricted = updated
+	}
+
+	async function removeUnrestricted() {
+		await api.deleteUnrestrictedAccess(store.storeId)
+		unrestricted = null
 	}
 
 	async function removeAccess(id: string, type: AccessType) {
@@ -79,95 +105,97 @@
 
 	onMount(() => {
 		loadAccess()
+		//loadUnrestricted()
 	})
-
-	/*disabled= {store._embedded.access.admin)} */
 </script>
 
-<main>
-	<table>
-		<tbody>
-			<tr
-				><td>Type</td><td>
-					<select bind:value={newAccess.type} onchange={onTypeChange}>
-						<option value={"user"}>User</option>
-						<option value={"group"}>Group</option>
-					</select>
-				</td></tr
-			>
-			<tr>
-				<td>Søk</td>
-				<td class="combobox-cell">
-					<input
-						type="text"
-						bind:value={searchInput}
-						oninput={onSearchInput}
-						disabled={!store._embedded.access.admin}
-						placeholder={newAccess.type === "user" ? "Søk etter bruker..." : "Søk etter gruppe..."}
-					/>
-					{#if suggestions.length > 0}
-						<ul class="suggestions">
-							{#each suggestions as s}
-								<li>
-									<button type="button" onclick={() => selectSuggestion(s)}>{s.label}</button>
-								</li>
-							{/each}
-						</ul>
-					{/if}
-				</td>
-			</tr>
-			{#if newAccess.id}
-			<tr><td>Valgt id</td><td class="selected-id">{newAccess.id}</td></tr>
-			{/if}
-			<tr
-				><td>Kan se</td><td
-					><input
-						type="checkbox"
-						bind:checked={newAccess.view}
-						disabled={!store._embedded.access.admin}
-					/></td
-				></tr
-			>
+<main class="rag-card">
+	<h3 class="rag-section-title">Åpen tilgang</h3>
+	<div class="rag-field-grid">
+		<label class="rag-field-label">
+			<input
+				type="checkbox"
+				checked={unrestricted?.view ?? false}
+				onchange={(e) => updateUnrestricted({ view: (e.target as HTMLInputElement).checked })}
+				disabled={!store._embedded.access.admin}
+			/>
+			Alle kan se
+		</label>
+		<label class="rag-field-label">
+			<input
+				type="checkbox"
+				checked={unrestricted?.search ?? false}
+				onchange={(e) => updateUnrestricted({ search: (e.target as HTMLInputElement).checked })}
+				disabled={!store._embedded.access.admin}
+			/>
+			Alle kan søke
+		</label>
+		{#if unrestricted}
+			<div>
+				<button onclick={removeUnrestricted} disabled={!store._embedded.access.admin}> Fjern åpen tilgang </button>
+			</div>
+		{/if}
+	</div>
 
-			<tr
-				><td>Kan søke</td><td
-					><input
-						type="checkbox"
-						bind:checked={newAccess.search}
-						disabled={!store._embedded.access.admin}
-					/></td
-				></tr
-			>
-			<tr
-				><td>Kan Laste opp</td><td
-					><input
-						type="checkbox"
-						bind:checked={newAccess.upload}
-						disabled={!store._embedded.access.admin}
-					/></td
-				></tr
-			>
-			<tr
-				><td>Kan administrere</td><td
-					><input
-						type="checkbox"
-						bind:checked={newAccess.admin}
-						disabled={!store._embedded.access.admin}
-					/></td
-				></tr
-			>
-			<tr
-				><td colspan="2"
-					><button
-						onclick={() => setAccess(newAccess)}
-						disabled={!store._embedded.access.admin}>Sett Tilganger</button
-					></td
-				></tr
-			>
-		</tbody>
-	</table>
-	<hr />
-	<table class="access-list">
+	<h3 class="rag-section-title">Legg til tilgang</h3>
+	<div class="rag-field-grid">
+		<div class="rag-simple-field">
+			<span class="rag-field-label">Type</span>
+			<select bind:value={newAccess.type} onchange={onTypeChange}>
+				<option value={"user"}>Bruker</option>
+				<option value={"group"}>Gruppe</option>
+			</select>
+		</div>
+		<div class="rag-simple-field">
+			<span class="rag-field-label">Søk</span>
+			<div class="combobox-cell">
+				<input
+					type="text"
+					bind:value={searchInput}
+					oninput={onSearchInput}
+					disabled={!store._embedded.access.admin}
+					placeholder={newAccess.type === "user" ? "Søk etter bruker..." : "Søk etter gruppe..."}
+				/>
+				{#if suggestions.length > 0}
+					<ul class="suggestions">
+						{#each suggestions as s}
+							<li>
+								<button type="button" onclick={() => selectSuggestion(s)}>{s.label}</button>
+							</li>
+						{/each}
+					</ul>
+				{/if}
+			</div>
+		</div>
+		{#if newAccess.id}
+			<div class="rag-simple-field">
+				<span class="rag-field-label">Valgt id</span>
+				<span class="selected-id">{newAccess.id}</span>
+			</div>
+		{/if}
+		<label class="rag-field-label">
+			<input type="checkbox" bind:checked={newAccess.view} disabled={!store._embedded.access.admin} />
+			Kan se
+		</label>
+		<label class="rag-field-label">
+			<input type="checkbox" bind:checked={newAccess.search} disabled={!store._embedded.access.admin} />
+			Kan søke
+		</label>
+		<label class="rag-field-label">
+			<input type="checkbox" bind:checked={newAccess.upload} disabled={!store._embedded.access.admin} />
+			Kan laste opp
+		</label>
+		<label class="rag-field-label">
+			<input type="checkbox" bind:checked={newAccess.admin} disabled={!store._embedded.access.admin} />
+			Kan administrere
+		</label>
+		<div>
+			<button class="filled" onclick={() => setAccess(newAccess)} disabled={!store._embedded.access.admin}>Sett tilganger</button>
+		</div>
+	</div>
+
+	<h3 class="rag-section-title">Eksisterende tilganger</h3>
+	<table class="rag-table access-list">
 		<thead>
 			<tr>
 				<th>Type</th>
@@ -182,46 +210,45 @@
 		<tbody>
 			{#each userAccesses as accessRow}
 				<tr>
-					<td>{accessRow.type}</td>
+					<td>{TYPE_LABELS[accessRow.type]}</td>
 					<td title={accessRow.id}>{accessRow.name ?? accessRow.id}</td>
-					<td
-						><input
+					<td>
+						<input
 							type="checkbox"
 							bind:checked={accessRow.view}
 							onchange={() => setAccess(accessRow)}
 							disabled={!store._embedded.access.admin}
-						/></td
-					>
-					<td
-						><input
+						/>
+					</td>
+					<td>
+						<input
 							type="checkbox"
 							bind:checked={accessRow.search}
 							onchange={() => setAccess(accessRow)}
 							disabled={!store._embedded.access.admin}
-						/></td
-					>
-					<td
-						><input
+						/>
+					</td>
+					<td>
+						<input
 							type="checkbox"
 							bind:checked={accessRow.upload}
 							onchange={() => setAccess(accessRow)}
 							disabled={!store._embedded.access.admin}
-						/></td
-					>
-					<td
-						><input
+						/>
+					</td>
+					<td>
+						<input
 							type="checkbox"
 							bind:checked={accessRow.admin}
 							onchange={() => setAccess(accessRow)}
 							disabled={!store._embedded.access.admin}
-						/></td
-					>
-					<td
-						><button
-							onclick={() => removeAccess(accessRow.id, accessRow.type)}
-							disabled={!store._embedded.access.admin}>SLETT</button
-						></td
-					>
+						/>
+					</td>
+					<td>
+						<button class="danger" onclick={() => removeAccess(accessRow.id, accessRow.type)} disabled={!store._embedded.access.admin}
+							>Slett</button
+						>
+					</td>
 				</tr>
 			{/each}
 		</tbody>
@@ -229,32 +256,32 @@
 </main>
 
 <style>
-	td,
-	th {
-		text-align: left;
-		border: 1px solid darkgray;
-	}
-
-	table.access-list {
-		width: 100%;
-	}
-
 	table.access-list td:nth-child(2),
 	table.access-list th:nth-child(2) {
 		min-width: 200px;
 		white-space: nowrap;
 	}
 
-	td.combobox-cell {
+	div.combobox-cell {
 		position: relative;
+	}
+
+	div.combobox-cell input {
+		width: 100%;
+		box-sizing: border-box;
+		font-family: var(--font-family);
+		padding: 4px 6px;
+		border: 1px solid var(--color-primary-30);
+		border-radius: 4px;
 	}
 
 	ul.suggestions {
 		position: absolute;
 		z-index: 10;
 		background: white;
-		border: 1px solid darkgray;
-		margin: 0;
+		border: 1px solid var(--color-primary-30);
+		border-radius: 4px;
+		margin: 4px 0 0;
 		padding: 0;
 		list-style: none;
 		min-width: 300px;
@@ -265,21 +292,29 @@
 	ul.suggestions li button {
 		display: block;
 		width: 100%;
+		height: auto;
 		text-align: left;
-		padding: 4px 8px;
+		padding: 6px 8px;
 		background: none;
 		border: none;
+		border-radius: 0;
 		cursor: pointer;
 		white-space: nowrap;
+		color: inherit;
 	}
 
 	ul.suggestions li button:hover {
-		background-color: #c9c189;
+		background-color: var(--color-primary-10);
 	}
 
-	td.selected-id {
+	span.selected-id {
 		font-size: 0.85em;
 		color: #555;
 		font-family: monospace;
+	}
+
+	button.danger {
+		color: var(--color-danger);
+		border-color: var(--color-danger);
 	}
 </style>

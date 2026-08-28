@@ -10,7 +10,7 @@ import type { ApiNextFunction } from "$lib/types/middleware/http-request"
 import { parseCanvasRequest } from "$lib/validation/parse-canvas-request"
 
 const CANVAS_VENDOR_ID = "OPENAI" as const
-const CANVAS_MODEL = "gpt-5.4"
+const CANVAS_MODEL = "gpt-5.6-terra"
 
 const CANVAS_SYSTEM_PROMPT = `You are a document editor. The user will give you a document (in markdown) and a prompt describing what to change.
 Apply the requested changes to the document and return ONLY the full updated markdown document — no explanations, no preamble, no code fences around the whole document.

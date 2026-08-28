@@ -48,6 +48,13 @@ const ConversationCreated = z.object({
 	})
 })
 
+const HuginConversationCreated = z.object({
+	event: z.literal("hugin_conversation.created"),
+	data: z.object({
+		huginConversationId: z.string()
+	})
+})
+
 const ResponseAnnotations = z.object({
 	event: z.literal("response.annotations"),
 	data: z.object({
@@ -77,6 +84,7 @@ export const MuginSse = z.discriminatedUnion("event", [
 	ResponseError,
 	ResponseOutputTextDelta,
 	ConversationCreated,
+	HuginConversationCreated,
 	ResponseAnnotations,
 	ResponseWebsearch
 ])

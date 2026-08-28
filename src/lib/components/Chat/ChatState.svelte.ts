@@ -1,4 +1,6 @@
 import { goto } from "$app/navigation"
+import { canUseHistory } from "$lib/authorization"
+import { chatHistoryToInputItems } from "$lib/chat-history"
 import type { AppConfig } from "$lib/types/app-config"
 import type { AuthenticatedPrincipal } from "$lib/types/authentication"
 import type { Chat, ChatConfig, ChatHistory, ChatRequest, ChatResponseObject } from "$lib/types/chat"
@@ -46,6 +48,24 @@ const fileToMessageContent = async (file: File, supportedFileTypes: string[], su
 	}
 }
 
+const STORE_CHAT_STORAGE_KEY = "hugin_default_store_chat"
+
+const getDefaultStoreChat = (): boolean => {
+	if (typeof localStorage === "undefined") {
+		return true
+	}
+	const saved = localStorage.getItem(STORE_CHAT_STORAGE_KEY)
+	return saved === null ? true : saved === "true"
+}
+
+// A loaded conversation whose last agent differs from the one we're currently on. Left for the
+// UI to resolve via continueWithOriginalAgent/continueWithCurrentAgent - see loadChat.
+export type PendingConversationLoad = {
+	conversationId: string
+	conversation: { id: string; owner: string; title?: string; createdAt: string; updatedAt: string }
+	history: ChatHistory
+	originalConfig: ChatConfig
+}
 const supportsWebSearch = (config: ChatConfig): boolean => config.vendorId === "OPENAI" || config.vendorId === "MISTRAL"
 
 const placeHolderConfig: ChatConfig = {
@@ -85,19 +105,42 @@ export class ChatState {
 		}
 	})
 	public streamResponse: boolean = $state(true)
-	public storeChat: boolean = $state(false)
+	public storeChat: boolean = $state(getDefaultStoreChat())
 	public isLoading: boolean = $state(false)
 	public user: AuthenticatedPrincipal
 	public APP_CONFIG: AppConfig
+	// Students-only accounts (role STUDENT and nothing else) never get their conversations stored -
+	// incognito isn't a separate toggle for them, it's just what having no history means. See
+	// canUseHistory in $lib/authorization.
+	public canUseHistory: boolean = $state(true)
 	public configMode: boolean = $state(false)
 	public initialConfig: ChatConfig = $state(placeHolderConfig)
 	public configEdited: boolean = $derived(JSON.stringify(this.chat.config) !== JSON.stringify(this.initialConfig))
+	// True only while a brand new (never-saved) conversation's very first message is in flight - the
+	// user message gets pushed into chat.history optimistically, before the server has had a chance
+	// to hand back a conversationId, which would otherwise look identical to an imported/born-incognito
+	// history. See hasUnsavedHistory below.
+	private isCreatingConversation: boolean = $state(false)
+	// History without a conversationId can only come from an import, or a conversation that's been
+	// incognito since its very first message (changeChat/newChat always set both together) - there's
+	// no stored context to build on, so the send path must behave as incognito no matter the toggle,
+	// and the UI should tell the user why "Inkognito" looks off yet nothing is actually being saved.
+	// isCreatingConversation excludes the brief window where an ordinary new chat's first message just
+	// hasn't round-tripped yet - that isn't the same situation and shouldn't lock the UI as if it were.
+	public hasUnsavedHistory: boolean = $derived(this.chat.history.length > 0 && !this.chat._id && !this.isCreatingConversation)
 	public webSearchEnabled: boolean = $state(true)
 	public datasourceEnabled: boolean = $state(false)
+	// Set by loadChat when the conversation being opened last belonged to a different agent than
+	// the one we're currently on - the UI must show a choice before we touch this.chat.
+	public pendingConversationLoad: PendingConversationLoad | null = $state(null)
 
 	constructor(chat: Chat, user: AuthenticatedPrincipal, appConfig: AppConfig) {
 		this.user = user
 		this.APP_CONFIG = appConfig
+		this.canUseHistory = canUseHistory(user, appConfig.APP_ROLES)
+		if (!this.canUseHistory) {
+			this.storeChat = false
+		}
 		this.changeChat(chat)
 	}
 
@@ -109,6 +152,7 @@ export class ChatState {
 			throw new Error("Chat config must have either a vendorAgent id or a model defined")
 		}
 		this.chat._id = chat._id
+		this.chat.title = chat.title
 		this.chat.config = chat.config
 		this.chat.history = chat.history
 		this.chat.createdAt = chat.createdAt
@@ -116,117 +160,171 @@ export class ChatState {
 		this.chat.owner = chat.owner
 		this.initialConfig = JSON.parse(JSON.stringify(chat.config))
 		this.webSearchEnabled = supportsWebSearch(chat.config)
-		this.datasourceEnabled = false
+		// Same default-on-if-available rule as web search - if an agent has a datasource configured,
+		// it's presumably configured for a reason, so it starts active rather than needing a click.
+		this.datasourceEnabled = (chat.config.dataSources?.length ?? 0) > 0
+	}
+
+	// Fire-and-forget - the endpoint is idempotent (no-ops if a title already exists), so callers
+	// never need to know in advance whether one is needed. If the user is still looking at the
+	// same conversation once the (real, LLM-backed) response comes back, reflect the title right away
+	// instead of waiting for the next time the conversation list happens to be reopened.
+	private requestTitleGeneration = (conversationId: string): void => {
+		fetch(`/api/conversations/${conversationId}/title`, { method: "POST" })
+			.then(async (result) => {
+				if (!result.ok) {
+					return
+				}
+				const data: { title: string | null } = await result.json()
+				if (data.title && this.chat._id === conversationId) {
+					this.chat.title = data.title
+				}
+			})
+			.catch((error) => {
+				console.error("Error requesting conversation title generation:", error)
+			})
+	}
+
+	// Untitled conversations only ever get a title when we're about to leave them behind - either
+	// by starting a new one, or by switching to a different conversation from the history list.
+	private requestTitleForAbandonedChat = (): void => {
+		if (this.chat._id && !this.chat.title && this.chat.history.length > 0) {
+			this.requestTitleGeneration(this.chat._id)
+		}
 	}
 
 	public newChat = (): void => {
+		this.requestTitleForAbandonedChat()
 		this.chat.history = []
 		this.chat._id = ""
 		this.chat.createdAt = new Date().toISOString()
 		this.chat.updatedAt = new Date().toISOString()
 	}
 
-	public loadChat = async (chatId: string): Promise<void> => {
-		// Fetch from API and update state
-		this.isLoading = true
-		// Sleep
-		await new Promise((resolve) => setTimeout(resolve, 1000))
-		this.isLoading = false
-		// Mocked response
-		const response: Chat = {
-			_id: chatId,
-			createdAt: new Date().toISOString(),
-			updatedAt: new Date().toISOString(),
-			owner: {
-				id: "owner-id-123",
-				name: "Owner Name"
-			},
-			config: {
-				_id: "config-id-123",
-				name: "Example Chat Config",
-				description: "This is an example chat configuration.",
-				vendorId: "OPENAI",
-				project: "DEFAULT",
-				model: "gpt-4",
-				accessGroups: ["all"],
-				type: "private",
-				created: {
-					at: new Date().toISOString(),
-					by: {
-						id: "owner-id-123",
-						name: "Owner Name"
-					}
-				},
-				updated: {
-					at: new Date().toISOString(),
-					by: {
-						id: "owner-id-123",
-						name: "Owner Name"
-					}
-				}
-			},
-			history: [
-				{
-					type: "message.input",
-					role: "user",
-					content: [
-						{
-							type: "input_text",
-							text: "Hello, how are you?"
-						}
-					]
-				},
-				{
-					id: "response-id-123",
-					type: "chat_response",
-					config: {
-						_id: "config-id-123",
-						name: "Example Chat Config",
-						description: "This is an example chat configuration.",
-						vendorId: "OPENAI",
-						project: "DEFAULT",
-						model: "gpt-4",
-						accessGroups: ["all"],
-						type: "private",
-						created: {
-							at: new Date().toISOString(),
-							by: {
-								id: "owner-id-123",
-								name: "Owner Name"
-							}
-						},
-						updated: {
-							at: new Date().toISOString(),
-							by: {
-								id: "owner-id-123",
-								name: "Owner Name"
-							}
-						}
-					},
-					createdAt: new Date().toISOString(),
-					outputs: [
-						{
-							id: "output-message-id-123",
-							type: "message.output",
-							role: "assistant",
-							content: [
-								{
-									type: "output_text",
-									text: "I'm doing well, thank you!"
-								}
-							]
-						}
-					],
-					status: "completed",
-					usage: {
-						inputTokens: 5,
-						outputTokens: 7,
-						totalTokens: 12
-					}
-				}
-			]
+	// An imported .kráa file must never silently become a continuation of whatever real, stored
+	// conversation happened to be open - it needs to detach from it exactly like newChat() does,
+	// just keeping the imported history instead of clearing it. Without resetting _id here, the
+	// next message would be saved onto the previous conversation's real id, with the DB content
+	// having nothing to do with what's actually shown on screen.
+	public importHistory = (history: ChatHistory): void => {
+		this.requestTitleForAbandonedChat()
+		this.chat.history = history
+		this.chat._id = ""
+		this.chat.createdAt = new Date().toISOString()
+		this.chat.updatedAt = new Date().toISOString()
+	}
+
+	public toggleStoreChat = (): void => {
+		// Locked (hasUnsavedHistory) conversations don't reflect the toggle either way - flipping it
+		// here would silently change the stored default for later, with no visible effect right now.
+		if (!this.canUseHistory || this.hasUnsavedHistory) {
+			return
 		}
-		this.changeChat(response)
+		this.storeChat = !this.storeChat
+		if (typeof localStorage !== "undefined") {
+			localStorage.setItem(STORE_CHAT_STORAGE_KEY, String(this.storeChat))
+		}
+	}
+
+	// Persists the current in-memory history (e.g. an imported .kráa file, or a conversation that has
+	// been incognito - and so never got a conversationId - since its very first message) as a brand
+	// new, real conversation. Independent of the storeChat toggle: this fires once, on demand, rather
+	// than gating every future send.
+	public saveCurrentAsNewConversation = async (): Promise<void> => {
+		if (!this.canUseHistory || this.chat.history.length === 0) {
+			return
+		}
+		const result = await fetch("/api/conversations", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ history: this.chat.history })
+		})
+		if (!result.ok) {
+			throw new Error(`Failed to save conversation: ${result.status} ${result.statusText}`)
+		}
+		const conversation: { id: string } = await result.json()
+		this.chat._id = conversation.id
+		// The whole history just got persisted in one go, so there's already enough context to
+		// title it now - no need to wait for the usual "about to abandon an untitled chat" trigger.
+		this.requestTitleGeneration(conversation.id)
+	}
+
+	private applyLoadedConversation = (conversation: { id: string; owner: string; title?: string; createdAt: string; updatedAt: string }, history: ChatHistory, config: ChatConfig): void => {
+		this.changeChat({
+			_id: conversation.id,
+			title: conversation.title,
+			config,
+			history,
+			createdAt: conversation.createdAt,
+			updatedAt: conversation.updatedAt,
+			owner: {
+				id: conversation.owner
+			}
+		})
+
+		if (!conversation.title) {
+			this.requestTitleGeneration(conversation.id)
+		}
+	}
+
+	// Loads a stored conversation. If it last belonged to a different agent than the one we're
+	// currently on, we don't know yet whether the caller wants to resume it as that original agent
+	// or bring its history into the current one - stash it in pendingConversationLoad and let the
+	// UI ask (see LoadConversationDialog + continueWithOriginalAgent/continueWithCurrentAgent).
+	public loadChat = async (conversationId: string): Promise<void> => {
+		if (conversationId !== this.chat._id) {
+			this.requestTitleForAbandonedChat()
+		}
+		this.isLoading = true
+		try {
+			const result = await fetch(`/api/conversations/${conversationId}`)
+			if (!result.ok) {
+				throw new Error(`Failed to load conversation: ${result.status} ${result.statusText}`)
+			}
+			const data: { conversation: { id: string; owner: string; title?: string; createdAt: string; updatedAt: string }; history: ChatHistory } = await result.json()
+
+			// config._id === "" marks a synthetic response (e.g. a message that couldn't be decrypted,
+			// see buildDecryptionFailureResponse) - skip past it rather than treating its placeholder
+			// name/id as the conversation's real last agent.
+			const lastResponse = [...data.history].reverse().find((item): item is ChatResponseObject => item.type === "chat_response" && item.config._id !== "")
+			const originalConfig = lastResponse?.config
+
+			const isDifferentAgent = Boolean(originalConfig?._id) && originalConfig?._id !== this.chat.config._id
+			if (isDifferentAgent && originalConfig) {
+				this.pendingConversationLoad = { conversationId, conversation: data.conversation, history: data.history, originalConfig }
+				return
+			}
+
+			this.applyLoadedConversation(data.conversation, data.history, originalConfig ?? this.chat.config)
+		} finally {
+			this.isLoading = false
+		}
+	}
+
+	// Bring the pending conversation's history into the agent we're currently on - its own config
+	// (already authorized for this page) is used going forward, not the conversation's old one.
+	public continueWithCurrentAgent = (): void => {
+		if (!this.pendingConversationLoad) {
+			return
+		}
+		const { conversation, history } = this.pendingConversationLoad
+		this.applyLoadedConversation(conversation, history, this.chat.config)
+		this.pendingConversationLoad = null
+	}
+
+	// Resume the conversation as the agent it originally belonged to - navigate there and let that
+	// page's own load (which re-checks access) pick the conversation back up once it's mounted.
+	public continueWithOriginalAgent = (): void => {
+		if (!this.pendingConversationLoad) {
+			return
+		}
+		const { conversationId, originalConfig } = this.pendingConversationLoad
+		this.pendingConversationLoad = null
+		goto(`/agents/${originalConfig._id}?loadConversation=${conversationId}`)
+	}
+
+	public cancelPendingConversationLoad = (): void => {
+		this.pendingConversationLoad = null
 	}
 
 	public promptChat = async (inputText: string, inputFiles: FileList) => {
@@ -261,14 +359,7 @@ export class ChatState {
 			text: inputText
 		})
 
-		const chatInput = this.chat.history
-			.flatMap((chatItem) => {
-				if (chatItem.type === "chat_response") {
-					return chatItem.outputs
-				}
-				return chatItem
-			})
-			.filter((message) => message !== undefined)
+		const chatInput = chatHistoryToInputItems(this.chat.history)
 
 		const webSearchTools: typeof this.chat.config.tools =
 			this.webSearchEnabled && supportsWebSearch(this.chat.config)
@@ -279,15 +370,25 @@ export class ChatState {
 		const activeTools: typeof this.chat.config.tools =
 			hasDatasources && this.datasourceEnabled ? [{ type: "datasource" }, ...(webSearchTools?.filter((t) => t.type !== "datasource") ?? [])] : webSearchTools?.filter((t) => t.type !== "datasource")
 
+		// Must be read before pushing this turn onto chat.history below, and before setting
+		// isCreatingConversation - both would otherwise make an ordinary new chat's first message
+		// look, for just this instant, like an imported/born-incognito one.
+		const effectiveStoreChat = this.storeChat && !this.hasUnsavedHistory
+		if (this.chat.history.length === 0 && !this.chat._id) {
+			this.isCreatingConversation = true
+		}
+
 		const chatRequest: ChatRequest = {
 			config: {
 				...this.chat.config,
 				name: this.chat.config.name || this.chat.config.model || "Ukjent navn",
 				tools: activeTools
 			},
-			inputs: [...chatInput, userMessage],
+			// Uten lagring (store=false) har backend ingen historikk å bygge kontekst fra, så da må vi fortsatt sende hele samtalen selv.
+			inputs: effectiveStoreChat ? [userMessage] : [...chatInput, userMessage],
 			stream: this.streamResponse,
-			store: this.storeChat
+			store: effectiveStoreChat,
+			huginConversationId: effectiveStoreChat ? this.chat._id || undefined : undefined
 		}
 
 		this.chat.history.push(userMessage)
@@ -308,7 +409,14 @@ export class ChatState {
 
 		this.chat.history.push(tempChatResponseObject)
 		const responseObjectToPopulate: ChatResponseObject = this.chat.history[this.chat.history.length - 1] as ChatResponseObject // The one we just pushed as it is first reactive after adding to state array
-		await postChatMessage(chatRequest, responseObjectToPopulate, this.chat)
+		try {
+			await postChatMessage(chatRequest, responseObjectToPopulate, this.chat)
+		} finally {
+			// If a conversationId actually came back, hasUnsavedHistory is already false via chat._id
+			// regardless. If it didn't (store was off, or the save failed), this correctly falls back
+			// to being treated as unsaved history from here on.
+			this.isCreatingConversation = false
+		}
 	}
 
 	public saveChatConfig = async (): Promise<void> => {

@@ -30,14 +30,16 @@
 	}
 
 	li {
-		border-bottom: 1px solid #e0e0e0;
+		border-bottom: 1px solid var(--color-primary-10);
 	}
 
 	li button {
 		width: 100%;
+		height: auto;
 		padding: 10px 12px 14px 12px;
 		background: none;
 		border: none;
+		border-radius: 0;
 		cursor: pointer;
 		text-align: left;
 		display: flex;
@@ -49,11 +51,11 @@
 	}
 
 	li button:hover {
-		background-color: #f5f5f5;
+		background-color: var(--color-primary-10);
 	}
 
 	li.active button {
-		background-color: #e8e8e8;
+		background-color: var(--color-primary-20);
 	}
 
 	.name {
