@@ -3,11 +3,57 @@
     import GrowingTextArea from '$lib/components/GrowingTextArea.svelte';
     import path from 'node:path';
     import { tr } from 'zod/locales';
+    import Reveal from 'reveal.js';
+    import { markdownFormatter } from "$lib/formatting/markdown-formatter"
     import { onMount } from 'svelte'
+    import 'reveal.js/reveal.css';
+    import 'reveal.js/theme/white.css';
 
+
+      // globale state variabler for håndtere flere prosesser som blir endtret ettersom hva bruker ønsker å gjøre
     let currentMarkdownContent = $state('');
+    let testCurrentMarkdownContent = $state( `
+# Telemark
+---
+## Geografi
+Telemark er et fylke i Norge, kjent for variert natur med fjorder, fjell, skoger og innsjøer. Fylket ligger i den sørøstlige delen av landet.
+---
+## Historie
+Telemark har en rik kulturhistorie og er blant annet kjent for sin rolle i norsk folkekultur, bunadstradisjoner og folkemusikk.
+---
+## Byer og steder
+- Skien
+- Porsgrunn
+- Notodden
+- Rjukan
+- Kragerø
+---
+## Natur og friluftsliv
+Telemark byr på mange muligheter for friluftsliv, som ski, fotturer, sykling og båtliv. Hardangervidda og Gaustatoppen er populære områder.
+---
+## Kultur
+Telemark er kjent for:
+- Telemarksbunad
+- Folkemusikk og dans
+- Stavkirker
+- Henrik Ibsens fødeby, Skien
+---
+## Næringsliv
+Tradisjonelt har industri, kraftproduksjon og landbruk vært viktige næringer i Telemark. Reiseliv spiller også en stor rolle.
+---
+## Oppsummering
+Telemark er et fylke med sterk kulturarv, vakker natur og mange spennende opplevelser for både innbyggere og besøkende.
+  `);
+
+    // Deler markdown-teksten opp i én bit per slide, delt på "---" på egen linje.
+    let slides = $derived(
+        testCurrentMarkdownContent
+            .split(/^\s*---\s*$/m)
+            .map(s => s.trim())
+            .filter(s => s.length > 0)
+    );
+
     let userID = $state(null);
-    let previewUrl = $state('/filgenerering/pptx/reveal?t=' + Date.now());
     let prompt = $state('');
     let loading = $state(false);
 
@@ -23,13 +69,13 @@
     let agentResponseIDHistory = {
         "openaut": []
     }
-
     console.log("ResponsID_Historikk:", agentResponseIDHistory)
-    function refreshPreview() {
-        previewUrl = '/filgenerering/pptx/reveal?t=' + Date.now();
-    }
 
-        const STORAGE_KEY = 'filgenerering_user_id';
+
+
+
+
+    const STORAGE_KEY = 'filgenerering_user_id';
 
     export function generateUserID() {
         if (typeof localStorage === 'undefined') {
@@ -71,23 +117,6 @@
         loading = false;
 
         console.log(respons)
-        // TODO: behandle respons her
-
-        let editFile = await fetch("/filgenerering/pptx/content");
-
-        if (editFile.ok) {
-            editFile = respons
-            refreshPreview()
-        } else {
-            console.log("Får ikke sendt respons til content.md")
-        }
-
-        let content = "";
-        if (editFile.ok) {
-            content = await editFile.text();
-        } else {
-            console.log("ingen melding kommet")
-        }
 
         loading = false;
 
@@ -95,10 +124,30 @@
 
 
 
-onMount(() => {
-    userID = generateUserID();
-})
+    // "deck" må ligge her, utenfor onMount, slik at $effect-blokken
+    // under også kan nå den (den er "usynlig" for kode utenfor
+    // funksjonen den lages i, ellers).
+    let deck;
 
+  onMount(() => {
+    userID = generateUserID()
+
+    deck = new Reveal({
+      embedded: true,
+      controls: true,
+      progress: true,
+      center: true
+    });
+    deck.initialize();
+  });
+
+  // Kjører på nytt hver gang testCurrentMarkdownContent endres, og ber
+  // Reveal.js regne ut slide-strukturen på nytt (den vet ikke selv at
+  // innholdet i .slides har forandret seg).
+  $effect(() => {
+    testCurrentMarkdownContent;
+    deck?.sync();
+  });
 
 </script>
 
@@ -106,15 +155,19 @@ onMount(() => {
     <h1>Filgenerering</h1>
     <p class="lead">Beskriv hvilken presentasjon du vil lage, og se den bygges live under.</p>
 
-    <div class="reveal_card">
-        <div class="reveal_header">
-            <h2>Forhåndsvisning</h2>
-            <a href="/filgenerering/pptx/reveal/download-pptx" target="_blank">
-                <button class="filled">Last ned PowerPoint</button>
-            </a>
-        </div>
-        <iframe bind:this={display} src={previewUrl} title="Reveal.js preview"></iframe>
-    </div>
+    <div class="reveal">
+  <div class="slides">
+    {#if slides.length > 0}
+      <!-- Ett <section> per slide, hver konvertert til HTML for seg selv -->
+      {#each slides as slideMarkdown}
+        <section>{@html markdownFormatter(slideMarkdown)}</section>
+      {/each}
+    {:else}
+      <p class="empty-hint">Dokumentet er tomt. Skriv en instruksjon nedenfor for å komme i gang.</p>
+    {/if}
+  </div>
+</div>
+
 
     <div class="chat_card">
         <div class="input_wrapper" bind:this={input}>
@@ -157,8 +210,6 @@ onMount(() => {
         margin-top: 0;
         margin-bottom: 1.5rem;
     }
-
-    .reveal_card,
     .chat_card {
         background-color: var(--color-secondary-10);
         border: 2px solid var(--color-secondary-30);
@@ -167,29 +218,6 @@ onMount(() => {
         margin-bottom: 1.5rem;
     }
 
-    .reveal_header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        flex-wrap: wrap;
-        gap: 0.75rem;
-        margin-bottom: 1rem;
-    }
-
-    .reveal_header h2 {
-        margin: 0;
-        font-size: 1.15rem;
-        color: var(--color-primary);
-    }
-
-    iframe {
-        width: 100%;
-        height: 600px;
-        border-radius: 8px;
-        border: 1px solid var(--color-primary-20);
-        display: block;
-        background-color: white;
-    }
 
     .input_wrapper {
         display: flex;
@@ -212,5 +240,12 @@ onMount(() => {
     button.send_btn:disabled {
         opacity: 0.5;
         cursor: not-allowed;
+    }
+    .reveal {
+        height: 900px;
+        width: 900px;
+        border-style: solid;
+        border-width: 1px;
+
     }
 </style>

@@ -62,7 +62,7 @@ export async function POST({ request, cookies }) {
         // Skriver OpenAI-svaret til brukerens egen markdown-fil, som pandoc leser fra
         console.log("File for user is generated for:", contentPath);
         //await fs.writeFile(contentPath, response.output_text, 'utf-8');
-
+        
         // returnerer bare en bekreftelse + response ID, selve teksten trenger ikke tilbake til frontend
         return json({
             markdown: response.output_text,
