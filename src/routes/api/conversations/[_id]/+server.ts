@@ -32,6 +32,45 @@ export const GET: RequestHandler = async (requestEvent) => {
 	return apiRequestMiddleware(requestEvent, getConversation)
 }
 
+const MAX_TITLE_LENGTH = 200
+
+const renameConversation: ApiNextFunction = async ({ requestEvent, user }) => {
+	if (!requestEvent) {
+		throw new HTTPError(400, "No request event")
+	}
+
+	const conversationId = requestEvent.params._id
+	if (!conversationId) {
+		throw new HTTPError(400, "_id parameter is required")
+	}
+
+	const body = await requestEvent.request.json().catch(() => null)
+	const title = body && typeof body === "object" && "title" in body ? body.title : undefined
+	if (typeof title !== "string" || !title.trim()) {
+		throw new HTTPError(400, "title must be a non-empty string")
+	}
+	if (title.length > MAX_TITLE_LENGTH) {
+		throw new HTTPError(400, `title must be at most ${MAX_TITLE_LENGTH} characters`)
+	}
+
+	const conversationManager = getConversationManager()
+	const conversation = await conversationManager.getConversation(conversationId, user)
+	if (!conversation) {
+		throw new HTTPError(404, "Conversation not found")
+	}
+
+	const updatedTitle = await conversationManager.renameConversation(conversationId, title, user)
+
+	return {
+		isAuthorized: true,
+		response: json({ title: updatedTitle })
+	}
+}
+
+export const PATCH: RequestHandler = async (requestEvent) => {
+	return apiRequestMiddleware(requestEvent, renameConversation)
+}
+
 const deleteConversation: ApiNextFunction = async ({ requestEvent, user }) => {
 	if (!requestEvent) {
 		throw new HTTPError(400, "No request event")

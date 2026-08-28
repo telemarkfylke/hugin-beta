@@ -81,9 +81,23 @@ const parseConfig = (): EncryptionConfig | null => {
 const getConfig = (): EncryptionConfig | null => {
 	if (!configChecked) {
 		configChecked = true
-		config = parseConfig()
-		if (!config) {
-			logger.warn("CONVERSATION_ENCRYPTION_KEYS is not set - conversation messages will be stored unencrypted")
+		try {
+			config = parseConfig()
+			if (!config) {
+				logger.warn("CONVERSATION_ENCRYPTION_KEYS is not set - conversation messages will be stored unencrypted")
+			}
+		} catch (error) {
+			// Must not throw out of here: this runs inline in the per-message persist path
+			// (toDbMessagePair, before the DB insertOne), which callers treat as fire-and-forget
+			// (see +server.ts's appendConversationMessage call, logged and swallowed on failure).
+			// Letting a malformed config throw would silently drop the message entirely - the
+			// conversation header still gets created, but the message pair never reaches the DB,
+			// producing a conversation that looks empty. Log loudly instead so the misconfiguration
+			// is actually visible, then degrade exactly like "vars not set" does: plaintext until
+			// someone fixes the env vars and restarts. (Every subsequent call reuses this cached
+			// `null` too - there'd be no point re-parsing the same broken env on every message.)
+			logger.errorException(error, "CONVERSATION_ENCRYPTION_KEYS/CONVERSATION_ENCRYPTION_ACTIVE_KEY is set but invalid - conversation messages will be stored unencrypted until this is fixed")
+			config = null
 		}
 	}
 	return config

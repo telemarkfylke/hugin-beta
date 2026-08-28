@@ -40,6 +40,26 @@ export const chatInputToCompletionMessage = (item: ChatInputItem): ChatCompletio
 	}
 }
 
+// Chat Completions has no top-level "status" the way the Responses API does - derive one from
+// finish_reason so callers (e.g. conv_manager's title generation) can tell a genuine completion
+// apart from a truncated/filtered/empty one instead of trusting any non-empty string blindly.
+// A gateway that swallows an upstream error and still returns a 200 with literal error text as
+// `message.content` isn't caught by this (finish_reason would still say "stop") - this only
+// guards against the structurally-detectable failure modes.
+const finishReasonToStatus = (choice: ChatCompletion["choices"][number] | undefined): ChatResponseObject["status"] => {
+	if (!choice?.message) {
+		return "failed" // No choice/message at all - nothing usable came back.
+	}
+	switch (choice.finish_reason) {
+		case "content_filter":
+			return "failed" // Filtered, not a real answer.
+		case "length":
+			return "incomplete" // Truncated - content (if any) is partial.
+		default:
+			return "completed" // "stop", "tool_calls", "function_call", or unset.
+	}
+}
+
 export const litellmResponseToChatResponseObject = (config: ChatConfig, response: ChatCompletion): ChatResponseObject => {
 	return {
 		id: response.id,
@@ -59,7 +79,7 @@ export const litellmResponseToChatResponseObject = (config: ChatConfig, response
 				]
 			}
 		],
-		status: "completed",
+		status: finishReasonToStatus(response.choices[0]),
 		usage: {
 			inputTokens: response.usage?.prompt_tokens ?? 0,
 			outputTokens: response.usage?.completion_tokens ?? 0,

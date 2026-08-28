@@ -141,11 +141,18 @@ export class ChatState {
 	public configMode: boolean = $state(false)
 	public initialConfig: ChatConfig = $state(placeHolderConfig)
 	public configEdited: boolean = $derived(JSON.stringify(this.chat.config) !== JSON.stringify(this.initialConfig))
+	// True only while a brand new (never-saved) conversation's very first message is in flight - the
+	// user message gets pushed into chat.history optimistically, before the server has had a chance
+	// to hand back a conversationId, which would otherwise look identical to an imported/born-incognito
+	// history. See hasUnsavedHistory below.
+	private isCreatingConversation: boolean = $state(false)
 	// History without a conversationId can only come from an import, or a conversation that's been
 	// incognito since its very first message (changeChat/newChat always set both together) - there's
 	// no stored context to build on, so the send path must behave as incognito no matter the toggle,
 	// and the UI should tell the user why "Inkognito" looks off yet nothing is actually being saved.
-	public hasUnsavedHistory: boolean = $derived(this.chat.history.length > 0 && !this.chat._id)
+	// isCreatingConversation excludes the brief window where an ordinary new chat's first message just
+	// hasn't round-tripped yet - that isn't the same situation and shouldn't lock the UI as if it were.
+	public hasUnsavedHistory: boolean = $derived(this.chat.history.length > 0 && !this.chat._id && !this.isCreatingConversation)
 	public webSearchEnabled: boolean = $state(true)
 	public datasourceEnabled: boolean = $state(false)
 	// Set by loadChat when the conversation being opened last belonged to a different agent than
@@ -390,7 +397,13 @@ export class ChatState {
 		const activeTools: typeof this.chat.config.tools =
 			hasDatasources && this.datasourceEnabled ? [{ type: "datasource" }, ...(webSearchTools?.filter((t) => t.type !== "datasource") ?? [])] : webSearchTools?.filter((t) => t.type !== "datasource")
 
+		// Must be read before pushing this turn onto chat.history below, and before setting
+		// isCreatingConversation - both would otherwise make an ordinary new chat's first message
+		// look, for just this instant, like an imported/born-incognito one.
 		const effectiveStoreChat = this.storeChat && !this.hasUnsavedHistory
+		if (this.chat.history.length === 0 && !this.chat._id) {
+			this.isCreatingConversation = true
+		}
 
 		const chatRequest: ChatRequest = {
 			config: {
@@ -423,7 +436,14 @@ export class ChatState {
 
 		this.chat.history.push(tempChatResponseObject)
 		const responseObjectToPopulate: ChatResponseObject = this.chat.history[this.chat.history.length - 1] as ChatResponseObject // The one we just pushed as it is first reactive after adding to state array
-		await postChatMessage(chatRequest, responseObjectToPopulate, this.chat, this.apiEndpoint)
+		try {
+			await postChatMessage(chatRequest, responseObjectToPopulate, this.chat, this.apiEndpoint)
+		} finally {
+			// If a conversationId actually came back, hasUnsavedHistory is already false via chat._id
+			// regardless. If it didn't (store was off, or the save failed), this correctly falls back
+			// to being treated as unsaved history from here on.
+			this.isCreatingConversation = false
+		}
 	}
 
 	public saveChatConfig = async (): Promise<void> => {

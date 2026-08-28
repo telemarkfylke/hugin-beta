@@ -22,9 +22,17 @@
 	let conversations: ConversationSummary[] = $state([])
 	let loading = $state(false)
 	let container: HTMLDivElement
+	let editingId: string | null = $state(null)
+	let editingTitle = $state("")
+	let renameInput: HTMLInputElement | undefined = $state()
 
 	function handleOutsideClick(event: MouseEvent) {
-		if (menuState !== "closed" && !container.contains(event.target as Node)) {
+		// Use composedPath() rather than container.contains(event.target) - clicking "rediger" swaps
+		// the button for an input synchronously (before this document-level handler runs), so by the
+		// time we get here event.target is already detached from the DOM and .contains() on it always
+		// comes back false, closing the menu right as editing starts. composedPath() is a snapshot of
+		// the path taken at dispatch time, so it stays correct even if the target node was removed.
+		if (menuState !== "closed" && !event.composedPath().includes(container)) {
 			menuState = "closed"
 		}
 	}
@@ -62,6 +70,65 @@
 		await chatState.loadChat(conversationId)
 	}
 
+	const startEditing = (conversation: ConversationSummary) => {
+		editingId = conversation.id
+		editingTitle = conversation.title ?? ""
+	}
+
+	const cancelEditing = () => {
+		editingId = null
+		editingTitle = ""
+	}
+
+	const saveEditing = async () => {
+		const conversationId = editingId
+		const title = editingTitle.trim()
+		if (!conversationId || !title) {
+			cancelEditing()
+			return
+		}
+
+		try {
+			const result = await fetch(`/api/conversations/${conversationId}`, {
+				method: "PATCH",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ title })
+			})
+			if (!result.ok) {
+				throw new Error(`Failed to rename conversation: ${result.status} ${result.statusText}`)
+			}
+			const data: { title: string } = await result.json()
+			const conversation = conversations.find((c) => c.id === conversationId)
+			if (conversation) {
+				conversation.title = data.title
+			}
+			if (chatState.chat._id === conversationId) {
+				chatState.chat.title = data.title
+			}
+		} catch (error) {
+			console.error("Error renaming conversation:", error)
+		} finally {
+			cancelEditing()
+		}
+	}
+
+	const handleEditKeydown = (event: KeyboardEvent) => {
+		if (event.key === "Enter") {
+			event.preventDefault()
+			saveEditing()
+		} else if (event.key === "Escape") {
+			event.preventDefault()
+			cancelEditing()
+		}
+	}
+
+	$effect(() => {
+		if (editingId) {
+			renameInput?.focus()
+			renameInput?.select()
+		}
+	})
+
 	const deleteConversation = async (conversationId: string) => {
 		try {
 			const result = await fetch(`/api/conversations/${conversationId}`, { method: "DELETE" })
@@ -94,12 +161,27 @@
 			{:else}
 				{#each conversations as conversation (conversation.id)}
 					<div class="conversation-row">
-						<button class="conversation-open" onclick={() => openConversation(conversation.id)} title={formatDate(conversation.updatedAt)}>
-							{conversation.title ?? formatDate(conversation.updatedAt)}
-						</button>
-						<button class="icon-button conversation-delete" title="Slett samtale" onclick={() => deleteConversation(conversation.id)}>
-							<span class="material-symbols-rounded">delete</span>
-						</button>
+						{#if editingId === conversation.id}
+							<input
+								class="conversation-rename-input"
+								type="text"
+								bind:value={editingTitle}
+								bind:this={renameInput}
+								onkeydown={handleEditKeydown}
+								onblur={saveEditing}
+								maxlength="200"
+							/>
+						{:else}
+							<button class="conversation-open" onclick={() => openConversation(conversation.id)} title={formatDate(conversation.updatedAt)}>
+								{conversation.title ?? formatDate(conversation.updatedAt)}
+							</button>
+							<button class="icon-button conversation-rename" title="Endre navn" onclick={() => startEditing(conversation)}>
+								<span class="material-symbols-rounded">edit</span>
+							</button>
+							<button class="icon-button conversation-delete" title="Slett samtale" onclick={() => deleteConversation(conversation.id)}>
+								<span class="material-symbols-rounded">delete</span>
+							</button>
+						{/if}
 					</div>
 				{/each}
 			{/if}
@@ -156,8 +238,20 @@
 	.conversation-open:hover {
 		background-color: var(--color-primary-10);
 	}
+	.conversation-rename,
 	.conversation-delete {
 		padding: 0.5rem;
 		margin-right: 0.25rem;
+	}
+	.conversation-rename-input {
+		flex: 1;
+		min-width: 0;
+		border: 1px solid var(--color-primary-30);
+		border-radius: 4px;
+		background: none;
+		padding: 0.5rem 0.75rem;
+		margin: 0.25rem 0.5rem;
+		color: var(--color-primary);
+		font: inherit;
 	}
 </style>
