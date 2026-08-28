@@ -41,6 +41,11 @@ export type ChatConfig = {
 	// Independent of type/shared - lets an anonymous visitor use this config via /public/embed/**,
 	// with no login and no listing anywhere. See $lib/authorization.canSetAnonymousEmbed (admin-only).
 	allowAnonymousEmbed?: boolean | undefined
+	// Author-defined categories for write-time question statistics (see $lib/statsstore/types). Empty/unset
+	// means the feature is off for this bot - no categorization call is made per question. Every
+	// incoming user question is classified into exactly one of these (or "Ukategorisert" as a fallback
+	// when none fit), never shown to the end user, purely for aggregate stats - never per-person.
+	categories?: string[] | undefined | null
 	accessGroups: (RoleAccessGroups | EntraAccessGroup)[]
 	created: {
 		at: string
@@ -138,6 +143,7 @@ export const ChatConfigSchema = schemaForType<ChatConfig>()(
 			.optional(), // Update as per ChatTool for now
 		shared: z.boolean().optional(),
 		allowAnonymousEmbed: z.boolean().optional(),
+		categories: z.array(z.string()).nullable().optional(),
 		instructions: z.string().optional(),
 		conversationId: z.string().optional(),
 		type: z.enum(["published", "private"]), // Update as per ChatConfig for now

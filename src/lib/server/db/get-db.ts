@@ -3,16 +3,21 @@ import { env } from "$env/dynamic/private"
 import { MongoConversationStore } from "$lib/conversationstore/server/adapters/conversation-store"
 import type { IConversationStore } from "$lib/conversationstore/server/adapters/interface"
 import { MockConversationStore } from "$lib/conversationstore/server/adapters/mock-conversation-store"
+import type { IStatsStore } from "$lib/statsstore/server/adapters/interface"
+import { MockStatsStore } from "$lib/statsstore/server/adapters/mock-stats-store"
+import { MongoStatsStore } from "$lib/statsstore/server/adapters/stats-store"
 import type { IChatConfigStore } from "$lib/types/db/db-interface"
 import { MockChatConfigStore } from "./mock-db"
 import { MongoChatConfigStore } from "./mongo-db"
 
 let chatConfigStore: IChatConfigStore
 let conversationStore: IConversationStore
+let statsStore: IStatsStore
 
 if (env.MOCK_DB === "true") {
 	chatConfigStore = new MockChatConfigStore()
 	conversationStore = new MockConversationStore()
+	statsStore = new MockStatsStore()
 } else {
 	if (!env.MONGODB_CONNECTION_STRING) {
 		throw new Error("MONGODB_CONNECTION_STRING is not set (du har glemt den)")
@@ -21,6 +26,7 @@ if (env.MOCK_DB === "true") {
 	const mongoClient = new MongoClient(env.MONGODB_CONNECTION_STRING, { ignoreUndefined: true })
 	chatConfigStore = new MongoChatConfigStore(mongoClient)
 	conversationStore = new MongoConversationStore(mongoClient, null)
+	statsStore = new MongoStatsStore(mongoClient)
 }
 
 export const getChatConfigStore = (): IChatConfigStore => {
@@ -29,4 +35,8 @@ export const getChatConfigStore = (): IChatConfigStore => {
 
 export const getConversationStore = (): IConversationStore => {
 	return conversationStore
+}
+
+export const getStatsStore = (): IStatsStore => {
+	return statsStore
 }
