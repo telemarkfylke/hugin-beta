@@ -8,13 +8,12 @@ import { getConversationManager } from "$lib/conversationstore/server/get-conver
 import { getVendor } from "$lib/server/ai-vendors"
 import { APP_CONFIG } from "$lib/server/app-config/app-config"
 import { MS_AUTH_TOKEN_HEADER } from "$lib/server/auth/auth-constants"
-import { categorizeQuestion, guessUncategorizedTopic } from "$lib/server/categorize-question"
+import { categorizeQuestion } from "$lib/server/categorize-question"
 import { getStatsStore } from "$lib/server/db/get-db"
 import { HTTPError } from "$lib/server/middleware/http-error"
 import { apiRequestMiddleware } from "$lib/server/middleware/http-request"
 import { rewriteRagQuery } from "$lib/server/ragservice/rag-query-rewrite"
 import { searchRagStores } from "$lib/server/ragservice/rag-search"
-import { FALLBACK_CATEGORY } from "$lib/statsstore/types"
 import { createSse, parseSse, responseStream } from "$lib/streaming"
 import type { AuthenticatedPrincipal } from "$lib/types/authentication"
 import type { ChatConfig, ChatRequest, ChatResponseObject } from "$lib/types/chat"
@@ -244,14 +243,13 @@ const captureAndPersistStream = async (
 }
 
 // Classifies one question and writes the (agentId, category, date[, suggestedTopic]) event to the
-// stats store - see $lib/server/categorize-question and $lib/statsstore/types. When the question
-// didn't match any configured category, also asks for a short, generalized topic guess (never the
-// question verbatim) so a bot author can spot unanticipated question types under "Ukategorisert".
-// Caller is responsible for not awaiting this blocking-ly (fire-and-forget with a .catch), since
-// none of this should ever slow down or fail the actual chat response.
+// stats store - see $lib/server/categorize-question and $lib/statsstore/types. A single utility-model
+// call produces both the category and (when it doesn't match any configured category) a generalized
+// topic guess - see categorizeQuestion's own comment for why this isn't two separate calls. Caller is
+// responsible for not awaiting this blocking-ly (fire-and-forget with a .catch), since none of this
+// should ever slow down or fail the actual chat response.
 async function recordQuestionCategoryStat(agentId: string, questionText: string, categories: string[]): Promise<void> {
-	const category = await categorizeQuestion(questionText, categories)
-	const suggestedTopic = category === FALLBACK_CATEGORY ? await guessUncategorizedTopic(questionText) : undefined
+	const { category, suggestedTopic } = await categorizeQuestion(questionText, categories)
 	await getStatsStore().recordQuestionCategory(agentId, category, new Date(), suggestedTopic)
 }
 
