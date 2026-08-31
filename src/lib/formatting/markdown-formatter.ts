@@ -27,6 +27,17 @@ const md = markdownit({
 // @ts-expect-error Somehow Palpatine returned...
 md.use(markdownKatex.default || markdownKatex) // Får se hva som skjer...
 
+// Open all inline markdown links in a new tab, same as source citations do
+const defaultLinkOpenRenderer = md.renderer.rules.link_open ?? ((tokens, idx, options, _env, self) => self.renderToken(tokens, idx, options))
+md.renderer.rules.link_open = (tokens, idx, options, env, self) => {
+	const token = tokens[idx]
+	if (token) {
+		token.attrSet("target", "_blank")
+		token.attrSet("rel", "noopener noreferrer")
+	}
+	return defaultLinkOpenRenderer(tokens, idx, options, env, self)
+}
+
 // Just some bullshit to fix correct formatting for katex - probs badly, but let client handle it
 const addKatexToMathStrings = (text: string): string => {
 	const lines = text.split("\n")
