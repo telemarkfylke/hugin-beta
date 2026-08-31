@@ -33,26 +33,36 @@
 	</style>
 </svelte:head>
 
-<main>
-	<Menu
-		authenticatedUser={data.authenticatedUser}
-		appName={data.APP_CONFIG.NAME}
-		isEmployee={data.authenticatedUser.roles.includes(data.APP_CONFIG.APP_ROLES.EMPLOYEE)}
-		canUseTranscription={canUseTranscription(data.authenticatedUser, data.APP_CONFIG)}
-		canvasEnabled={data.APP_CONFIG.CANVAS_ENABLED}
-		isAdmin={data.authenticatedUser.roles.includes(data.APP_CONFIG.APP_ROLES.ADMIN)}
-		isStudentOnly={isStudentOnly(data.authenticatedUser, data.APP_CONFIG.APP_ROLES)}
-	/>
-	<div class="page-content">
-		{#if children}
-			{@render children()}
-		{:else}
-			<p>fallback content</p>
-		{/if}
-	</div>
-</main>
+{#if data.isEmbedRoute}
+	{#if children}
+		{@render children()}
+	{:else}
+		<p>fallback content</p>
+	{/if}
+{:else}
+	<main>
+		<Menu
+			authenticatedUser={data.authenticatedUser}
+			appName={data.APP_CONFIG.NAME}
+			isEmployee={data.authenticatedUser.roles.includes(data.APP_CONFIG.APP_ROLES.EMPLOYEE)}
+			canUseTranscription={canUseTranscription(data.authenticatedUser, data.APP_CONFIG)}
+			canvasEnabled={data.APP_CONFIG.CANVAS_ENABLED}
+			isAdmin={data.authenticatedUser.roles.includes(data.APP_CONFIG.APP_ROLES.ADMIN)}
+			isStudentOnly={isStudentOnly(data.authenticatedUser, data.APP_CONFIG.APP_ROLES)}
+		/>
+		<div class="page-content">
+			{#if children}
+				{@render children()}
+			{:else}
+				<p>fallback content</p>
+			{/if}
+		</div>
+	</main>
 
-<SpotlightHost authenticatedUser={data.authenticatedUser} appRoles={data.APP_CONFIG.APP_ROLES} />
+	<!-- Feature-announcement overlay - never on embed routes, that's someone else's page/an anonymous
+	     visitor, not a Hugin user we'd be onboarding. -->
+	<SpotlightHost authenticatedUser={data.authenticatedUser} appRoles={data.APP_CONFIG.APP_ROLES} />
+{/if}
 
 <style>
 	main {

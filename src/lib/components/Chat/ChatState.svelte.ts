@@ -54,8 +54,14 @@ const getDefaultStoreChat = (): boolean => {
 	if (typeof localStorage === "undefined") {
 		return true
 	}
-	const saved = localStorage.getItem(STORE_CHAT_STORAGE_KEY)
-	return saved === null ? true : saved === "true"
+	// In a cross-origin <iframe> (e.g. /public/embed/**) some browsers throw SecurityError on
+	// localStorage access instead of just being unavailable - never let that crash ChatState init.
+	try {
+		const saved = localStorage.getItem(STORE_CHAT_STORAGE_KEY)
+		return saved === null ? true : saved === "true"
+	} catch {
+		return true
+	}
 }
 
 // A loaded conversation whose last agent differs from the one we're currently on. Left for the
@@ -92,6 +98,22 @@ const placeHolderConfig: ChatConfig = {
 	}
 }
 
+export type ChatStateOptions = {
+	// Where promptChat posts to - defaults to "/api/chat". Used by /public/embed/** to point at
+	// the separate, unauthenticated /public/embed/api/chat endpoint instead.
+	apiEndpoint?: string
+	// Overrides the role-based canUseHistory default below. Used by /public/embed/** (pass false)
+	// since there is no real user to own a stored conversation - storeChat also forces off with it.
+	canUseHistory?: boolean
+	// Pins webSearchEnabled/datasourceEnabled to fixed values for this ChatState's lifetime and
+	// hides their toggle buttons in ChatInput entirely (see ChatInput's use of chatState.lockedTools).
+	// Used by /public/embed/**: an anonymous visitor should never be able to switch on live web
+	// search themselves (an open cost/abuse surface with no accountable owner), but should get any
+	// configured knowledge base (RAG datasource) automatically, since there is no config UI for
+	// them to turn it on.
+	lockedTools?: { webSearch: boolean; datasource: boolean }
+}
+
 export class ChatState {
 	public chat: Chat = $state({
 		_id: "",
@@ -109,6 +131,9 @@ export class ChatState {
 	public isLoading: boolean = $state(false)
 	public user: AuthenticatedPrincipal
 	public APP_CONFIG: AppConfig
+	public apiEndpoint: string
+	// See ChatStateOptions.lockedTools - null means the user is free to toggle both, same as today.
+	public lockedTools: { webSearch: boolean; datasource: boolean } | null = null
 	// Students-only accounts (role STUDENT and nothing else) never get their conversations stored -
 	// incognito isn't a separate toggle for them, it's just what having no history means. See
 	// canUseHistory in $lib/authorization.
@@ -134,10 +159,12 @@ export class ChatState {
 	// the one we're currently on - the UI must show a choice before we touch this.chat.
 	public pendingConversationLoad: PendingConversationLoad | null = $state(null)
 
-	constructor(chat: Chat, user: AuthenticatedPrincipal, appConfig: AppConfig) {
+	constructor(chat: Chat, user: AuthenticatedPrincipal, appConfig: AppConfig, options?: ChatStateOptions) {
 		this.user = user
 		this.APP_CONFIG = appConfig
-		this.canUseHistory = canUseHistory(user, appConfig.APP_ROLES)
+		this.apiEndpoint = options?.apiEndpoint ?? "/api/chat"
+		this.lockedTools = options?.lockedTools ?? null
+		this.canUseHistory = options?.canUseHistory ?? canUseHistory(user, appConfig.APP_ROLES)
 		if (!this.canUseHistory) {
 			this.storeChat = false
 		}
@@ -159,10 +186,10 @@ export class ChatState {
 		this.chat.updatedAt = chat.updatedAt
 		this.chat.owner = chat.owner
 		this.initialConfig = JSON.parse(JSON.stringify(chat.config))
-		this.webSearchEnabled = supportsWebSearch(chat.config)
+		this.webSearchEnabled = this.lockedTools ? this.lockedTools.webSearch : supportsWebSearch(chat.config)
 		// Same default-on-if-available rule as web search - if an agent has a datasource configured,
 		// it's presumably configured for a reason, so it starts active rather than needing a click.
-		this.datasourceEnabled = (chat.config.dataSources?.length ?? 0) > 0
+		this.datasourceEnabled = this.lockedTools ? this.lockedTools.datasource : (chat.config.dataSources?.length ?? 0) > 0
 	}
 
 	// Fire-and-forget - the endpoint is idempotent (no-ops if a title already exists), so callers
@@ -410,7 +437,7 @@ export class ChatState {
 		this.chat.history.push(tempChatResponseObject)
 		const responseObjectToPopulate: ChatResponseObject = this.chat.history[this.chat.history.length - 1] as ChatResponseObject // The one we just pushed as it is first reactive after adding to state array
 		try {
-			await postChatMessage(chatRequest, responseObjectToPopulate, this.chat)
+			await postChatMessage(chatRequest, responseObjectToPopulate, this.chat, this.apiEndpoint)
 		} finally {
 			// If a conversationId actually came back, hasUnsavedHistory is already false via chat._id
 			// regardless. If it didn't (store was off, or the save failed), this correctly falls back

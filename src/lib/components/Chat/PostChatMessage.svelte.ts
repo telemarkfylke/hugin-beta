@@ -3,9 +3,9 @@ import { addMessageDeltaToChatItem, applyChatSseEventToResponseObject } from "$l
 import { parseSse } from "$lib/streaming"
 import type { Chat, ChatRequest, ChatResponseObject } from "$lib/types/chat"
 
-export const postChatMessage = async (chatRequest: ChatRequest, chatResponseObject: ChatResponseObject, chat: Chat) => {
+export const postChatMessage = async (chatRequest: ChatRequest, chatResponseObject: ChatResponseObject, chat: Chat, endpoint: string = "/api/chat") => {
 	try {
-		const response = await fetch("/api/chat", {
+		const response = await fetch(endpoint, {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json"
