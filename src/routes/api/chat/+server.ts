@@ -12,6 +12,7 @@ import { categorizeQuestion } from "$lib/server/categorize-question"
 import { getStatsStore } from "$lib/server/db/get-db"
 import { HTTPError } from "$lib/server/middleware/http-error"
 import { apiRequestMiddleware } from "$lib/server/middleware/http-request"
+import { formatRagContextText } from "$lib/server/ragservice/format-rag-context"
 import { rewriteRagQuery } from "$lib/server/ragservice/rag-query-rewrite"
 import { searchRagStores } from "$lib/server/ragservice/rag-search"
 import { createSse, parseSse, responseStream } from "$lib/streaming"
@@ -130,10 +131,7 @@ const supahChat: ApiNextFunction = async ({ requestEvent, user }) => {
 			}
 
 			if (matches.length > 0) {
-				// Prefix each chunk with the file it came from, so the model can attribute answers
-				// back to a specific source (e.g. "hva sier Clara.pdf om xxx") instead of treating
-				// the whole context blob as one undifferentiated source.
-				const contextText = matches.map((m) => (m.fileName ? `### Fil: ${m.fileName}\n\n${m.text}` : m.text)).join("\n\n---\n\n")
+				const contextText = formatRagContextText(matches)
 				chatRequest.config.instructions = `${chatRequest.config.instructions ?? ""}\n\n#Relevant kontekst fra datakilder:\n\n${contextText}`
 			}
 		}

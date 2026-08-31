@@ -3,6 +3,7 @@ import z from "zod"
 import { ANONYMOUS_PRINCIPAL } from "$lib/anonymous-principal"
 import { getVendor } from "$lib/server/ai-vendors"
 import { getChatConfigStore } from "$lib/server/db/get-db"
+import { formatRagContextText } from "$lib/server/ragservice/format-rag-context"
 import { searchRagStores } from "$lib/server/ragservice/rag-search"
 import { responseStream } from "$lib/streaming"
 import type { ChatInputItem, ChatInputMessage } from "$lib/types/chat-item"
@@ -64,7 +65,7 @@ export const POST: RequestHandler = async ({ request }) => {
 			const matches = await searchRagStores(ragStoreIds, queryText, ANONYMOUS_PRINCIPAL, null)
 
 			if (matches.length > 0) {
-				const contextText = matches.map((m) => m.text).join("\n\n---\n\n")
+				const contextText = formatRagContextText(matches)
 				dbConfig.instructions = `${dbConfig.instructions ?? ""}\n\n#Relevant kontekst fra datakilder:\n\n${contextText}`
 			}
 		}
