@@ -12,6 +12,7 @@
 	let prompt = $state("")
 	let isLoading = $state(false)
 	let errorMessage = $state("")
+	let isEditing = $state(false)
 
 	let slides = $derived(
 		slidesMarkdown
@@ -31,7 +32,7 @@
 
 	$effect(() => {
 		slides
-		deck?.sync()
+		if (!isEditing) deck?.sync()
 	})
 
 	const submitPrompt = async () => {
@@ -61,49 +62,187 @@
 	}
 </script>
 
-<div class="presentation-mode">
-	{#if shouldShowToolTabs(CANVAS_TOOLS)}
-		<nav class="canvas-tabs">
-			{#each CANVAS_TOOLS as tool (tool.id)}
-				<a class="canvas-tab" class:active={page.url.pathname === tool.href} href={tool.href}>
-					<span class="material-symbols-outlined">{tool.icon}</span>
-					{tool.label}
-				</a>
-			{/each}
-		</nav>
-	{/if}
-
-	<div class="reveal" bind:this={deckContainer}>
-		<div class="slides">
-			{#if slides.length > 0}
-				{#each slides as slideMarkdown}
-					<section>{@html markdownFormatter(slideMarkdown)}</section>
+<div class="document-page">
+	<div class="canvas-topbar">
+		{#if shouldShowToolTabs(CANVAS_TOOLS)}
+			<nav class="canvas-tabs">
+				{#each CANVAS_TOOLS as tool (tool.id)}
+					<a class="canvas-tab" class:active={page.url.pathname.startsWith(tool.href)} href={tool.href}>
+						<span class="material-symbols-outlined">{tool.icon}</span>
+						{tool.label}
+					</a>
 				{/each}
+			</nav>
+		{/if}
+		<div class="topbar-actions">
+			<button onclick={() => (isEditing = !isEditing)} disabled={!slidesMarkdown} title={isEditing ? "Forhåndsvis" : "Rediger kode"}>
+				<span class="material-symbols-outlined">{isEditing ? "preview" : "code"}</span>
+				{isEditing ? "Forhåndsvis" : "Rediger kode"}
+			</button>
+		</div>
+	</div>
+
+	<div class="canvas-body">
+		<div class="canvas-content">
+			{#if isEditing}
+				<div class="canvas-paper">
+					<textarea class="document-editor" bind:value={slidesMarkdown} placeholder="# Tittel&#10;---&#10;## Slide 2"></textarea>
+				</div>
 			{:else}
-				<section><p class="empty-hint">Presentasjonen er tom. Skriv en instruksjon nedenfor for å komme i gang.</p></section>
+				<div class="reveal" bind:this={deckContainer}>
+					<div class="slides">
+						{#if slides.length > 0}
+							{#each slides as slideMarkdown}
+								<section>{@html markdownFormatter(slideMarkdown)}</section>
+							{/each}
+						{:else}
+							<section><p class="empty-hint">Presentasjonen er tom. Skriv en instruksjon nedenfor for å komme i gang.</p></section>
+						{/if}
+					</div>
+				</div>
 			{/if}
 		</div>
 	</div>
 
-	{#if errorMessage}
-		<p class="error">{errorMessage}</p>
-	{/if}
-
-	<PromptBar bind:value={prompt} onSubmit={submitPrompt} {isLoading} sendDisabled={isLoading} placeholder="Beskriv hvilken presentasjon du vil lage..." />
+	<div class="canvas-bottom">
+		{#if errorMessage}
+			<div class="error-banner">{errorMessage}</div>
+		{/if}
+		<PromptBar bind:value={prompt} placeholder="Beskriv hvilken presentasjon du vil lage…" {isLoading} sendDisabled={!prompt.trim()} onSubmit={submitPrompt} />
+	</div>
 </div>
 
 <style>
-	.presentation-mode {
+	.document-page {
 		display: flex;
 		flex-direction: column;
 		flex: 1;
+		overflow: hidden;
 		min-height: 0;
 	}
-	.reveal {
+
+	.canvas-topbar {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		flex-wrap: wrap;
+		gap: 0.5rem;
+		padding: 0.5rem 1.5rem;
+		background-color: #f0f0ef;
+		border-bottom: 1px solid var(--color-primary-30);
+		flex-shrink: 0;
+	}
+
+	.canvas-tabs {
+		display: flex;
+		gap: 0.5rem;
+		overflow-x: auto;
+		white-space: nowrap;
+	}
+
+	.canvas-tab {
+		display: flex;
+		align-items: center;
+		gap: 0.25rem;
+		padding: 0.35rem 0.75rem;
+		border-radius: 14px;
+		color: var(--color-primary);
+		flex-shrink: 0;
+		text-decoration: none;
+	}
+
+	.canvas-tab.active {
+		background-color: var(--color-primary);
+		color: white;
+		font-weight: 700;
+	}
+
+	.topbar-actions {
+		display: flex;
+		align-items: center;
+		flex-wrap: wrap;
+		gap: 0.5rem;
+	}
+
+	.canvas-body {
 		flex: 1;
-		min-height: 0;
+		overflow-y: auto;
+		padding: 2rem 1.5rem;
+		display: flex;
+		justify-content: center;
 	}
-	.error {
-		color: var(--color-error, #b00020);
+
+	.canvas-content {
+		width: 100%;
+		max-width: 960px;
+		align-self: flex-start;
+	}
+
+	.canvas-paper {
+		background: white;
+		border-radius: 2px;
+		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(0, 0, 0, 0.04);
+		padding: 20mm 25mm;
+		width: 100%;
+		box-sizing: border-box;
+	}
+
+	.reveal {
+		width: 100%;
+		aspect-ratio: 16 / 9;
+		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(0, 0, 0, 0.04);
+	}
+
+	.empty-hint {
+		color: #aaa;
+		font-style: italic;
+	}
+
+	.document-editor {
+		width: 100%;
+		min-height: 160mm;
+		border: none;
+		outline: none;
+		resize: none;
+		font-family: monospace;
+		line-height: 1.6;
+		background: transparent;
+		box-sizing: border-box;
+	}
+
+	.canvas-bottom {
+		flex-shrink: 0;
+		width: 100%;
+		max-width: 960px;
+		align-self: center;
+		padding: 0.75rem 1.5rem;
+		background-color: #f0f0ef;
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+		box-sizing: border-box;
+	}
+
+	.error-banner {
+		padding: 0.4rem 0.75rem;
+		background-color: #fde8e8;
+		border-left: 3px solid #d32f2f;
+		border-radius: 4px;
+		font-size: small;
+		color: #b71c1c;
+	}
+
+	@media (max-width: 768px) {
+		.canvas-body {
+			padding: 1rem;
+		}
+
+		.canvas-paper {
+			padding: 1rem;
+		}
+
+		.document-editor {
+			min-height: 30vh;
+		}
 	}
 </style>
