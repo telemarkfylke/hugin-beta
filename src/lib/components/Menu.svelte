@@ -120,7 +120,7 @@
 	</div>
 {:else}
 	<div class="app-overlay" transition:fade={{ duration: 100 }} onclick={() => { menuOpen = false }}></div>
-	<div class ="menu large-screen-space-stealer" transition:slide={{ axis: 'x', duration: 100 }}></div> 
+	<div class ="menu large-screen-space-stealer" transition:slide={{ axis: 'x', duration: 100 }}></div>
 	<div class="menu" transition:slide={{ axis: 'x', duration: 100 }}>
 		<div class="menu-header">
 			<div class="app-title"><img src={favicon16} alt="{appName} logo" /> {appName}</div>
@@ -165,25 +165,25 @@
 								</a>
 							{/each}
 							<a class="menu-item" class:active={page.url.pathname === "/agents" && page.url.searchParams.get("view") === "published"} href="/agents?view=published">
-								<span class="material-symbols-outlined">visibility</span>Vis alle publiserte
+								<span class="material-symbols-outlined menu-logo">visibility</span>Vis alle publiserte
 							</a>
 						</div>
 					</div>
 					<div class="menu-section">
 						<div class="menu-section-title">Dine assistenter</div>
 						<div class="menu-items">
-							{#each menuAgents.agents.filter(agent => agent.type === "private" && agent.created.by.id === authenticatedUser.userId).slice(0,5) as agent}
+							{#each menuAgents.agents.filter(agent => agent.type === "private" && agent.created.by.id === authenticatedUser.userId).sort((a, b) => b.created.at.localeCompare(a.created.at)).slice(0,5) as agent}
 								<a class="menu-item" class:active={page.url.pathname === "/agents/" + agent._id} href={"/agents/" + agent._id}>
 									{agent.name}
 								</a>
 							{/each}
 							<a class="menu-item" class:active={page.url.pathname === "/agents" && page.url.searchParams.get("view") === "private"} href="/agents?view=private">
-								<span class="material-symbols-outlined">visibility</span>Vis alle private
+								<span class="material-symbols-outlined menu-logo">visibility</span>Vis alle private
 							</a>
 							<a class="menu-item" class:active={page.url.pathname === "/agents/create"} href="/agents/create">
 								<span class="material-symbols-outlined">add</span>Lag ny assistent
 							</a>
-						</div>	
+						</div>
 					</div>
 				{/if}
 			</div>
@@ -255,6 +255,10 @@
 	}
 	.menu-header {
 		justify-content: space-between;
+	}
+
+	.menu-logo {
+		font-size: 1.2rem;
 	}
 	.app-title {
 		display: flex;
