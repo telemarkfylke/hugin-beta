@@ -5,7 +5,7 @@
 
 	// Floating widget chrome for the anonymous /public/embed/**: adds an open/closed bubble on top
 	// of the plain EmbedChat body, and drives the hosting page's iframe size via postMessage - the
-	// counterpart to static/widget.js's "setChatbotFrameSize" listener (same protocol/message shape
+	// counterpart to static/public/widget.js's "setChatbotFrameSize" listener (same protocol/message shape
 	// as bothotell-svelte-web's BotWrapper.svelte, ported here rather than shared across repos).
 	// NOT used by the authenticated /embed/agents/[agentId] - that one is a plain, host-page-sized
 	// iframe meant to sit inline on an internal page, not a floating corner bubble.

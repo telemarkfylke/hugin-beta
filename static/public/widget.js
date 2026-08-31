@@ -12,7 +12,7 @@
  * there's a real need for it.
  *
  * Usage:
- * <script src="https://<hugin-host>/widget.js" data-agent-id="<chatConfig._id>"></script>
+ * <script src="https://<hugin-host>/public/widget.js" data-agent-id="<chatConfig._id>"></script>
  */
 ;(() => {
 	// Find the script tag that loaded this file
@@ -29,10 +29,11 @@
 		return
 	}
 
-	// Base URL for the iframe target - derived from this script's own src, so the same snippet
-	// works unchanged across environments (localhost, preview, production).
-	const scriptSrc = currentScript.src
-	const baseUrl = scriptSrc.substring(0, scriptSrc.lastIndexOf("/"))
+	// Origin (protocol + host) for the iframe target - derived from this script's own src, so the
+	// same snippet works unchanged across environments (localhost, preview, production). Deliberately
+	// the origin only, not a path-sliced "everything before the last /" - this script lives under
+	// /public/widget.js, so slicing would fold "/public" into the base and double it up below.
+	const baseUrl = new URL(currentScript.src).origin
 
 	const iframe = document.createElement("iframe")
 	iframe.id = "hugin-embed-widget-frame"

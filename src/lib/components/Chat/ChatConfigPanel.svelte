@@ -22,13 +22,16 @@
 	let userCanUseRagservice = $derived(canUseRagservice(chatState.user, chatState.APP_CONFIG.APP_ROLES))
 	let embedUrl = $derived(chatState.chat.config._id ? `${page.url.origin}/embed/agents/${chatState.chat.config._id}` : "")
 	let publicEmbedUrl = $derived(chatState.chat.config._id ? `${page.url.origin}/public/embed/agents/${chatState.chat.config._id}` : "")
-	// Recommended snippet - drops a floating, ready-styled chat bubble via static/widget.js, rather
-	// than requiring the embedding site to build/style its own <iframe> around publicEmbedUrl.
+	// Recommended snippet - drops a floating, ready-styled chat bubble via static/public/widget.js,
+	// rather than requiring the embedding site to build/style its own <iframe> around publicEmbedUrl.
+	// Served from under /public/ (not site root) so a single "/public/*" auth-exclusion rule at the
+	// platform level covers both this script and the embed routes it points at - see widget.js's own
+	// comment on why it derives its target origin rather than path-slicing its own src.
 	// The escape below is required, not defensive: the closing tag's raw text (unescaped) would
 	// truncate this file's own enclosing script block at compile time, since both Svelte's and
 	// Biome's script-boundary scanners work off raw text, not JS syntax.
 	// biome-ignore lint/suspicious/noUselessEscapeInString: see comment above
-	let publicWidgetSnippet = $derived(chatState.chat.config._id ? `<script src="${page.url.origin}/widget.js" data-agent-id="${chatState.chat.config._id}"><\/script>` : "")
+	let publicWidgetSnippet = $derived(chatState.chat.config._id ? `<script src="${page.url.origin}/public/widget.js" data-agent-id="${chatState.chat.config._id}"><\/script>` : "")
 
 	// Not reactive state, to "remember" predefined vs manual config when toggling
 	let predefinedConfigCache: Partial<ChatConfig> = {
