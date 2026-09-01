@@ -264,6 +264,24 @@
 									Uavhengig av scope-sjekken over - kan skrus av/på hver for seg for å teste kombinasjoner. Kun relevant når assistenten har datakilder: av (standard) svarer modellen fra egen kunnskap selv om søket ikke traff noe relevant. På: avvises med samme standardmelding som scope-sjekken, i stedet for å risikere et ubegrunnet svar.
 								</div>
 							</div>
+							<div class="config-item">
+								<label for="rate-limit-per-ip-minute">Rate limiting: meldinger per besøkende per minutt</label>
+								<input id="rate-limit-per-ip-minute" type="number" min="1" placeholder="La stå tom for systemets standardgrense" bind:value={chatState.chat.config.rateLimitPerIpPerMinute} />
+							</div>
+							<div class="config-item">
+								<label for="rate-limit-per-ip-day">Rate limiting: meldinger per besøkende per dag</label>
+								<input id="rate-limit-per-ip-day" type="number" min="1" placeholder="La stå tom for systemets standardgrense" bind:value={chatState.chat.config.rateLimitPerIpPerDay} />
+							</div>
+							<div class="share-description">
+								De to grensene over er alltid aktive for anonym embedding, som vern mot kostnad/misbruk siden alle med lenken kan bruke den uten innlogging. La dem stå tomme for å bruke systemets standard.
+							</div>
+							<div class="config-item">
+								<label for="rate-limit-per-bot">Rate limiting: felles tak for denne assistenten per dag (valgfritt)</label>
+								<input id="rate-limit-per-bot" type="number" min="1" placeholder="Ingen (standard - se beskrivelse)" bind:value={chatState.chat.config.rateLimitPerBotPerDay} />
+							</div>
+							<div class="share-description">
+								Av som standard, med vilje - et felles tak alle besøkende deler på er selv et enkelt mål å tømme (én pågående besøkende kan låse ute alle andre resten av dagen). Grensene per besøkende over er det som faktisk beskytter mot det. Sett et tall her kun hvis denne spesifikke assistenten trenger et hardt kostnadstak uavhengig av om trafikken er reell.
+							</div>
 						{/if}
 					</div>
 				{/if}

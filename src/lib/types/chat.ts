@@ -62,6 +62,15 @@ export type ChatConfig = {
 	// its own general knowledge whenever nothing relevant was found. No-op for a bot with no RAG
 	// datasources at all (nothing to have "zero results" from).
 	emptyRagGuardEnabled?: boolean | undefined
+	// Public embed route only - per-bot overrides for the rate limits in embed/api/chat/+server.ts
+	// (its own module comment has the full reasoning). undefined = use the deployment-wide default
+	// (or, for rateLimitPerBotPerDay specifically, no shared cap at all - see that file). A number
+	// overrides it for this bot. No separate "disabled" state for the two per-IP limits - a bot that
+	// genuinely needs no limit just gets a very high number here, same knob as tuning it.
+	rateLimitPerIpPerMinute?: number | undefined
+	rateLimitPerIpPerDay?: number | undefined
+	// Opt-IN only - see embed/api/chat/+server.ts for why there's no shared per-bot cap by default.
+	rateLimitPerBotPerDay?: number | undefined
 	accessGroups: (RoleAccessGroups | EntraAccessGroup)[]
 	created: {
 		at: string
@@ -162,6 +171,9 @@ export const ChatConfigSchema = schemaForType<ChatConfig>()(
 		categories: z.array(z.string()).nullable().optional(),
 		scopeGuardEnabled: z.boolean().optional(),
 		emptyRagGuardEnabled: z.boolean().optional(),
+		rateLimitPerIpPerMinute: z.number().optional(),
+		rateLimitPerIpPerDay: z.number().optional(),
+		rateLimitPerBotPerDay: z.number().optional(),
 		instructions: z.string().optional(),
 		conversationId: z.string().optional(),
 		type: z.enum(["published", "private"]), // Update as per ChatConfig for now

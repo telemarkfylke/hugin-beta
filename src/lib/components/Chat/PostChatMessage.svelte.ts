@@ -28,6 +28,15 @@ export const postChatMessage = async (chatRequest: ChatRequest, chatResponseObje
 				chatResponseObject.status = "failed"
 				return
 			}
+			if (response.status === 429) {
+				// Rate limited (currently only /public/embed/api/chat - see its own comment on the
+				// two limits). Not an error state worth an [Error occurred ...] banner - show the
+				// server's own message (already Norwegian, user-facing) instead.
+				const errorData = await response.json().catch(() => null)
+				addMessageDeltaToChatItem(chatResponseObject, `error_${Date.now()}`, errorData?.message ?? "For mange forespørsler akkurat nå. Prøv igjen om litt.")
+				chatResponseObject.status = "failed"
+				return
+			}
 			const errorData = await response.json().catch(() => null)
 			console.error("Error details:", errorData)
 			throw new Error(`Error posting chat message: ${response.statusText}`)
