@@ -77,7 +77,11 @@ export async function rewriteRagQuery({ chatRequest, queryText, ragStoreIds, use
 	}
 }
 
-function formatHistoryForRewrite(inputs: ChatInputItem[], excludeLast: ChatInputMessage | undefined): string {
+// Exported for reuse by classifyQuestion's scope-guard ($lib/server/categorize-question) - same
+// "Bruker:"/"Assistent:" transcript a small utility model needs to resolve an implicit
+// follow-up ("Kan man ta med mat?" only makes sense as in/out of scope once you know the prior
+// turn was about an exam) against recent turns, not just the pattern's original RAG-rewrite use.
+export function formatHistoryForRewrite(inputs: ChatInputItem[], excludeLast: ChatInputMessage | undefined): string {
 	const withoutCurrent = excludeLast ? inputs.filter((i) => i !== excludeLast) : inputs
 
 	return withoutCurrent

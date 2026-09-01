@@ -8,11 +8,10 @@ import { getConversationManager } from "$lib/conversationstore/server/get-conver
 import { getVendor } from "$lib/server/ai-vendors"
 import { APP_CONFIG } from "$lib/server/app-config/app-config"
 import { MS_AUTH_TOKEN_HEADER } from "$lib/server/auth/auth-constants"
-import { categorizeQuestion } from "$lib/server/categorize-question"
-import { getStatsStore } from "$lib/server/db/get-db"
+import { recordQuestionCategoryStat } from "$lib/server/categorize-question"
 import { HTTPError } from "$lib/server/middleware/http-error"
 import { apiRequestMiddleware } from "$lib/server/middleware/http-request"
-import { formatRagContextText } from "$lib/server/ragservice/format-rag-context"
+import { appendRagContextToInstructions } from "$lib/server/ragservice/format-rag-context"
 import { rewriteRagQuery } from "$lib/server/ragservice/rag-query-rewrite"
 import { searchRagStores } from "$lib/server/ragservice/rag-search"
 import { createSse, parseSse, responseStream } from "$lib/streaming"
@@ -131,8 +130,7 @@ const supahChat: ApiNextFunction = async ({ requestEvent, user }) => {
 			}
 
 			if (matches.length > 0) {
-				const contextText = formatRagContextText(matches)
-				chatRequest.config.instructions = `${chatRequest.config.instructions ?? ""}\n\n#Relevant kontekst fra datakilder:\n\n${contextText}`
+				chatRequest.config.instructions = appendRagContextToInstructions(chatRequest.config.instructions, matches)
 			}
 		}
 	}
@@ -238,17 +236,6 @@ const captureAndPersistStream = async (
 		if (done) break
 	}
 	await conversationManager.appendConversationMessage(huginConversationId, userInputMessage, chatResponseObject, user)
-}
-
-// Classifies one question and writes the (agentId, category, date[, suggestedTopic]) event to the
-// stats store - see $lib/server/categorize-question and $lib/statsstore/types. A single utility-model
-// call produces both the category and (when it doesn't match any configured category) a generalized
-// topic guess - see categorizeQuestion's own comment for why this isn't two separate calls. Caller is
-// responsible for not awaiting this blocking-ly (fire-and-forget with a .catch), since none of this
-// should ever slow down or fail the actual chat response.
-async function recordQuestionCategoryStat(agentId: string, questionText: string, categories: string[]): Promise<void> {
-	const { category, suggestedTopic } = await categorizeQuestion(questionText, categories)
-	await getStatsStore().recordQuestionCategory(agentId, category, new Date(), suggestedTopic)
 }
 
 export const POST: RequestHandler = async (requestEvent) => {

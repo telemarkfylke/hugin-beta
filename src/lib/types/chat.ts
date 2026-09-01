@@ -46,6 +46,22 @@ export type ChatConfig = {
 	// incoming user question is classified into exactly one of these (or "Ukategorisert" as a fallback
 	// when none fit), never shown to the end user, purely for aggregate stats - never per-person.
 	categories?: string[] | undefined | null
+	// A/B flag, public embed route only (see embed/api/chat/+server.ts) - never read by supahChat.
+	// true: pre-classifies each question (category + scope, one utility-model call - see
+	// classifyQuestion) BEFORE answering, and refuses out-of-scope questions instead of forwarding
+	// them to the vendor. false/unset (default): behaves exactly like supahChat always has - fire-
+	// and-forget post-hoc category stats only (recordQuestionCategoryStat), no scope check, nothing
+	// ever blocked. Meant to be flipped per bot to compare guardrails-on vs guardrails-off in
+	// practice, not as a permanent per-bot setting.
+	scopeGuardEnabled?: boolean | undefined
+	// A/B flag, public embed route only, independent of scopeGuardEnabled above (separate switches
+	// so combinations of the two can be compared, not just "guardrails" as one bundle). true: when
+	// this bot has RAG datasources configured and a search returns zero relevant chunks, refuse
+	// instead of forwarding the question to the vendor with no grounding - see the empty-RAG-result
+	// guard in embed/api/chat/+server.ts. false/unset (default): unchanged - the vendor answers from
+	// its own general knowledge whenever nothing relevant was found. No-op for a bot with no RAG
+	// datasources at all (nothing to have "zero results" from).
+	emptyRagGuardEnabled?: boolean | undefined
 	accessGroups: (RoleAccessGroups | EntraAccessGroup)[]
 	created: {
 		at: string
@@ -144,6 +160,8 @@ export const ChatConfigSchema = schemaForType<ChatConfig>()(
 		shared: z.boolean().optional(),
 		allowAnonymousEmbed: z.boolean().optional(),
 		categories: z.array(z.string()).nullable().optional(),
+		scopeGuardEnabled: z.boolean().optional(),
+		emptyRagGuardEnabled: z.boolean().optional(),
 		instructions: z.string().optional(),
 		conversationId: z.string().optional(),
 		type: z.enum(["published", "private"]), // Update as per ChatConfig for now

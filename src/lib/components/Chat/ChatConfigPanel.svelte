@@ -239,6 +239,31 @@
 								</div>
 								<div class="share-description">For manuell &lt;iframe src="..."&gt;-embedding uten widget-boblen (egen styling/plassering).</div>
 							</div>
+							<div class="config-item">
+								<label class="toggle-label">
+									<span>Guardrail: Scope-sjekk før svar (A/B-test)</span>
+									<span class="toggle">
+										<input type="checkbox" bind:checked={chatState.chat.config.scopeGuardEnabled} />
+										<span class="toggle-track"></span>
+									</span>
+								</label>
+								<div class="share-description">
+									Av (standard): spørsmål kategoriseres kun til statistikk i etterkant, akkurat som innlogget chat - aldri noe som blokkeres.
+									På: hvert spørsmål vurderes FØR svar, mot beskrivelsen over - spørsmål tydelig utenfor det blir avvist med en standardmelding i stedet for å sendes til modellen. Eksperimentell, sammenlignes mot av.
+								</div>
+							</div>
+							<div class="config-item">
+								<label class="toggle-label">
+									<span>Guardrail: Avvis ved tomt datakilde-treff (A/B-test)</span>
+									<span class="toggle">
+										<input type="checkbox" bind:checked={chatState.chat.config.emptyRagGuardEnabled} />
+										<span class="toggle-track"></span>
+									</span>
+								</label>
+								<div class="share-description">
+									Uavhengig av scope-sjekken over - kan skrus av/på hver for seg for å teste kombinasjoner. Kun relevant når assistenten har datakilder: av (standard) svarer modellen fra egen kunnskap selv om søket ikke traff noe relevant. På: avvises med samme standardmelding som scope-sjekken, i stedet for å risikere et ubegrunnet svar.
+								</div>
+							</div>
 						{/if}
 					</div>
 				{/if}
