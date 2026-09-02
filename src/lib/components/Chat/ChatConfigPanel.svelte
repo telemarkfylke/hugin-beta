@@ -219,6 +219,7 @@
 							Gjør assistenten tilgjengelig helt uten innlogging via en egen embed-URL, uansett publiseringsstatus under. Listes ikke opp noe sted - kun de med lenken kan bruke den. Samtaler lagres aldri.
 						</div>
 						{#if chatState.chat.config.allowAnonymousEmbed && publicEmbedUrl}
+							<div class="subsection-label">Embed-tilgang</div>
 							<div class="config-item">
 								<label for="public-embed-widget-snippet">Widget-kode (anbefalt)</label>
 								<div class="share-row">
@@ -239,9 +240,11 @@
 								</div>
 								<div class="share-description">For manuell &lt;iframe src="..."&gt;-embedding uten widget-boblen (egen styling/plassering).</div>
 							</div>
+
+							<div class="subsection-label">Guardrails (A/B-test)</div>
 							<div class="config-item">
 								<label class="toggle-label">
-									<span>Guardrail: Scope-sjekk før svar (A/B-test)</span>
+									<span>Scope-sjekk før svar</span>
 									<span class="toggle">
 										<input type="checkbox" bind:checked={chatState.chat.config.scopeGuardEnabled} />
 										<span class="toggle-track"></span>
@@ -254,7 +257,7 @@
 							</div>
 							<div class="config-item">
 								<label class="toggle-label">
-									<span>Guardrail: Avvis ved tomt datakilde-treff (A/B-test)</span>
+									<span>Avvis ved tomt datakilde-treff</span>
 									<span class="toggle">
 										<input type="checkbox" bind:checked={chatState.chat.config.emptyRagGuardEnabled} />
 										<span class="toggle-track"></span>
@@ -264,19 +267,21 @@
 									Uavhengig av scope-sjekken over - kan skrus av/på hver for seg for å teste kombinasjoner. Kun relevant når assistenten har datakilder: av (standard) svarer modellen fra egen kunnskap selv om søket ikke traff noe relevant. På: avvises med samme standardmelding som scope-sjekken, i stedet for å risikere et ubegrunnet svar.
 								</div>
 							</div>
+
+							<div class="subsection-label">Rate limiting</div>
 							<div class="config-item">
-								<label for="rate-limit-per-ip-minute">Rate limiting: meldinger per besøkende per minutt</label>
+								<label for="rate-limit-per-ip-minute">Meldinger per besøkende per minutt</label>
 								<input id="rate-limit-per-ip-minute" type="number" min="1" placeholder="La stå tom for systemets standardgrense" bind:value={chatState.chat.config.rateLimitPerIpPerMinute} />
 							</div>
 							<div class="config-item">
-								<label for="rate-limit-per-ip-day">Rate limiting: meldinger per besøkende per dag</label>
+								<label for="rate-limit-per-ip-day">Meldinger per besøkende per dag</label>
 								<input id="rate-limit-per-ip-day" type="number" min="1" placeholder="La stå tom for systemets standardgrense" bind:value={chatState.chat.config.rateLimitPerIpPerDay} />
 							</div>
 							<div class="share-description">
 								De to grensene over er alltid aktive for anonym embedding, som vern mot kostnad/misbruk siden alle med lenken kan bruke den uten innlogging. La dem stå tomme for å bruke systemets standard.
 							</div>
 							<div class="config-item">
-								<label for="rate-limit-per-bot">Rate limiting: felles tak for denne assistenten per dag (valgfritt)</label>
+								<label for="rate-limit-per-bot">Felles tak for denne assistenten per dag (valgfritt)</label>
 								<input id="rate-limit-per-bot" type="number" min="1" placeholder="Ingen (standard - se beskrivelse)" bind:value={chatState.chat.config.rateLimitPerBotPerDay} />
 							</div>
 							<div class="share-description">
@@ -598,6 +603,21 @@
 		font-size: smaller;
 		color: #888;
 		margin-top: 0.25rem;
+	}
+	.subsection-label {
+		/* Forces a line break in the wrapping .config-section flex row, same way a long
+		   .share-description naturally wraps onto its own line - but this text is short, so it
+		   needs an explicit full-width flex-basis to get the same effect. */
+		flex-basis: 100%;
+		margin-top: 0.75rem;
+		padding-top: 0.75rem;
+		border-top: 1px solid var(--color-primary-30);
+		font-size: 0.72rem;
+		font-weight: 600;
+		letter-spacing: 0.04em;
+		text-transform: uppercase;
+		color: var(--color-primary);
+		opacity: 0.75;
 	}
 	.source-row {
 		display: flex;
