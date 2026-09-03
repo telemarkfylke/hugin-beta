@@ -41,6 +41,7 @@ Hugin Beta is an internal AI-agent web application designed to provide a democra
   - [Conversation History & Encryption](#conversation-history--encryption)
   - [Agent Management](#agent-management)
   - [Feature Spotlight](#feature-spotlight)
+  - [Analytics](#analytics)
 - [Getting Started](#getting-started)
   - [Prerequisites](#prerequisites)
   - [Installation](#installation)
@@ -406,6 +407,33 @@ As before, give an entry a new unique `id` whenever its copy changes, or users w
 
 ---
 
+### Analytics
+
+Pageviews are tracked with [Plausible](https://plausible.io) — cookieless, no cross-site tracking, no personal data in the payload.
+
+The snippet lives in `src/app.html` behind a `%plausible%` placeholder, which `src/hooks.server.ts` fills in via `transformPageChunk` — with the snippet when `PLAUSIBLE_SCRIPT_URL` is set, and with nothing when it isn't. The variable is deliberately set **on the prod app only**: test/beta and prod run the same build from the same repo, so a hardcoded snippet would file betatester traffic under the prod site's numbers.
+
+The URL Plausible hands you already has the site id baked into the filename (`.../js/pa-<id>.js`), so there is no `data-domain` attribute to keep in sync:
+
+```bash
+PLAUSIBLE_SCRIPT_URL="https://plausible.io/js/pa-<site-id>.js"
+```
+
+Because it is read through `$env/dynamic/private`, flipping it needs an app-setting change and a restart — not a rebuild.
+
+Keeping it in `app.html` rather than `<svelte:head>` matters here: `app.html` is the shell SvelteKit returns on every response, so the script is plain parser-inserted HTML even on `/` and `/agents/[agentId]`, which set `ssr = false`. Scripts in `<svelte:head>` are also subject to [known client-side-navigation quirks](https://github.com/sveltejs/kit/discussions/11940) that the shell sidesteps entirely.
+
+Paths are reported as-is, which means `/agents/<agentId>` shows up per assistant. Agent ids are config ids rather than personal data, and the per-assistant breakdown is the useful part.
+
+**Relevant files:**
+
+| File | Purpose |
+|------|---------|
+| `src/app.html` | Holds the `%plausible%` placeholder |
+| `src/hooks.server.ts` | Replaces the placeholder with Plausible's snippet when the env var is set |
+
+---
+
 ## Getting Started
 
 ### Prerequisites
@@ -466,6 +494,9 @@ APP_ROLE_EDU_EMPLOYEE="eduemployee" # optional - defaults to "eduemployee" if un
 # Feature flags
 CANVAS_ENABLED="true"             # Enable the Canvas document editor
 DEFAULT_AGENT_ID=""                # Agent loaded by default on the home page
+
+# Analytics - set on the prod app only (see the Analytics section)
+PLAUSIBLE_SCRIPT_URL=""            # Plausible script URL; unset = no analytics
 
 # Transcription (Tale-til-notat) - see the Transcription feature section
 TALE_TIL_NOTAT_URL="http://<ki-server>:<port>"
@@ -762,6 +793,9 @@ APP_ROLE_AGENT_MAINTAINER="AgentMaintainer"
 
 # Feature flags
 CANVAS_ENABLED="true"
+
+# Analytics (prod app only)
+PLAUSIBLE_SCRIPT_URL="https://plausible.io/js/pa-<site-id>.js"
 ```
 
 ### Azure Deployment
