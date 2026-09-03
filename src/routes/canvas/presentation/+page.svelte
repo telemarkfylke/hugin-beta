@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from "svelte"
 	import Reveal, { type RevealApi } from "reveal.js"
+	import pptxgen from 'pptxgenjs';
 	import "reveal.js/reveal.css"
 	import "reveal.js/theme/white.css"
 	import { page } from "$app/state"
@@ -8,11 +9,14 @@
 	import PromptBar from "../PromptBar.svelte"
 	import { CANVAS_TOOLS, shouldShowToolTabs } from "../tools"
 
+
+
 	let slidesMarkdown = $state("")
 	let prompt = $state("")
 	let isLoading = $state(false)
 	let errorMessage = $state("")
 	let isEditing = $state(false)
+	let presentationTitle = $state('Svelte 5 Presentation');
 
 	let slides = $derived(
 		slidesMarkdown
@@ -34,6 +38,26 @@
 		slides
 		if (!isEditing) deck?.sync()
 	})
+
+	async function downloadPPTX() {
+		console.log("Du Trykket på knappen")
+		// 1. Create a Presentation
+		let pres = new pptxgen();
+
+		// 2. Add a Slide to the presentation
+		let slide = pres.addSlide();
+
+
+		// 3. Add 1+ objects (Tables, Shapes, etc.) to the Slide
+		let textboxText = "Hello World from PptxGenJS!";
+		let textboxOpts = { x: 1, y: 1, color: "363636" };
+		slide.addText(textboxText, textboxOpts);
+
+		// 4. Save the Presentation
+		pres.writeFile({ fileName: `${presentationTitle}.pptx` });
+		
+	}
+
 
 	const submitPrompt = async () => {
 		if (!prompt.trim() || isLoading) return
@@ -79,6 +103,11 @@
 				<span class="material-symbols-outlined">{isEditing ? "preview" : "code"}</span>
 				{isEditing ? "Forhåndsvis" : "Rediger kode"}
 			</button>
+			<button onclick={downloadPPTX}  title="Last ned som Word-dokument">
+				<span class="material-symbols-outlined">download</span>
+				Last ned
+			</button>
+
 		</div>
 	</div>
 
