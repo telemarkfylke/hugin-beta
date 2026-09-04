@@ -3,10 +3,12 @@
 
 name: Build and deploy Node.js project to Azure Function App - TEST
 
+# Manual only. This app is shared with publish-beta.yml (same APP_NAME, same slot, same
+# publish profile), so auto-deploying every push to main would replace beta's build on the
+# site the betatesters use. Dispatch this deliberately when a release candidate on main needs
+# a check on test before a release is cut:
+#   gh workflow run publish-test.yml --ref main
 on:
-  push:
-    branches:
-      - main
   workflow_dispatch:
 
 env:
