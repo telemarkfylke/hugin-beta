@@ -38,7 +38,7 @@
 		authenticatedUser={data.authenticatedUser}
 		appName={data.APP_CONFIG.NAME}
 		isEmployee={data.authenticatedUser.roles.includes(data.APP_CONFIG.APP_ROLES.EMPLOYEE)}
-		canUseTranscription={canUseTranscription(data.authenticatedUser, data.APP_CONFIG)}
+		canUseTranscription={canUseTranscription(data.authenticatedUser, data.APP_CONFIG.APP_ROLES)}
 		canvasEnabled={data.APP_CONFIG.CANVAS_ENABLED}
 		isAdmin={data.authenticatedUser.roles.includes(data.APP_CONFIG.APP_ROLES.ADMIN)}
 		isStudentOnly={isStudentOnly(data.authenticatedUser, data.APP_CONFIG.APP_ROLES)}
