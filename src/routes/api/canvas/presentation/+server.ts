@@ -10,7 +10,7 @@ import { parsePresentationRequest } from "$lib/validation/parse-presentation-req
 import { extractTextOutput } from "../mermaid/extract-text-output"
 
 const PRESENTATION_VENDOR_ID = "OPENAI" as const
-const PRESENTATION_MODEL = "gpt-5.6-terra"
+const PRESENTATION_MODEL = "gpt-4.1"
 
 const PRESENTATION_SYSTEM_PROMPT = `You are a presentation editor. The user will give you the current presentation content (may be empty) and a prompt describing what to create or change.
 The presentation is plain Markdown where each slide is separated by a line containing only "---".
