@@ -231,8 +231,14 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 		}
 	}
 
-	// Strip internal Hugin tools that vendors don't know about
-	dbConfig.tools = dbConfig.tools?.filter((t) => t.type !== "datasource")
+	// Strip internal Hugin tools that vendors don't know about. "mcp" is stripped here even though
+	// this route never calls runMcpChat at all (see the module comment above the RAG block) - this
+	// is defense in depth so a future change to this file can't accidentally forward an mcp tool to
+	// a vendor SDK that doesn't understand it. SharePoint MCP is deliberately not offered to
+	// anonymous, unauthenticated embed visitors: unlike RAG libraries (curated, presumed vetted for
+	// public-safe content), the MCP server is a live connection to a specific internal SharePoint
+	// site, and the accessGroups RBAC that scopes MCP exposure elsewhere doesn't apply on this route.
+	dbConfig.tools = dbConfig.tools?.filter((t) => t.type !== "datasource" && t.type !== "mcp")
 
 	const vendor = getVendor(dbConfig.vendorId)
 	const chatRequest = { config: dbConfig, inputs, stream: wantsStream }
