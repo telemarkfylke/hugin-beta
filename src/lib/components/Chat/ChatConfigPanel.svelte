@@ -80,12 +80,12 @@
 	function addDataSource(storeId: string) {
 		if (!storeId) return
 		const existing = chatState.chat.config.dataSources ?? []
-		if (existing.some((s) => s.id === storeId)) return
+		if (existing.some((s) => s.type === "ragservice" && s.id === storeId)) return
 		chatState.chat.config.dataSources = [...existing, { type: "ragservice", id: storeId }]
 	}
 
 	function removeDataSource(storeId: string) {
-		chatState.chat.config.dataSources = (chatState.chat.config.dataSources ?? []).filter((s) => s.id !== storeId)
+		chatState.chat.config.dataSources = (chatState.chat.config.dataSources ?? []).filter((s) => !(s.type === "ragservice" && s.id === storeId))
 	}
 
 	// Categories drive write-time question statistics (see $lib/statsstore/types) - every incoming user
@@ -372,7 +372,7 @@
 					<div class="config-section">
 						<div class="config-item">
 							<label>Datakilder</label>
-							{#each chatState.chat.config.dataSources ?? [] as source}
+							{#each (chatState.chat.config.dataSources ?? []).filter((s) => s.type === "ragservice") as source}
 								<div class="source-row">
 									<span>{availableStores.find((s) => s.storeId === source.id)?.name ?? source.id}</span>
 									<button class="remove-source" onclick={() => removeDataSource(source.id)}>×</button>
@@ -380,7 +380,7 @@
 							{/each}
 							<select onchange={(e) => { addDataSource(e.currentTarget.value); e.currentTarget.value = "" }}>
 								<option value="">Legg til datakilde...</option>
-								{#each availableStores.filter((s) => !(chatState.chat.config.dataSources ?? []).some((d) => d.id === s.storeId)) as store}
+								{#each availableStores.filter((s) => !(chatState.chat.config.dataSources ?? []).some((d) => d.type === "ragservice" && d.id === s.storeId)) as store}
 									<option value={store.storeId}>{store.name}</option>
 								{/each}
 							</select>
