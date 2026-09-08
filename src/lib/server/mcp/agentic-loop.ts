@@ -51,6 +51,10 @@ export const runMcpAgenticLoop = (driver: ToolTurnDriver, mcpClient: McpClient, 
 
 					if (iteration + 1 >= maxIterations) {
 						logger.warn("MCP loop hit max iterations: {max}", maxIterations)
+						// Any response.tool_call already emitted above for this turn's pendingCalls is
+						// intentionally left without a matching response.tool_result - we break before
+						// executing them. The stream still closes cleanly via response.done right after,
+						// so downstream consumers must not treat an unresolved tool_call as an error.
 						break
 					}
 
