@@ -23,6 +23,9 @@ export const parseChatConfig = (input: unknown, APP_CONFIG: AppConfig): ChatConf
 		if (!parsedConfig.vendorAgent.id || typeof parsedConfig.vendorAgent.id !== "string") {
 			throw new HTTPError(400, "vendorAgent.id must be a string")
 		}
+		if (parsedConfig.tools?.some((tool) => tool.type === "mcp")) {
+			throw new HTTPError(400, "MCP tools are not supported on predefined vendor-agent configs")
+		}
 		return {
 			_id: parsedConfig._id,
 			name: parsedConfig.name,
