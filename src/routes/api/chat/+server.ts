@@ -231,6 +231,11 @@ const captureAndPersistStream = async (
 		const { value, done } = await reader.read()
 		const text = decoder.decode(value, { stream: true })
 		for (const event of parseSse(text)) {
+			if (event.event === "response.tool_call") {
+				logger.info("MCP tool call: {toolName}", event.data.toolName)
+			} else if (event.event === "response.tool_result") {
+				logger.info("MCP tool result: {toolName} ({status})", event.data.toolName, event.data.status)
+			}
 			applyChatSseEventToResponseObject(chatResponseObject, event)
 		}
 		if (done) break
