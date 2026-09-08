@@ -26,6 +26,9 @@ export const parseChatConfig = (input: unknown, APP_CONFIG: AppConfig): ChatConf
 		if (parsedConfig.tools?.some((tool) => tool.type === "mcp")) {
 			throw new HTTPError(400, "MCP tools are not supported on predefined vendor-agent configs")
 		}
+		if (parsedConfig.dataSources?.some((source) => source.type === "mcp")) {
+			throw new HTTPError(400, "MCP data sources are not supported on predefined vendor-agent configs")
+		}
 		return {
 			_id: parsedConfig._id,
 			name: parsedConfig.name,

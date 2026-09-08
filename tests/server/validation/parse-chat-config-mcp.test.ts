@@ -49,4 +49,8 @@ describe("parseChatConfig with MCP tool", () => {
 	it("rejects an mcp tool on a predefined vendor-agent config", () => {
 		expect(() => parseChatConfig({ ...base, vendorAgent: { id: "agent-1" }, tools: [{ type: "mcp", server: "sharepoint" }] }, APP_CONFIG)).toThrow(HTTPError)
 	})
+
+	it("rejects an mcp datasource on a predefined vendor-agent config", () => {
+		expect(() => parseChatConfig({ ...base, vendorAgent: { id: "agent-1" }, dataSources: [{ type: "mcp", server: "sharepoint" }] }, APP_CONFIG)).toThrow(HTTPError)
+	})
 })

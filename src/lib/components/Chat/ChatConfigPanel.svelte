@@ -391,7 +391,7 @@
 								{#each availableStores.filter((s) => !(chatState.chat.config.dataSources ?? []).some((d) => d.type === "ragservice" && d.id === s.storeId)) as store}
 									<option value={store.storeId}>{store.name}</option>
 								{/each}
-								{#if mcpSharepointAvailable && !(chatState.chat.config.dataSources ?? []).some((d) => d.type === "mcp")}
+								{#if mcpSharepointAvailable && !chatState.chat.config.vendorAgent && !(chatState.chat.config.dataSources ?? []).some((d) => d.type === "mcp")}
 									<option value={MCP_SHAREPOINT_OPTION_VALUE}>SharePoint (Telemark fylke)</option>
 								{/if}
 							</select>
