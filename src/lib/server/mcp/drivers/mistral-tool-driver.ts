@@ -82,7 +82,9 @@ export const createMistralToolDriver = (mistral: Mistral, chatRequest: ChatReque
 			model,
 			instructions: chatRequest.config.instructions || "",
 			inputs: initialInputs,
-			store: false,
+			// store must be true - appendStream continues a conversation by conversationId,
+			// which only exists server-side if the initial turn was persisted.
+			store: true,
 			stream: true,
 			...(functionTools.length > 0 ? { tools: functionTools } : {})
 		})
@@ -102,7 +104,8 @@ export const createMistralToolDriver = (mistral: Mistral, chatRequest: ChatReque
 			conversationId,
 			conversationAppendStreamRequest: {
 				inputs: resultInputs,
-				store: false,
+				// Keep the conversation persisted for any further continuation turns.
+				store: true,
 				stream: true
 			}
 		})
