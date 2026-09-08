@@ -2,7 +2,7 @@
 	import { onMount } from "svelte"
 	import { slide } from "svelte/transition"
 	import { page } from "$app/state"
-	import { canEditPredefinedConfig, canPublishChatConfig, canSetAnonymousEmbed, canUseRagservice } from "$lib/authorization"
+	import { canEditPredefinedConfig, canPublishChatConfig, canSetAnonymousEmbed, canUseMcpSharepoint, canUseRagservice } from "$lib/authorization"
 	import { RagServiceApi } from "$lib/ragservice/adapters/ragserviceApi"
 	import type { StoreConfig } from "$lib/ragservice/types"
 	import type { ChatConfig, DataSource, VendorId } from "$lib/types/chat"
@@ -20,7 +20,7 @@
 	let userCanEditPredefinedConfig = $derived(canEditPredefinedConfig(chatState.user, chatState.APP_CONFIG.APP_ROLES))
 	let userCanSetAnonymousEmbed = $derived(canSetAnonymousEmbed(chatState.user, chatState.APP_CONFIG.APP_ROLES))
 	let userCanUseRagservice = $derived(canUseRagservice(chatState.user, chatState.APP_CONFIG.APP_ROLES))
-	let mcpSharepointAvailable = $derived(chatState.APP_CONFIG.MCP_SHAREPOINT_ENABLED)
+	let mcpSharepointAvailable = $derived(chatState.APP_CONFIG.MCP_SHAREPOINT_ENABLED && canUseMcpSharepoint(chatState.user, chatState.APP_CONFIG.APP_ROLES))
 	let embedUrl = $derived(chatState.chat.config._id ? `${page.url.origin}/embed/agents/${chatState.chat.config._id}` : "")
 	let publicEmbedUrl = $derived(chatState.chat.config._id ? `${page.url.origin}/public/embed/agents/${chatState.chat.config._id}` : "")
 	// Recommended snippet - drops a floating, ready-styled chat bubble via static/public/widget.js,

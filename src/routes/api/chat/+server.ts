@@ -1,6 +1,6 @@
 import { json, type RequestHandler } from "@sveltejs/kit"
 import { logger } from "@vestfoldfylke/loglady"
-import { canPromptConfig, canUseHistory } from "$lib/authorization"
+import { canPromptConfig, canUseHistory, canUseMcpSharepoint } from "$lib/authorization"
 import { chatHistoryToInputItems } from "$lib/chat-history"
 import { applyChatSseEventToResponseObject } from "$lib/chat-response-builder"
 import type { ConversationManager } from "$lib/conversationstore/server/conv_manager"
@@ -118,6 +118,10 @@ const supahChat: ApiNextFunction = async ({ requestEvent, user }) => {
 	// chatRequest.config.instructions either way, so the MCP loop (if also active) sees the
 	// RAG-augmented instructions.
 	const mcpSharepointActive = configHasMcpTool(chatRequest.config)
+
+	if (mcpSharepointActive && !canUseMcpSharepoint(user, APP_CONFIG.APP_ROLES)) {
+		throw new HTTPError(403, "Not authorized to use SharePoint MCP")
+	}
 
 	if (ragStoreIds.length > 0) {
 		if (queryText) {
