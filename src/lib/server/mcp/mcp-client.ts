@@ -66,7 +66,16 @@ const connect = async (): Promise<McpClient | null> => {
 			if (toolsCache) {
 				return toolsCache
 			}
-			const { tools } = await sdkClient.listTools()
+			let tools: Awaited<ReturnType<typeof sdkClient.listTools>>["tools"]
+			try {
+				;({ tools } = await sdkClient.listTools())
+			} catch (error) {
+				// The SDK call itself failed before returning a result - the transport/session is dead.
+				// Invalidate the cached client so the next getSharepointMcpClient() call reconnects,
+				// instead of every subsequent call degrading silently against a wedged client.
+				clientPromise = null
+				throw error
+			}
 			toolsCache = tools.map((t) => ({
 				name: t.name,
 				description: t.description ?? "",
@@ -77,14 +86,24 @@ const connect = async (): Promise<McpClient | null> => {
 		},
 		async callTool(name, args) {
 			logger.info("MCP tool call: {name}", name)
-			// resultSchema is optional; pass undefined to reach the options argument (3rd param).
-			const result = await sdkClient.callTool({ name, arguments: args }, undefined, { timeout: MCP_CALL_TIMEOUT_MS })
+			let result: Awaited<ReturnType<typeof sdkClient.callTool>>
+			try {
+				// resultSchema is optional; pass undefined to reach the options argument (3rd param).
+				result = await sdkClient.callTool({ name, arguments: args }, undefined, { timeout: MCP_CALL_TIMEOUT_MS })
+			} catch (error) {
+				// Same reasoning as listTools above - the SDK call itself throwing (not the isError
+				// branch below) means the transport/session is dead, not a legitimate tool-level failure.
+				clientPromise = null
+				throw error
+			}
 			const text = flattenToolResult(result as { content?: Array<{ type: string; text?: string }> })
 			// Tool failures come back as HTTP 200 + isError: true + the message in content[].text,
 			// not as a rejected request - see the mcp-sharepoint integration handover doc. Throwing
 			// here routes the failure through agentic-loop.ts's existing executeToolCall catch block,
 			// which already turns a thrown error into a { isError: true } ToolResult fed back to the
 			// model and a response.tool_result { status: "error" } SSE event - no changes needed there.
+			// Deliberately does NOT invalidate clientPromise - this is a legitimate tool-level error
+			// (e.g. "list not found"), not a transport problem, and the connection itself is fine.
 			if ((result as { isError?: boolean }).isError) {
 				throw new Error(text || `MCP tool ${name} returned an error`)
 			}
