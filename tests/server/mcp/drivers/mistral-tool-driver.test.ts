@@ -108,6 +108,52 @@ describe("createMistralToolDriver", () => {
 		await expect(drain(driver.start())).rejects.toThrow("upstream failure")
 	})
 
+	it("includes a web_search tool alongside MCP function tools when config.tools has a web_search entry", async () => {
+		const startCalls: unknown[] = []
+		const chatRequestWithWebSearch = {
+			...chatRequest,
+			config: { ...chatRequest.config, tools: [{ type: "web_search" }] }
+		} as unknown as ChatRequest
+		const fakeMistral = {
+			beta: {
+				conversations: {
+					startStream: async (request: unknown) => {
+						startCalls.push(request)
+						return eventStream([])
+					}
+				}
+			}
+		}
+		const driver = createMistralToolDriver(fakeMistral as never, chatRequestWithWebSearch, [{ name: "Search_SharePoint", description: "d", inputSchema: {} }])
+		await drain(driver.start())
+
+		expect(startCalls).toHaveLength(1)
+		expect(startCalls[0]).toMatchObject({
+			tools: [{ type: "web_search" }, { type: "function", function: { name: "Search_SharePoint" } }]
+		})
+	})
+
+	it("omits the web_search tool when config.tools has no web_search entry", async () => {
+		const startCalls: unknown[] = []
+		const fakeMistral = {
+			beta: {
+				conversations: {
+					startStream: async (request: unknown) => {
+						startCalls.push(request)
+						return eventStream([])
+					}
+				}
+			}
+		}
+		const driver = createMistralToolDriver(fakeMistral as never, chatRequest, [{ name: "Search_SharePoint", description: "d", inputSchema: {} }])
+		await drain(driver.start())
+
+		expect(startCalls).toHaveLength(1)
+		expect(startCalls[0]).toMatchObject({
+			tools: [{ type: "function", function: { name: "Search_SharePoint" } }]
+		})
+	})
+
 	it("continues the conversation via appendStream using the stored conversationId and function-result entries", async () => {
 		const appendCalls: unknown[] = []
 		const fakeMistral = {

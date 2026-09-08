@@ -1,5 +1,5 @@
 import type { Mistral } from "@mistralai/mistralai"
-import type { FunctionResultEntry, FunctionTool, InputEntries } from "@mistralai/mistralai/models/components"
+import type { FunctionResultEntry, FunctionTool, InputEntries, WebSearchTool } from "@mistralai/mistralai/models/components"
 import { chatInputToMistralInput } from "$lib/server/mistral/mistral-mapping"
 import type { ChatRequest } from "$lib/types/chat"
 import type { ToolResult, ToolTurnDriver, ToolTurnEvent } from "../agentic-loop"
@@ -7,7 +7,8 @@ import { type McpToolDefinition, mcpToolToMistralTool } from "../mcp-tools"
 
 export const createMistralToolDriver = (mistral: Mistral, chatRequest: ChatRequest, tools: McpToolDefinition[]): ToolTurnDriver => {
 	const initialInputs: InputEntries[] = chatRequest.inputs.map(chatInputToMistralInput)
-	const functionTools: FunctionTool[] = tools.map(mcpToolToMistralTool)
+	const hasWebSearch = chatRequest.config.tools?.some((t) => t.type === "web_search") ?? false
+	const functionTools: (FunctionTool | WebSearchTool)[] = [...(hasWebSearch ? [{ type: "web_search" as const }] : []), ...tools.map(mcpToolToMistralTool)]
 
 	// Holds the conversationId returned by the initial startStream so continueWith can append to the same conversation.
 	let conversationId: string | undefined
@@ -100,6 +101,9 @@ export const createMistralToolDriver = (mistral: Mistral, chatRequest: ChatReque
 			toolCallId: result.callId,
 			result: result.output
 		}))
+		// ConversationAppendStreamRequest has no `tools` field in this SDK version - tools (including
+		// web_search, added to functionTools above) are only settable on the initial startStream call
+		// and carry over server-side for the rest of the conversationId, so nothing to add here.
 		const stream = await mistral.beta.conversations.appendStream({
 			conversationId,
 			conversationAppendStreamRequest: {

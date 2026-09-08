@@ -1,5 +1,5 @@
 import type OpenAI from "openai"
-import type { ResponseInputItem } from "openai/resources/responses/responses.mjs"
+import type { ResponseInputItem, Tool } from "openai/resources/responses/responses.mjs"
 import { chatInputToOpenAIInput } from "$lib/server/openai/openai-mapping"
 import type { ChatRequest } from "$lib/types/chat"
 import type { ToolResult, ToolTurnDriver, ToolTurnEvent } from "../agentic-loop"
@@ -7,7 +7,8 @@ import { type McpToolDefinition, mcpToolToOpenAIResponsesTool } from "../mcp-too
 
 export const createOpenAIToolDriver = (openai: OpenAI, chatRequest: ChatRequest, tools: McpToolDefinition[]): ToolTurnDriver => {
 	const input: ResponseInputItem[] = chatRequest.inputs.map(chatInputToOpenAIInput)
-	const responsesTools = tools.map(mcpToolToOpenAIResponsesTool)
+	const hasWebSearch = chatRequest.config.tools?.some((t) => t.type === "web_search") ?? false
+	const responsesTools: Tool[] = [...(hasWebSearch ? [{ type: "web_search_preview" as const }] : []), ...tools.map(mcpToolToOpenAIResponsesTool)]
 
 	async function* runTurn(): AsyncIterable<ToolTurnEvent> {
 		const model = chatRequest.config.model
