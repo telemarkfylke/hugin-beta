@@ -106,6 +106,10 @@ export const canUseRagservice = (user: AuthenticatedPrincipal, appRoles: AppRole
 	return user.roles.includes(appRoles.EMPLOYEE) || user.roles.includes(appRoles.ADMIN)
 }
 
+export const canUseMcpSharepoint = (user: AuthenticatedPrincipal, appRoles: AppRoles): boolean => {
+	return user.roles.includes(appRoles.EMPLOYEE) || user.roles.includes(appRoles.ADMIN)
+}
+
 export const canUseTranscription = (user: AuthenticatedPrincipal, appConfig: AppConfig): boolean => {
 	if (user.roles.includes(appConfig.APP_ROLES.ADMIN)) {
 		return true

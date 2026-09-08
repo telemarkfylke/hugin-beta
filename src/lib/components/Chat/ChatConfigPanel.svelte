@@ -2,10 +2,10 @@
 	import { onMount } from "svelte"
 	import { slide } from "svelte/transition"
 	import { page } from "$app/state"
-	import { canEditPredefinedConfig, canPublishChatConfig, canSetAnonymousEmbed, canUseRagservice } from "$lib/authorization"
+	import { canEditPredefinedConfig, canPublishChatConfig, canSetAnonymousEmbed, canUseMcpSharepoint, canUseRagservice } from "$lib/authorization"
 	import { RagServiceApi } from "$lib/ragservice/adapters/ragserviceApi"
 	import type { StoreConfig } from "$lib/ragservice/types"
-	import type { ChatConfig, VendorId } from "$lib/types/chat"
+	import type { ChatConfig, DataSource, VendorId } from "$lib/types/chat"
 	import GrowingTextArea from "../GrowingTextArea.svelte"
 	import VendorModelSelector from "../VendorModelSelector.svelte"
 	import ChatConfigStats from "./ChatConfigStats.svelte"
@@ -20,6 +20,7 @@
 	let userCanEditPredefinedConfig = $derived(canEditPredefinedConfig(chatState.user, chatState.APP_CONFIG.APP_ROLES))
 	let userCanSetAnonymousEmbed = $derived(canSetAnonymousEmbed(chatState.user, chatState.APP_CONFIG.APP_ROLES))
 	let userCanUseRagservice = $derived(canUseRagservice(chatState.user, chatState.APP_CONFIG.APP_ROLES))
+	let mcpSharepointAvailable = $derived(chatState.APP_CONFIG.MCP_SHAREPOINT_ENABLED && canUseMcpSharepoint(chatState.user, chatState.APP_CONFIG.APP_ROLES))
 	let embedUrl = $derived(chatState.chat.config._id ? `${page.url.origin}/embed/agents/${chatState.chat.config._id}` : "")
 	let publicEmbedUrl = $derived(chatState.chat.config._id ? `${page.url.origin}/public/embed/agents/${chatState.chat.config._id}` : "")
 	// Recommended snippet - drops a floating, ready-styled chat bubble via static/public/widget.js,
@@ -77,15 +78,22 @@
 		}
 	})
 
-	function addDataSource(storeId: string) {
-		if (!storeId) return
+	const MCP_SHAREPOINT_OPTION_VALUE = "mcp:sharepoint"
+
+	function addDataSource(value: string) {
+		if (!value) return
 		const existing = chatState.chat.config.dataSources ?? []
-		if (existing.some((s) => s.id === storeId)) return
-		chatState.chat.config.dataSources = [...existing, { type: "ragservice", id: storeId }]
+		if (value === MCP_SHAREPOINT_OPTION_VALUE) {
+			if (existing.some((s) => s.type === "mcp")) return
+			chatState.chat.config.dataSources = [...existing, { type: "mcp", server: "sharepoint" }]
+			return
+		}
+		if (existing.some((s) => s.type === "ragservice" && s.id === value)) return
+		chatState.chat.config.dataSources = [...existing, { type: "ragservice", id: value }]
 	}
 
-	function removeDataSource(storeId: string) {
-		chatState.chat.config.dataSources = (chatState.chat.config.dataSources ?? []).filter((s) => s.id !== storeId)
+	function removeDataSource(source: DataSource) {
+		chatState.chat.config.dataSources = (chatState.chat.config.dataSources ?? []).filter((s) => (source.type === "ragservice" ? !(s.type === "ragservice" && s.id === source.id) : s.type !== "mcp"))
 	}
 
 	// Categories drive write-time question statistics (see $lib/statsstore/types) - every incoming user
@@ -368,21 +376,24 @@
 				{/if}
 
 				<!-- Data sources -->
-				{#if userCanUseRagservice}
+				{#if userCanUseRagservice || mcpSharepointAvailable}
 					<div class="config-section">
 						<div class="config-item">
 							<label>Datakilder</label>
 							{#each chatState.chat.config.dataSources ?? [] as source}
 								<div class="source-row">
-									<span>{availableStores.find((s) => s.storeId === source.id)?.name ?? source.id}</span>
-									<button class="remove-source" onclick={() => removeDataSource(source.id)}>×</button>
+									<span>{source.type === "mcp" ? "SharePoint (Telemark fylke)" : (availableStores.find((s) => s.storeId === source.id)?.name ?? source.id)}</span>
+									<button class="remove-source" onclick={() => removeDataSource(source)}>×</button>
 								</div>
 							{/each}
 							<select onchange={(e) => { addDataSource(e.currentTarget.value); e.currentTarget.value = "" }}>
 								<option value="">Legg til datakilde...</option>
-								{#each availableStores.filter((s) => !(chatState.chat.config.dataSources ?? []).some((d) => d.id === s.storeId)) as store}
+								{#each availableStores.filter((s) => !(chatState.chat.config.dataSources ?? []).some((d) => d.type === "ragservice" && d.id === s.storeId)) as store}
 									<option value={store.storeId}>{store.name}</option>
 								{/each}
+								{#if mcpSharepointAvailable && !chatState.chat.config.vendorAgent && !(chatState.chat.config.dataSources ?? []).some((d) => d.type === "mcp")}
+									<option value={MCP_SHAREPOINT_OPTION_VALUE}>SharePoint (Telemark fylke)</option>
+								{/if}
 							</select>
 						</div>
 					</div>

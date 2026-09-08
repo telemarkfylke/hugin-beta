@@ -38,6 +38,7 @@ Hugin Beta is an internal AI-agent web application designed to provide a democra
   - [Canvas](#canvas)
   - [Transcription (Tale-til-notat)](#transcription-tale-til-notat)
   - [Datakilder (RAG)](#datakilder-rag)
+  - [SharePoint MCP Integration](#sharepoint-mcp-integration)
   - [Conversation History & Encryption](#conversation-history--encryption)
   - [Agent Management](#agent-management)
   - [Feature Spotlight](#feature-spotlight)
@@ -254,6 +255,53 @@ Requests are proxied to an external ragservice through an on-behalf-of (OBO) tok
 | `src/lib/ragservice/components/` | Data store, chunk, file upload, access, and settings components |
 | `src/lib/ragservice/adapters/ragserviceApi.ts` | Client for the external ragservice API |
 | `src/lib/server/ragservice/get-rag-token.ts` | OBO token exchange logic |
+
+---
+
+### SharePoint MCP Integration
+
+Read-only access to SharePoint via a [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server, surfaced as a data source in the same "Datakilder" picker used for RAG libraries above. Selecting "SharePoint (Telemark fylke)" from the dropdown adds it as a removable chip on the assistant, exactly like adding a RAG library — there is no separate toggle.
+
+**How it combines with RAG:** An assistant can have both a RAG library and the SharePoint MCP entry active at once. RAG retrieval still runs first and injects matched context into the assistant's `instructions`; if the MCP entry is also present, the chat then routes through the MCP agentic tool-calling loop with those RAG-augmented instructions already in place.
+
+**Key behaviours:**
+
+- Read-only — the MCP server exposes SharePoint data retrieval tools only; no write operations.
+- Manual-config assistants only — assistants that reference a predefined vendor agent config reject an `mcp` data source with HTTP 400.
+- Supported vendors: OpenAI, Mistral, LiteLLM. Ollama is not supported.
+- Service-identity auth (client credentials flow) — the application authenticates to the MCP server using its own Entra ID service principal; no delegated user token is used.
+- Access is gated by the existing assistant `accessGroups` RBAC: a user can only reach an MCP-enabled assistant if they are a member of one of the groups listed in that assistant's `accessGroups`.
+- **Not available on the anonymous public embed route** (`/public/embed/api/chat`): even if a config's data sources include the SharePoint entry, that route strips `mcp` tools before the chat is dispatched. This is deliberate — unlike RAG libraries (curated, presumed vetted for public-safe content when a maintainer opts an assistant into anonymous embedding), the MCP server is a live connection to an internal SharePoint site, and the `accessGroups` RBAC that scopes MCP exposure elsewhere doesn't apply to anonymous visitors.
+
+**Environment variables** (add to `.env` / Azure Application Settings):
+
+```bash
+MCP_SHAREPOINT_ENABLED="true"                  # Set to "true" to activate
+MCP_SHAREPOINT_URL="https://..."               # MCP server base URL
+MCP_SHAREPOINT_CLIENT_ID=""                    # App registration client ID
+MCP_SHAREPOINT_CLIENT_SECRET=""               # App registration client secret
+MCP_SHAREPOINT_TENANT_ID=""                   # Entra tenant ID
+MCP_SHAREPOINT_SCOPE="api://.../.default"     # OAuth scope for the MCP server
+```
+
+When `MCP_SHAREPOINT_ENABLED` is absent or not `"true"`, the feature is silently disabled and all other `MCP_SHAREPOINT_*` variables are ignored — the "SharePoint (Telemark fylke)" option does not appear in the Datakilder dropdown.
+
+**Server-side setup** (app-role grant `SharePoint.MCP.Read`, secret rotation before Dec 2026): see [`hugin-integration.md`](hugin-integration.md).
+
+**Relevant files:**
+
+| File | Purpose |
+|------|---------|
+| `src/lib/server/mcp/mcp-config.ts` | Reads `MCP_SHAREPOINT_*` env vars |
+| `src/lib/server/mcp/mcp-token.ts` | Cached client-credentials token provider |
+| `src/lib/server/mcp/mcp-client.ts` | Connected MCP client singleton |
+| `src/lib/server/mcp/mcp-tools.ts` | Neutral tool type + per-provider adapters |
+| `src/lib/server/mcp/agentic-loop.ts` | Driver-agnostic agentic tool-calling loop |
+| `src/lib/server/mcp/run-mcp-chat.ts` | MCP chat entry point with graceful degradation |
+| `src/lib/server/mcp/drivers/` | Per-vendor tool drivers (OpenAI Responses, Mistral conversations, LiteLLM chat-completions) |
+| `src/lib/validation/parse-chat-config.ts` | Rejects `mcp` data sources on predefined vendor-agent configs |
+| `src/routes/public/embed/api/chat/+server.ts` | Strips `mcp` tools before dispatch on the anonymous embed route |
+| `src/lib/components/Chat/ChatConfigPanel.svelte` | Datakilder dropdown — adds/removes the SharePoint entry |
 
 ---
 
