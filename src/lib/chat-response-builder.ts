@@ -58,6 +58,14 @@ export const applyChatSseEventToResponseObject = (chatResponseObject: ChatRespon
 			chatResponseObject.status = "searching"
 			break
 		}
+		case "response.tool_call": {
+			chatResponseObject.status = "searching"
+			break
+		}
+		case "response.tool_result": {
+			chatResponseObject.status = "in_progress"
+			break
+		}
 		case "response.done": {
 			chatResponseObject.status = "completed"
 			chatResponseObject.usage = event.data.usage
