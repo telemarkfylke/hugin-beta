@@ -1,6 +1,6 @@
 import { json, type RequestHandler } from "@sveltejs/kit"
 import { logger } from "@vestfoldfylke/loglady"
-import { canPromptConfig, canUseHistory } from "$lib/authorization"
+import { canPromptConfig, canUseHistory, canUseMcpSharepoint } from "$lib/authorization"
 import { chatHistoryToInputItems } from "$lib/chat-history"
 import { applyChatSseEventToResponseObject } from "$lib/chat-response-builder"
 import type { ConversationManager } from "$lib/conversationstore/server/conv_manager"
@@ -9,6 +9,7 @@ import { getVendor } from "$lib/server/ai-vendors"
 import { APP_CONFIG } from "$lib/server/app-config/app-config"
 import { MS_AUTH_TOKEN_HEADER } from "$lib/server/auth/auth-constants"
 import { recordQuestionCategoryStat } from "$lib/server/categorize-question"
+import { configHasMcpTool, runMcpChat } from "$lib/server/mcp/run-mcp-chat"
 import { HTTPError } from "$lib/server/middleware/http-error"
 import { apiRequestMiddleware } from "$lib/server/middleware/http-request"
 import { appendRagContextToInstructions } from "$lib/server/ragservice/format-rag-context"
@@ -113,6 +114,14 @@ const supahChat: ApiNextFunction = async ({ requestEvent, user }) => {
 
 	const datasourceToolActive = chatRequest.config.tools?.some((t) => t.type === "datasource") ?? false
 	const ragStoreIds = datasourceToolActive ? (chatRequest.config.dataSources?.filter((s) => s.type === "ragservice").map((s) => s.id) ?? []) : []
+	// Read before stripping tools below - RAG search (if active) still runs first and mutates
+	// chatRequest.config.instructions either way, so the MCP loop (if also active) sees the
+	// RAG-augmented instructions.
+	const mcpSharepointActive = configHasMcpTool(chatRequest.config)
+
+	if (mcpSharepointActive && !canUseMcpSharepoint(user, APP_CONFIG.APP_ROLES)) {
+		throw new HTTPError(403, "Not authorized to use SharePoint MCP")
+	}
 
 	if (ragStoreIds.length > 0) {
 		if (queryText) {
@@ -136,12 +145,12 @@ const supahChat: ApiNextFunction = async ({ requestEvent, user }) => {
 	}
 
 	// Strip internal Hugin tools that vendors don't know about
-	chatRequest.config.tools = chatRequest.config.tools?.filter((t) => t.type !== "datasource")
+	chatRequest.config.tools = chatRequest.config.tools?.filter((t) => t.type !== "datasource" && t.type !== "mcp")
 
 	const vendor = getVendor(chatRequest.config.vendorId)
 
 	if (chatRequest.stream) {
-		const stream = await vendor.createChatResponseStream(chatRequest)
+		const stream = mcpSharepointActive ? await runMcpChat(chatRequest) : await vendor.createChatResponseStream(chatRequest)
 
 		if (huginConversationId && userInputMessage) {
 			const [clientBranch, captureBranch] = stream.tee()
@@ -231,6 +240,11 @@ const captureAndPersistStream = async (
 		const { value, done } = await reader.read()
 		const text = decoder.decode(value, { stream: true })
 		for (const event of parseSse(text)) {
+			if (event.event === "response.tool_call") {
+				logger.info("MCP tool call: {toolName}", event.data.toolName)
+			} else if (event.event === "response.tool_result") {
+				logger.info("MCP tool result: {toolName} ({status})", event.data.toolName, event.data.status)
+			}
 			applyChatSseEventToResponseObject(chatResponseObject, event)
 		}
 		if (done) break

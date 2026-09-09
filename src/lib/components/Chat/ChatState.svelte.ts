@@ -393,9 +393,12 @@ export class ChatState {
 				? [{ type: "web_search" }, ...(this.chat.config.tools?.filter((t) => t.type !== "web_search") ?? [])]
 				: this.chat.config.tools?.filter((t) => t.type !== "web_search")
 
-		const hasDatasources = (this.chat.config.dataSources?.length ?? 0) > 0
-		const activeTools: typeof this.chat.config.tools =
-			hasDatasources && this.datasourceEnabled ? [{ type: "datasource" }, ...(webSearchTools?.filter((t) => t.type !== "datasource") ?? [])] : webSearchTools?.filter((t) => t.type !== "datasource")
+		const hasRagDatasources = (this.chat.config.dataSources ?? []).some((d) => d.type === "ragservice")
+		const hasMcpSharepoint = (this.chat.config.dataSources ?? []).some((d) => d.type === "mcp")
+		const dataSourceTools: typeof this.chat.config.tools = []
+		if (hasRagDatasources && this.datasourceEnabled) dataSourceTools.push({ type: "datasource" })
+		if (hasMcpSharepoint && this.datasourceEnabled) dataSourceTools.push({ type: "mcp", server: "sharepoint" })
+		const activeTools: typeof this.chat.config.tools = [...(dataSourceTools ?? []), ...(webSearchTools?.filter((t) => t.type !== "datasource" && t.type !== "mcp") ?? [])]
 
 		// Must be read before pushing this turn onto chat.history below, and before setting
 		// isCreatingConversation - both would otherwise make an ordinary new chat's first message
