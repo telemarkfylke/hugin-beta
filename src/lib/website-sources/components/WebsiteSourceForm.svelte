@@ -10,6 +10,7 @@
 	let { source, onDone }: Props = $props()
 
 	let name = $state(source?.name ?? "")
+	let published = $state(source?.type === "published")
 	let entries: WebsiteSourceEntry[] = $state(source ? source.entries.map((e) => ({ ...e })) : [{ value: "", matchType: "exact" }])
 
 	const api = new WebsiteSourcesApi()
@@ -29,7 +30,11 @@
 		saving = true
 		saveError = null
 		try {
-			const input = { name: name.trim(), entries: entries.filter((e) => e.value.trim()).map((e) => ({ value: e.value.trim(), matchType: e.matchType })) }
+			const input = {
+				name: name.trim(),
+				type: published ? ("published" as const) : ("private" as const),
+				entries: entries.filter((e) => e.value.trim()).map((e) => ({ value: e.value.trim(), matchType: e.matchType }))
+			}
 			if (input.entries.length === 0) {
 				saveError = "Legg til minst én URL."
 				return
@@ -57,7 +62,18 @@
 			<span class="rag-field-label">Navn</span>
 			<input type="text" bind:value={name} placeholder="F.eks. Farte.no - Kollektivtransport" />
 		</div>
+		<div class="rag-simple-field">
+			<label class="rag-field-label" for="published">Gjør denne kilden offentlig</label>
+			<input id="published" type="checkbox" bind:checked={published} />
+		</div>
 	</div>
+	<p class="rag-muted">
+		{#if published}
+			Andre ansatte kan se og velge denne kilden til sine egne assistenter. Bare du (eller en admin) kan fortsatt redigere eller slette den.
+		{:else}
+			Privat - kun synlig for deg. Ingen andre kan se, velge, redigere eller slette den.
+		{/if}
+	</p>
 
 	<h3 class="rag-section-title">
 		URL-er

@@ -1,6 +1,9 @@
 import { logger } from "@vestfoldfylke/loglady"
 import { type Collection, type Db, type MongoClient, ObjectId } from "mongodb"
 import { env } from "$env/dynamic/private"
+import { canViewWebsiteSource } from "$lib/authorization"
+import { APP_CONFIG } from "$lib/server/app-config/app-config"
+import type { AuthenticatedPrincipal } from "$lib/types/authentication"
 import type { NewWebsiteSource, WebsiteSource } from "$lib/types/website-source"
 import type { IWebsiteSourceStore } from "./interface"
 
@@ -45,10 +48,11 @@ export class MongoWebsiteSourceStore implements IWebsiteSourceStore {
 		return { ...source, _id: source._id.toString() }
 	}
 
-	async getWebsiteSources(): Promise<WebsiteSource[]> {
+	async getWebsiteSources(principal: AuthenticatedPrincipal): Promise<WebsiteSource[]> {
 		const db = await this.getDb()
 		const collection: Collection<DbWebsiteSource> = db.collection(this.collectionName)
-		return (await collection.find({}).toArray()).map((source) => ({ ...source, _id: source._id.toString() }))
+		const sources = (await collection.find({}).toArray()).map((source) => ({ ...source, _id: source._id.toString() }))
+		return sources.filter((source) => canViewWebsiteSource(source, principal, APP_CONFIG.APP_ROLES))
 	}
 
 	async createWebsiteSource(source: NewWebsiteSource): Promise<WebsiteSource> {

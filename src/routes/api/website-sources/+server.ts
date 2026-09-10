@@ -14,7 +14,7 @@ const getWebsiteSources: ApiNextFunction = async ({ user }) => {
 	if (!canUseWebsiteDataSource(user, APP_CONFIG.APP_ROLES)) {
 		throw new HTTPError(403, "Not authorized to use website data sources")
 	}
-	const sources = await websiteSourceStore.getWebsiteSources()
+	const sources = await websiteSourceStore.getWebsiteSources(user)
 	return {
 		isAuthorized: true,
 		response: json(sources)
@@ -42,6 +42,7 @@ const createWebsiteSource: ApiNextFunction = async ({ requestEvent, user }) => {
 	const now = new Date().toISOString()
 	const sourceToCreate: NewWebsiteSource = {
 		name: input.name,
+		type: input.type,
 		entries: input.entries,
 		createdBy: { id: user.userId, name: user.name },
 		createdAt: now,

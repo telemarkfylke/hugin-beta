@@ -30,6 +30,14 @@ export type McpSourceConfig = {
 export type McpSource = McpSourceConfig & {
 	_id: string
 	name: string
+	// "private" (default): only the creator (or an admin) can see, use, edit or delete it - never
+	// listed for anyone else. "published": any employee can see it and select it for their own
+	// bot, but only the creator or an admin can still edit/delete it. Mirrors ChatConfig's own
+	// private/published + owner model (see canEditChatConfig/canUpdateChatConfig) - added after a
+	// real incident: every MCP/website source was visible AND editable/deletable by every employee,
+	// regardless of who created it, once this went out to a shared (not just single-developer)
+	// environment.
+	type: "private" | "published"
 	createdBy: {
 		id: string
 		name?: string | undefined
@@ -40,13 +48,15 @@ export type McpSource = McpSourceConfig & {
 
 export type NewMcpSource = Omit<McpSource, "_id">
 
-// Client-supplied fields only - name + the server-specific config. createdBy/createdAt/updatedAt
-// are always set server-side (see api/mcp-sources), same split as NewWebsiteSource.
+// Client-supplied fields only - name + the server-specific config + visibility. createdBy/
+// createdAt/updatedAt are always set server-side (see api/mcp-sources), same split as
+// NewWebsiteSource.
 export const McpSourceInputSchema = z
 	.discriminatedUnion("server", [
 		z.object({
 			server: z.literal("sharepoint"),
 			name: z.string().min(1, "Navn er påkrevd"),
+			type: z.enum(["private", "published"]),
 			folders: z.array(
 				z.object({
 					value: z.string(),

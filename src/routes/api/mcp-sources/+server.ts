@@ -14,7 +14,7 @@ const getMcpSources: ApiNextFunction = async ({ user }) => {
 	if (!canUseMcpSharepoint(user, APP_CONFIG.APP_ROLES)) {
 		throw new HTTPError(403, "Not authorized to use MCP data sources")
 	}
-	const sources = await mcpSourceStore.getMcpSources()
+	const sources = await mcpSourceStore.getMcpSources(user)
 	return {
 		isAuthorized: true,
 		response: json(sources)

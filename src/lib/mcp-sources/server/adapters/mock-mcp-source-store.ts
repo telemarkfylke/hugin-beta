@@ -1,3 +1,6 @@
+import { canViewMcpSource } from "$lib/authorization"
+import { APP_CONFIG } from "$lib/server/app-config/app-config"
+import type { AuthenticatedPrincipal } from "$lib/types/authentication"
 import type { McpSource, NewMcpSource } from "$lib/types/mcp-source"
 import type { IMcpSourceStore } from "./interface"
 
@@ -12,8 +15,8 @@ export class MockMcpSourceStore implements IMcpSourceStore {
 		return mockMcpSources.find((source) => source._id === sourceId) ?? null
 	}
 
-	async getMcpSources(): Promise<McpSource[]> {
-		return mockMcpSources
+	async getMcpSources(principal: AuthenticatedPrincipal): Promise<McpSource[]> {
+		return mockMcpSources.filter((source) => canViewMcpSource(source, principal, APP_CONFIG.APP_ROLES))
 	}
 
 	async createMcpSource(source: NewMcpSource): Promise<McpSource> {

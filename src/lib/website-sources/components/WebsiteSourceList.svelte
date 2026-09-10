@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { page } from "$app/state"
+	import { canEditWebsiteSource } from "$lib/authorization"
 	import ConfirmDeleteDialog from "$lib/components/ConfirmDeleteDialog.svelte"
 	import type { WebsiteSource } from "$lib/types/website-source"
 	import { WebsiteSourcesApi } from "$lib/website-sources/adapters/websiteSourcesApi"
@@ -11,6 +13,18 @@
 	let { sources = $bindable() }: Props = $props()
 
 	const api = new WebsiteSourcesApi()
+
+	let currentUser = $derived(page.data.authenticatedUser)
+	let appRoles = $derived(page.data.APP_CONFIG.APP_ROLES)
+
+	function canEdit(source: WebsiteSource): boolean {
+		return canEditWebsiteSource(source, currentUser, appRoles)
+	}
+
+	function ownerLabel(source: WebsiteSource): string {
+		if (source.createdBy.id === currentUser.userId) return "Deg"
+		return source.createdBy.name ?? "Ukjent"
+	}
 
 	// null = list view, undefined = creating new, a source = editing that one
 	let editing: WebsiteSource | null | undefined = $state(null)
@@ -70,6 +84,8 @@
 				<tr>
 					<th>Navn</th>
 					<th>Omfang</th>
+					<th>Eier</th>
+					<th>Synlighet</th>
 					<th></th>
 				</tr>
 			</thead>
@@ -78,20 +94,24 @@
 					<tr>
 						<td>{source.name}</td>
 						<td>{entryLabel(source)}</td>
+						<td>{ownerLabel(source)}</td>
+						<td>{source.type === "published" ? "🌐 Offentlig" : "🔒 Privat"}</td>
 						<td class="row-actions">
-							<button class="icon-button" onclick={() => (editing = source)} title="Rediger">
-								<span class="material-symbols-outlined">edit</span>
-							</button>
-							<button
-								class="icon-button"
-								onclick={() => {
-									deleteTarget = source;
-									showDeleteConfirm = true;
-								}}
-								title="Slett"
-							>
-								<span class="material-symbols-outlined">delete</span>
-							</button>
+							{#if canEdit(source)}
+								<button class="icon-button" onclick={() => (editing = source)} title="Rediger">
+									<span class="material-symbols-outlined">edit</span>
+								</button>
+								<button
+									class="icon-button"
+									onclick={() => {
+										deleteTarget = source;
+										showDeleteConfirm = true;
+									}}
+									title="Slett"
+								>
+									<span class="material-symbols-outlined">delete</span>
+								</button>
+							{/if}
 						</td>
 					</tr>
 				{/each}

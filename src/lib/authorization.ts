@@ -1,6 +1,8 @@
 import type { AppConfig, AppRoles } from "./types/app-config"
 import type { AuthenticatedPrincipal } from "./types/authentication"
 import type { Chat, ChatConfig, EntraAccessGroup, RoleAccessGroups } from "./types/chat"
+import type { McpSource } from "./types/mcp-source"
+import type { WebsiteSource } from "./types/website-source"
 
 export const canViewAllChatConfigs = (user: AuthenticatedPrincipal, appRoles: AppRoles): boolean => {
 	return user.roles.includes(appRoles.ADMIN)
@@ -112,6 +114,35 @@ export const canUseMcpSharepoint = (user: AuthenticatedPrincipal, appRoles: AppR
 
 export const canUseWebsiteDataSource = (user: AuthenticatedPrincipal, appRoles: AppRoles): boolean => {
 	return user.roles.includes(appRoles.EMPLOYEE) || user.roles.includes(appRoles.ADMIN)
+}
+
+// canUse{Mcp,WebsiteData}Source above only gates whether someone can use the *feature* at all
+// (create their own sources, pick from visible ones). The two pairs below are the ownership layer
+// on top - mirroring canEditChatConfig/canUpdateChatConfig's private/published + owner model. Added
+// after a real incident: every MCP/website source was visible to, and editable/deletable by, every
+// employee regardless of who created it, the moment this went from single-developer testing to a
+// shared environment.
+
+export const canViewMcpSource = (source: McpSource, user: AuthenticatedPrincipal, appRoles: AppRoles): boolean => {
+	if (user.roles.includes(appRoles.ADMIN)) return true
+	if (source.type === "published") return true
+	return source.createdBy.id === user.userId
+}
+
+export const canEditMcpSource = (source: McpSource, user: AuthenticatedPrincipal, appRoles: AppRoles): boolean => {
+	if (user.roles.includes(appRoles.ADMIN)) return true
+	return source.createdBy.id === user.userId
+}
+
+export const canViewWebsiteSource = (source: WebsiteSource, user: AuthenticatedPrincipal, appRoles: AppRoles): boolean => {
+	if (user.roles.includes(appRoles.ADMIN)) return true
+	if (source.type === "published") return true
+	return source.createdBy.id === user.userId
+}
+
+export const canEditWebsiteSource = (source: WebsiteSource, user: AuthenticatedPrincipal, appRoles: AppRoles): boolean => {
+	if (user.roles.includes(appRoles.ADMIN)) return true
+	return source.createdBy.id === user.userId
 }
 
 export const canUseTranscription = (user: AuthenticatedPrincipal, appConfig: AppConfig): boolean => {
