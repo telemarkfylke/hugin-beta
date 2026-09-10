@@ -1,8 +1,6 @@
 import { logger } from "@vestfoldfylke/loglady"
 import type { McpServerConfig } from "./mcp-config"
 
-logger.logConfig({ prefix: "hugin - mcp-token" })
-
 type CachedToken = { value: string; expiresAtMs: number }
 const EXPIRY_SKEW_MS = 60_000
 
@@ -31,7 +29,7 @@ export const createTokenProvider = (config: McpServerConfig): (() => Promise<str
 
 		if (!response.ok) {
 			const detail = await response.text()
-			logger.error("MCP token request failed: {status}", response.status)
+			logger.error("[mcp-token] Token request failed: {status}", response.status)
 			throw new Error(`MCP token request failed (${response.status}): ${detail}`)
 		}
 

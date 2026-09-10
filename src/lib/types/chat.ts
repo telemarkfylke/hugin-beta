@@ -9,9 +9,19 @@ export type VendorAgent = {
 	id: string
 }
 
-export type ChatTool = { type: "web_search" } | { type: "datasource" } | { type: "mcp"; server: "sharepoint" }
+// "mcp"'s only job is "MCP tool-calling is active for this bot" - which specific source(s) are in
+// play comes from DataSource below (sourceId), so no extra data belongs on the tool itself.
+export type ChatTool = { type: "web_search" } | { type: "datasource" } | { type: "mcp" }
 
-export type DataSource = { type: "ragservice"; id: string } | { type: "mcp"; server: "sharepoint" }
+// "website" reuses the same generic "datasource" ChatTool flag as "ragservice" (see
+// ChatState.svelte's activeTools composition and chat/+server.ts's datasourceToolActive) - both
+// are just entries in dataSources, unlike "mcp" which gets its own ChatTool because it currently
+// runs through a wholly separate (agentic tool-calling) code path.
+// "mcp"'s sourceId references a McpSource (see mcp-source.ts) - deliberately no `server` field
+// here even though McpSource itself is a discriminated union on `server`: the source, looked up
+// by id, already knows which server it targets, and duplicating that here would just open the
+// door to the two disagreeing.
+export type DataSource = { type: "ragservice"; id: string } | { type: "mcp"; sourceId: string } | { type: "website"; id: string }
 
 export type RoleAccessGroups = "all" | "employee" | "edu_employee" | "student"
 export type EntraAccessGroup = {
@@ -154,13 +164,17 @@ export const ChatConfigSchema = schemaForType<ChatConfig>()(
 		vendorAgent: z.object({ id: z.string() }).optional(),
 		model: z.string().optional(),
 		tools: z
-			.array(
-				z.discriminatedUnion("type", [z.object({ type: z.literal("web_search") }), z.object({ type: z.literal("datasource") }), z.object({ type: z.literal("mcp"), server: z.literal("sharepoint") })])
-			)
+			.array(z.discriminatedUnion("type", [z.object({ type: z.literal("web_search") }), z.object({ type: z.literal("datasource") }), z.object({ type: z.literal("mcp") })]))
 			.nullable()
 			.optional(),
 		dataSources: z
-			.array(z.discriminatedUnion("type", [z.object({ type: z.literal("ragservice"), id: z.string() }), z.object({ type: z.literal("mcp"), server: z.literal("sharepoint") })]))
+			.array(
+				z.discriminatedUnion("type", [
+					z.object({ type: z.literal("ragservice"), id: z.string() }),
+					z.object({ type: z.literal("mcp"), sourceId: z.string() }),
+					z.object({ type: z.literal("website"), id: z.string() })
+				])
+			)
 			.nullable()
 			.optional(),
 		shared: z.boolean().optional(),

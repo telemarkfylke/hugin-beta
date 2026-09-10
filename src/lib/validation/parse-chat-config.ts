@@ -29,6 +29,12 @@ export const parseChatConfig = (input: unknown, APP_CONFIG: AppConfig): ChatConf
 		if (parsedConfig.dataSources?.some((source) => source.type === "mcp")) {
 			throw new HTTPError(400, "MCP data sources are not supported on predefined vendor-agent configs")
 		}
+		// Same reasoning as MCP above: website tool-calling runs through the same agentic loop,
+		// which always builds its request from config.model/instructions - fields a predefined
+		// vendor-agent config never has (it uses vendorAgent.id instead).
+		if (parsedConfig.dataSources?.some((source) => source.type === "website")) {
+			throw new HTTPError(400, "Website data sources are not supported on predefined vendor-agent configs")
+		}
 		return {
 			_id: parsedConfig._id,
 			name: parsedConfig.name,

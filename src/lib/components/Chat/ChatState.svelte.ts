@@ -394,10 +394,11 @@ export class ChatState {
 				: this.chat.config.tools?.filter((t) => t.type !== "web_search")
 
 		const hasRagDatasources = (this.chat.config.dataSources ?? []).some((d) => d.type === "ragservice")
-		const hasMcpSharepoint = (this.chat.config.dataSources ?? []).some((d) => d.type === "mcp")
+		const hasWebsiteSources = (this.chat.config.dataSources ?? []).some((d) => d.type === "website")
+		const hasMcpSources = (this.chat.config.dataSources ?? []).some((d) => d.type === "mcp")
 		const dataSourceTools: typeof this.chat.config.tools = []
-		if (hasRagDatasources && this.datasourceEnabled) dataSourceTools.push({ type: "datasource" })
-		if (hasMcpSharepoint && this.datasourceEnabled) dataSourceTools.push({ type: "mcp", server: "sharepoint" })
+		if ((hasRagDatasources || hasWebsiteSources) && this.datasourceEnabled) dataSourceTools.push({ type: "datasource" })
+		if (hasMcpSources && this.datasourceEnabled) dataSourceTools.push({ type: "mcp" })
 		const activeTools: typeof this.chat.config.tools = [...(dataSourceTools ?? []), ...(webSearchTools?.filter((t) => t.type !== "datasource" && t.type !== "mcp") ?? [])]
 
 		// Must be read before pushing this turn onto chat.history below, and before setting

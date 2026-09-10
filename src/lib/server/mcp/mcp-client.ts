@@ -5,8 +5,6 @@ import { getMcpConfig } from "./mcp-config"
 import { createTokenProvider } from "./mcp-token"
 import type { McpToolDefinition } from "./mcp-tools"
 
-logger.logConfig({ prefix: "hugin - mcp-client" })
-
 // The mcp-sharepoint server's own Microsoft Graph client can take up to ~60s internally before it
 // gives up (per its integration handover doc). This must stay comfortably above that, or Hugin's
 // client-side abort races the server's own timeout and usually loses - producing a false failure
@@ -36,7 +34,7 @@ let clientPromise: Promise<McpClient | null> | null = null
 const connect = async (): Promise<McpClient | null> => {
 	const config = getMcpConfig()
 	if (!config) {
-		logger.info("MCP not configured; SharePoint tools unavailable")
+		logger.info("[mcp-client] MCP not configured; SharePoint tools unavailable")
 		return null
 	}
 	const getToken = createTokenProvider(config)
@@ -81,11 +79,11 @@ const connect = async (): Promise<McpClient | null> => {
 				description: t.description ?? "",
 				inputSchema: t.inputSchema as Record<string, unknown>
 			}))
-			logger.info("MCP tools discovered: {count}", toolsCache.length)
+			logger.info("[mcp-client] Tools discovered: {count}", toolsCache.length)
 			return toolsCache
 		},
 		async callTool(name, args) {
-			logger.info("MCP tool call: {name}", name)
+			logger.info("[mcp-client] Tool call: {name}", name)
 			let result: Awaited<ReturnType<typeof sdkClient.callTool>>
 			try {
 				// resultSchema is optional; pass undefined to reach the options argument (3rd param).
@@ -115,7 +113,7 @@ const connect = async (): Promise<McpClient | null> => {
 export const getSharepointMcpClient = (): Promise<McpClient | null> => {
 	if (!clientPromise) {
 		clientPromise = connect().catch((error: unknown) => {
-			logger.errorException(error, "Failed to connect to SharePoint MCP server")
+			logger.errorException(error, "[mcp-client] Failed to connect to SharePoint MCP server")
 			clientPromise = null
 			throw error
 		})

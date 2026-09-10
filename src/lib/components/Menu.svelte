@@ -199,7 +199,7 @@
 							<a class="menu-item" class:active={page.url.pathname.startsWith("/canvas")} href="/canvas/document">Kladdeboka</a>
 						{/if}
 						{#if DATASOURCES_MENU_OPEN_TO_ALL ? !isStudentOnly : isAdmin}
-							<a class="menu-item" class:active={page.url.pathname === "/ragservice"} href="/ragservice">Datakilder</a>
+							<a class="menu-item" class:active={page.url.pathname.startsWith("/datasources")} href="/datasources">Datakilder</a>
 						{/if}
 					</div>
 				</div>
