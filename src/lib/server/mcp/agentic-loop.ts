@@ -3,8 +3,6 @@ import { createSse } from "$lib/streaming"
 import type { ChatResponseUsage } from "$lib/types/chat"
 import type { McpClient } from "./mcp-client"
 
-logger.logConfig({ prefix: "hugin - mcp-loop" })
-
 export type ToolTurnEvent =
 	| { type: "text_delta"; itemId: string; content: string }
 	| { type: "tool_call"; callId: string; toolName: string; arguments: string }
@@ -50,7 +48,7 @@ export const runMcpAgenticLoop = (driver: ToolTurnDriver, mcpClient: McpClient, 
 					}
 
 					if (iteration + 1 >= maxIterations) {
-						logger.warn("MCP loop hit max iterations: {max}", maxIterations)
+						logger.warn("[agentic-loop] Hit max iterations: {max}", maxIterations)
 						// Any response.tool_call already emitted above for this turn's pendingCalls is
 						// intentionally left without a matching response.tool_result - we break before
 						// executing them. The stream still closes cleanly via response.done right after,
@@ -71,7 +69,7 @@ export const runMcpAgenticLoop = (driver: ToolTurnDriver, mcpClient: McpClient, 
 				controller.enqueue(createSse({ event: "response.done", data: { usage: accumulatedUsage } }))
 				controller.close()
 			} catch (error) {
-				logger.errorException(error, "MCP agentic loop failed")
+				logger.errorException(error, "[agentic-loop] Agentic loop failed")
 				const message = error instanceof Error ? error.message : "Unknown error"
 				controller.enqueue(createSse({ event: "response.error", data: { code: "mcp_loop_error", message } }))
 				controller.close()
@@ -92,6 +90,13 @@ const executeToolCall = async (mcpClient: McpClient, call: PendingCall): Promise
 		return { callId: call.callId, toolName: call.toolName, output, isError: false }
 	} catch (error) {
 		const message = error instanceof Error ? error.message : "Unknown tool error"
+		// The response.tool_result SSE event only ever carries an ok/error status (see below), not
+		// the reason - without this, diagnosing a failed call means guessing whether it was a scope
+		// rejection (createScopedSharePointClient/website-tool-client's own thrown errors) or a real
+		// upstream failure (SharePoint/website unreachable, folder renamed mid-test, etc.). Logging
+		// the exact arguments the model sent is what actually answers "why did it look there" -
+		// there's no other place these are visible.
+		logger.warn("[agentic-loop] Tool call failed: {name}({arguments}) - {message}", call.toolName, call.arguments, message)
 		return { callId: call.callId, toolName: call.toolName, output: `Tool execution failed: ${message}`, isError: true }
 	}
 }

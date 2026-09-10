@@ -3,23 +3,33 @@ import { env } from "$env/dynamic/private"
 import { MongoConversationStore } from "$lib/conversationstore/server/adapters/conversation-store"
 import type { IConversationStore } from "$lib/conversationstore/server/adapters/interface"
 import { MockConversationStore } from "$lib/conversationstore/server/adapters/mock-conversation-store"
+import type { IMcpSourceStore } from "$lib/mcp-sources/server/adapters/interface"
+import { MongoMcpSourceStore } from "$lib/mcp-sources/server/adapters/mcp-source-store"
+import { MockMcpSourceStore } from "$lib/mcp-sources/server/adapters/mock-mcp-source-store"
 import { MockRateLimiter } from "$lib/server/rate-limit/mock-rate-limiter"
 import { MongoRateLimiter } from "$lib/server/rate-limit/mongo-rate-limiter"
 import type { IStatsStore } from "$lib/statsstore/server/adapters/interface"
 import { MockStatsStore } from "$lib/statsstore/server/adapters/mock-stats-store"
 import { MongoStatsStore } from "$lib/statsstore/server/adapters/stats-store"
 import type { IChatConfigStore } from "$lib/types/db/db-interface"
+import type { IWebsiteSourceStore } from "$lib/website-sources/server/adapters/interface"
+import { MockWebsiteSourceStore } from "$lib/website-sources/server/adapters/mock-website-source-store"
+import { MongoWebsiteSourceStore } from "$lib/website-sources/server/adapters/website-source-store"
 import type { IRateLimiter } from "../rate-limit/interface"
 import { MockChatConfigStore } from "./mock-db"
 import { MongoChatConfigStore } from "./mongo-db"
 
 let chatConfigStore: IChatConfigStore
+let websiteSourceStore: IWebsiteSourceStore
+let mcpSourceStore: IMcpSourceStore
 let conversationStore: IConversationStore
 let statsStore: IStatsStore
 let rateLimiter: IRateLimiter
 
 if (env.MOCK_DB === "true") {
 	chatConfigStore = new MockChatConfigStore()
+	websiteSourceStore = new MockWebsiteSourceStore()
+	mcpSourceStore = new MockMcpSourceStore()
 	conversationStore = new MockConversationStore()
 	statsStore = new MockStatsStore()
 	rateLimiter = new MockRateLimiter()
@@ -30,6 +40,8 @@ if (env.MOCK_DB === "true") {
 	// Shared across all stores below - one connection pool against Mongo, not one per store.
 	const mongoClient = new MongoClient(env.MONGODB_CONNECTION_STRING, { ignoreUndefined: true })
 	chatConfigStore = new MongoChatConfigStore(mongoClient)
+	websiteSourceStore = new MongoWebsiteSourceStore(mongoClient)
+	mcpSourceStore = new MongoMcpSourceStore(mongoClient)
 	conversationStore = new MongoConversationStore(mongoClient, null)
 	statsStore = new MongoStatsStore(mongoClient)
 	rateLimiter = new MongoRateLimiter(mongoClient)
@@ -37,6 +49,14 @@ if (env.MOCK_DB === "true") {
 
 export const getChatConfigStore = (): IChatConfigStore => {
 	return chatConfigStore
+}
+
+export const getWebsiteSourceStore = (): IWebsiteSourceStore => {
+	return websiteSourceStore
+}
+
+export const getMcpSourceStore = (): IMcpSourceStore => {
+	return mcpSourceStore
 }
 
 export const getConversationStore = (): IConversationStore => {

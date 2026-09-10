@@ -110,6 +110,10 @@ export const canUseMcpSharepoint = (user: AuthenticatedPrincipal, appRoles: AppR
 	return user.roles.includes(appRoles.EMPLOYEE) || user.roles.includes(appRoles.ADMIN)
 }
 
+export const canUseWebsiteDataSource = (user: AuthenticatedPrincipal, appRoles: AppRoles): boolean => {
+	return user.roles.includes(appRoles.EMPLOYEE) || user.roles.includes(appRoles.ADMIN)
+}
+
 export const canUseTranscription = (user: AuthenticatedPrincipal, appConfig: AppConfig): boolean => {
 	if (user.roles.includes(appConfig.APP_ROLES.ADMIN)) {
 		return true

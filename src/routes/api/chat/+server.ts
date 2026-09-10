@@ -1,6 +1,6 @@
 import { json, type RequestHandler } from "@sveltejs/kit"
 import { logger } from "@vestfoldfylke/loglady"
-import { canPromptConfig, canUseHistory, canUseMcpSharepoint } from "$lib/authorization"
+import { canPromptConfig, canUseHistory, canUseMcpSharepoint, canUseWebsiteDataSource } from "$lib/authorization"
 import { chatHistoryToInputItems } from "$lib/chat-history"
 import { applyChatSseEventToResponseObject } from "$lib/chat-response-builder"
 import type { ConversationManager } from "$lib/conversationstore/server/conv_manager"
@@ -9,18 +9,28 @@ import { getVendor } from "$lib/server/ai-vendors"
 import { APP_CONFIG } from "$lib/server/app-config/app-config"
 import { MS_AUTH_TOKEN_HEADER } from "$lib/server/auth/auth-constants"
 import { recordQuestionCategoryStat } from "$lib/server/categorize-question"
-import { configHasMcpTool, runMcpChat } from "$lib/server/mcp/run-mcp-chat"
+import { getMcpSourceStore, getWebsiteSourceStore } from "$lib/server/db/get-db"
+import { appendAgenticToolGuidance } from "$lib/server/mcp/agentic-tool-guidance"
+import { buildMcpToolClients } from "$lib/server/mcp/build-mcp-tool-clients"
+import { createCombinedToolClient } from "$lib/server/mcp/combined-tool-client"
+import type { McpClient } from "$lib/server/mcp/mcp-client"
+import { runAgenticToolChatOrDegrade } from "$lib/server/mcp/run-agentic-chat"
+import { configHasMcpTool, mcpUnavailableStream } from "$lib/server/mcp/run-mcp-chat"
 import { HTTPError } from "$lib/server/middleware/http-error"
 import { apiRequestMiddleware } from "$lib/server/middleware/http-request"
 import { appendRagContextToInstructions } from "$lib/server/ragservice/format-rag-context"
 import { rewriteRagQuery } from "$lib/server/ragservice/rag-query-rewrite"
 import { searchRagStores } from "$lib/server/ragservice/rag-search"
+import { createWebsiteToolClient } from "$lib/server/website-tools/website-tool-client"
 import { createSse, parseSse, responseStream } from "$lib/streaming"
+import type { IAIVendor } from "$lib/types/AIVendor"
 import type { AuthenticatedPrincipal } from "$lib/types/authentication"
 import type { ChatConfig, ChatRequest, ChatResponseObject } from "$lib/types/chat"
 import type { ChatInputMessage } from "$lib/types/chat-item"
 import type { InputText } from "$lib/types/chat-item-content"
+import type { McpSource } from "$lib/types/mcp-source"
 import type { ApiNextFunction } from "$lib/types/middleware/http-request"
+import type { WebsiteSourceEntry } from "$lib/types/website-source"
 import { validateFileInputs } from "$lib/validation/file-input"
 import { parseChatConfig } from "$lib/validation/parse-chat-config"
 
@@ -114,13 +124,39 @@ const supahChat: ApiNextFunction = async ({ requestEvent, user }) => {
 
 	const datasourceToolActive = chatRequest.config.tools?.some((t) => t.type === "datasource") ?? false
 	const ragStoreIds = datasourceToolActive ? (chatRequest.config.dataSources?.filter((s) => s.type === "ragservice").map((s) => s.id) ?? []) : []
+	const websiteSourceIds = datasourceToolActive ? (chatRequest.config.dataSources?.filter((s) => s.type === "website").map((s) => s.id) ?? []) : []
 	// Read before stripping tools below - RAG search (if active) still runs first and mutates
-	// chatRequest.config.instructions either way, so the MCP loop (if also active) sees the
+	// chatRequest.config.instructions either way, so the MCP/website loop (if also active) sees the
 	// RAG-augmented instructions.
 	const mcpSharepointActive = configHasMcpTool(chatRequest.config)
 
 	if (mcpSharepointActive && !canUseMcpSharepoint(user, APP_CONFIG.APP_ROLES)) {
 		throw new HTTPError(403, "Not authorized to use SharePoint MCP")
+	}
+
+	if (websiteSourceIds.length > 0 && !canUseWebsiteDataSource(user, APP_CONFIG.APP_ROLES)) {
+		throw new HTTPError(403, "Not authorized to use website data sources")
+	}
+
+	// Flatten every selected website source's entries into one combined allow-list - a bot can
+	// have several website sources active at once, so the browse_website tool built from this
+	// covers all of them together.
+	let websiteEntries: WebsiteSourceEntry[] = []
+	if (websiteSourceIds.length > 0) {
+		const websiteSourceStore = getWebsiteSourceStore()
+		const sources = await Promise.all(websiteSourceIds.map((id) => websiteSourceStore.getWebsiteSource(id)))
+		websiteEntries = sources.flatMap((source) => source?.entries ?? [])
+	}
+	const websiteToolActive = websiteEntries.length > 0
+
+	// mcpSharepointActive is its own ChatTool flag (independent of datasourceToolActive, unlike
+	// ragservice/website) - resolve which McpSource(s) were actually selected only when it's on.
+	const mcpSourceIds = mcpSharepointActive ? (chatRequest.config.dataSources?.filter((s) => s.type === "mcp").map((s) => s.sourceId) ?? []) : []
+	let mcpSources: McpSource[] = []
+	if (mcpSourceIds.length > 0) {
+		const mcpSourceStore = getMcpSourceStore()
+		const resolved = await Promise.all(mcpSourceIds.map((id) => mcpSourceStore.getMcpSource(id)))
+		mcpSources = resolved.filter((source): source is McpSource => source !== null)
 	}
 
 	if (ragStoreIds.length > 0) {
@@ -150,7 +186,7 @@ const supahChat: ApiNextFunction = async ({ requestEvent, user }) => {
 	const vendor = getVendor(chatRequest.config.vendorId)
 
 	if (chatRequest.stream) {
-		const stream = mcpSharepointActive ? await runMcpChat(chatRequest) : await vendor.createChatResponseStream(chatRequest)
+		const stream = await buildToolCallingStream(chatRequest, vendor, mcpSources, websiteToolActive ? websiteEntries : [])
 
 		if (huginConversationId && userInputMessage) {
 			const [clientBranch, captureBranch] = stream.tee()
@@ -192,6 +228,38 @@ const supahChat: ApiNextFunction = async ({ requestEvent, user }) => {
 		isAuthorized: true,
 		response: json(response)
 	}
+}
+
+// Builds one combined tool-calling stream out of every active tool-calling data source (MCP,
+// website, or both at once - see combined-tool-client.ts), or falls back to a plain vendor stream
+// when neither is active. Replaces the earlier "MCP wins if both are active" v1 limitation - a
+// bot can now genuinely use SharePoint and website browsing tools in the same conversation.
+const buildToolCallingStream = async (chatRequest: ChatRequest, vendor: IAIVendor, mcpSources: McpSource[], websiteEntries: WebsiteSourceEntry[]): Promise<ReadableStream<Uint8Array>> => {
+	const toolClients: McpClient[] = []
+	let mcpUnavailable = false
+
+	if (mcpSources.length > 0) {
+		const { clients, unavailable } = await buildMcpToolClients(mcpSources)
+		toolClients.push(...clients)
+		if (unavailable) mcpUnavailable = true
+	}
+	if (websiteEntries.length > 0) {
+		toolClients.push(createWebsiteToolClient(websiteEntries))
+	}
+
+	// The bot explicitly selected a SharePoint source but the real server is unreachable/
+	// unconfigured - same strict behaviour as before this refactor: show the unavailable message
+	// rather than silently answering without the SharePoint tools the bot was set up to have.
+	if (mcpUnavailable) {
+		return mcpUnavailableStream()
+	}
+	if (toolClients.length === 0) {
+		return vendor.createChatResponseStream(chatRequest)
+	}
+	// Nudges the model to actually use the tools proactively - see agentic-tool-guidance.ts for why
+	// this is needed at all (unlike RAG, nothing here runs the lookup for the model automatically).
+	chatRequest.config.instructions = appendAgenticToolGuidance(chatRequest.config.instructions)
+	return runAgenticToolChatOrDegrade(chatRequest, createCombinedToolClient(toolClients))
 }
 
 // Prepends one already-encoded SSE chunk to a stream, without buffering the rest of it.
@@ -241,9 +309,10 @@ const captureAndPersistStream = async (
 		const text = decoder.decode(value, { stream: true })
 		for (const event of parseSse(text)) {
 			if (event.event === "response.tool_call") {
-				logger.info("MCP tool call: {toolName}", event.data.toolName)
+				// Shared agentic-loop event, emitted by both the MCP and website tool-calling paths.
+				logger.info("[chat] Agentic tool call: {toolName}", event.data.toolName)
 			} else if (event.event === "response.tool_result") {
-				logger.info("MCP tool result: {toolName} ({status})", event.data.toolName, event.data.status)
+				logger.info("[chat] Agentic tool result: {toolName} ({status})", event.data.toolName, event.data.status)
 			}
 			applyChatSseEventToResponseObject(chatResponseObject, event)
 		}
