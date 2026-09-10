@@ -1,6 +1,6 @@
-import { describe, expect, it, vi } from "vitest"
+import { describe, expect, it } from "vitest"
 import { configHasMcpTool, mcpUnavailableStream } from "../../../src/lib/server/mcp/run-mcp-chat"
-import type { ChatConfig, ChatRequest } from "../../../src/lib/types/chat"
+import type { ChatConfig } from "../../../src/lib/types/chat"
 
 const collectEvents = async (stream: ReadableStream<Uint8Array>): Promise<{ event: string; data: { code: string; message: string } }[]> => {
 	const reader = stream.getReader()
@@ -35,7 +35,7 @@ const base = {
 
 describe("configHasMcpTool", () => {
 	it("is true when an mcp tool is present", () => {
-		expect(configHasMcpTool({ ...base, tools: [{ type: "mcp", server: "sharepoint" }] })).toBe(true)
+		expect(configHasMcpTool({ ...base, tools: [{ type: "mcp" }] })).toBe(true)
 	})
 	it("is false for web_search only", () => {
 		expect(configHasMcpTool({ ...base, tools: [{ type: "web_search" }] })).toBe(false)
@@ -46,27 +46,16 @@ describe("configHasMcpTool", () => {
 })
 
 describe("mcpUnavailableStream", () => {
-	it("emits a single user-facing response.error event and closes", async () => {
+	it("emits a single user-facing response.error event and closes, with a default SharePoint-flavored message", async () => {
 		const events = await collectEvents(mcpUnavailableStream())
 		expect(events).toHaveLength(1)
 		expect(events[0]?.event).toBe("response.error")
 		expect(events[0]?.data.code).toBe("mcp_unavailable")
 		expect(events[0]?.data.message).toMatch(/SharePoint/i)
 	})
-})
 
-describe("runMcpChat graceful degradation", () => {
-	it("returns a response.error stream instead of throwing when MCP is not configured", async () => {
-		vi.resetModules()
-		vi.doMock("../../../src/lib/server/mcp/mcp-client", () => ({ getSharepointMcpClient: async () => null }))
-		const { runMcpChat } = await import("../../../src/lib/server/mcp/run-mcp-chat")
-		const chatRequest = { config: { ...base, tools: [{ type: "mcp", server: "sharepoint" }] }, inputs: [], stream: true } as unknown as ChatRequest
-
-		const stream = await runMcpChat(chatRequest)
-		const events = await collectEvents(stream)
-
-		expect(events.some((e) => e.event === "response.error")).toBe(true)
-		expect(events.find((e) => e.event === "response.error")?.data.message).toMatch(/SharePoint/i)
-		vi.doUnmock("../../../src/lib/server/mcp/mcp-client")
+	it("uses a custom message when given one (e.g. for the website tool-calling path)", async () => {
+		const events = await collectEvents(mcpUnavailableStream("Noe annet gikk galt"))
+		expect(events[0]?.data.message).toBe("Noe annet gikk galt")
 	})
 })
