@@ -6,6 +6,7 @@ describe("McpSourceInputSchema", () => {
 		const result = McpSourceInputSchema.parse({
 			server: "sharepoint",
 			name: "Budsjett",
+			type: "private",
 			folders: [{ value: "Budsjett", matchType: "prefix" }],
 			searchEnabled: false
 		})
@@ -16,6 +17,7 @@ describe("McpSourceInputSchema", () => {
 		const result = McpSourceInputSchema.parse({
 			server: "sharepoint",
 			name: "Bare søk",
+			type: "private",
 			folders: [],
 			searchEnabled: true
 		})
@@ -27,6 +29,7 @@ describe("McpSourceInputSchema", () => {
 			McpSourceInputSchema.parse({
 				server: "sharepoint",
 				name: "Ingenting",
+				type: "private",
 				folders: [],
 				searchEnabled: false
 			})
@@ -38,9 +41,33 @@ describe("McpSourceInputSchema", () => {
 			McpSourceInputSchema.parse({
 				server: "something-else",
 				name: "x",
+				type: "private",
 				folders: [{ value: "a", matchType: "exact" }],
 				searchEnabled: false
 			})
 		).toThrow()
+	})
+
+	it("rejects an unknown type value", () => {
+		expect(() =>
+			McpSourceInputSchema.parse({
+				server: "sharepoint",
+				name: "x",
+				type: "public",
+				folders: [{ value: "a", matchType: "exact" }],
+				searchEnabled: false
+			})
+		).toThrow()
+	})
+
+	it("accepts a published source", () => {
+		const result = McpSourceInputSchema.parse({
+			server: "sharepoint",
+			name: "Delt kilde",
+			type: "published",
+			folders: [{ value: "Budsjett", matchType: "prefix" }],
+			searchEnabled: false
+		})
+		expect(result.type).toBe("published")
 	})
 })

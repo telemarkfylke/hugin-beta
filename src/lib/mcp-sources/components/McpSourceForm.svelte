@@ -16,6 +16,7 @@
 	const server = "sharepoint" as const
 
 	let name = $state(source?.name ?? "")
+	let published = $state(source?.type === "published")
 
 	// "Whole area" (an empty-value prefix entry, see isFolderPathAllowed in
 	// scoped-sharepoint-client.ts) is a DELIBERATE, explicit toggle, not something that can arise
@@ -63,7 +64,7 @@
 				saveError = "Legg til minst én mappe, aktiver tilgang til hele området, eller aktiver fritekst-søk."
 				return
 			}
-			const input = { server, name: name.trim(), folders: trimmedFolders, searchEnabled }
+			const input = { server, name: name.trim(), type: published ? ("published" as const) : ("private" as const), folders: trimmedFolders, searchEnabled }
 			const result = source ? await api.updateSource(source._id, input) : await api.createSource(input)
 			if (result) {
 				onDone(result)
@@ -93,7 +94,18 @@
 				<option value="sharepoint">SharePoint (Telemark fylke)</option>
 			</select>
 		</div>
+		<div class="rag-simple-field">
+			<label class="rag-field-label" for="published">Gjør denne kilden offentlig</label>
+			<input id="published" type="checkbox" bind:checked={published} />
+		</div>
 	</div>
+	<p class="rag-muted">
+		{#if published}
+			Andre ansatte kan se og velge denne kilden til sine egne assistenter. Bare du (eller en admin) kan fortsatt redigere eller slette den.
+		{:else}
+			Privat - kun synlig for deg. Ingen andre kan se, velge, redigere eller slette den.
+		{/if}
+	</p>
 
 	<h3 class="rag-section-title">Mapper</h3>
 	<p class="rag-muted">Styrer hvilke mapper boten kan liste, se treet i og lese innhold fra. "Prefiks" dekker mappa og alt under den. En tom rad lagres ikke - blir den stående tom, forsvinner den bare når du lagrer.</p>

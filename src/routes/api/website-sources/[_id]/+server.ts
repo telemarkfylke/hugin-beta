@@ -1,5 +1,5 @@
 import { json, type RequestHandler } from "@sveltejs/kit"
-import { canUseWebsiteDataSource } from "$lib/authorization"
+import { canEditWebsiteSource, canUseWebsiteDataSource } from "$lib/authorization"
 import { APP_CONFIG } from "$lib/server/app-config/app-config"
 import { getWebsiteSourceStore } from "$lib/server/db/get-db"
 import { HTTPError } from "$lib/server/middleware/http-error"
@@ -27,12 +27,16 @@ const replaceWebsiteSource: ApiNextFunction = async ({ requestEvent, user }) => 
 	if (!existing) {
 		throw new HTTPError(404, "Website source not found")
 	}
+	if (!canEditWebsiteSource(existing, user, APP_CONFIG.APP_ROLES)) {
+		throw new HTTPError(403, "Not authorized to edit this website source")
+	}
 
 	const body = await requestEvent.request.json()
 	const input = WebsiteSourceInputSchema.parse(body)
 
 	const sourceToReplace: NewWebsiteSource = {
 		name: input.name,
+		type: input.type,
 		entries: input.entries,
 		createdBy: existing.createdBy,
 		createdAt: existing.createdAt,
@@ -67,6 +71,9 @@ const deleteWebsiteSource: ApiNextFunction = async ({ requestEvent, user }) => {
 	const existing = await websiteSourceStore.getWebsiteSource(sourceId)
 	if (!existing) {
 		throw new HTTPError(404, "Website source not found")
+	}
+	if (!canEditWebsiteSource(existing, user, APP_CONFIG.APP_ROLES)) {
+		throw new HTTPError(403, "Not authorized to delete this website source")
 	}
 
 	await websiteSourceStore.deleteWebsiteSource(sourceId)

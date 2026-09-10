@@ -412,13 +412,13 @@
 							<label>Datakilder</label>
 							{#each chatState.chat.config.dataSources ?? [] as source}
 								<div class="source-row">
-									<span>
+									<span class="source-name">
 										{#if source.type === "mcp"}
-											{availableMcpSources.find((s) => s._id === source.sourceId)?.name ?? source.sourceId}
+											<span class="material-symbols-outlined source-type-icon" title="MCP">cable</span>{availableMcpSources.find((s) => s._id === source.sourceId)?.name ?? source.sourceId}
 										{:else if source.type === "website"}
-											{availableWebsiteSources.find((s) => s._id === source.id)?.name ?? source.id}
+											<span class="material-symbols-outlined source-type-icon" title="Nettside">public</span>{availableWebsiteSources.find((s) => s._id === source.id)?.name ?? source.id}
 										{:else}
-											{availableStores.find((s) => s.storeId === source.id)?.name ?? source.id}
+											<span class="material-symbols-outlined source-type-icon" title="Dokumentsøk">database</span>{availableStores.find((s) => s.storeId === source.id)?.name ?? source.id}
 										{/if}
 									</span>
 									<button class="remove-source" onclick={() => removeDataSource(source)}>×</button>
@@ -426,16 +426,28 @@
 							{/each}
 							<select onchange={(e) => { addDataSource(e.currentTarget.value); e.currentTarget.value = "" }}>
 								<option value="">Legg til datakilde...</option>
-								{#each availableStores.filter((s) => !(chatState.chat.config.dataSources ?? []).some((d) => d.type === "ragservice" && d.id === s.storeId)) as store}
-									<option value={store.storeId}>{store.name}</option>
-								{/each}
+								{#if availableStores.length > 0}
+									<optgroup label="Dokumentsøk">
+										{#each availableStores.filter((s) => !(chatState.chat.config.dataSources ?? []).some((d) => d.type === "ragservice" && d.id === s.storeId)) as store}
+											<option value={store.storeId}>{store.name}</option>
+										{/each}
+									</optgroup>
+								{/if}
 								{#if !chatState.chat.config.vendorAgent}
-									{#each availableWebsiteSources.filter((s) => !(chatState.chat.config.dataSources ?? []).some((d) => d.type === "website" && d.id === s._id)) as websiteSource}
-										<option value={`${WEBSITE_OPTION_PREFIX}${websiteSource._id}`}>{websiteSource.name}</option>
-									{/each}
-									{#each availableMcpSources.filter((s) => !(chatState.chat.config.dataSources ?? []).some((d) => d.type === "mcp" && d.sourceId === s._id)) as mcpSource}
-										<option value={`${MCP_OPTION_PREFIX}${mcpSource._id}`}>{mcpSource.name}</option>
-									{/each}
+									{#if availableWebsiteSources.length > 0}
+										<optgroup label="Websites">
+											{#each availableWebsiteSources.filter((s) => !(chatState.chat.config.dataSources ?? []).some((d) => d.type === "website" && d.id === s._id)) as websiteSource}
+												<option value={`${WEBSITE_OPTION_PREFIX}${websiteSource._id}`}>{websiteSource.name}</option>
+											{/each}
+										</optgroup>
+									{/if}
+									{#if availableMcpSources.length > 0}
+										<optgroup label="MCP">
+											{#each availableMcpSources.filter((s) => !(chatState.chat.config.dataSources ?? []).some((d) => d.type === "mcp" && d.sourceId === s._id)) as mcpSource}
+												<option value={`${MCP_OPTION_PREFIX}${mcpSource._id}`}>{mcpSource.name}</option>
+											{/each}
+										</optgroup>
+									{/if}
 								{/if}
 							</select>
 						</div>
@@ -679,6 +691,15 @@
 		justify-content: space-between;
 		padding: 0.25rem 0.25rem 0.25rem 0;
 		font-size: small;
+	}
+	.source-name {
+		display: flex;
+		align-items: center;
+		gap: 0.35rem;
+	}
+	.source-type-icon {
+		font-size: 1rem;
+		color: var(--color-primary-70);
 	}
 	button.remove-source {
 		background: none;

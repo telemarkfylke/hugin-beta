@@ -1,5 +1,5 @@
 import { json, type RequestHandler } from "@sveltejs/kit"
-import { canUseMcpSharepoint } from "$lib/authorization"
+import { canEditMcpSource, canUseMcpSharepoint } from "$lib/authorization"
 import { APP_CONFIG } from "$lib/server/app-config/app-config"
 import { getMcpSourceStore } from "$lib/server/db/get-db"
 import { HTTPError } from "$lib/server/middleware/http-error"
@@ -26,6 +26,9 @@ const replaceMcpSource: ApiNextFunction = async ({ requestEvent, user }) => {
 	const existing = await mcpSourceStore.getMcpSource(sourceId)
 	if (!existing) {
 		throw new HTTPError(404, "MCP source not found")
+	}
+	if (!canEditMcpSource(existing, user, APP_CONFIG.APP_ROLES)) {
+		throw new HTTPError(403, "Not authorized to edit this MCP source")
 	}
 
 	const body = await requestEvent.request.json()
@@ -66,6 +69,9 @@ const deleteMcpSource: ApiNextFunction = async ({ requestEvent, user }) => {
 	const existing = await mcpSourceStore.getMcpSource(sourceId)
 	if (!existing) {
 		throw new HTTPError(404, "MCP source not found")
+	}
+	if (!canEditMcpSource(existing, user, APP_CONFIG.APP_ROLES)) {
+		throw new HTTPError(403, "Not authorized to delete this MCP source")
 	}
 
 	await mcpSourceStore.deleteMcpSource(sourceId)

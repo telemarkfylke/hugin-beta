@@ -1,6 +1,9 @@
 import { logger } from "@vestfoldfylke/loglady"
 import { type Collection, type Db, type MongoClient, ObjectId } from "mongodb"
 import { env } from "$env/dynamic/private"
+import { canViewMcpSource } from "$lib/authorization"
+import { APP_CONFIG } from "$lib/server/app-config/app-config"
+import type { AuthenticatedPrincipal } from "$lib/types/authentication"
 import type { McpSource, NewMcpSource } from "$lib/types/mcp-source"
 import type { IMcpSourceStore } from "./interface"
 
@@ -45,10 +48,11 @@ export class MongoMcpSourceStore implements IMcpSourceStore {
 		return { ...source, _id: source._id.toString() }
 	}
 
-	async getMcpSources(): Promise<McpSource[]> {
+	async getMcpSources(principal: AuthenticatedPrincipal): Promise<McpSource[]> {
 		const db = await this.getDb()
 		const collection: Collection<DbMcpSource> = db.collection(this.collectionName)
-		return (await collection.find({}).toArray()).map((source) => ({ ...source, _id: source._id.toString() }))
+		const sources = (await collection.find({}).toArray()).map((source) => ({ ...source, _id: source._id.toString() }))
+		return sources.filter((source) => canViewMcpSource(source, principal, APP_CONFIG.APP_ROLES))
 	}
 
 	async createMcpSource(source: NewMcpSource): Promise<McpSource> {
