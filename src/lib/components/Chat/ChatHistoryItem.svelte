@@ -20,7 +20,7 @@
       <TypingDots />
     {:else}
     {#if chatHistoryItem.status === "searching"}
-        <p>Søker på nettet...</p>
+        <p>{chatHistoryItem.searchingDetail ?? "Søker på nettet..."}</p>
       {/if}
       {#each chatHistoryItem.outputs as chatItem}
         <ChatItem {chatItem} completed={chatHistoryItem.status === "completed"} />

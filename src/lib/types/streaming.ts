@@ -80,7 +80,10 @@ const ResponseToolCall = z.object({
 	event: z.literal("response.tool_call"),
 	data: z.object({
 		itemId: z.string(),
-		toolName: z.string()
+		toolName: z.string(),
+		// Human-readable status text (e.g. "Ser gjennom mappen «FLG-Referat»") - see
+		// describe-tool-call.ts. Optional so an older/not-yet-updated producer of this event still validates.
+		detail: z.string().optional()
 	})
 })
 

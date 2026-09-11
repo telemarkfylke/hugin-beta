@@ -7,6 +7,14 @@ describe("MuginSse tool events", () => {
 		expect(parsed.event).toBe("response.tool_call")
 	})
 
+	it("parses response.tool_call with an optional human-readable detail", () => {
+		const parsed = MuginSse.parse({ event: "response.tool_call", data: { itemId: "call_1", toolName: "Search_SharePoint", detail: "Søker i SharePoint etter «budsjett»" } })
+		expect(parsed.event).toBe("response.tool_call")
+		if (parsed.event === "response.tool_call") {
+			expect(parsed.data.detail).toBe("Søker i SharePoint etter «budsjett»")
+		}
+	})
+
 	it("parses response.tool_result with ok status", () => {
 		const parsed = MuginSse.parse({ event: "response.tool_result", data: { itemId: "call_1", toolName: "Search_SharePoint", status: "ok" } })
 		expect(parsed.event).toBe("response.tool_result")
