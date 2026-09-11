@@ -1,6 +1,7 @@
 import { logger } from "@vestfoldfylke/loglady"
 import { createSse } from "$lib/streaming"
 import type { ChatResponseUsage } from "$lib/types/chat"
+import { describeToolCallForUser } from "./describe-tool-call"
 import type { McpClient } from "./mcp-client"
 
 export type ToolTurnEvent =
@@ -21,20 +22,35 @@ const DEFAULT_MAX_ITERATIONS = 5
 
 export const runMcpAgenticLoop = (driver: ToolTurnDriver, mcpClient: McpClient, options?: { maxIterations?: number }): ReadableStream<Uint8Array> => {
 	const maxIterations = options?.maxIterations ?? DEFAULT_MAX_ITERATIONS
+	// Set by cancel() when the consumer disconnects (e.g. the client's HTTP connection drops mid-way
+	// through a long sequence of tool calls - the more documents/tool calls a turn needs, the bigger
+	// this window is). Checked before every controller.enqueue() and before starting any further
+	// work, since the controller throws ERR_INVALID_STATE if written to after cancellation - without
+	// this guard, the loop just keeps making real MCP/vendor calls for a request nobody is listening
+	// to anymore, and eventually crashes trying to report progress on those calls to nobody.
+	let cancelled = false
 
 	return new ReadableStream<Uint8Array>({
 		async start(controller) {
 			const accumulatedUsage: ChatResponseUsage = { inputTokens: 0, outputTokens: 0, totalTokens: 0 }
+			const enqueue = (chunk: Uint8Array): void => {
+				if (cancelled) return
+				controller.enqueue(chunk)
+			}
 			try {
 				let turn = driver.start()
 				for (let iteration = 0; ; iteration++) {
+					if (cancelled) return
+
 					const pendingCalls: PendingCall[] = []
 
 					for await (const event of turn) {
+						if (cancelled) return
 						if (event.type === "text_delta") {
-							controller.enqueue(createSse({ event: "response.output_text.delta", data: { itemId: event.itemId, content: event.content } }))
+							enqueue(createSse({ event: "response.output_text.delta", data: { itemId: event.itemId, content: event.content } }))
 						} else if (event.type === "tool_call") {
-							controller.enqueue(createSse({ event: "response.tool_call", data: { itemId: event.callId, toolName: event.toolName } }))
+							const detail = describeToolCallForUser(event.toolName, event.arguments)
+							enqueue(createSse({ event: "response.tool_call", data: { itemId: event.callId, toolName: event.toolName, detail } }))
 							pendingCalls.push({ callId: event.callId, toolName: event.toolName, arguments: event.arguments })
 						} else if (event.type === "usage") {
 							accumulatedUsage.inputTokens += event.usage.inputTokens
@@ -42,6 +58,8 @@ export const runMcpAgenticLoop = (driver: ToolTurnDriver, mcpClient: McpClient, 
 							accumulatedUsage.totalTokens += event.usage.totalTokens
 						}
 					}
+
+					if (cancelled) return
 
 					if (pendingCalls.length === 0) {
 						break
@@ -58,22 +76,31 @@ export const runMcpAgenticLoop = (driver: ToolTurnDriver, mcpClient: McpClient, 
 
 					const results: ToolResult[] = []
 					for (const call of pendingCalls) {
+						if (cancelled) return
 						const result = await executeToolCall(mcpClient, call)
+						if (cancelled) return
 						results.push(result)
-						controller.enqueue(createSse({ event: "response.tool_result", data: { itemId: call.callId, toolName: call.toolName, status: result.isError ? "error" : "ok" } }))
+						enqueue(createSse({ event: "response.tool_result", data: { itemId: call.callId, toolName: call.toolName, status: result.isError ? "error" : "ok" } }))
 					}
 
+					if (cancelled) return
 					turn = driver.continueWith(results)
 				}
 
-				controller.enqueue(createSse({ event: "response.done", data: { usage: accumulatedUsage } }))
+				if (cancelled) return
+				enqueue(createSse({ event: "response.done", data: { usage: accumulatedUsage } }))
 				controller.close()
 			} catch (error) {
+				if (cancelled) return
 				logger.errorException(error, "[agentic-loop] Agentic loop failed")
 				const message = error instanceof Error ? error.message : "Unknown error"
-				controller.enqueue(createSse({ event: "response.error", data: { code: "mcp_loop_error", message } }))
+				enqueue(createSse({ event: "response.error", data: { code: "mcp_loop_error", message } }))
 				controller.close()
 			}
+		},
+		cancel(reason) {
+			cancelled = true
+			logger.info("[agentic-loop] Stream cancelled by consumer: {reason}", String(reason ?? "unknown"))
 		}
 	})
 }

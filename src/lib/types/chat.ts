@@ -119,6 +119,10 @@ export type ChatResponseObject = {
 	createdAt: string
 	outputs: ChatOutputItem[]
 	status: "completed" | "failed" | "in_progress" | "cancelled" | "queued" | "incomplete" | "searching"
+	// Human-readable detail shown alongside status "searching" for an MCP/website tool call in
+	// flight (e.g. "Ser gjennom mappen «FLG-Referat»") - see describe-tool-call.ts. Undefined for a
+	// genuine web_search "searching" state, which keeps its own generic message.
+	searchingDetail?: string | undefined
 	usage: ChatResponseUsage
 }
 

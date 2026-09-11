@@ -20,6 +20,19 @@ describe("applyChatSseEventToResponseObject - tool events", () => {
 		expect(responseObject.outputs).toEqual([])
 	})
 
+	it("carries the tool_call's detail text onto searchingDetail, for a more specific status than the generic web-search message", () => {
+		const responseObject = buildResponseObject()
+		applyChatSseEventToResponseObject(responseObject, { event: "response.tool_call", data: { itemId: "call_1", toolName: "List_SharePoint_Documents", detail: "Ser gjennom mappen «FLG-Referat»" } })
+		expect(responseObject.searchingDetail).toBe("Ser gjennom mappen «FLG-Referat»")
+	})
+
+	it("clears searchingDetail on a genuine web search (response.searching), so a stale MCP detail never shows for it", () => {
+		const responseObject = buildResponseObject()
+		applyChatSseEventToResponseObject(responseObject, { event: "response.tool_call", data: { itemId: "call_1", toolName: "List_SharePoint_Documents", detail: "Ser gjennom mappen «FLG-Referat»" } })
+		applyChatSseEventToResponseObject(responseObject, { event: "response.searching", data: {} })
+		expect(responseObject.searchingDetail).toBeUndefined()
+	})
+
 	it("sets status to in_progress on a successful response.tool_result", () => {
 		const responseObject = buildResponseObject()
 		applyChatSseEventToResponseObject(responseObject, { event: "response.tool_result", data: { itemId: "call_1", toolName: "Search_SharePoint", status: "ok" } })
