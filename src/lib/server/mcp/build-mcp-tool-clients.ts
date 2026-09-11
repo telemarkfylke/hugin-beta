@@ -14,7 +14,7 @@ export type BuildMcpToolClientsResult = {
 // Groups the bot's selected McpSources by `server` and builds one scoped client per group -
 // today there's only ever one group ("sharepoint"), sharing the one real SharePoint MCP
 // connection (getSharepointMcpClient() is already a singleton) but scoped to the UNION of every
-// selected SharePoint source's folders/searchEnabled. A future second server just adds another
+// selected SharePoint source's folders/searchEnabled/lists. A future second server just adds another
 // `if` branch here - see mcp-source.ts's module comment.
 export const buildMcpToolClients = async (sources: McpSource[]): Promise<BuildMcpToolClientsResult> => {
 	const clients: McpClient[] = []
@@ -28,7 +28,8 @@ export const buildMcpToolClients = async (sources: McpSource[]): Promise<BuildMc
 		} else {
 			const folders = sharepointSources.flatMap((source) => source.folders)
 			const searchEnabled = sharepointSources.some((source) => source.searchEnabled)
-			clients.push(createScopedSharePointClient(baseClient, folders, searchEnabled))
+			const lists = Array.from(new Set(sharepointSources.flatMap((source) => source.lists)))
+			clients.push(createScopedSharePointClient(baseClient, folders, searchEnabled, lists))
 		}
 	}
 

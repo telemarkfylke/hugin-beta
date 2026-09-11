@@ -25,6 +25,15 @@ export type McpSourceConfig = {
 	// Default false - whether this should ever be offered is an open question pending the MCP
 	// server owner's input, see scoped-sharepoint-client.ts.
 	searchEnabled: boolean
+	// Governs Get_SharePoint_List_Items - SharePoint "Lists" (tabular/columned data, e.g. a
+	// register or a form's submissions) are a wholly separate content type from the document
+	// library folders above, not organized by path at all, so they need their own scope: a plain
+	// allow-list of list display names (matched case-insensitively - same as the real tool does,
+	// verified live). No matchType/prefix concept here, unlike folders - lists don't nest, so
+	// "exact name" is the only kind of match that means anything. Empty array = no list access.
+	// List_SharePoint_Lists itself (site-wide, unscopable discovery) is never exposed to the model
+	// regardless of this - see scoped-sharepoint-client.ts.
+	lists: string[]
 }
 
 export type McpSource = McpSourceConfig & {
@@ -63,9 +72,13 @@ export const McpSourceInputSchema = z
 					matchType: z.enum(["exact", "prefix"])
 				})
 			),
-			searchEnabled: z.boolean()
+			searchEnabled: z.boolean(),
+			lists: z.array(z.string())
 		})
 	])
-	.refine((input) => input.folders.length > 0 || input.searchEnabled, "Kilden må enten ha minst én mappe eller ha fritekst-søk aktivert - ellers gir den ingen tilgang i det hele tatt")
+	.refine(
+		(input) => input.folders.length > 0 || input.searchEnabled || input.lists.length > 0,
+		"Kilden må enten ha minst én mappe, minst én liste, eller ha fritekst-søk aktivert - ellers gir den ingen tilgang i det hele tatt"
+	)
 
 export type McpSourceInput = z.infer<typeof McpSourceInputSchema>

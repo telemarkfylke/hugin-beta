@@ -25,7 +25,15 @@
 	let userCanSetAnonymousEmbed = $derived(canSetAnonymousEmbed(chatState.user, chatState.APP_CONFIG.APP_ROLES))
 	let userCanUseRagservice = $derived(canUseRagservice(chatState.user, chatState.APP_CONFIG.APP_ROLES))
 	let userCanUseWebsiteDataSource = $derived(canUseWebsiteDataSource(chatState.user, chatState.APP_CONFIG.APP_ROLES))
-	let mcpSharepointAvailable = $derived(chatState.APP_CONFIG.MCP_SHAREPOINT_ENABLED && canUseMcpSharepoint(chatState.user, chatState.APP_CONFIG.APP_ROLES))
+	// Deliberately just a role check, not "is the real SharePoint connection configured right now"
+	// (there used to be a separate AppConfig flag for that, removed as dead weight along with this
+	// check - see mcp-config.ts's own env.MCP_SHAREPOINT_ENABLED, which still gates the server
+	// connection itself). Gating this picker on connection availability would hide already-created,
+	// published MCP sources the moment the env vars are missing/wrong on a given deployment, while
+	// the admin list page (role-only) would still show them as selectable-looking. Matches
+	// ragservice/website: whether the underlying source is actually reachable is a chat-time concern
+	// (see chat/+server.ts's mcpUnavailableStream), not a config-time one.
+	let userCanUseMcpSharepoint = $derived(canUseMcpSharepoint(chatState.user, chatState.APP_CONFIG.APP_ROLES))
 	let embedUrl = $derived(chatState.chat.config._id ? `${page.url.origin}/embed/agents/${chatState.chat.config._id}` : "")
 	let publicEmbedUrl = $derived(chatState.chat.config._id ? `${page.url.origin}/public/embed/agents/${chatState.chat.config._id}` : "")
 	// Recommended snippet - drops a floating, ready-styled chat bubble via static/public/widget.js,
@@ -90,7 +98,7 @@
 		if (userCanUseWebsiteDataSource) {
 			availableWebsiteSources = await websiteSourcesApi.getSources()
 		}
-		if (mcpSharepointAvailable) {
+		if (userCanUseMcpSharepoint) {
 			availableMcpSources = await mcpSourcesApi.getSources()
 		}
 	})
@@ -406,7 +414,7 @@
 				{/if}
 
 				<!-- Data sources -->
-				{#if userCanUseRagservice || mcpSharepointAvailable || userCanUseWebsiteDataSource}
+				{#if userCanUseRagservice || userCanUseMcpSharepoint || userCanUseWebsiteDataSource}
 					<div class="config-section">
 						<div class="config-item">
 							<label>Datakilder</label>

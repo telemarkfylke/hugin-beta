@@ -40,8 +40,10 @@
 	function scopeLabel(source: McpSource): string {
 		if (source.server !== "sharepoint") return ""
 		const folderCount = source.folders.length
+		const listCount = source.lists.length
 		const parts: string[] = []
 		if (folderCount > 0) parts.push(folderCount === 1 ? "1 mappe" : `${folderCount} mapper`)
+		if (listCount > 0) parts.push(listCount === 1 ? "1 liste" : `${listCount} lister`)
 		if (source.searchEnabled) parts.push("fritekst-søk")
 		return parts.join(", ") || "ingen tilgang"
 	}

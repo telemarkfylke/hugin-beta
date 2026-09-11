@@ -14,15 +14,8 @@
 		canUseTranscription: boolean
 		canvasEnabled: boolean
 		isAdmin: boolean
-		isStudentOnly: boolean
 	}
-	let { authenticatedUser, appName, isEmployee, canUseTranscription, canvasEnabled, isAdmin, isStudentOnly }: Props = $props()
-
-	// Temporary feature flag for the Datakilder menu link's audience - flip to false to restrict it
-	// back to admin-only before a prod deploy. A plain hardcoded constant on purpose: this is a
-	// short-lived, manually-flipped toggle, not worth wiring a real env var through Terraform's
-	// lifecycle exclusions for. Remove this once the feature is ready for its real audience for good.
-	const DATASOURCES_MENU_OPEN_TO_ALL = true
+	let { authenticatedUser, appName, isEmployee, canUseTranscription, canvasEnabled, isAdmin }: Props = $props()
 
 	let menuOpen = $state(true)
 	let menuAgents: { isLoading: boolean; agents: ChatConfig[]; error: string | null } = $state({ isLoading: false, agents: [], error: null })
@@ -188,19 +181,23 @@
 				{/if}
 			</div>
 			<!-- Hugin-only services. Hidden unless APP_NAME="Hugin" (defaults to "Mugin"); set it in your .env for local dev. -->
-			{#if appName === "Hugin" && (isEmployee || isAdmin)}
+			{#if appName === "Hugin"}
 				<div class="menu-section">
 					<div class="menu-section-title">Andre tjenester</div>
 					<div class="menu-items">
-						{#if canUseTranscription}
-							<a class="menu-item" class:active={page.url.pathname === "/transcription"} href="/transcription">Tale-til-notat</a>
+						{#if isEmployee || isAdmin}
+							{#if canUseTranscription}
+								<a class="menu-item" class:active={page.url.pathname === "/transcription"} href="/transcription">Tale-til-notat</a>
+							{/if}
+							{#if canvasEnabled}
+								<a class="menu-item" class:active={page.url.pathname.startsWith("/canvas")} href="/canvas/document">Kladdeboka</a>
+							{/if}
 						{/if}
-						{#if canvasEnabled}
-							<a class="menu-item" class:active={page.url.pathname.startsWith("/canvas")} href="/canvas/document">Kladdeboka</a>
-						{/if}
-						{#if DATASOURCES_MENU_OPEN_TO_ALL ? !isStudentOnly : isAdmin}
-							<a class="menu-item" class:active={page.url.pathname.startsWith("/datasources")} href="/datasources">Datakilder</a>
-						{/if}
+						<!-- Open to everyone, students included: Websites (one of its three tabs) has no
+						     role restriction - see canUseWebsiteDataSource - so the link itself can't be
+						     employee-gated even though Dokumentsøk/MCP still are (each tab enforces its
+						     own check server-side regardless of this link's visibility). -->
+						<a class="menu-item" class:active={page.url.pathname.startsWith("/datasources")} href="/datasources">Datakilder</a>
 					</div>
 				</div>
 			{/if}

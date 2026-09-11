@@ -18,6 +18,7 @@ const baseMcpSource: McpSource = {
 	type: "private",
 	folders: [{ value: "Budsjett", matchType: "prefix" }],
 	searchEnabled: false,
+	lists: [],
 	createdBy: { id: owner.userId },
 	createdAt: "",
 	updatedAt: ""

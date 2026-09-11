@@ -22,8 +22,8 @@
 			const result = await api.browseSharePointFolders(path)
 			currentPath = result.parentFolder
 			folders = result.folders
-		} catch {
-			loadError = "Kunne ikke hente mapper fra SharePoint akkurat nå."
+		} catch (error) {
+			loadError = error instanceof Error ? error.message : "Kunne ikke hente mapper fra SharePoint akkurat nå."
 		} finally {
 			loading = false
 		}

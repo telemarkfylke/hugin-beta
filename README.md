@@ -19,7 +19,7 @@ Hugin Beta is an internal AI-agent web application designed to provide a democra
 - **Multi-Modal Input** - Support for text, images, and document uploads
 - **Canvas** - AI-assisted document editor with web search, manual editing, Mermaid diagram generation, and export to text and Word
 - **Transcription (Tale-til-notat)** - Audio upload and transcription via an internal service, with group-gated sensitive use cases
-- **Datakilder (RAG)** - Retrieval-augmented data sources, injected into agent instructions via an on-behalf-of proxy *(actively under development)*
+- **Datakilder** - Three kinds of data sources an agent can use: RAG document libraries (retrieval, injected into `instructions`), SharePoint MCP sources (scoped folder browsing/reading via tool-calling), and Website sources (scoped page fetching via tool-calling) - each with its own tab, private-by-default ownership, and an explicit "make public" toggle to share with other users
 - **Conversation Persistence** - Optional history with auto-generated titles, incognito mode, and at-rest encryption
 - **Agent Management** - Create, publish, and share reusable chat configurations ("agents")
 - **Modern UI** - Svelte 5 Runes for reactive state management with markdown and LaTeX rendering
@@ -39,6 +39,7 @@ Hugin Beta is an internal AI-agent web application designed to provide a democra
   - [Transcription (Tale-til-notat)](#transcription-tale-til-notat)
   - [Datakilder (RAG)](#datakilder-rag)
   - [SharePoint MCP Integration](#sharepoint-mcp-integration)
+  - [Website Data Sources](#website-data-sources)
   - [Conversation History & Encryption](#conversation-history--encryption)
   - [Agent Management](#agent-management)
   - [Feature Spotlight](#feature-spotlight)
@@ -162,6 +163,10 @@ All access-control decisions go through named functions in `src/lib/authorizatio
 | `canPromptConfig` | `ADMIN`; a `shared` config; a private config owned by the user; or a published config matching the user's role/group via `accessGroups` (`"all"`, `"employee"`, `"edu_employee"`, `"student"`, or an explicit Entra group id) |
 | `canUseCanvas` | `EMPLOYEE` or `ADMIN` |
 | `canUseRagservice` | `EMPLOYEE` or `ADMIN` |
+| `canUseMcpSharepoint` | `EMPLOYEE` or `ADMIN` - can use the MCP feature at all (see one below for per-source ownership) |
+| `canUseWebsiteDataSource` | anyone authenticated, students included - Website sources touch no live external system or org-wide search, so there's no role gate beyond being logged in (see one below for per-source ownership) |
+| `canViewMcpSource` / `canViewWebsiteSource` | `ADMIN`; the source's own `type === "published"`; or the source's creator |
+| `canEditMcpSource` / `canEditWebsiteSource` | `ADMIN`, or the source's creator - regardless of `type` (a published source is still owner/admin-only to edit or delete) |
 | `isStudentOnly` | `STUDENT` is the user's *only* role (a user who is both `STUDENT` and `EDU_EMPLOYEE` does not count) |
 | `canUseHistory` | anyone except a student-only user — students are always forced into incognito, no history is ever stored |
 | `canSeeSpotlight` | audience gate for [Feature Spotlight](#feature-spotlight) announcements; uses the same `accessGroups` semantics as `canPromptConfig` |
@@ -240,9 +245,13 @@ Audio-to-text transcription via an internal service ("tale-til-notat"), availabl
 
 ### Datakilder (RAG)
 
-*Actively under development.* Retrieval-augmented data sources, available at `/ragservice`. Lets `EMPLOYEE`/`ADMIN` users manage data stores and have their retrieval results injected into an agent's `instructions` at prompt time.
+*Actively under development.* The "Datakilder" area at `/datasources` has three tabs, one per kind of data source an agent can be given: **Dokumentsøk** (RAG, `/datasources/ragservice` - this section), **MCP** (`/datasources/mcp` - see [SharePoint MCP Integration](#sharepoint-mcp-integration)), and **Websites** (`/datasources/web` - see [Website Data Sources](#website-data-sources)). `/ragservice` (the old, pre-tabs URL) redirects to `/datasources/ragservice` for old bookmarks/links.
 
-Requests are proxied to an external ragservice through an on-behalf-of (OBO) token exchange — Hugin's own Entra app registration (`ENTRA_TENANT_ID`, `ENTRA_CLIENT_ID`, `ENTRA_CLIENT_SECRET`) exchanges the user's token for one scoped to the ragservice, rather than the user talking to it directly.
+The three tabs don't share one audience: Dokumentsøk and MCP are `EMPLOYEE`/`ADMIN`-only, but Websites is open to everyone, students included (see each tab's own Access control note below). The "Datakilder" menu link and the bare `/datasources` index route reflect this - the menu link is always shown, and the index route redirects to Dokumentsøk for employees/admins or straight to Websites for anyone without access to that tab, rather than bouncing them off an access-denied page.
+
+This section covers Dokumentsøk: lets `EMPLOYEE`/`ADMIN` users manage RAG data stores and have their retrieval results injected into an agent's `instructions` at prompt time.
+
+Requests are proxied to an external ragservice through an on-behalf-of (OBO) token exchange — Hugin's own Entra app registration (`ENTRA_TENANT_ID`, `ENTRA_CLIENT_ID`, `ENTRA_CLIENT_SECRET`) exchanges the user's token for one scoped to the ragservice, rather than the user talking to it directly. RAG stores/access are entirely managed by that external ragservice - unlike the MCP and Website sources below, there is no separate Hugin-native ownership/visibility model for them.
 
 **Access control:** Gated by `canUseRagservice` (`EMPLOYEE` or `ADMIN`).
 
@@ -250,7 +259,8 @@ Requests are proxied to an external ragservice through an on-behalf-of (OBO) tok
 
 | File | Purpose |
 |------|---------|
-| `src/routes/ragservice/+page.svelte` | UI — data store management |
+| `src/routes/datasources/+layout.svelte` | Shared tab strip (Dokumentsøk/MCP/Websites) |
+| `src/routes/datasources/ragservice/+page.svelte` | UI — data store management |
 | `src/routes/api/obo/rag/[...path]/+server.ts` | OBO token exchange + proxy to the external ragservice |
 | `src/lib/ragservice/components/` | Data store, chunk, file upload, access, and settings components |
 | `src/lib/ragservice/adapters/ragserviceApi.ts` | Client for the external ragservice API |
@@ -260,20 +270,31 @@ Requests are proxied to an external ragservice through an on-behalf-of (OBO) tok
 
 ### SharePoint MCP Integration
 
-Read-only access to SharePoint via a [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server, surfaced as a data source in the same "Datakilder" picker used for RAG libraries above. Selecting "SharePoint (Telemark fylke)" from the dropdown adds it as a removable chip on the assistant, exactly like adding a RAG library — there is no separate toggle.
+Read-only, **scoped** access to SharePoint via a [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server, managed at `/datasources/mcp` as named **MCP-kilder** (`McpSource`) and selectable (one or more per assistant) in the same Datakilder picker used for RAG libraries. Modeled as a discriminated union on `server` - `"sharepoint"` is the only option today, but the type/UI already have room for a second MCP server later without a redesign.
 
-**How it combines with RAG:** An assistant can have both a RAG library and the SharePoint MCP entry active at once. RAG retrieval still runs first and injects matched context into the assistant's `instructions`; if the MCP entry is also present, the chat then routes through the MCP agentic tool-calling loop with those RAG-augmented instructions already in place.
+Each source has:
+- **Folders** - a list of `{ value, matchType: "exact" | "prefix" }` entries (an empty-value prefix means the whole SharePoint area - a deliberate, explicitly-labelled checkbox in the form, never an accidental side effect of leaving a field blank). Picked via a built-in folder browser (calls the real server live) or typed by hand. Governs the document-library tools (`List_SharePoint_Folders`, `Get_SharePoint_Tree`, `List_SharePoint_Documents`, `Get_Document_Content`, `Get_File_Metadata`).
+- **Lister** - a plain list of SharePoint list display names (e.g. `"Programmer"`), matched case-insensitively - no prefix/hierarchy concept, since SharePoint Lists (tabular/columned data - a wholly separate content type from document library folders/files) don't nest. Governs `Get_SharePoint_List_Items`. Picked via a built-in list browser (calls `List_SharePoint_Lists` live, admin-only - see below) or typed by hand.
+- **Fritekst-søk** (`Search_SharePoint`) - off by default. This is org-wide full-text search with no folder scoping possible at all, so enabling it bypasses the folder list entirely; whether to offer it is an open question pending input from the MCP server's own owner.
+
+**Scoping is enforced entirely on Hugin's side**, not the MCP server's (which has no scoping concept of its own - see `hugin-integration.md`). `src/lib/server/mcp/scoped-sharepoint-client.ts` wraps the real MCP client with an **allow-list** (not a block-list) of reviewed tool names: the five folder-scoped tools are validated against the folder list on every call (checking whichever of `parent_folder`/`folder_name` the tool actually uses, with boundary-safe prefix matching - a prefix `"Budsjett"` never matches a sibling folder like `"Budsjett 2"`); `Get_SharePoint_List_Items` is validated on every call against the `lists` allow-list (case-insensitive exact match on `list_name`, gated on the source having at least one configured list); `Search_SharePoint` is gated by the toggle above; `Download_Document` and `List_SharePoint_Lists` are never exposed to the model at all, regardless of scope. `List_SharePoint_Lists` in particular takes **no arguments whatsoever** (verified live, see `tmp/tools.json`) - it's site-wide, unscopable discovery, so exposing it to the model would leak every list's name on the site, not just the scoped ones; it's only ever called server-side, by the admin-only `sharepoint/lists` route backing the list picker in the source form (same trust level as the folder browser - an admin configuring a source already has to see everything to choose from). A rejected call names the actual allowed folders/lists back to the model, and a system-prompt nudge (`agentic-tool-guidance.ts`) tells it to use tools proactively and never guess names - both added after live testing showed a model would otherwise guess a plausible-sounding path instead of listing first.
+
+**Ownership & visibility:** private by default (only the creator, or an admin, can see/select/edit/delete it) with an explicit "gjør offentlig" checkbox to share a source with every other user - mirrors `ChatConfig`'s own private/published + owner model (see `canViewMcpSource`/`canEditMcpSource`). Deliberately stricter than the pre-ownership version of this feature, added after every source was found to be visible to *and* editable/deletable by every employee on a shared (not just single-developer) deployment.
+
+**Combines with Website sources in one shared agentic loop** (`combined-tool-client.ts`) - an assistant can have SharePoint MCP and Website sources (and RAG) all active at once; RAG retrieval still runs first and injects matched context into `instructions`, then the combined MCP+Website tool set is offered to the model in the same turn.
+
+**Access control:** Gated by `canUseMcpSharepoint` (`EMPLOYEE` or `ADMIN`) - configuring sources, selecting them on an assistant, and actually using them in a chat all share this one gate.
 
 **Key behaviours:**
 
 - Read-only — the MCP server exposes SharePoint data retrieval tools only; no write operations.
 - Manual-config assistants only — assistants that reference a predefined vendor agent config reject an `mcp` data source with HTTP 400.
 - Supported vendors: OpenAI, Mistral, LiteLLM. Ollama is not supported.
-- Service-identity auth (client credentials flow) — the application authenticates to the MCP server using its own Entra ID service principal; no delegated user token is used.
+- Service-identity auth (client credentials flow) — the application authenticates to the one shared MCP server using its own Entra ID service principal; no delegated per-user token is used, so a user can read whatever a selected source's scope allows regardless of their own personal SharePoint permissions.
 - Access is gated by the existing assistant `accessGroups` RBAC: a user can only reach an MCP-enabled assistant if they are a member of one of the groups listed in that assistant's `accessGroups`.
-- **Not available on the anonymous public embed route** (`/public/embed/api/chat`): even if a config's data sources include the SharePoint entry, that route strips `mcp` tools before the chat is dispatched. This is deliberate — unlike RAG libraries (curated, presumed vetted for public-safe content when a maintainer opts an assistant into anonymous embedding), the MCP server is a live connection to an internal SharePoint site, and the `accessGroups` RBAC that scopes MCP exposure elsewhere doesn't apply to anonymous visitors.
+- **Not available on the anonymous public embed route** (`/public/embed/api/chat`): that route strips `mcp` tools before the chat is dispatched, regardless of what an assistant's data sources include. This is deliberate — unlike RAG libraries (curated, presumed vetted for public-safe content when a maintainer opts an assistant into anonymous embedding), the MCP server is a live connection to internal SharePoint content, and the `accessGroups` RBAC that scopes MCP exposure elsewhere doesn't apply to anonymous visitors.
 
-**Environment variables** (add to `.env` / Azure Application Settings):
+**Environment variables** (add to `.env` / Azure Application Settings) - one shared connection, not per-source:
 
 ```bash
 MCP_SHAREPOINT_ENABLED="true"                  # Set to "true" to activate
@@ -284,24 +305,57 @@ MCP_SHAREPOINT_TENANT_ID=""                   # Entra tenant ID
 MCP_SHAREPOINT_SCOPE="api://.../.default"     # OAuth scope for the MCP server
 ```
 
-When `MCP_SHAREPOINT_ENABLED` is absent or not `"true"`, the feature is silently disabled and all other `MCP_SHAREPOINT_*` variables are ignored — the "SharePoint (Telemark fylke)" option does not appear in the Datakilder dropdown.
+When `MCP_SHAREPOINT_ENABLED` is absent or not `"true"`, the real SharePoint connection never gets attempted, and any chat that needs it degrades gracefully to a "not available" message. This is purely a server-side connection concern: already-created MCP sources still appear and remain selectable in the Datakilder picker either way - whether the connection behind them actually works is only checked when a chat using one is sent, not when picking a source for an assistant.
 
-**Server-side setup** (app-role grant `SharePoint.MCP.Read`, secret rotation before Dec 2026): see [`hugin-integration.md`](hugin-integration.md).
+**Server-side setup** (app-role grant `SharePoint.MCP.Read`, secret rotation before Dec 2026): see [`hugin-integration.md`](hugin-integration.md) - note that document has been found to disagree with the real server on several points (parameter names, tool count, an invented parameter); where they conflict, trust the live-verified behaviour described above.
 
 **Relevant files:**
 
 | File | Purpose |
 |------|---------|
-| `src/lib/server/mcp/mcp-config.ts` | Reads `MCP_SHAREPOINT_*` env vars |
-| `src/lib/server/mcp/mcp-token.ts` | Cached client-credentials token provider |
-| `src/lib/server/mcp/mcp-client.ts` | Connected MCP client singleton |
+| `src/routes/datasources/mcp/+page.svelte` | UI — MCP source management (`McpSourceList`/`McpSourceForm`) |
+| `src/lib/mcp-sources/components/McpFolderBrowser.svelte` | Live folder browser backing the form |
+| `src/lib/mcp-sources/components/McpListBrowser.svelte` | Live SharePoint list-name browser backing the form |
+| `src/lib/mcp-sources/server/adapters/` | `IMcpSourceStore` + Mongo/mock adapters (own-folder convention, see `CLAUDE.md`) |
+| `src/routes/api/mcp-sources/` | CRUD for sources + admin-only `sharepoint/browse` folder listing and `sharepoint/lists` list-name listing |
+| `src/lib/server/mcp/scoped-sharepoint-client.ts` | Folder/list/tool allow-list enforcement |
+| `src/lib/server/mcp/parse-tool-result-items.ts` | Shared defensive JSON-parsing for tool results with an uncertain/varying wrapping shape |
+| `src/lib/server/mcp/parse-sharepoint-folder-list.ts` / `parse-sharepoint-list-names.ts` | Parse `List_SharePoint_Folders`/`List_SharePoint_Lists` results into the admin browsers' picker data |
+| `src/lib/server/mcp/build-mcp-tool-clients.ts` | Resolves an assistant's selected sources into one scoped client |
+| `src/lib/server/mcp/agentic-tool-guidance.ts` | System-prompt nudge appended when any agentic tool source is active |
+| `src/lib/server/mcp/combined-tool-client.ts` | Merges MCP + Website tool clients into one for the same chat turn |
+| `src/lib/server/mcp/mcp-config.ts` / `mcp-token.ts` / `mcp-client.ts` | Env vars, cached client-credentials token, connected MCP client singleton |
 | `src/lib/server/mcp/mcp-tools.ts` | Neutral tool type + per-provider adapters |
 | `src/lib/server/mcp/agentic-loop.ts` | Driver-agnostic agentic tool-calling loop |
-| `src/lib/server/mcp/run-mcp-chat.ts` | MCP chat entry point with graceful degradation |
+| `src/lib/server/mcp/run-agentic-chat.ts` | Shared agentic chat entry point with graceful degradation (MCP and Website both use this) |
 | `src/lib/server/mcp/drivers/` | Per-vendor tool drivers (OpenAI Responses, Mistral conversations, LiteLLM chat-completions) |
-| `src/lib/validation/parse-chat-config.ts` | Rejects `mcp` data sources on predefined vendor-agent configs |
+| `src/lib/authorization.ts` | `canUseMcpSharepoint`, `canViewMcpSource`, `canEditMcpSource` |
+| `src/lib/validation/parse-chat-config.ts` | Rejects `mcp`/website data sources on predefined vendor-agent configs |
 | `src/routes/public/embed/api/chat/+server.ts` | Strips `mcp` tools before dispatch on the anonymous embed route |
-| `src/lib/components/Chat/ChatConfigPanel.svelte` | Datakilder dropdown — adds/removes the SharePoint entry |
+
+---
+
+### Website Data Sources
+
+Scoped access to specific web pages, managed at `/datasources/web` as named **Website-kilder** (`WebsiteSource`) and selectable (one or more per assistant) in the Datakilder picker. Unlike RAG, this is **not vectorized/indexed content** - it's a tool-calling capability (`browse_website`), similar in spirit to the built-in `web_search` tool but restricted to only the URLs/domains a source configures, and 100% Hugin-native (no external service, no env vars).
+
+Each source has **entries** - a list of `{ value: URL, matchType: "exact" | "prefix" }`: `"exact"` allows only that one page; `"prefix"` allows a whole path/section (e.g. `https://example.no/buss/`) or, with a bare origin, an entire domain.
+
+When called, the server fetches the page, converts it to plain text (`html-to-text`), and appends any same-scope links found on the page to the result - so a model working within a `"prefix"` source can navigate deeper (e.g. from a section front page into its sub-pages) across successive tool calls, one page at a time, never leaving the configured scope.
+
+**Ownership & visibility, and combining with MCP/RAG**: identical model to SharePoint MCP sources above - private by default with an explicit "gjør offentlig" toggle (`canViewWebsiteSource`/`canEditWebsiteSource`), and Website + MCP (+ RAG) sources on the same assistant all become available in one shared agentic loop turn.
+
+**Access control:** Gated by `canUseWebsiteDataSource` - unlike Dokumentsøk/MCP, this is open to *every* authenticated user, students included. Website sources touch no live external system and grant no org-wide search/document access - they're just admin-curated URLs a bot may fetch - so there's no role restriction beyond being logged in; the ownership/visibility model above (private-by-default + "gjør offentlig") still governs who can create, edit or delete a given source.
+
+**Relevant files:**
+
+| File | Purpose |
+|------|---------|
+| `src/routes/datasources/web/+page.svelte` | UI — Website source management (`WebsiteSourceList`/`WebsiteSourceForm`) |
+| `src/lib/website-sources/server/adapters/` | `IWebsiteSourceStore` + Mongo/mock adapters |
+| `src/routes/api/website-sources/` | CRUD for sources |
+| `src/lib/server/website-tools/website-tool-client.ts` | The `browse_website` tool: fetch, HTML→text, scope-filtered link discovery |
+| `src/lib/authorization.ts` | `canUseWebsiteDataSource`, `canViewWebsiteSource`, `canEditWebsiteSource` |
 
 ---
 
@@ -562,6 +616,9 @@ RAGSERVICE_TOKEN=""                # For local testing only - paste a token here
 ENTRA_TENANT_ID=""
 ENTRA_CLIENT_ID=""
 ENTRA_CLIENT_SECRET=""
+
+# Website data sources need no env vars at all - 100% Hugin-native, no external service.
+# SharePoint MCP env vars are documented in the SharePoint MCP Integration section above.
 ```
 
 > **`BODY_SIZE_LIMIT` gotcha:** `APP_CONFIG.BODY_SIZE_LIMIT_BYTES` only honours values ending in `M` (e.g. `"512M"`) — a raw byte count like `"536870912"` silently falls back to a 10 MB default. `adapter-node` reads the raw env var separately for its own request limit, so the two can disagree if you set a raw byte count.
@@ -606,13 +663,17 @@ src/
 │   │   ├── ollama/              # Ollama implementation
 │   │   ├── litellm/             # LiteLLM implementation
 │   │   ├── ragservice/          # RAG on-behalf-of token exchange
+│   │   ├── mcp/                 # SharePoint MCP: connection, scoping, shared agentic loop
+│   │   ├── website-tools/       # Website source browse_website tool (fetch, HTML→text, links)
 │   │   ├── transcription/       # Transcription job store + external service client
 │   │   ├── auth/                # Authentication handlers
 │   │   ├── middleware/          # HTTP middleware
 │   │   ├── app-config/          # APP_CONFIG - vendors, models, roles, feature flags
-│   │   └── db/                  # Database abstraction
+│   │   └── db/                  # Database abstraction (IChatConfigStore only - see CLAUDE.md)
 │   ├── conversationstore/         # Conversation persistence + at-rest encryption
-│   ├── ragservice/                # Datakilder UI components + API adapter (client-side)
+│   ├── ragservice/                # Dokumentsøk UI components + API adapter (client-side)
+│   ├── mcp-sources/                # MCP source UI + own server/adapters/ (per-feature store, see CLAUDE.md)
+│   ├── website-sources/            # Website source UI + own server/adapters/
 │   ├── components/                # Svelte components
 │   │   └── Chat/                 # Chat UI components
 │   ├── authorization.ts           # Access-control functions (see Authorization section)
@@ -627,10 +688,13 @@ src/
 │   │   ├── chatconfigs/         # Config CRUD endpoints
 │   │   ├── conversations/       # Conversation history endpoints
 │   │   ├── transcription/       # Transcription job + upload/download endpoints
+│   │   ├── mcp-sources/         # MCP source CRUD + admin folder-browse proxy
+│   │   ├── website-sources/     # Website source CRUD
 │   │   └── obo/rag/             # On-behalf-of proxy to the external ragservice
 │   ├── canvas/                  # Canvas document editor
 │   ├── transcription/           # Tale-til-notat UI
-│   ├── ragservice/              # Datakilder UI
+│   ├── datasources/              # Datakilder tab shell (ragservice/mcp/web sub-routes)
+│   ├── ragservice/               # Thin redirect to /datasources/ragservice (old bookmarks)
 │   ├── agents/                  # Agent management pages
 │   └── admin/                   # Admin pages
 └── app.d.ts                     # Global type definitions
@@ -733,6 +797,18 @@ Proxies large audio/video uploads to the internal Copyparty file server.
 ### `/api/obo/rag/[...path]`
 
 On-behalf-of token exchange, then proxies the request to the external ragservice. Gated by `canUseRagservice`. See [Datakilder](#datakilder-rag).
+
+### `/api/mcp-sources`, `/api/mcp-sources/[_id]`
+
+CRUD for MCP sources. GET/POST gated by `canUseMcpSharepoint`; list is filtered to the caller's own sources + everyone's published ones (`canViewMcpSource`, admin sees all); PUT/DELETE additionally require `canEditMcpSource` (owner or admin). See [SharePoint MCP Integration](#sharepoint-mcp-integration).
+
+### `/api/mcp-sources/sharepoint/browse`
+
+Admin-only, read-only proxy to `List_SharePoint_Folders` on the real MCP server, backing the folder-browser UI in the source form. Same gate as using MCP at all (`canUseMcpSharepoint`) - not stricter, since the underlying service credential already has that reach either way.
+
+### `/api/website-sources`, `/api/website-sources/[_id]`
+
+CRUD for Website sources - same shape as `/api/mcp-sources` above, gated by `canUseWebsiteDataSource`/`canViewWebsiteSource`/`canEditWebsiteSource`. Unlike `/api/mcp-sources`, `canUseWebsiteDataSource` is open to every authenticated user, not just `EMPLOYEE`/`ADMIN`. See [Website Data Sources](#website-data-sources).
 
 ---
 

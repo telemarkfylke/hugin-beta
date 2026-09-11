@@ -1,6 +1,5 @@
 import { env } from "$env/dynamic/private"
 import type { AppConfig } from "$lib/types/app-config"
-import { getMcpConfig } from "../mcp/mcp-config"
 import {
 	MISTRAL_DEFAULT_SUPPORTED_MESSAGE_FILE_MIME_TYPES,
 	MISTRAL_DEFAULT_SUPPORTED_MESSAGE_IMAGE_MIME_TYPES,
@@ -21,7 +20,6 @@ export const APP_CONFIG: AppConfig = {
 	CONVERSATION_EXPORT_DISABLED: env.CONVERSATION_EXPORT_DISABLED === "true",
 	NEW_CHAT_CONFIRM_DISABLED: env.NEW_CHAT_CONFIRM_DISABLED === "true",
 	CANVAS_ENABLED: env.CANVAS_ENABLED === "true",
-	MCP_SHAREPOINT_ENABLED: getMcpConfig() !== null,
 	TRANSCRIPTION_GREEN_GROUP_ID: env.TRANSCRIPTION_GREEN_ID,
 	TRANSCRIPTION_GROUPS: (() => {
 		const groups = []

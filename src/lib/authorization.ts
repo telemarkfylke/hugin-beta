@@ -112,8 +112,13 @@ export const canUseMcpSharepoint = (user: AuthenticatedPrincipal, appRoles: AppR
 	return user.roles.includes(appRoles.EMPLOYEE) || user.roles.includes(appRoles.ADMIN)
 }
 
-export const canUseWebsiteDataSource = (user: AuthenticatedPrincipal, appRoles: AppRoles): boolean => {
-	return user.roles.includes(appRoles.EMPLOYEE) || user.roles.includes(appRoles.ADMIN)
+// Unlike Ragservice/MCP, Website sources touch no live external system and grant no org-wide
+// search/document access - they're just admin-curated URLs a bot is allowed to fetch. Open to
+// every authenticated user, students included: someone must still create/publish a source (or
+// have one shared with them) before it's usable, so there's no meaningful "who can use the
+// feature at all" gate left to apply here beyond being logged in.
+export const canUseWebsiteDataSource = (_user: AuthenticatedPrincipal, _appRoles: AppRoles): boolean => {
+	return true
 }
 
 // canUse{Mcp,WebsiteData}Source above only gates whether someone can use the *feature* at all

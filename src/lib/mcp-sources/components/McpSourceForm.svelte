@@ -3,6 +3,7 @@
 	import type { McpSource, SharePointFolderEntry } from "$lib/types/mcp-source"
 	import "$lib/ragservice/components/ragservice-shared.css"
 	import McpFolderBrowser from "./McpFolderBrowser.svelte"
+	import McpListBrowser from "./McpListBrowser.svelte"
 
 	type Props = {
 		source: McpSource | null // null = creating a new source
@@ -30,7 +31,10 @@
 	let folders: SharePointFolderEntry[] = $state(initialFolders.filter((f) => !(f.matchType === "prefix" && f.value.trim() === "")).map((f) => ({ ...f })))
 	let searchEnabled = $state(source?.server === "sharepoint" ? source.searchEnabled : false)
 
+	let lists: string[] = $state(source?.server === "sharepoint" ? [...source.lists] : [])
+
 	let showBrowser = $state(false)
+	let showListBrowser = $state(false)
 
 	const api = new McpSourcesApi()
 
@@ -50,6 +54,23 @@
 		showBrowser = false
 	}
 
+	function addList() {
+		lists.push("")
+	}
+
+	function removeList(index: number) {
+		lists.splice(index, 1)
+	}
+
+	function onListPicked(name: string) {
+		// A list already added (even with different casing - matching is case-insensitive, see
+		// isListNameAllowed) is not added again.
+		if (!lists.some((existing) => existing.trim().toLowerCase() === name.trim().toLowerCase())) {
+			lists.push(name)
+		}
+		showListBrowser = false
+	}
+
 	async function save() {
 		saving = true
 		saveError = null
@@ -60,11 +81,12 @@
 			if (wholeAreaAccess) {
 				trimmedFolders.push({ value: "", matchType: "prefix" })
 			}
-			if (trimmedFolders.length === 0 && !searchEnabled) {
-				saveError = "Legg til minst én mappe, aktiver tilgang til hele området, eller aktiver fritekst-søk."
+			const trimmedLists = Array.from(new Set(lists.map((l) => l.trim()).filter((l) => l)))
+			if (trimmedFolders.length === 0 && trimmedLists.length === 0 && !searchEnabled) {
+				saveError = "Legg til minst én mappe eller liste, aktiver tilgang til hele området, eller aktiver fritekst-søk."
 				return
 			}
-			const input = { server, name: name.trim(), type: published ? ("published" as const) : ("private" as const), folders: trimmedFolders, searchEnabled }
+			const input = { server, name: name.trim(), type: published ? ("published" as const) : ("private" as const), folders: trimmedFolders, searchEnabled, lists: trimmedLists }
 			const result = source ? await api.updateSource(source._id, input) : await api.createSource(input)
 			if (result) {
 				onDone(result)
@@ -144,6 +166,32 @@
 	{#if wholeAreaAccess}
 		<p class="rag-muted whole-area-warning">Denne kilden blir da ikke begrenset til noen mappe i det hele tatt - boten kan lese alt tjenestekontoen har tilgang til i SharePoint, uavhengig av mappene listet over.</p>
 	{/if}
+
+	<h3 class="rag-section-title">Lister</h3>
+	<p class="rag-muted">
+		Styrer hvilke SharePoint-lister boten kan lese elementer fra (`Get_SharePoint_List_Items`) - en helt annen innholdstype enn mapper/dokumenter over (tabelldata, ikke filer). Navnet må matche listens visningsnavn (store/små bokstaver spiller ingen rolle). En tom rad lagres ikke.
+	</p>
+	<div class="entry-rows">
+		{#each lists as _, i}
+			<div class="entry-row">
+				<input type="text" placeholder="F.eks. Programmer" bind:value={lists[i]} />
+				<button type="button" class="icon-button" onclick={() => removeList(i)} title="Fjern liste">
+					<span class="material-symbols-outlined">close</span>
+				</button>
+			</div>
+		{/each}
+		<div class="folder-add-actions">
+			<button type="button" class="add-entry-btn" onclick={addList}>
+				<span class="material-symbols-outlined">add</span> Skriv inn manuelt
+			</button>
+			<button type="button" class="add-entry-btn" onclick={() => (showListBrowser = !showListBrowser)}>
+				<span class="material-symbols-outlined">list_alt</span> {showListBrowser ? "Skjul liste-velger" : "Bla gjennom SharePoint-lister"}
+			</button>
+		</div>
+		{#if showListBrowser}
+			<McpListBrowser onSelect={onListPicked} />
+		{/if}
+	</div>
 
 	<h3 class="rag-section-title">Fritekst-søk</h3>
 	<div class="rag-field-grid">
