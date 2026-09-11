@@ -63,6 +63,9 @@ describe("runMcpAgenticLoop", () => {
 
 		expect(events.map((e) => e.event)).toEqual(["response.tool_call", "response.tool_result", "response.output_text.delta", "response.done"])
 		expect(mcp.callTool).toHaveBeenCalledWith("Search_SharePoint", { query: "budsjett" })
+
+		const toolCallEvent = events.find((e) => e.event === "response.tool_call")
+		expect((toolCallEvent?.data as { detail: string }).detail).toBe("Søker i SharePoint etter «budsjett»")
 	})
 
 	it("stops at maxIterations and still emits done", async () => {

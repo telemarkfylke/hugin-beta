@@ -1,6 +1,7 @@
 import { logger } from "@vestfoldfylke/loglady"
 import { createSse } from "$lib/streaming"
 import type { ChatResponseUsage } from "$lib/types/chat"
+import { describeToolCallForUser } from "./describe-tool-call"
 import type { McpClient } from "./mcp-client"
 
 export type ToolTurnEvent =
@@ -48,7 +49,8 @@ export const runMcpAgenticLoop = (driver: ToolTurnDriver, mcpClient: McpClient, 
 						if (event.type === "text_delta") {
 							enqueue(createSse({ event: "response.output_text.delta", data: { itemId: event.itemId, content: event.content } }))
 						} else if (event.type === "tool_call") {
-							enqueue(createSse({ event: "response.tool_call", data: { itemId: event.callId, toolName: event.toolName } }))
+							const detail = describeToolCallForUser(event.toolName, event.arguments)
+							enqueue(createSse({ event: "response.tool_call", data: { itemId: event.callId, toolName: event.toolName, detail } }))
 							pendingCalls.push({ callId: event.callId, toolName: event.toolName, arguments: event.arguments })
 						} else if (event.type === "usage") {
 							accumulatedUsage.inputTokens += event.usage.inputTokens
