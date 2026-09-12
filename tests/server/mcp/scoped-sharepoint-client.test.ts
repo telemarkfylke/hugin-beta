@@ -218,6 +218,122 @@ describe("createScopedSharePointClient", () => {
 		expect(baseClient.callTool).not.toHaveBeenCalled()
 	})
 
+	describe("Search_SharePoint folder scoping (folder_path)", () => {
+		it("forwards the call unmodified when no folders are configured - a deliberate, valid 'whole-site search source' with no folder restriction", async () => {
+			const baseClient = makeBaseClient({ callTool: vi.fn().mockResolvedValue(JSON.stringify({ result: [{ title: "hit" }] })) })
+			const client = createScopedSharePointClient(baseClient, [], true, [])
+			const result = await client.callTool("Search_SharePoint", { query: "budsjett" })
+			expect(baseClient.callTool).toHaveBeenCalledTimes(1)
+			expect(baseClient.callTool).toHaveBeenCalledWith("Search_SharePoint", { query: "budsjett" })
+			expect(result).toBe(JSON.stringify({ result: [{ title: "hit" }] }))
+		})
+
+		it("forces folder_path to the single configured folder when the model omits it", async () => {
+			const baseClient = makeBaseClient({ callTool: vi.fn().mockResolvedValue(JSON.stringify({ result: [{ title: "hit" }] })) })
+			const client = createScopedSharePointClient(baseClient, [{ value: "FLG-Referat", matchType: "prefix" }], true, [])
+			await client.callTool("Search_SharePoint", { query: "budsjett" })
+			expect(baseClient.callTool).toHaveBeenCalledTimes(1)
+			expect(baseClient.callTool).toHaveBeenCalledWith("Search_SharePoint", { query: "budsjett", folder_path: "FLG-Referat" })
+		})
+
+		it("treats an explicit folder_path: null (the real tool's own default value) the same as omitted - still restricted, not passed through as a legitimate unscoped request", async () => {
+			const baseClient = makeBaseClient({ callTool: vi.fn().mockResolvedValue(JSON.stringify({ result: [] })) })
+			const client = createScopedSharePointClient(baseClient, [{ value: "FLG-Referat", matchType: "prefix" }], true, [])
+			await client.callTool("Search_SharePoint", { query: "budsjett", folder_path: null })
+			expect(baseClient.callTool).toHaveBeenCalledWith("Search_SharePoint", { query: "budsjett", folder_path: "FLG-Referat" })
+		})
+
+		it("queries once per configured folder and merges the results when there are multiple folders and no model-provided folder_path", async () => {
+			const callTool = vi.fn(async (_name: string, args: Record<string, unknown>) => {
+				if (args.folder_path === "FLG-Referat") return JSON.stringify({ result: [{ title: "referat-hit" }] })
+				if (args.folder_path === "Budsjett") return JSON.stringify({ result: [{ title: "budsjett-hit" }] })
+				throw new Error(`unexpected folder_path in test: ${String(args.folder_path)}`)
+			})
+			const baseClient = makeBaseClient({ callTool })
+			const client = createScopedSharePointClient(
+				baseClient,
+				[
+					{ value: "FLG-Referat", matchType: "prefix" },
+					{ value: "Budsjett", matchType: "prefix" }
+				],
+				true,
+				[]
+			)
+			const result = await client.callTool("Search_SharePoint", { query: "budsjett" })
+			expect(callTool).toHaveBeenCalledTimes(2)
+			expect(callTool).toHaveBeenCalledWith("Search_SharePoint", { query: "budsjett", folder_path: "FLG-Referat" })
+			expect(callTool).toHaveBeenCalledWith("Search_SharePoint", { query: "budsjett", folder_path: "Budsjett" })
+			const parsed = JSON.parse(result) as { result: Array<{ title: string }> }
+			expect(parsed.result).toEqual(expect.arrayContaining([{ title: "referat-hit" }, { title: "budsjett-hit" }]))
+			expect(parsed.result).toHaveLength(2)
+		})
+
+		it("truncates the merged multi-folder result to the requested row_limit", async () => {
+			const callTool = vi.fn(async (_name: string, args: Record<string, unknown>) => {
+				if (args.folder_path === "A") return JSON.stringify({ result: [{ title: "a1" }, { title: "a2" }] })
+				return JSON.stringify({ result: [{ title: "b1" }, { title: "b2" }] })
+			})
+			const baseClient = makeBaseClient({ callTool })
+			const client = createScopedSharePointClient(
+				baseClient,
+				[
+					{ value: "A", matchType: "prefix" },
+					{ value: "B", matchType: "prefix" }
+				],
+				true,
+				[]
+			)
+			const result = await client.callTool("Search_SharePoint", { query: "budsjett", row_limit: 3 })
+			const parsed = JSON.parse(result) as { result: unknown[] }
+			expect(parsed.result).toHaveLength(3)
+		})
+
+		it("honors a model-provided folder_path that is within scope, forwarding a single call unmodified rather than fanning out to every configured folder", async () => {
+			const baseClient = makeBaseClient({ callTool: vi.fn().mockResolvedValue(JSON.stringify({ result: [] })) })
+			const client = createScopedSharePointClient(baseClient, [{ value: "FLG-Referat", matchType: "prefix" }], true, [])
+			await client.callTool("Search_SharePoint", { query: "budsjett", folder_path: "FLG-Referat/2026" })
+			expect(baseClient.callTool).toHaveBeenCalledTimes(1)
+			expect(baseClient.callTool).toHaveBeenCalledWith("Search_SharePoint", { query: "budsjett", folder_path: "FLG-Referat/2026" })
+		})
+
+		it("rejects a model-provided folder_path that is out of scope, without forwarding it - the same guarantee every other tool already gives", async () => {
+			const baseClient = makeBaseClient()
+			const client = createScopedSharePointClient(baseClient, [{ value: "FLG-Referat", matchType: "prefix" }], true, [])
+			await expect(client.callTool("Search_SharePoint", { query: "budsjett", folder_path: "Annet" })).rejects.toThrow(/FLG-Referat/)
+			expect(baseClient.callTool).not.toHaveBeenCalled()
+		})
+
+		it("treats an empty-string folder_path the same as omitted, not as an explicit (and then rejected) request", async () => {
+			const baseClient = makeBaseClient({ callTool: vi.fn().mockResolvedValue(JSON.stringify({ result: [] })) })
+			const client = createScopedSharePointClient(baseClient, [{ value: "FLG-Referat", matchType: "prefix" }], true, [])
+			await client.callTool("Search_SharePoint", { query: "budsjett", folder_path: "" })
+			expect(baseClient.callTool).toHaveBeenCalledWith("Search_SharePoint", { query: "budsjett", folder_path: "FLG-Referat" })
+		})
+
+		it("rejects search entirely when every configured folder is 'exact' (not searchable - see the module comment on searchableFolders), rather than silently searching nothing or widening scope", async () => {
+			const baseClient = makeBaseClient()
+			const client = createScopedSharePointClient(baseClient, [{ value: "Ruens hjørne/Trudelutt", matchType: "exact" }], true, [])
+			await expect(client.callTool("Search_SharePoint", { query: "budsjett" })).rejects.toThrow(/Fritekst-søk/)
+			expect(baseClient.callTool).not.toHaveBeenCalled()
+		})
+
+		it("searches only the 'prefix' folders when the configured set mixes 'exact' and 'prefix' entries", async () => {
+			const baseClient = makeBaseClient({ callTool: vi.fn().mockResolvedValue(JSON.stringify({ result: [] })) })
+			const client = createScopedSharePointClient(
+				baseClient,
+				[
+					{ value: "Ruens hjørne/Trudelutt", matchType: "exact" },
+					{ value: "Budsjett", matchType: "prefix" }
+				],
+				true,
+				[]
+			)
+			await client.callTool("Search_SharePoint", { query: "budsjett" })
+			expect(baseClient.callTool).toHaveBeenCalledTimes(1)
+			expect(baseClient.callTool).toHaveBeenCalledWith("Search_SharePoint", { query: "budsjett", folder_path: "Budsjett" })
+		})
+	})
+
 	it("rejects Download_Document even if somehow called directly, without forwarding it", async () => {
 		const baseClient = makeBaseClient()
 		const client = createScopedSharePointClient(baseClient, [{ value: "", matchType: "prefix" }], false, [])
