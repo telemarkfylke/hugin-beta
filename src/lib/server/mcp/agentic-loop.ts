@@ -18,7 +18,20 @@ export interface ToolTurnDriver {
 
 type PendingCall = { callId: string; toolName: string; arguments: string }
 
-const DEFAULT_MAX_ITERATIONS = 5
+// A real multi-step research turn (search, list a folder, list again after a scope correction,
+// open several documents) can legitimately need more than a handful of round-trips with the model
+// before it has enough to answer - see the fallback message above for what happens if this still
+// isn't enough. Raised from 5 to 10 after live testing showed a legitimate (non-looping) research
+// turn exhausting the old cap one step before it would have reached real document content.
+const DEFAULT_MAX_ITERATIONS = 10
+
+// A model that only ever calls tools and never narrates a word (reproduced live: gpt-5.6-terra
+// chained 11 tool calls across 5 turns without a single response.output_text.delta) previously
+// produced a response.done with zero accumulated output - a completely silent, blank response to
+// the user, indistinguishable from the request having failed outright, with no error shown either.
+// This is the fallback for that case, checked right before response.done fires either way (loop
+// exhausted its pending calls naturally, or hit maxIterations).
+const NO_TEXT_FALLBACK_MESSAGE = "Jeg brukte for mange forsøk på å hente informasjon uten å finne et klart svar. Prøv å presisere spørsmålet, eller spør på nytt."
 
 export const runMcpAgenticLoop = (driver: ToolTurnDriver, mcpClient: McpClient, options?: { maxIterations?: number }): ReadableStream<Uint8Array> => {
 	const maxIterations = options?.maxIterations ?? DEFAULT_MAX_ITERATIONS
@@ -33,6 +46,7 @@ export const runMcpAgenticLoop = (driver: ToolTurnDriver, mcpClient: McpClient, 
 	return new ReadableStream<Uint8Array>({
 		async start(controller) {
 			const accumulatedUsage: ChatResponseUsage = { inputTokens: 0, outputTokens: 0, totalTokens: 0 }
+			let hasEmittedText = false
 			const enqueue = (chunk: Uint8Array): void => {
 				if (cancelled) return
 				controller.enqueue(chunk)
@@ -47,6 +61,7 @@ export const runMcpAgenticLoop = (driver: ToolTurnDriver, mcpClient: McpClient, 
 					for await (const event of turn) {
 						if (cancelled) return
 						if (event.type === "text_delta") {
+							hasEmittedText = true
 							enqueue(createSse({ event: "response.output_text.delta", data: { itemId: event.itemId, content: event.content } }))
 						} else if (event.type === "tool_call") {
 							const detail = describeToolCallForUser(event.toolName, event.arguments)
@@ -88,6 +103,9 @@ export const runMcpAgenticLoop = (driver: ToolTurnDriver, mcpClient: McpClient, 
 				}
 
 				if (cancelled) return
+				if (!hasEmittedText) {
+					enqueue(createSse({ event: "response.output_text.delta", data: { itemId: "fallback", content: NO_TEXT_FALLBACK_MESSAGE } }))
+				}
 				enqueue(createSse({ event: "response.done", data: { usage: accumulatedUsage } }))
 				controller.close()
 			} catch (error) {
