@@ -201,7 +201,11 @@
 		</div>
 	</div>
 	<p class="rag-muted search-warning">
-		Dette søker i hele organisasjonens SharePoint-indeks - uavhengig av mappene over, siden søket ikke kan avgrenses til en mappe. Avventer avklaring med MCP-serverens eier om dette bør tilbys i det hele tatt - la stå av med mindre du vet hva du gjør.
+		{#if folders.some((f) => f.matchType === "prefix")}
+			Søket begrenses automatisk til mappene over (kun de med "alt under"-tilgang - eksakte enkeltmapper uten undermapper kan ikke søkes i, bruk mappe-verktøyene for de).
+		{:else}
+			Uten minst én mappe med "alt under"-tilgang søker dette i hele organisasjonens SharePoint-indeks, uavhengig av eventuelle eksakte enkeltmapper konfigurert over.
+		{/if}
 	</p>
 
 	<div class="actions">

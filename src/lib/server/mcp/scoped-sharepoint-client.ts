@@ -2,6 +2,7 @@ import { logger } from "@vestfoldfylke/loglady"
 import type { SharePointFolderEntry } from "$lib/types/mcp-source"
 import type { McpClient } from "./mcp-client"
 import type { McpToolDefinition } from "./mcp-tools"
+import { parseToolResultItems } from "./parse-tool-result-items"
 
 // Verified live against the real SharePoint MCP server (2026-09-10, via Insomnia + a captured
 // tools/list response, see tmp/tools.json) - the integration handover doc turned out to be wrong
@@ -53,6 +54,12 @@ const FOLDER_SCOPED_TOOL_NAMES = new Set(["List_SharePoint_Folders", "Get_ShareP
 
 const FOLDER_ARG_KEYS = ["parent_folder", "folder_name"]
 
+// Search_SharePoint gained an optional folder_path parameter on 2026-09-12 (server-side change we
+// requested - see docs handover) - a plain relative path, same format/semantics as the other
+// folder tools' arguments, restricting the search index itself to that path and everything under
+// it. Confirmed live: a query with folder_path set omits hits that a call without it returns for
+// content outside that path. Before this, Search_SharePoint could not be scoped at all, which is
+// why it defaults to disabled - see callScopedSearch below for how it's now enforced.
 const SEARCH_TOOL_NAME = "Search_SharePoint"
 
 const LIST_ITEMS_TOOL_NAME = "Get_SharePoint_List_Items"
@@ -130,6 +137,64 @@ export const describeLists = (lists: string[]): string => {
 	return lists.join(", ")
 }
 
+// Search_SharePoint's folder_path is inherently recursive - it restricts to a path AND everything
+// under it, the same as our own "prefix" matchType. A "prefix" entry maps onto it exactly; an
+// "exact" entry (this folder only, explicitly NOT its subfolders, as enforced for every other
+// tool) has no equivalent in a recursive-only search - passing its value as folder_path would
+// search that folder's subtree too, which is MORE than "exact" is supposed to grant. Known,
+// deliberate v1 limitation: an "exact" entry is simply excluded from the search fan-out below (its
+// content stays reachable through the regular folder/document tools, just not full-text search) -
+// documented here rather than silently either over- or under-scoping.
+const searchableFolders = (folders: SharePointFolderEntry[]): SharePointFolderEntry[] => folders.filter((entry) => entry.matchType === "prefix")
+
+// The real tool's own default value for an omitted folder_path is `null` (verified live), not
+// simply "absent" - both must be treated as "no scope requested", same as an empty string a model
+// might plausibly send instead. None of these are a legitimate request to search unscoped once
+// this source has folders configured; scoped-search below is what runs instead.
+const hasUsableFolderPathArg = (args: Record<string, unknown>): args is Record<string, unknown> & { folder_path: string } => {
+	const value = args.folder_path
+	return typeof value === "string" && value.length > 0
+}
+
+const callScopedSearch = async (baseClient: McpClient, args: Record<string, unknown>, folders: SharePointFolderEntry[]): Promise<string> => {
+	if (folders.length === 0) {
+		// No folder restriction configured on this source at all - a deliberate, valid "whole-site
+		// search source" (see McpSourceInputSchema's refine - a source may have searchEnabled with
+		// zero folders/lists). Unrestricted, exactly as before this change existed.
+		return baseClient.callTool(SEARCH_TOOL_NAME, args)
+	}
+
+	if (hasUsableFolderPathArg(args)) {
+		// The model asked to narrow to a specific path itself (e.g. after already listing folders) -
+		// honor it as a single call if it's actually within scope, same validation the other
+		// folder-scoped tools already apply below. Reject rather than silently widen/ignore if not.
+		if (!isFolderPathAllowed(args.folder_path, folders)) {
+			throw new Error(
+				`«${args.folder_path}» er ikke en tillatt mappe for denne datakilden. Tillatte mapper: ${describeFolders(folders)}. Ikke gjett filnavn eller mappenavn - bruk List_SharePoint_Folders/List_SharePoint_Documents på en av disse mappene for å se hva som faktisk finnes, før du henter innhold.`
+			)
+		}
+		return baseClient.callTool(SEARCH_TOOL_NAME, args)
+	}
+
+	// No usable folder_path from the model - query once per searchable configured folder (in
+	// parallel; these are independent calls with no ordering dependency) and merge the results,
+	// rather than letting the tool's own "no folder_path" default (whole site) through unrestricted.
+	const scopes = searchableFolders(folders)
+	if (scopes.length === 0) {
+		// Every configured folder is "exact" (not searchable via full-text search - see the module
+		// comment above) - there is nothing this call can safely search within scope.
+		throw new Error(
+			"Fritekst-søk kan ikke begrenses til en enkelt mappe uten undermapper, og denne datakilden har ingen mapper konfigurert med bredere tilgang. Bruk List_SharePoint_Documents/Get_Document_Content på de konfigurerte mappene i stedet."
+		)
+	}
+
+	const resultsPerFolder = await Promise.all(scopes.map((entry) => baseClient.callTool(SEARCH_TOOL_NAME, { ...args, folder_path: entry.value })))
+	const mergedItems = resultsPerFolder.flatMap((text) => parseToolResultItems(text))
+	const rowLimit = args.row_limit
+	const limitedItems = typeof rowLimit === "number" && rowLimit >= 0 ? mergedItems.slice(0, rowLimit) : mergedItems
+	return JSON.stringify({ result: limitedItems })
+}
+
 export const createScopedSharePointClient = (baseClient: McpClient, folders: SharePointFolderEntry[], searchEnabled: boolean, lists: string[]): McpClient => {
 	return {
 		async listTools(): Promise<McpToolDefinition[]> {
@@ -152,7 +217,7 @@ export const createScopedSharePointClient = (baseClient: McpClient, folders: Sha
 				throw new Error(`Verktøyet ${name} er ikke tilgjengelig for denne datakilden`)
 			}
 			if (name === SEARCH_TOOL_NAME) {
-				return baseClient.callTool(name, args)
+				return callScopedSearch(baseClient, args, folders)
 			}
 			if (name === LIST_ITEMS_TOOL_NAME) {
 				const listNameArg = extractListNameArg(args)
