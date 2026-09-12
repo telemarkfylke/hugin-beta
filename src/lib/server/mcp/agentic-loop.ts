@@ -18,7 +18,12 @@ export interface ToolTurnDriver {
 
 type PendingCall = { callId: string; toolName: string; arguments: string }
 
-const DEFAULT_MAX_ITERATIONS = 5
+// A real multi-step research turn (search, list a folder, list again after a scope correction,
+// open several documents) can legitimately need more than a handful of round-trips with the model
+// before it has enough to answer - see the fallback message above for what happens if this still
+// isn't enough. Raised from 5 to 10 after live testing showed a legitimate (non-looping) research
+// turn exhausting the old cap one step before it would have reached real document content.
+const DEFAULT_MAX_ITERATIONS = 10
 
 // A model that only ever calls tools and never narrates a word (reproduced live: gpt-5.6-terra
 // chained 11 tool calls across 5 turns without a single response.output_text.delta) previously

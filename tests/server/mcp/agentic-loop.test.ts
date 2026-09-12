@@ -68,6 +68,29 @@ describe("runMcpAgenticLoop", () => {
 		expect((toolCallEvent?.data as { detail: string }).detail).toBe("Søker i SharePoint etter «budsjett»")
 	})
 
+	it("defaults to allowing more than 5 iterations when maxIterations is not specified - a real multi-step research turn (search, list, list again, open documents) can legitimately need more than 5 round-trips with the model before it has enough to answer", async () => {
+		const TURNS_NEEDED = 8
+		let turnsCompleted = 0
+		const driver: ToolTurnDriver = {
+			start: () => {
+				turnsCompleted++
+				return gen([{ type: "tool_call", callId: `c${turnsCompleted}`, toolName: "loop", arguments: "{}" }])
+			},
+			continueWith: () => {
+				turnsCompleted++
+				if (turnsCompleted >= TURNS_NEEDED) {
+					return gen([{ type: "text_delta", itemId: "m1", content: "Svaret" }])
+				}
+				return gen([{ type: "tool_call", callId: `c${turnsCompleted}`, toolName: "loop", arguments: "{}" }])
+			}
+		}
+		const mcp: McpClient = { listTools: vi.fn(), callTool: vi.fn().mockResolvedValue("X") }
+		// No maxIterations option passed - relies entirely on the default.
+		const events = await collect(runMcpAgenticLoop(driver, mcp))
+		const textDeltas = events.filter((e) => e.event === "response.output_text.delta")
+		expect(textDeltas).toEqual([{ event: "response.output_text.delta", data: { itemId: "m1", content: "Svaret" } }])
+	})
+
 	it("stops at maxIterations and still emits done", async () => {
 		const driver: ToolTurnDriver = {
 			start: () => gen([{ type: "tool_call", callId: "c1", toolName: "loop", arguments: "{}" }]),
