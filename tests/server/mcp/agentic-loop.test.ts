@@ -79,6 +79,37 @@ describe("runMcpAgenticLoop", () => {
 		expect((mcp.callTool as ReturnType<typeof vi.fn>).mock.calls.length).toBe(1)
 	})
 
+	it("emits a fallback message when maxIterations is hit without the model ever producing any text - the real bug: a model that only ever calls tools, never narrates, previously produced a completely silent response.done with zero output_text.delta events (reproduced live: gpt-5.6-terra chained 11 tool calls across 5 turns and never emitted a single word)", async () => {
+		let callCount = 0
+		const driver: ToolTurnDriver = {
+			start: () => gen([{ type: "tool_call", callId: `c${++callCount}`, toolName: "loop", arguments: "{}" }]),
+			continueWith: () => gen([{ type: "tool_call", callId: `c${++callCount}`, toolName: "loop", arguments: "{}" }])
+		}
+		const mcp: McpClient = { listTools: vi.fn(), callTool: vi.fn().mockResolvedValue("X") }
+		const events = await collect(runMcpAgenticLoop(driver, mcp, { maxIterations: 5 }))
+
+		const textDeltas = events.filter((e) => e.event === "response.output_text.delta")
+		expect(textDeltas).toHaveLength(1)
+		expect((textDeltas[0]?.data as { content: string }).content.length).toBeGreaterThan(0)
+		// The fallback must come before response.done, and after the last tool_result - i.e. it reads
+		// as part of the normal response, not tacked on after the stream already looked finished.
+		expect(events.at(-1)?.event).toBe("response.done")
+		expect(events.at(-2)?.event).toBe("response.output_text.delta")
+	})
+
+	it("emits the same fallback message when a turn simply ends with no pending calls and no text ever produced - the same silent-response bug can happen without ever hitting maxIterations at all", async () => {
+		const driver: ToolTurnDriver = {
+			start: () => gen([{ type: "usage", usage }]), // a turn that produces nothing at all - no text, no tool calls
+			continueWith: () => gen([]) // never actually reached - pendingCalls is empty after the first turn
+		}
+		const mcp: McpClient = { listTools: vi.fn(), callTool: vi.fn() }
+		const events = await collect(runMcpAgenticLoop(driver, mcp))
+
+		const textDeltas = events.filter((e) => e.event === "response.output_text.delta")
+		expect(textDeltas).toHaveLength(1)
+		expect(events.at(-1)?.event).toBe("response.done")
+	})
+
 	it("emits tool_result error when a tool throws, and feeds error back", async () => {
 		const seen: ToolResult[] = []
 		const driver: ToolTurnDriver = {
