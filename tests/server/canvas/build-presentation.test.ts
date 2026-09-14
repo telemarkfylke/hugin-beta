@@ -64,4 +64,10 @@ describe("buildPresentation", () => {
 		expect(slide2Xml).toContain("Punkt en")
 		expect(slide2Xml).toContain("Punkt to")
 	})
+
+	it("rejects slide counts above the safety cap before doing any real build work", async () => {
+		const tooManySlides: ParsedSlide[] = Array.from({ length: 201 }, () => ({ title: "x", body: [] }))
+
+		await expect(buildPresentation(tooManySlides)).rejects.toThrow()
+	})
 })

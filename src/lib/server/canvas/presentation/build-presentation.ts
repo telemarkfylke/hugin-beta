@@ -9,6 +9,13 @@ import { getPresentationTemplatePath } from "./template-path"
 const TITLE_SLIDE_SOURCE_INDEX = 1
 const CONTENT_SLIDE_SOURCE_INDEX = 2
 
+// A single guard for "not a sane amount of slides to build": zero slides is undefined behavior
+// downstream (no title slide to seed the deck), and an unbounded slide count is a real
+// process-OOM vector since Automizer's per-slide memory cost scales roughly linearly (~200KB/slide
+// measured against the placeholder template). 200 is generous for any real presentation while
+// keeping worst-case memory in the tens of MB.
+const MAX_SLIDE_COUNT = 200
+
 // These must match the exact PowerPoint shape names (Home > Arrange > Selection Pane) in the
 // template file at getPresentationTemplatePath(). The placeholder template built by
 // scripts/generate-presentation-placeholder-template.js uses "Title" and "Body" — update these
@@ -27,6 +34,10 @@ const toParagraphs = (body: ParsedSlide["body"]) =>
 	}))
 
 export const buildPresentation = async (slides: ParsedSlide[]): Promise<Buffer> => {
+	if (slides.length === 0 || slides.length > MAX_SLIDE_COUNT) {
+		throw new Error(`slides.length must be between 1 and ${MAX_SLIDE_COUNT}, got ${slides.length}`)
+	}
+
 	const templatePath = getPresentationTemplatePath()
 	const outputDir = os.tmpdir()
 	const outputFilename = `presentation-${randomUUID()}.pptx`
