@@ -3,3 +3,12 @@ export type CanvasRequest = {
 	prompt: string
 	webSearch?: boolean
 }
+
+export type PresentationRequest = {
+	slides: string
+	prompt: string
+}
+
+export type PresentationExportRequest = {
+	slides: string
+}
