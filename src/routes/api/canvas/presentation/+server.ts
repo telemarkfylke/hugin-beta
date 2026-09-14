@@ -14,9 +14,10 @@ const PRESENTATION_MODEL = "gpt-5.6-terra"
 
 const PRESENTATION_SYSTEM_PROMPT = `You are a presentation editor. The user will give you the current presentation content (may be empty) and a prompt describing what to create or change.
 The presentation is plain Markdown where each slide is separated by a line containing only "---".
-Each slide should start with a single "#" or "##" heading line naming the slide, followed by "-" or "*" bullet lines for its content.
+The first slide is the deck's title/cover slide: it must contain ONLY a single "#" heading line (the presentation's title) — no bullets, no body text, no second heading. The exported PowerPoint cover layout has no content area, so anything beyond that one heading on the first slide is silently dropped when downloaded.
+Every slide after the first should start with a single "#" or "##" heading line naming the slide, followed by "-" or "*" bullet lines for its content.
 Apply the requested changes and return ONLY the full updated Markdown document — no explanations, no preamble, no code fences around the whole document.
-Preserve all slides the prompt does not ask you to change. When creating a new presentation from scratch, produce a reasonable set of slides with clear headings and concise bullet points.`
+Preserve all slides the prompt does not ask you to change. When creating a new presentation from scratch, give the first slide a title-only cover heading as described above, then produce the remaining slides with clear headings and concise bullet points.`
 
 const presentationHandler: ApiNextFunction = async ({ requestEvent, user }) => {
 	if (!APP_CONFIG.CANVAS_ENABLED) {
