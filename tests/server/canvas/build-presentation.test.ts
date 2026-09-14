@@ -63,6 +63,26 @@ describe("buildPresentation", () => {
 		expect(slide2Xml).toContain("Om oss")
 		expect(slide2Xml).toContain("Punkt en")
 		expect(slide2Xml).toContain("Punkt to")
+
+		// Locks in the useSlideLayout(CONTENT_SLIDE_LAYOUT_INDEX) reassignment in
+		// build-presentation.ts: a content slide must be wired to the real template's single-column
+		// "Tittel og innhold 1 kolonne" layout (slideLayout10.xml), not the 2-column layout its
+		// source slide (slide 7) originally shipped with. If a future refactor drops the
+		// useSlideLayout() call, this would silently fall back to the wrong (2-column) layout while
+		// every other assertion here kept passing.
+		const slide2Path = slidePaths[1] as string
+		const slide2RelsPath = slide2Path.replace("ppt/slides/", "ppt/slides/_rels/") + ".rels"
+		const slide2RelsXml = await zip.file(slide2RelsPath)?.async("string")
+		expect(slide2RelsXml).toContain("slideLayout10.xml")
+
+		// Locks in the slide.removeElement(SECONDARY_CONTENT_SHAPE_NAME) call: the real template's
+		// slide 7 (the content slide's source) ships with a second content placeholder
+		// ("Plassholder for innhold 4") containing real baked-in Norwegian instructional text
+		// ("Bilder kan tilpasses..."). If a future refactor drops the removeElement() call, that
+		// leaked instructional copy would silently reappear in every generated deck while the
+		// title/bullet assertions above kept passing.
+		expect(slide2Xml).not.toContain("Plassholder for innhold 4")
+		expect(slide2Xml).not.toContain("Bilder kan tilpasses")
 	})
 
 	it("rejects slide counts above the safety cap before doing any real build work", async () => {
