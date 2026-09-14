@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto"
 import { readFile, rm } from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
-import Automizer, { ModifyTextHelper, modify } from "pptx-automizer"
+import { Automizer, ModifyTextHelper, modify } from "pptx-automizer"
 import type { ParsedSlide } from "./parse-slides-for-export"
 import { getPresentationTemplatePath } from "./template-path"
 
