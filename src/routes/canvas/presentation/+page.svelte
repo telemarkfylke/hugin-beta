@@ -35,6 +35,10 @@
 		deck.initialize().then(() => {
 			deckReady = true
 		})
+		// reveal.js binds several document/window-level listeners (keydown, resize, hashchange,
+		// message, fullscreenchange, visibilitychange) that outlive this component unless
+		// explicitly torn down - destroy() undoes those DOM changes and removes the listeners.
+		return () => deck?.destroy()
 	})
 
 	$effect(() => {
