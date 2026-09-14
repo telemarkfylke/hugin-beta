@@ -1,5 +1,5 @@
-import type { PresentationRequest } from "../types/canvas"
 import { HTTPError } from "../server/middleware/http-error"
+import type { PresentationRequest } from "../types/canvas"
 
 const MAX_SLIDES_CHARS = 10 * 1024 * 1024
 
