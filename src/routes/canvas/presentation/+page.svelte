@@ -14,7 +14,8 @@
 	let isExporting = $state(false)
 	let errorMessage = $state("")
 	let isEditing = $state(false)
-
+	let webSearchEnabled = $state(false)
+	
 	let slides = $derived(
 		slidesMarkdown
 			.split(/^\s*---\s*$/m)
@@ -55,7 +56,7 @@
 			const res = await fetch("/api/canvas/presentation", {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ slides: slidesMarkdown, prompt })
+				body: JSON.stringify({ slides: slidesMarkdown, prompt, webSearch: webSearchEnabled })
 			})
 			if (!res.ok) {
 				const err = await res.json().catch(() => ({}))
@@ -158,9 +159,17 @@
 		{/if}
 		<PromptBar bind:value={prompt} placeholder="Beskriv hvilken presentasjon du vil lage…" {isLoading} sendDisabled={!prompt.trim()} onSubmit={submitPrompt} />
 	</div>
+	<p class="info">
+		PowerPointen lastes ned med malen til Telemark fylkeskommune.
+	</p>
 </div>
 
 <style>
+	.info {
+		margin-left: auto;
+		margin-right: auto;
+		display: block;
+	}
 	.document-page {
 		display: flex;
 		flex-direction: column;
