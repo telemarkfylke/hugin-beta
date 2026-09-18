@@ -31,9 +31,9 @@ const presentationHandler: ApiNextFunction = async ({ requestEvent, user }) => {
 	}
 
 	const body = await requestEvent.request.json()
-	const { slides, prompt } = parsePresentationRequest(body)
+	const { slides, prompt, webSearch } = parsePresentationRequest(body)
 
-	logger.info("[Canvas Presentation] User {userId} submitting prompt (slidesLength: {slidesLength})", user.userId, slides.length)
+	logger.info("[Canvas Presentation] User {userId} submitting prompt (slidesLength: {slidesLength}), webSearch: {webSearch}", user.userId, slides.length, webSearch ?? false)
 
 	const userMessage = slides ? `Here is the current presentation Markdown:\n\n${slides}\n\n---\n\nUser instruction: ${prompt}` : prompt
 
@@ -50,7 +50,8 @@ const presentationHandler: ApiNextFunction = async ({ requestEvent, user }) => {
 			type: "private",
 			created: { at: "", by: { id: "" } },
 			updated: { at: "", by: { id: "" } },
-			instructions: PRESENTATION_SYSTEM_PROMPT
+			instructions: PRESENTATION_SYSTEM_PROMPT,
+			tools: webSearch ? [{ type: "web_search" as const }] : undefined
 		},
 		inputs: [
 			{

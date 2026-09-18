@@ -7,6 +7,7 @@ export type CanvasRequest = {
 export type PresentationRequest = {
 	slides: string
 	prompt: string
+	webSearch?: boolean
 }
 
 export type PresentationExportRequest = {

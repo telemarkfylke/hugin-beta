@@ -19,9 +19,14 @@ export const parsePresentationRequest = (input: unknown): PresentationRequest =>
 	if (typeof body.prompt !== "string" || body.prompt.trim() === "") {
 		throw new HTTPError(400, "prompt must be a non-empty string")
 	}
+	if (body.webSearch !== undefined && typeof body.webSearch !== "boolean") {
+		throw new HTTPError(400, "webSearch must be a boolean")
+	}
 
-	return {
+	const result: PresentationRequest = {
 		slides,
 		prompt: body.prompt
 	}
+	if (typeof body.webSearch === "boolean") result.webSearch = body.webSearch
+	return result
 }

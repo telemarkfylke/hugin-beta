@@ -56,7 +56,11 @@
 			const res = await fetch("/api/canvas/presentation", {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ slides: slidesMarkdown, prompt, webSearch: webSearchEnabled })
+				body: JSON.stringify({ 
+					slides: slidesMarkdown, 
+					prompt, 
+					webSearch: webSearchEnabled 
+				})
 			})
 			if (!res.ok) {
 				const err = await res.json().catch(() => ({}))
@@ -157,7 +161,19 @@
 		{#if errorMessage}
 			<div class="error-banner">{errorMessage}</div>
 		{/if}
-		<PromptBar bind:value={prompt} placeholder="Beskriv hvilken presentasjon du vil lage…" {isLoading} sendDisabled={!prompt.trim()} onSubmit={submitPrompt} />
+		<PromptBar bind:value={prompt} placeholder="Beskriv hvilken presentasjon du vil lage…" {isLoading} sendDisabled={!prompt.trim()} onSubmit={submitPrompt}>
+			{#snippet actions()}
+				<button
+					class="icon-button input-action-button"
+					class:active={webSearchEnabled}
+					onclick={() => (webSearchEnabled = !webSearchEnabled)}
+					title={webSearchEnabled ? "Websøk aktivert" : "Websøk deaktivert"}
+					type="button"
+				>
+					<span class="material-symbols-outlined">travel_explore</span>
+				</button>
+			{/snippet}
+		</PromptBar>	
 	</div>
 	<p class="info">
 		PowerPointen lastes ned med malen til Telemark fylkeskommune.
@@ -282,6 +298,16 @@
 		flex-direction: column;
 		gap: 0.5rem;
 		box-sizing: border-box;
+	}
+
+	.input-action-button {
+		padding: 0.5rem 0.375rem;
+	}
+
+	.input-action-button.active {
+		color: var(--color-primary);
+		background-color: var(--color-primary-20);
+		border-radius: 50%;
 	}
 
 	.error-banner {
