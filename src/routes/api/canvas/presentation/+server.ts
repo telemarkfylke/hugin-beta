@@ -31,9 +31,15 @@ const presentationHandler: ApiNextFunction = async ({ requestEvent, user }) => {
 	}
 
 	const body = await requestEvent.request.json()
-	const { slides, prompt, webSearch } = parsePresentationRequest(body)
+	const { slides, prompt, webSearch, document } = parsePresentationRequest(body)
 
-	logger.info("[Canvas Presentation] User {userId} submitting prompt (slidesLength: {slidesLength}), webSearch: {webSearch}", user.userId, slides.length, webSearch ?? false)
+	logger.info(
+		"[Canvas Presentation] User {userId} submitting prompt (slidesLength: {slidesLength}), webSearch: {webSearch}, document: {hasDocument}",
+		user.userId,
+		slides.length,
+		webSearch ?? false,
+		!!document
+	)
 
 	const userMessage = slides ? `Here is the current presentation Markdown:\n\n${slides}\n\n---\n\nUser instruction: ${prompt}` : prompt
 
@@ -57,7 +63,7 @@ const presentationHandler: ApiNextFunction = async ({ requestEvent, user }) => {
 			{
 				type: "message.input",
 				role: "user",
-				content: [{ type: "input_text", text: userMessage }]
+				content: [{ type: "input_text", text: userMessage }, ...(document ? [{ type: "input_file" as const, fileName: document.fileName, fileUrl: document.fileUrl }] : [])]
 			}
 		],
 		stream: false

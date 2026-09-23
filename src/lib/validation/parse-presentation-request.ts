@@ -2,6 +2,7 @@ import { HTTPError } from "../server/middleware/http-error"
 import type { PresentationRequest } from "../types/canvas"
 
 const MAX_SLIDES_CHARS = 10 * 1024 * 1024
+const MAX_DOCUMENT_CHARS = 15 * 1024 * 1024
 
 export const parsePresentationRequest = (input: unknown): PresentationRequest => {
 	if (!input || typeof input !== "object") {
@@ -23,10 +24,29 @@ export const parsePresentationRequest = (input: unknown): PresentationRequest =>
 		throw new HTTPError(400, "webSearch must be a boolean")
 	}
 
+	let document: PresentationRequest["document"]
+	if (body.document !== undefined) {
+		if (!body.document || typeof body.document !== "object") {
+			throw new HTTPError(400, "document must be an object")
+		}
+		const documentBody = body.document as Record<string, unknown>
+		if (typeof documentBody.fileName !== "string" || documentBody.fileName.trim() === "") {
+			throw new HTTPError(400, "document.fileName must be a non-empty string")
+		}
+		if (typeof documentBody.fileUrl !== "string" || !documentBody.fileUrl.startsWith("data:application/pdf")) {
+			throw new HTTPError(400, "document.fileUrl must be a base64 PDF data URL")
+		}
+		if (documentBody.fileUrl.length > MAX_DOCUMENT_CHARS) {
+			throw new HTTPError(400, "Document is too large")
+		}
+		document = { fileName: documentBody.fileName, fileUrl: documentBody.fileUrl }
+	}
+
 	const result: PresentationRequest = {
 		slides,
 		prompt: body.prompt
 	}
 	if (typeof body.webSearch === "boolean") result.webSearch = body.webSearch
+	if (document) result.document = document
 	return result
 }

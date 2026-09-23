@@ -15,7 +15,32 @@
 	let errorMessage = $state("")
 	let isEditing = $state(false)
 	let webSearchEnabled = $state(false)
-	
+	let documentFile: File | null = $state(null)
+	let documentInput: HTMLInputElement | undefined = $state()
+
+	const fileToDataUrl = (file: File): Promise<string> =>
+		new Promise((resolve, reject) => {
+			const reader = new FileReader()
+			reader.onload = () => resolve(reader.result as string)
+			reader.onerror = () => reject(reader.error)
+			reader.readAsDataURL(file)
+		})
+
+	const triggerDocumentInput = () => documentInput?.click()
+
+	const handleDocumentInputChange = (event: Event) => {
+		const target = event.target as HTMLInputElement
+		const file = target.files?.[0]
+		if (file) {
+			if (file.size > page.data.APP_CONFIG.BODY_SIZE_LIMIT_BYTES) {
+				errorMessage = "Dokumentet er for stort"
+			} else {
+				documentFile = file
+			}
+		}
+		target.value = ""
+	}
+
 	let slides = $derived(
 		slidesMarkdown
 			.split(/^\s*---\s*$/m)
@@ -53,13 +78,15 @@
 		errorMessage = ""
 		const prevSlides = slidesMarkdown
 		try {
+			const document = documentFile ? { fileName: documentFile.name, fileUrl: await fileToDataUrl(documentFile) } : undefined
 			const res = await fetch("/api/canvas/presentation", {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ 
-					slides: slidesMarkdown, 
-					prompt, 
-					webSearch: webSearchEnabled 
+				body: JSON.stringify({
+					slides: slidesMarkdown,
+					prompt,
+					webSearch: webSearchEnabled,
+					document
 				})
 			})
 			if (!res.ok) {
@@ -69,6 +96,7 @@
 			const data = (await res.json()) as { slides: string }
 			slidesMarkdown = data.slides
 			prompt = ""
+			documentFile = null
 		} catch (e) {
 			errorMessage = e instanceof Error ? e.message : "Ukjent feil"
 			slidesMarkdown = prevSlides
@@ -161,8 +189,27 @@
 		{#if errorMessage}
 			<div class="error-banner">{errorMessage}</div>
 		{/if}
+		{#if documentFile}
+			<div class="document-chip">
+				<span class="material-symbols-outlined">picture_as_pdf</span>
+				<span class="document-chip-name">{documentFile.name}</span>
+				<button class="document-chip-remove" onclick={() => (documentFile = null)} title="Fjern dokument" type="button">
+					<span class="material-symbols-outlined">close</span>
+				</button>
+			</div>
+		{/if}
 		<PromptBar bind:value={prompt} placeholder="Beskriv hvilken presentasjon du vil lage…" {isLoading} sendDisabled={!prompt.trim()} onSubmit={submitPrompt}>
 			{#snippet actions()}
+				<button
+					class="icon-button input-action-button"
+					class:active={!!documentFile}
+					onclick={triggerDocumentInput}
+					title="Legg ved dokument (PDF)"
+					type="button"
+				>
+					<span class="material-symbols-outlined">attach_file</span>
+				</button>
+				<input bind:this={documentInput} type="file" accept="application/pdf" onchange={handleDocumentInputChange} hidden />
 				<button
 					class="icon-button input-action-button"
 					class:active={webSearchEnabled}
@@ -173,7 +220,7 @@
 					<span class="material-symbols-outlined">travel_explore</span>
 				</button>
 			{/snippet}
-		</PromptBar>	
+		</PromptBar>
 	</div>
 	<p class="info">
 		PowerPointen lastes ned med malen til Telemark fylkeskommune.
@@ -310,6 +357,35 @@
 		border-radius: 50%;
 	}
 
+	.document-chip {
+		display: flex;
+		align-items: center;
+		gap: 0.35rem;
+		align-self: flex-start;
+		padding: 0.25rem 0.6rem;
+		border-radius: 14px;
+		background-color: var(--color-primary-20);
+		color: var(--color-primary);
+		font-size: small;
+	}
+
+	.document-chip-name {
+		max-width: 220px;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	.document-chip-remove {
+		display: flex;
+		align-items: center;
+		padding: 0;
+	}
+
+	.document-chip .material-symbols-outlined {
+		font-size: 1.1rem;
+	}
+
 	.error-banner {
 		padding: 0.4rem 0.75rem;
 		background-color: #fde8e8;
@@ -330,6 +406,12 @@
 
 		.document-editor {
 			min-height: 30vh;
+		}
+		.info {
+			margin-left: auto;
+			margin-right: auto;
+			display: block;
+			font-size: 13px;
 		}
 	}
 </style>
