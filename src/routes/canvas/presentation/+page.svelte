@@ -57,7 +57,10 @@
 
 	onMount(() => {
 		if (!deckContainer) return
-		deck = new Reveal(deckContainer, { embedded: true, controls: true, progress: true, center: true })
+		// keyboardCondition "focused": only react to keys when the deck itself has focus, so e.g. Space
+		// on the page's buttons isn't hijacked for slide navigation. postMessage false: don't let other
+		// windows control the deck via window.postMessage (reveal.js accepts those from any origin).
+		deck = new Reveal(deckContainer, { embedded: true, controls: true, progress: true, center: true, keyboardCondition: "focused", postMessage: false })
 		deck.initialize().then(() => {
 			deckReady = true
 		})
@@ -76,7 +79,7 @@
 		if (!prompt.trim() || isLoading) return
 		isLoading = true
 		errorMessage = ""
-		const prevSlides = slidesMarkdown
+		const sentPrompt = prompt
 		try {
 			const document = documentFile ? { fileName: documentFile.name, fileUrl: await fileToDataUrl(documentFile) } : undefined
 			const res = await fetch("/api/canvas/presentation", {
@@ -95,11 +98,11 @@
 			}
 			const data = (await res.json()) as { slides: string }
 			slidesMarkdown = data.slides
-			prompt = ""
+			// Only clear the prompt if the user hasn't started typing a new one while waiting
+			if (prompt === sentPrompt) prompt = ""
 			documentFile = null
 		} catch (e) {
 			errorMessage = e instanceof Error ? e.message : "Ukjent feil"
-			slidesMarkdown = prevSlides
 		} finally {
 			isLoading = false
 		}
@@ -169,7 +172,7 @@
 				preview would go blank as soon as you left and returned to it once.
 			-->
 			<div class="canvas-paper" class:hidden={!isEditing}>
-				<textarea class="document-editor" bind:value={slidesMarkdown} placeholder="# Tittel&#10;---&#10;## Slide 2"></textarea>
+				<textarea class="document-editor" bind:value={slidesMarkdown} readonly={isLoading} placeholder="# Tittel&#10;---&#10;## Slide 2"></textarea>
 			</div>
 			<div class="reveal" class:hidden={isEditing} bind:this={deckContainer}>
 				<div class="slides">
@@ -204,6 +207,7 @@
 					class="icon-button input-action-button"
 					class:active={!!documentFile}
 					onclick={triggerDocumentInput}
+					disabled={isLoading}
 					title="Legg ved dokument (PDF)"
 					type="button"
 				>
