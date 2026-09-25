@@ -32,6 +32,13 @@ const APP_CONFIG = {
 				{ KEY: "gpt-live", ID: "gpt-live", SUPPORTED_MESSAGE_FILE_MIME_TYPES: noMime, CAPABILITIES: [], RETIRED: false },
 				{ KEY: "gpt-old", ID: "gpt-old", SUPPORTED_MESSAGE_FILE_MIME_TYPES: noMime, CAPABILITIES: [], RETIRED: true }
 			]
+		},
+		// Disabled (no API key): no projects are discovered from env either
+		MISTRAL: {
+			NAME: "Mistral",
+			ENABLED: false,
+			PROJECTS: [],
+			MODELS: [{ KEY: "large", ID: "mistral-large-latest", SUPPORTED_MESSAGE_FILE_MIME_TYPES: noMime, CAPABILITIES: [], RETIRED: false }]
 		}
 	}
 } as unknown as AppConfig
@@ -138,6 +145,12 @@ describe("parseChatConfig - save mode", () => {
 		expect(config.vendorAgent).toEqual({ id: "agent-1" })
 	})
 
+	it("lets a co-editor save an unchanged profile whose vendor is currently disabled", () => {
+		const previous = stored({ vendorId: "MISTRAL", model: "mistral-large-latest", profile: "lokal" })
+		const config = parseChatConfig({ ...base, vendorId: "MISTRAL", model: "mistral-large-latest", profile: "lokal" }, APP_CONFIG, { mode: "save", user: student, previous })
+		expect(config.profile).toBe("lokal")
+	})
+
 	it("rejects a non-admin changing an existing pin's project with 403", () => {
 		const previous = stored({ profile: "rask", pinned: { model: "gpt-live", project: "STUDENTS" } })
 		expectStatus(() => parseChatConfig({ ...base, profile: "rask", pinned: { model: "gpt-live", project: "DEFAULT" } }, APP_CONFIG, { mode: "save", user: employee, previous }), 403)
@@ -160,6 +173,19 @@ describe("parseChatConfig - use mode", () => {
 
 	it("still rejects a profile-less config with an unknown model (pre-profile behaviour)", () => {
 		expectStatus(() => parseChatConfig({ ...base, model: "gpt-nope" }, APP_CONFIG, { mode: "use" }), 400)
+	})
+
+	it("leaves a profile config on a disabled vendor to resolution (the chat route answers 503)", () => {
+		const config = parseChatConfig({ ...base, vendorId: "MISTRAL", model: "mistral-large-latest", profile: "rask" }, APP_CONFIG, { mode: "use" })
+		expect(config).toMatchObject({ vendorId: "MISTRAL", profile: "rask" })
+	})
+
+	it("still rejects a pre-profile config on a disabled vendor", () => {
+		expectStatus(() => parseChatConfig({ ...base, vendorId: "MISTRAL", model: "mistral-large-latest" }, APP_CONFIG, { mode: "use" }), 400)
+	})
+
+	it("still rejects a vendor-agent config on a disabled vendor", () => {
+		expectStatus(() => parseChatConfig({ ...base, vendorId: "MISTRAL", vendorAgent: { id: "agent-1" } }, APP_CONFIG, { mode: "use" }), 400)
 	})
 
 	it("drops profile/pinned from vendor-agent configs", () => {

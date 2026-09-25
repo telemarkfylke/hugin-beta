@@ -1,6 +1,6 @@
 import { logger } from "@vestfoldfylke/loglady"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import { buildClientProfiles, type ModelContext, type ModelSelection, resolveChatConfig, resolveDefaultModel, resolveDefaultProfileId } from "$lib/server/models/resolve"
+import { buildClientProfiles, isResolvedModelAvailable, type ModelContext, type ModelSelection, resolveChatConfig, resolveDefaultModel, resolveDefaultProfileId } from "$lib/server/models/resolve"
 import type { ModelConfig } from "$lib/server/models/types"
 import type { VendorId } from "$lib/types/chat"
 
@@ -103,19 +103,41 @@ describe("resolveChatConfig", () => {
 		expect(warnSpy).toHaveBeenCalled()
 	})
 
-	it("falls back when the profile's vendor is disabled, keeping the requested profile id", () => {
-		expect(resolveChatConfig(config({ profile: "europeisk" }), ctx(["OPENAI"]))).toMatchObject({ profile: "europeisk", vendorId: "OPENAI", model: "gpt-luna" })
+	// DEFAULTS.assistant (rask) is on OPENAI too, so this also covers falling through to the first usable profile's model
+	it("falls back when a profile without dataLocation has its vendor disabled, keeping the requested profile id", () => {
+		expect(resolveChatConfig(config({ profile: "grundig" }), ctx(["MISTRAL"]))).toMatchObject({ profile: "grundig", vendorId: "MISTRAL", model: "mistral-large-latest", project: "DEFAULT" })
 		expect(warnSpy).toHaveBeenCalled()
 	})
 
-	it("falls back to the first enabled profile's model when DEFAULTS.assistant's vendor is disabled, keeping the requested profile id", () => {
-		expect(resolveChatConfig(config({ profile: "grundig" }), ctx(["MISTRAL"]))).toMatchObject({ profile: "grundig", vendorId: "MISTRAL" })
+	it("maps a pre-profile config to a profile without dataLocation whose vendor is disabled, keeping that profile id and using the fallback's model", () => {
+		expect(resolveChatConfig(config({ vendorId: "OPENAI", model: "gpt-terra" }), ctx(["MISTRAL"]))).toMatchObject({ profile: "grundig", vendorId: "MISTRAL", model: "mistral-large-latest" })
 		expect(warnSpy).toHaveBeenCalled()
 	})
 
-	it("maps a pre-profile config to a profile whose vendor is disabled, keeping that profile id and using the fallback's model", () => {
-		expect(resolveChatConfig(config({ vendorId: "MISTRAL", model: "mistral-large-latest" }), ctx(["OPENAI"]))).toMatchObject({ profile: "europeisk", vendorId: "OPENAI", model: "gpt-luna" })
-		expect(warnSpy).toHaveBeenCalled()
+	it("never substitutes another vendor for a dataLocation profile whose vendor is disabled", () => {
+		expect(resolveChatConfig(config({ profile: "europeisk", vendorId: "OPENAI", model: "gpt-luna" }), ctx(["OPENAI"]))).toMatchObject({
+			profile: "europeisk",
+			vendorId: "MISTRAL",
+			model: "mistral-large-latest",
+			project: "DEFAULT"
+		})
+		expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("data location"), "cfg-1", "europeisk")
+	})
+
+	it("never substitutes another vendor for a pre-profile config that maps to a dataLocation profile", () => {
+		expect(resolveChatConfig(config({ vendorId: "MISTRAL", model: "mistral-large-latest" }), ctx(["OPENAI"]))).toMatchObject({
+			profile: "europeisk",
+			vendorId: "MISTRAL",
+			model: "mistral-large-latest",
+			project: "DEFAULT"
+		})
+		expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("data location"), "cfg-1", "europeisk")
+	})
+
+	it("keeps the ordinary fallback for a dataLocation profile whose own model is missing from the catalogue", () => {
+		const modelConfig: ModelConfig = { ...MODEL_CONFIG, PROFILES: MODEL_CONFIG.PROFILES.map((p) => (p.id === "europeisk" ? { ...p, model: "gone" } : p)) }
+		const resolved = resolveChatConfig(config({ profile: "europeisk" }), { modelConfig, isVendorEnabled: () => true })
+		expect(resolved).toMatchObject({ profile: "europeisk", vendorId: "OPENAI", model: "gpt-luna" })
 	})
 
 	it("ignores an inherited-property pin key and falls back to the profile instead of crashing", () => {
@@ -137,6 +159,20 @@ describe("resolveChatConfig", () => {
 
 	it("throws when no profile is usable at all", () => {
 		expect(() => resolveChatConfig(config({ profile: "rask" }), ctx([]))).toThrow(/No usable model profile/)
+	})
+})
+
+describe("isResolvedModelAvailable", () => {
+	it("is true for a manual config whose vendor is enabled", () => {
+		expect(isResolvedModelAvailable(config({ vendorId: "MISTRAL", model: "mistral-large-latest" }), ctx())).toBe(true)
+	})
+
+	it("is false for a manual config whose vendor is disabled", () => {
+		expect(isResolvedModelAvailable(config({ vendorId: "MISTRAL", model: "mistral-large-latest" }), ctx(["OPENAI"]))).toBe(false)
+	})
+
+	it("is true for a vendor-agent config regardless of vendor enablement", () => {
+		expect(isResolvedModelAvailable(config({ vendorId: "MISTRAL", vendorAgent: { id: "agent-1" } }), ctx([]))).toBe(true)
 	})
 })
 

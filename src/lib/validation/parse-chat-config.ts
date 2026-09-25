@@ -61,11 +61,17 @@ export const parseChatConfig = (input: unknown, APP_CONFIG: AppConfig, options: 
 	if (!VENDOR) {
 		throw new HTTPError(400, `Unsupported vendorId: ${parsedConfig.vendorId}`)
 	}
-	if (!VENDOR.PROJECTS.includes(parsedConfig.project)) {
-		throw new HTTPError(400, `Unsupported project: ${parsedConfig.project} for vendorId: ${parsedConfig.vendorId}`)
-	}
-	if (!VENDOR.ENABLED) {
-		throw new HTTPError(400, `VendorId: ${parsedConfig.vendorId} is not enabled`)
+	// A manual config with a profile or pin has vendorId/project overwritten by resolution, so they're only
+	// checked here for vendor agents and pre-profile configs. A resolved vendor that's disabled (a
+	// dataLocation profile is never substituted, see resolve.ts) is answered with 503 by the chat routes.
+	const selectedByProfile = !parsedConfig.vendorAgent && (parsedConfig.profile !== undefined || parsedConfig.pinned !== undefined)
+	if (!selectedByProfile) {
+		if (!VENDOR.PROJECTS.includes(parsedConfig.project)) {
+			throw new HTTPError(400, `Unsupported project: ${parsedConfig.project} for vendorId: ${parsedConfig.vendorId}`)
+		}
+		if (!VENDOR.ENABLED) {
+			throw new HTTPError(400, `VendorId: ${parsedConfig.vendorId} is not enabled`)
+		}
 	}
 	if (parsedConfig.vendorAgent) {
 		// Predefined config

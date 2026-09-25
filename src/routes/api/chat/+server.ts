@@ -18,7 +18,7 @@ import { runAgenticToolChatOrDegrade } from "$lib/server/mcp/run-agentic-chat"
 import { configHasMcpTool, mcpUnavailableStream } from "$lib/server/mcp/run-mcp-chat"
 import { HTTPError } from "$lib/server/middleware/http-error"
 import { apiRequestMiddleware } from "$lib/server/middleware/http-request"
-import { resolveConfig } from "$lib/server/models/model-registry"
+import { isModelAvailable, MODEL_UNAVAILABLE_MESSAGE, resolveConfig } from "$lib/server/models/model-registry"
 import { appendRagContextToInstructions } from "$lib/server/ragservice/format-rag-context"
 import { rewriteRagQuery } from "$lib/server/ragservice/rag-query-rewrite"
 import { searchRagStores } from "$lib/server/ragservice/rag-search"
@@ -91,6 +91,12 @@ const supahChat: ApiNextFunction = async ({ requestEvent, user }) => {
 
 	if (!canPromptConfig(user, APP_CONFIG, chatRequest.config)) {
 		throw new HTTPError(403, "Not authorized to use this chat configuration")
+	}
+
+	// Fail closed: resolution keeps a dataLocation profile on its own (disabled) vendor rather than
+	// sending the data elsewhere
+	if (!isModelAvailable(chatRequest.config)) {
+		throw new HTTPError(503, MODEL_UNAVAILABLE_MESSAGE)
 	}
 
 	const userInputMessage = [...chatRequest.inputs].reverse().find((i): i is ChatInputMessage => i.type === "message.input" && i.role === "user")

@@ -1,9 +1,14 @@
 import { env } from "$env/dynamic/private"
 import { MODEL_CONTEXT } from "$lib/server/app-config/app-config"
-import { type ModelSelection, type ResolvedModel, resolveChatConfig, resolveDefaultModel } from "./resolve"
+import { isResolvedModelAvailable, type ModelSelection, type ResolvedModel, resolveChatConfig, resolveDefaultModel } from "./resolve"
 
 // The real-config bindings of resolve.ts. Server code should import from here; tests use resolve.ts with fixtures.
 export const resolveConfig = <T extends ModelSelection>(config: T): T => resolveChatConfig(config, MODEL_CONTEXT)
+
+export const isModelAvailable = (config: Pick<ModelSelection, "vendorId" | "vendorAgent">): boolean => isResolvedModelAvailable(config, MODEL_CONTEXT)
+
+// User-facing text for the 503 the chat routes answer when isModelAvailable is false
+export const MODEL_UNAVAILABLE_MESSAGE = "Modellen for denne assistenten er ikke tilgjengelig akkurat nå"
 
 export const getDefaultModel = (purpose: "chat" | "assistant" | "canvas" | "utility"): ResolvedModel | null => {
 	const resolved = resolveDefaultModel(purpose, MODEL_CONTEXT)

@@ -62,7 +62,8 @@ const fallbackProfile = (ctx: ModelContext) => {
 // persists whatever this function returns: if an unusable profile were rewritten to the fallback's
 // id, the next save (even an unrelated rename) would permanently reassign the assistant to a
 // different vendor, and it would stay there even after the original vendor's key came back. Only
-// an absent/unmappable/removed profile id migrates to the fallback profile outright.
+// an absent/unmappable/removed profile id migrates to the fallback profile outright. Exception: a
+// known profile with a dataLocation is never served from the fallback (see below).
 export const resolveChatConfig = <T extends ModelSelection>(config: T, ctx: ModelContext): T => {
 	if (config.vendorAgent) {
 		return config
@@ -83,6 +84,17 @@ export const resolveChatConfig = <T extends ModelSelection>(config: T, ctx: Mode
 		return { ...config, profile: resolved.profile.id, vendorId: resolved.model.vendor, model: resolved.model.providerModel, project: DEFAULT_PROJECT_ID }
 	}
 
+	// A profile with a dataLocation promises where the data is processed ("Lokal", "Europeisk"). Serving
+	// another vendor's model would silently break that promise, so keep the profile's own model - the
+	// chat routes then answer 503 (isResolvedModelAvailable) instead of sending data elsewhere.
+	if (knownProfile?.dataLocation) {
+		const ownModel = Object.hasOwn(ctx.modelConfig.MODELS, knownProfile.model) ? ctx.modelConfig.MODELS[knownProfile.model] : undefined
+		if (ownModel && ownModel.status !== "retired") {
+			logger.warn("Config {configId} profile {profile} is currently unavailable - not substituting another model because of its data location", config._id ?? "(new)", knownProfile.id)
+			return { ...config, profile: knownProfile.id, vendorId: ownModel.vendor, model: ownModel.providerModel, project: DEFAULT_PROJECT_ID }
+		}
+	}
+
 	const fallback = fallbackProfile(ctx)
 	if (!fallback) {
 		throw new Error("No usable model profile - check models.config.ts and vendor API keys")
@@ -95,6 +107,13 @@ export const resolveChatConfig = <T extends ModelSelection>(config: T, ctx: Mode
 
 	logger.warn("Config {configId} fell back to default profile (profile: {profile}, model: {model})", config._id ?? "(new)", config.profile ?? "none", config.model ?? "none")
 	return { ...config, profile: fallback.profile.id, vendorId: fallback.model.vendor, model: fallback.model.providerModel, project: DEFAULT_PROJECT_ID }
+}
+
+// False when resolution kept a model whose vendor is disabled (a dataLocation profile, see above) -
+// the chat routes answer 503 rather than calling a vendor that isn't configured. Vendor agents are
+// never resolved, so they're left to the vendor as before.
+export const isResolvedModelAvailable = (config: Pick<ModelSelection, "vendorId" | "vendorAgent">, ctx: ModelContext): boolean => {
+	return Boolean(config.vendorAgent) || ctx.isVendorEnabled(config.vendorId)
 }
 
 export const resolveDefaultProfileId = (purpose: "chat" | "assistant", ctx: ModelContext): string | null => {
