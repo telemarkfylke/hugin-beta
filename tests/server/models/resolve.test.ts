@@ -99,13 +99,18 @@ describe("resolveChatConfig", () => {
 		expect(warnSpy).toHaveBeenCalled()
 	})
 
-	it("falls back when the profile's vendor is disabled", () => {
-		expect(resolveChatConfig(config({ profile: "europeisk" }), ctx(["OPENAI"]))).toMatchObject({ profile: "rask", vendorId: "OPENAI" })
+	it("falls back when the profile's vendor is disabled, keeping the requested profile id", () => {
+		expect(resolveChatConfig(config({ profile: "europeisk" }), ctx(["OPENAI"]))).toMatchObject({ profile: "europeisk", vendorId: "OPENAI", model: "gpt-luna" })
 		expect(warnSpy).toHaveBeenCalled()
 	})
 
-	it("falls back to the first enabled profile when DEFAULTS.assistant's vendor is disabled", () => {
-		expect(resolveChatConfig(config({ profile: "grundig" }), ctx(["MISTRAL"]))).toMatchObject({ profile: "europeisk", vendorId: "MISTRAL" })
+	it("falls back to the first enabled profile's model when DEFAULTS.assistant's vendor is disabled, keeping the requested profile id", () => {
+		expect(resolveChatConfig(config({ profile: "grundig" }), ctx(["MISTRAL"]))).toMatchObject({ profile: "grundig", vendorId: "MISTRAL" })
+		expect(warnSpy).toHaveBeenCalled()
+	})
+
+	it("maps a pre-profile config to a profile whose vendor is disabled, keeping that profile id and using the fallback's model", () => {
+		expect(resolveChatConfig(config({ vendorId: "MISTRAL", model: "mistral-large-latest" }), ctx(["OPENAI"]))).toMatchObject({ profile: "europeisk", vendorId: "OPENAI", model: "gpt-luna" })
 		expect(warnSpy).toHaveBeenCalled()
 	})
 

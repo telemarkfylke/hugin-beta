@@ -55,6 +55,14 @@ const fallbackProfile = (ctx: ModelContext) => {
 // Order: pinned (if its model is usable) -> profile -> LEGACY/profile-model match for pre-profile
 // configs -> DEFAULTS.assistant -> first usable profile. vendorId/model/project from the input are
 // never trusted - they're always overwritten. Vendor-agent configs have no model and pass through.
+//
+// A requested profile that's KNOWN (exists in ctx.modelConfig.PROFILES) but currently unusable
+// (its vendor is disabled, or its model is retired) keeps its own profile id in the result - only
+// vendorId/model/project are served from the fallback. This matters because ResolvingChatConfigStore
+// persists whatever this function returns: if an unusable profile were rewritten to the fallback's
+// id, the next save (even an unrelated rename) would permanently reassign the assistant to a
+// different vendor, and it would stay there even after the original vendor's key came back. Only
+// an absent/unmappable/removed profile id migrates to the fallback profile outright.
 export const resolveChatConfig = <T extends ModelSelection>(config: T, ctx: ModelContext): T => {
 	if (config.vendorAgent) {
 		return config
@@ -68,15 +76,25 @@ export const resolveChatConfig = <T extends ModelSelection>(config: T, ctx: Mode
 	}
 
 	const requestedProfileId = config.profile ?? (config.model ? legacyProfileId(config.model, ctx) : undefined)
-	let resolved = requestedProfileId ? usableProfile(requestedProfileId, ctx) : null
-	if (!resolved) {
-		resolved = fallbackProfile(ctx)
-		logger.warn("Config {configId} fell back to default profile (profile: {profile}, model: {model})", config._id ?? "(new)", config.profile ?? "none", config.model ?? "none")
+	const knownProfile = requestedProfileId ? ctx.modelConfig.PROFILES.find((p) => p.id === requestedProfileId) : undefined
+	const resolved = requestedProfileId ? usableProfile(requestedProfileId, ctx) : null
+
+	if (resolved) {
+		return { ...config, profile: resolved.profile.id, vendorId: resolved.model.vendor, model: resolved.model.providerModel, project: DEFAULT_PROJECT_ID }
 	}
-	if (!resolved) {
+
+	const fallback = fallbackProfile(ctx)
+	if (!fallback) {
 		throw new Error("No usable model profile - check models.config.ts and vendor API keys")
 	}
-	return { ...config, profile: resolved.profile.id, vendorId: resolved.model.vendor, model: resolved.model.providerModel, project: DEFAULT_PROJECT_ID }
+
+	if (knownProfile) {
+		logger.warn("Config {configId} profile {profile} is currently unusable - serving fallback model, keeping profile assignment", config._id ?? "(new)", knownProfile.id)
+		return { ...config, profile: knownProfile.id, vendorId: fallback.model.vendor, model: fallback.model.providerModel, project: DEFAULT_PROJECT_ID }
+	}
+
+	logger.warn("Config {configId} fell back to default profile (profile: {profile}, model: {model})", config._id ?? "(new)", config.profile ?? "none", config.model ?? "none")
+	return { ...config, profile: fallback.profile.id, vendorId: fallback.model.vendor, model: fallback.model.providerModel, project: DEFAULT_PROJECT_ID }
 }
 
 export const resolveDefaultProfileId = (purpose: "chat" | "assistant", ctx: ModelContext): string | null => {
