@@ -1,0 +1,134 @@
+import { logger } from "@vestfoldfylke/loglady"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import { buildClientProfiles, type ModelContext, type ModelSelection, resolveChatConfig, resolveDefaultModel, resolveDefaultProfileId } from "$lib/server/models/resolve"
+import type { ModelConfig } from "$lib/server/models/types"
+import type { VendorId } from "$lib/types/chat"
+
+const MODEL_CONFIG: ModelConfig = {
+	MODELS: {
+		luna: { vendor: "OPENAI", providerModel: "gpt-luna", files: "openai", capabilities: ["webSearch"] },
+		terra: { vendor: "OPENAI", providerModel: "gpt-terra", files: "openai", capabilities: ["webSearch"] },
+		large: { vendor: "MISTRAL", providerModel: "mistral-large-latest", files: "mistral", capabilities: ["webSearch"] },
+		old: { vendor: "OPENAI", providerModel: "gpt-old", files: "openai", capabilities: [], status: "retired" },
+		util: { vendor: "LITELLM", providerModel: "llama-util", files: "none", capabilities: [], internal: true }
+	},
+	PROFILES: [
+		{ id: "rask", label: "Rask", icon: "⚡", description: "Raske svar", model: "luna" },
+		{ id: "grundig", label: "Grundig", icon: "🧠", description: "Analyse", model: "terra" },
+		{ id: "europeisk", label: "Europeisk", icon: "🇪🇺", description: "EU", model: "large", dataLocation: "EU", roles: ["employee"] }
+	],
+	DEFAULTS: { chat: "europeisk", assistant: "rask", canvas: "grundig", utility: "util" },
+	LEGACY: { "gpt-old": "rask" }
+}
+
+const ctx = (enabled: VendorId[] = ["OPENAI", "MISTRAL", "LITELLM"]): ModelContext => ({
+	modelConfig: MODEL_CONFIG,
+	isVendorEnabled: (vendorId) => enabled.includes(vendorId)
+})
+
+const config = (overrides: Partial<ModelSelection>): ModelSelection => ({ _id: "cfg-1", vendorId: "MISTRAL", project: "DEFAULT", ...overrides })
+
+describe("resolveChatConfig", () => {
+	let warnSpy: ReturnType<typeof vi.spyOn>
+
+	beforeEach(() => {
+		warnSpy = vi.spyOn(logger, "warn").mockImplementation(() => {})
+	})
+
+	afterEach(() => {
+		warnSpy.mockRestore()
+	})
+
+	it("fills vendorId/model/project from the profile", () => {
+		expect(resolveChatConfig(config({ profile: "grundig" }), ctx())).toMatchObject({ profile: "grundig", vendorId: "OPENAI", model: "gpt-terra", project: "DEFAULT" })
+		expect(warnSpy).not.toHaveBeenCalled()
+	})
+
+	it("ignores stale vendorId/model/project sent alongside a profile", () => {
+		const resolved = resolveChatConfig(config({ profile: "rask", vendorId: "MISTRAL", model: "mistral-large-latest", project: "OTHER" }), ctx())
+		expect(resolved).toMatchObject({ vendorId: "OPENAI", model: "gpt-luna", project: "DEFAULT" })
+	})
+
+	it("uses a pinned model and project over the profile", () => {
+		const resolved = resolveChatConfig(config({ profile: "rask", pinned: { model: "terra", project: "STUDENTS" } }), ctx())
+		expect(resolved).toMatchObject({ vendorId: "OPENAI", model: "gpt-terra", project: "STUDENTS", pinned: { model: "terra", project: "STUDENTS" } })
+	})
+
+	it("falls back to the profile when the pinned model is retired, keeping the pin", () => {
+		const resolved = resolveChatConfig(config({ profile: "grundig", pinned: { model: "old", project: "DEFAULT" } }), ctx())
+		expect(resolved).toMatchObject({ model: "gpt-terra", pinned: { model: "old", project: "DEFAULT" } })
+		expect(warnSpy).toHaveBeenCalled()
+	})
+
+	it("maps a pre-profile config through LEGACY and sets profile", () => {
+		expect(resolveChatConfig(config({ vendorId: "OPENAI", model: "gpt-old" }), ctx())).toMatchObject({ profile: "rask", model: "gpt-luna" })
+	})
+
+	it("maps a pre-profile config whose model a profile uses directly, without a LEGACY entry", () => {
+		expect(resolveChatConfig(config({ vendorId: "OPENAI", model: "gpt-terra" }), ctx())).toMatchObject({ profile: "grundig", model: "gpt-terra" })
+	})
+
+	it("falls back to DEFAULTS.assistant for an unknown model", () => {
+		expect(resolveChatConfig(config({ vendorId: "OPENAI", model: "gpt-nope" }), ctx())).toMatchObject({ profile: "rask", model: "gpt-luna" })
+		expect(warnSpy).toHaveBeenCalled()
+	})
+
+	it("falls back to DEFAULTS.assistant for an unknown profile", () => {
+		expect(resolveChatConfig(config({ profile: "gone" }), ctx())).toMatchObject({ profile: "rask" })
+		expect(warnSpy).toHaveBeenCalled()
+	})
+
+	it("falls back when the profile's vendor is disabled", () => {
+		expect(resolveChatConfig(config({ profile: "europeisk" }), ctx(["OPENAI"]))).toMatchObject({ profile: "rask", vendorId: "OPENAI" })
+		expect(warnSpy).toHaveBeenCalled()
+	})
+
+	it("falls back to the first enabled profile when DEFAULTS.assistant's vendor is disabled", () => {
+		expect(resolveChatConfig(config({ profile: "grundig" }), ctx(["MISTRAL"]))).toMatchObject({ profile: "europeisk", vendorId: "MISTRAL" })
+		expect(warnSpy).toHaveBeenCalled()
+	})
+
+	it("returns vendor-agent configs untouched", () => {
+		const vendorAgentConfig = config({ vendorAgent: { id: "agent-1" }, profile: "rask" })
+		expect(resolveChatConfig(vendorAgentConfig, ctx())).toBe(vendorAgentConfig)
+	})
+
+	it("throws when no profile is usable at all", () => {
+		expect(() => resolveChatConfig(config({ profile: "rask" }), ctx([]))).toThrow(/No usable model profile/)
+	})
+})
+
+describe("resolveDefaultModel / resolveDefaultProfileId", () => {
+	it("resolves canvas to its profile's model", () => {
+		expect(resolveDefaultModel("canvas", ctx())).toEqual({ vendorId: "OPENAI", model: "gpt-terra", project: "DEFAULT" })
+	})
+
+	it("returns null for canvas when its vendor is disabled", () => {
+		expect(resolveDefaultModel("canvas", ctx(["MISTRAL"]))).toBeNull()
+	})
+
+	it("resolves utility to the internal model regardless of vendor enablement", () => {
+		expect(resolveDefaultModel("utility", ctx([]))).toEqual({ vendorId: "LITELLM", model: "llama-util", project: "DEFAULT" })
+	})
+
+	it("falls back for chat when DEFAULTS.chat's vendor is disabled", () => {
+		expect(resolveDefaultProfileId("chat", ctx(["OPENAI"]))).toBe("rask")
+		expect(resolveDefaultModel("chat", ctx(["OPENAI"]))).toEqual({ vendorId: "OPENAI", model: "gpt-luna", project: "DEFAULT" })
+	})
+
+	it("returns null for chat when nothing is enabled", () => {
+		expect(resolveDefaultProfileId("chat", ctx([]))).toBeNull()
+	})
+})
+
+describe("buildClientProfiles", () => {
+	it("includes resolved vendor/model, mime types, capabilities and roles", () => {
+		const europeisk = buildClientProfiles(ctx()).find((p) => p.id === "europeisk")
+		expect(europeisk).toMatchObject({ vendorId: "MISTRAL", model: "mistral-large-latest", project: "DEFAULT", capabilities: ["webSearch"], dataLocation: "EU", roles: ["employee"] })
+		expect(europeisk?.mimeTypes.FILE.length).toBeGreaterThan(0)
+	})
+
+	it("hides profiles whose vendor is disabled", () => {
+		expect(buildClientProfiles(ctx(["OPENAI"])).map((p) => p.id)).toEqual(["rask", "grundig"])
+	})
+})

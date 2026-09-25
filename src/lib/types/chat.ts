@@ -37,6 +37,11 @@ export type ChatConfig = {
 	project: string
 	vendorAgent?: VendorAgent | undefined
 	model?: string | undefined
+	// Model profile id (see $lib/server/models/models.config.ts). vendorId/project/model are always
+	// overwritten from it on the server - see $lib/server/models/resolve.ts.
+	profile?: string | undefined
+	// Admin-only escape hatch: model = catalogue key, not provider ID. Wins over profile while its model isn't retired.
+	pinned?: { model: string; project: string } | undefined
 	instructions?: string | undefined
 	conversationId?: string | undefined
 	tools?: ChatTool[] | undefined | null
@@ -167,6 +172,8 @@ export const ChatConfigSchema = schemaForType<ChatConfig>()(
 		project: z.string(),
 		vendorAgent: z.object({ id: z.string() }).optional(),
 		model: z.string().optional(),
+		profile: z.string().optional(),
+		pinned: z.object({ model: z.string(), project: z.string() }).optional(),
 		tools: z
 			.array(z.discriminatedUnion("type", [z.object({ type: z.literal("web_search") }), z.object({ type: z.literal("datasource") }), z.object({ type: z.literal("mcp") })]))
 			.nullable()
