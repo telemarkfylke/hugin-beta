@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { getPinnableModels, getProfileBadges, getSelectableProfiles, pinnedSelection, profileSelection } from "$lib/model-profiles"
+	import { getPinnableModels, getPinnedModelLabel, getProfileBadges, getSelectableProfiles, pinnedSelection, profileSelection } from "$lib/model-profiles"
 	import type { AppConfig } from "$lib/types/app-config"
 	import type { AuthenticatedPrincipal } from "$lib/types/authentication"
 	import type { ChatConfig } from "$lib/types/chat"
@@ -123,7 +123,7 @@
 			</div>
 			{#if config.pinned}
 				<div class="pinned-note">
-					<span>📌 Assistenten er låst til <b>{config.model}</b> og følger ikke profilendringer.</span>
+					<span>📌 Assistenten er låst til <b>{getPinnedModelLabel(config.pinned, appConfig)}</b> og følger ikke profilendringer.</span>
 					<button type="button" class="link-button" onclick={resetPin}>Tilbakestill til profil</button>
 				</div>
 			{/if}

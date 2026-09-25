@@ -1,5 +1,15 @@
 import { describe, expect, it } from "vitest"
-import { defaultProfileSelection, getModelDisplayName, getPinnableModels, getProfileBadges, getSelectableProfiles, pinnedSelection, profileSelection, supportsWebSearch } from "$lib/model-profiles"
+import {
+	defaultProfileSelection,
+	getModelDisplayName,
+	getPinnableModels,
+	getPinnedModelLabel,
+	getProfileBadges,
+	getSelectableProfiles,
+	pinnedSelection,
+	profileSelection,
+	supportsWebSearch
+} from "$lib/model-profiles"
 import type { AppConfig } from "$lib/types/app-config"
 import type { AuthenticatedPrincipal } from "$lib/types/authentication"
 import type { ChatConfig } from "$lib/types/chat"
@@ -101,6 +111,10 @@ describe("selections", () => {
 		expect(pinnedSelection(APP_CONFIG, "nope", "DEFAULT")).toBeNull()
 	})
 
+	it("pinnedSelection falls back to the DEFAULT project when the new model's vendor lacks the current one", () => {
+		expect(pinnedSelection(APP_CONFIG, "normistral", "STUDENTS")).toEqual({ vendorId: "LITELLM", model: "normistral", project: "DEFAULT", pinned: { model: "normistral", project: "DEFAULT" } })
+	})
+
 	it("getPinnableModels lists enabled vendors' non-retired models", () => {
 		expect(getPinnableModels(APP_CONFIG).map((g) => [g.vendorId, g.models.map((m) => m.KEY)])).toEqual([
 			["OPENAI", ["gpt-live"]],
@@ -130,5 +144,17 @@ describe("getModelDisplayName", () => {
 	it("falls back to the raw model when the profile is unknown", () => {
 		expect(getModelDisplayName({ profile: "gone", model: "gpt-live" }, APP_CONFIG)).toBe("gpt-live")
 		expect(getModelDisplayName({}, APP_CONFIG)).toBe("")
+	})
+})
+
+describe("getPinnedModelLabel", () => {
+	it("shows the pinned catalogue model's provider ID", () => {
+		expect(getPinnedModelLabel({ model: "gpt-live", project: "DEFAULT" }, APP_CONFIG)).toBe("gpt-live")
+	})
+
+	it("flags a pin that is retired, on a disabled vendor or missing from the catalogue", () => {
+		expect(getPinnedModelLabel({ model: "gpt-old", project: "DEFAULT" }, APP_CONFIG)).toBe("gpt-old (ikke tilgjengelig – følger profilen)")
+		expect(getPinnedModelLabel({ model: "large", project: "DEFAULT" }, APP_CONFIG)).toBe("mistral-large-latest (ikke tilgjengelig – følger profilen)")
+		expect(getPinnedModelLabel({ model: "gone", project: "DEFAULT" }, APP_CONFIG)).toBe("gone (ikke tilgjengelig – følger profilen)")
 	})
 })

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { page } from "$app/state"
-	import { getModelDisplayName } from "$lib/model-profiles"
+	import { getModelDisplayName, getPinnedModelLabel } from "$lib/model-profiles"
 	import type { AppConfig } from "$lib/types/app-config"
 	import type { AuthenticatedPrincipal } from "$lib/types/authentication"
 	import type { ChatConfig } from "$lib/types/chat"
@@ -56,7 +56,7 @@
 				{#if agent.pinned && isAdmin}
 					<div class="meta-item" title="Låst til modell">
 						<span class="material-symbols-outlined">push_pin</span>
-						<span>{agent.model}</span>
+						<span>{getPinnedModelLabel(agent.pinned, appConfig)}</span>
 					</div>
 				{/if}
 			{/if}

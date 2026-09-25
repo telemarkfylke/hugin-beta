@@ -2,7 +2,7 @@ import { canSeeSpotlight } from "./authorization"
 import type { AppConfig, AppRoles, ModelInfo } from "./types/app-config"
 import type { AuthenticatedPrincipal } from "./types/authentication"
 import type { ChatConfig, VendorId } from "./types/chat"
-import type { ClientModelProfile } from "./types/model-profiles"
+import { type ClientModelProfile, DEFAULT_PROJECT_ID } from "./types/model-profiles"
 
 // Client-safe helpers for model profiles (the picker, web search gating, display names). Pure, so
 // they're unit-tested in tests/server/models/client-model-profiles.test.ts.
@@ -56,12 +56,24 @@ const findModelByKey = (appConfig: AppConfig, modelKey: string): { vendorId: Ven
 	return null
 }
 
+// Re-pinning to a model on another vendor keeps the current project only if that vendor has it -
+// otherwise the Prosjekt select would show an invalid value and saving would 400.
 export const pinnedSelection = (appConfig: AppConfig, modelKey: string, project: string): PinnedSelection | null => {
 	const found = findModelByKey(appConfig, modelKey)
 	if (!found) {
 		return null
 	}
-	return { vendorId: found.vendorId, model: found.model.ID, project, pinned: { model: modelKey, project } }
+	const pinnedProject = appConfig.VENDORS[found.vendorId].PROJECTS.includes(project) ? project : DEFAULT_PROJECT_ID
+	return { vendorId: found.vendorId, model: found.model.ID, project: pinnedProject, pinned: { model: modelKey, project: pinnedProject } }
+}
+
+// The pinned catalogue model, not config.model - when the pin is unusable, resolution serves the
+// profile's model instead, so config.model would name a model the assistant isn't pinned to.
+export const getPinnedModelLabel = (pinned: NonNullable<ChatConfig["pinned"]>, appConfig: AppConfig): string => {
+	const found = findModelByKey(appConfig, pinned.model)
+	const pinnable = found && !found.model.RETIRED && appConfig.VENDORS[found.vendorId].ENABLED
+	const label = found?.model.ID ?? pinned.model
+	return pinnable ? label : `${label} (ikke tilgjengelig – følger profilen)`
 }
 
 export const getPinnableModels = (appConfig: AppConfig): { vendorId: VendorId; vendorName: string; models: ModelInfo[] }[] => {
