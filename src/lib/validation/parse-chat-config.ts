@@ -21,18 +21,27 @@ const validateSavedModelSelection = (config: Pick<ChatConfig, "profile" | "pinne
 			throw new HTTPError(403, `Not authorized to choose profile: ${profile.id}`)
 		}
 	}
-	if (config.pinned && !samePinned(config.pinned, previous?.pinned)) {
-		const pinned = config.pinned
-		const vendor = Object.values(APP_CONFIG.VENDORS).find((v) => v.MODELS.some((m) => m.KEY === pinned.model))
-		const model = vendor?.MODELS.find((m) => m.KEY === pinned.model)
-		if (!vendor || !model || model.RETIRED || !vendor.ENABLED) {
-			throw new HTTPError(400, `Unsupported pinned model: ${pinned.model}`)
-		}
-		if (!vendor.PROJECTS.includes(pinned.project)) {
-			throw new HTTPError(400, `Unsupported project: ${pinned.project} for pinned model: ${pinned.model}`)
-		}
-		if (!user.roles.includes(APP_CONFIG.APP_ROLES.ADMIN)) {
-			throw new HTTPError(403, "Only admins can pin a model")
+	if (!samePinned(config.pinned, previous?.pinned)) {
+		if (!config.pinned) {
+			// Removing a previously-set pin is a change too - only an admin may do it (same rule as
+			// setting/changing one below), otherwise a non-admin co-editor could silently strip an
+			// admin's pin just by omitting it from their save body.
+			if (!user.roles.includes(APP_CONFIG.APP_ROLES.ADMIN)) {
+				throw new HTTPError(403, "Only admins can remove a model pin")
+			}
+		} else {
+			const pinned = config.pinned
+			const vendor = Object.values(APP_CONFIG.VENDORS).find((v) => v.MODELS.some((m) => m.KEY === pinned.model))
+			const model = vendor?.MODELS.find((m) => m.KEY === pinned.model)
+			if (!vendor || !model || model.RETIRED || !vendor.ENABLED) {
+				throw new HTTPError(400, `Unsupported pinned model: ${pinned.model}`)
+			}
+			if (!vendor.PROJECTS.includes(pinned.project)) {
+				throw new HTTPError(400, `Unsupported project: ${pinned.project} for pinned model: ${pinned.model}`)
+			}
+			if (!user.roles.includes(APP_CONFIG.APP_ROLES.ADMIN)) {
+				throw new HTTPError(403, "Only admins can pin a model")
+			}
 		}
 	}
 }

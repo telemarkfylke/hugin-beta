@@ -107,6 +107,22 @@ describe("parseChatConfig - save mode", () => {
 		const config = parseChatConfig({ ...base, profile: "rask", pinned }, APP_CONFIG, { mode: "save", user: employee, previous: stored({ profile: "rask", pinned }) })
 		expect(config.pinned).toEqual(pinned)
 	})
+
+	it("rejects a non-admin removing an existing pin with 403", () => {
+		const previous = stored({ profile: "rask", pinned: { model: "gpt-live", project: "STUDENTS" } })
+		expectStatus(() => parseChatConfig({ ...base, profile: "rask" }, APP_CONFIG, { mode: "save", user: employee, previous }), 403)
+	})
+
+	it("lets an admin remove an existing pin", () => {
+		const previous = stored({ profile: "rask", pinned: { model: "gpt-live", project: "STUDENTS" } })
+		const config = parseChatConfig({ ...base, profile: "rask" }, APP_CONFIG, { mode: "save", user: admin, previous })
+		expect(config.pinned).toBeUndefined()
+	})
+
+	it("rejects a non-admin changing an existing pin's project with 403", () => {
+		const previous = stored({ profile: "rask", pinned: { model: "gpt-live", project: "STUDENTS" } })
+		expectStatus(() => parseChatConfig({ ...base, profile: "rask", pinned: { model: "gpt-live", project: "DEFAULT" } }, APP_CONFIG, { mode: "save", user: employee, previous }), 403)
+	})
 })
 
 describe("parseChatConfig - use mode", () => {
