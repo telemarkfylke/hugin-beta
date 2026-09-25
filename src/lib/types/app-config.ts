@@ -1,9 +1,13 @@
+import type { MimeTypes, ModelCapability } from "./model-profiles"
+
 export type ModelInfo = {
+	// Catalogue key in $lib/server/models/models.config.ts - what ChatConfig.pinned.model refers to
+	KEY: string
+	// Provider model ID - what ChatConfig.model holds after resolution
 	ID: string
-	SUPPORTED_MESSAGE_FILE_MIME_TYPES: {
-		FILE: string[]
-		IMAGE: string[]
-	}
+	SUPPORTED_MESSAGE_FILE_MIME_TYPES: MimeTypes
+	CAPABILITIES: ModelCapability[]
+	RETIRED: boolean
 }
 
 export type VendorInfo = {

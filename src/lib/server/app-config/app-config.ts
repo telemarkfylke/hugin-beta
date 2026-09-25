@@ -1,11 +1,10 @@
 import { env } from "$env/dynamic/private"
+import { assertModelConfig } from "$lib/server/models/assert-model-config"
+import { deriveVendorModels } from "$lib/server/models/derive-vendors"
+import { MODEL_CONFIG } from "$lib/server/models/models.config"
 import type { AppConfig } from "$lib/types/app-config"
-import {
-	MISTRAL_DEFAULT_SUPPORTED_MESSAGE_FILE_MIME_TYPES,
-	MISTRAL_DEFAULT_SUPPORTED_MESSAGE_IMAGE_MIME_TYPES,
-	OPEN_AI_DEFAULT_SUPPORTED_MESSAGE_FILE_MIME_TYPES,
-	OPEN_AI_DEFAULT_SUPPORTED_MESSAGE_IMAGE_MIME_TYPES
-} from "./supported-mime-types"
+
+assertModelConfig(MODEL_CONFIG)
 
 export const APP_CONFIG: AppConfig = {
 	NAME: env.APP_NAME || "Mugin",
@@ -40,22 +39,7 @@ export const APP_CONFIG: AppConfig = {
 			PROJECTS: Object.keys(env)
 				.filter((key) => key.startsWith("MISTRAL_API_KEY_PROJECT"))
 				.map((key) => key.replace("MISTRAL_API_KEY_PROJECT_", "")),
-			MODELS: [
-				{
-					ID: "mistral-medium-latest",
-					SUPPORTED_MESSAGE_FILE_MIME_TYPES: {
-						FILE: MISTRAL_DEFAULT_SUPPORTED_MESSAGE_FILE_MIME_TYPES,
-						IMAGE: MISTRAL_DEFAULT_SUPPORTED_MESSAGE_IMAGE_MIME_TYPES
-					}
-				},
-				{
-					ID: "mistral-large-latest",
-					SUPPORTED_MESSAGE_FILE_MIME_TYPES: {
-						FILE: MISTRAL_DEFAULT_SUPPORTED_MESSAGE_FILE_MIME_TYPES,
-						IMAGE: MISTRAL_DEFAULT_SUPPORTED_MESSAGE_IMAGE_MIME_TYPES
-					}
-				}
-			]
+			MODELS: deriveVendorModels(MODEL_CONFIG, "MISTRAL")
 		},
 		OPENAI: {
 			NAME: "OpenAI",
@@ -63,96 +47,19 @@ export const APP_CONFIG: AppConfig = {
 			PROJECTS: Object.keys(env)
 				.filter((key) => key.startsWith("OPENAI_API_KEY_PROJECT"))
 				.map((key) => key.replace("OPENAI_API_KEY_PROJECT_", "")),
-			MODELS: [
-				{
-					ID: "gpt-4o",
-					SUPPORTED_MESSAGE_FILE_MIME_TYPES: {
-						FILE: OPEN_AI_DEFAULT_SUPPORTED_MESSAGE_FILE_MIME_TYPES,
-						IMAGE: OPEN_AI_DEFAULT_SUPPORTED_MESSAGE_IMAGE_MIME_TYPES
-					}
-				},
-				{
-					ID: "gpt-4",
-					SUPPORTED_MESSAGE_FILE_MIME_TYPES: {
-						FILE: OPEN_AI_DEFAULT_SUPPORTED_MESSAGE_FILE_MIME_TYPES,
-						IMAGE: OPEN_AI_DEFAULT_SUPPORTED_MESSAGE_IMAGE_MIME_TYPES
-					}
-				},
-				{
-					ID: "gpt-4.1",
-					SUPPORTED_MESSAGE_FILE_MIME_TYPES: {
-						FILE: OPEN_AI_DEFAULT_SUPPORTED_MESSAGE_FILE_MIME_TYPES,
-						IMAGE: OPEN_AI_DEFAULT_SUPPORTED_MESSAGE_IMAGE_MIME_TYPES
-					}
-				},
-				{
-					ID: "gpt-5.2",
-					SUPPORTED_MESSAGE_FILE_MIME_TYPES: {
-						FILE: OPEN_AI_DEFAULT_SUPPORTED_MESSAGE_FILE_MIME_TYPES,
-						IMAGE: OPEN_AI_DEFAULT_SUPPORTED_MESSAGE_IMAGE_MIME_TYPES
-					}
-				},
-				{
-					ID: "gpt-5.4",
-					SUPPORTED_MESSAGE_FILE_MIME_TYPES: {
-						FILE: OPEN_AI_DEFAULT_SUPPORTED_MESSAGE_FILE_MIME_TYPES,
-						IMAGE: OPEN_AI_DEFAULT_SUPPORTED_MESSAGE_IMAGE_MIME_TYPES
-					}
-				},
-				{
-					ID: "gpt-5.5",
-					SUPPORTED_MESSAGE_FILE_MIME_TYPES: {
-						FILE: OPEN_AI_DEFAULT_SUPPORTED_MESSAGE_FILE_MIME_TYPES,
-						IMAGE: OPEN_AI_DEFAULT_SUPPORTED_MESSAGE_IMAGE_MIME_TYPES
-					}
-				},
-				{
-					ID: "gpt-5.6-terra",
-					SUPPORTED_MESSAGE_FILE_MIME_TYPES: {
-						FILE: OPEN_AI_DEFAULT_SUPPORTED_MESSAGE_FILE_MIME_TYPES,
-						IMAGE: OPEN_AI_DEFAULT_SUPPORTED_MESSAGE_IMAGE_MIME_TYPES
-					}
-				},
-				{
-					ID: "gpt-5.6-luna",
-					SUPPORTED_MESSAGE_FILE_MIME_TYPES: {
-						FILE: OPEN_AI_DEFAULT_SUPPORTED_MESSAGE_FILE_MIME_TYPES,
-						IMAGE: OPEN_AI_DEFAULT_SUPPORTED_MESSAGE_IMAGE_MIME_TYPES
-					}
-				}
-			]
+			MODELS: deriveVendorModels(MODEL_CONFIG, "OPENAI")
 		},
 		OLLAMA: {
 			NAME: "Ollama",
 			ENABLED: Boolean(env.OLLAMA_HOST),
 			PROJECTS: ["DEFAULT"],
-			MODELS: [
-				{
-					ID: "llama3:8b",
-					SUPPORTED_MESSAGE_FILE_MIME_TYPES: {
-						FILE: [],
-						IMAGE: []
-					}
-				},
-				{
-					ID: "LTG/normistral-11b-thinking:latest",
-					SUPPORTED_MESSAGE_FILE_MIME_TYPES: {
-						FILE: [],
-						IMAGE: []
-					}
-				}
-			]
+			MODELS: deriveVendorModels(MODEL_CONFIG, "OLLAMA")
 		},
 		LITELLM: {
 			NAME: "Telemark fylkeskommune",
 			ENABLED: Boolean(env.LITELLM_BASE_URL),
 			PROJECTS: ["DEFAULT"],
-			MODELS: [
-				{
-					ID: "norallm/normistral-11b-thinking",
-					SUPPORTED_MESSAGE_FILE_MIME_TYPES: { FILE: [], IMAGE: [] }
-				}
-			]
+			MODELS: deriveVendorModels(MODEL_CONFIG, "LITELLM")
 		}
 	}
 }
