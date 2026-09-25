@@ -119,6 +119,25 @@ describe("parseChatConfig - save mode", () => {
 		expect(config.pinned).toBeUndefined()
 	})
 
+	it("rejects a manual config without profile or pinned on create with 400", () => {
+		expectStatus(() => parseChatConfig({ ...base }, APP_CONFIG, { mode: "save", user: employee, previous: null }), 400)
+	})
+
+	it("rejects a manual config that drops its profile on update with 400", () => {
+		expectStatus(() => parseChatConfig({ ...base }, APP_CONFIG, { mode: "save", user: student, previous: stored({ profile: "rask" }) }), 400)
+	})
+
+	it("accepts a pinned-only admin config without a profile", () => {
+		const config = parseChatConfig({ ...base, pinned: { model: "gpt-live", project: "DEFAULT" } }, APP_CONFIG, { mode: "save", user: admin, previous: null })
+		expect(config.profile).toBeUndefined()
+		expect(config.pinned).toEqual({ model: "gpt-live", project: "DEFAULT" })
+	})
+
+	it("does not require a profile on vendor-agent configs", () => {
+		const config = parseChatConfig({ ...base, vendorAgent: { id: "agent-1" } }, APP_CONFIG, { mode: "save", user: employee, previous: null })
+		expect(config.vendorAgent).toEqual({ id: "agent-1" })
+	})
+
 	it("rejects a non-admin changing an existing pin's project with 403", () => {
 		const previous = stored({ profile: "rask", pinned: { model: "gpt-live", project: "STUDENTS" } })
 		expectStatus(() => parseChatConfig({ ...base, profile: "rask", pinned: { model: "gpt-live", project: "DEFAULT" } }, APP_CONFIG, { mode: "save", user: employee, previous }), 403)
@@ -129,6 +148,10 @@ describe("parseChatConfig - use mode", () => {
 	it("accepts a student using a pinned, role-restricted assistant", () => {
 		const config = parseChatConfig({ ...base, profile: "lokal", pinned: { model: "gpt-live", project: "STUDENTS" } }, APP_CONFIG, { mode: "use" })
 		expect(config).toMatchObject({ profile: "lokal", pinned: { model: "gpt-live", project: "STUDENTS" } })
+	})
+
+	it("still accepts a profile-less (pre-profile) config", () => {
+		expect(parseChatConfig({ ...base }, APP_CONFIG, { mode: "use" }).profile).toBeUndefined()
 	})
 
 	it("leaves an unknown profile to resolution instead of rejecting", () => {

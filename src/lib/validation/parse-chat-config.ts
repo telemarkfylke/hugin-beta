@@ -12,6 +12,11 @@ export type ParseChatConfigOptions = { mode: "use" } | { mode: "save"; user: Aut
 const samePinned = (a: ChatConfig["pinned"], b: ChatConfig["pinned"]): boolean => a?.model === b?.model && a?.project === b?.project
 
 const validateSavedModelSelection = (config: Pick<ChatConfig, "profile" | "pinned">, APP_CONFIG: AppConfig, user: AuthenticatedPrincipal, previous: ChatConfig | null): void => {
+	// Without profile/pinned the store would map vendorId/model to a profile (LEGACY/profile-model match)
+	// that never went through the role check below - e.g. a student naming the "lokal" model directly.
+	if (config.profile === undefined && !config.pinned) {
+		throw new HTTPError(400, "profile is required")
+	}
 	if (config.profile !== undefined && config.profile !== previous?.profile) {
 		const profile = APP_CONFIG.MODEL_PROFILES.find((p) => p.id === config.profile)
 		if (!profile) {
