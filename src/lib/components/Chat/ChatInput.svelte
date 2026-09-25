@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { supportsWebSearch } from "$lib/model-profiles"
 	import FileDropZone from "../FileDropZone.svelte"
 	import TypingDots from "../TypingDots.svelte"
 	import type { ChatState } from "./ChatState.svelte"
@@ -213,7 +214,7 @@
 						hidden
 					/>
 				{/if}
-				{#if !toolsLocked && (chatState.chat.config.vendorId === "OPENAI" || chatState.chat.config.vendorId === "MISTRAL")}
+				{#if !toolsLocked && supportsWebSearch(chatState.chat.config, chatState.APP_CONFIG)}
 					<button
 						class="icon-button input-action-button"
 						class:active={webSearchEnabled}

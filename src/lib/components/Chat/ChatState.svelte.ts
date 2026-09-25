@@ -1,6 +1,7 @@
 import { goto } from "$app/navigation"
 import { canUseHistory } from "$lib/authorization"
 import { chatHistoryToInputItems } from "$lib/chat-history"
+import { getModelDisplayName, supportsWebSearch } from "$lib/model-profiles"
 import type { AppConfig } from "$lib/types/app-config"
 import type { AuthenticatedPrincipal } from "$lib/types/authentication"
 import type { Chat, ChatConfig, ChatHistory, ChatRequest, ChatResponseObject } from "$lib/types/chat"
@@ -72,8 +73,6 @@ export type PendingConversationLoad = {
 	history: ChatHistory
 	originalConfig: ChatConfig
 }
-const supportsWebSearch = (config: ChatConfig): boolean => config.vendorId === "OPENAI" || config.vendorId === "MISTRAL"
-
 const placeHolderConfig: ChatConfig = {
 	_id: "",
 	name: "",
@@ -186,7 +185,7 @@ export class ChatState {
 		this.chat.updatedAt = chat.updatedAt
 		this.chat.owner = chat.owner
 		this.initialConfig = JSON.parse(JSON.stringify(chat.config))
-		this.webSearchEnabled = this.lockedTools ? this.lockedTools.webSearch : supportsWebSearch(chat.config)
+		this.webSearchEnabled = this.lockedTools ? this.lockedTools.webSearch : supportsWebSearch(chat.config, this.APP_CONFIG)
 		// Same default-on-if-available rule as web search - if an agent has a datasource configured,
 		// it's presumably configured for a reason, so it starts active rather than needing a click.
 		this.datasourceEnabled = this.lockedTools ? this.lockedTools.datasource : (chat.config.dataSources?.length ?? 0) > 0
@@ -389,7 +388,7 @@ export class ChatState {
 		const chatInput = chatHistoryToInputItems(this.chat.history)
 
 		const webSearchTools: typeof this.chat.config.tools =
-			this.webSearchEnabled && supportsWebSearch(this.chat.config)
+			this.webSearchEnabled && supportsWebSearch(this.chat.config, this.APP_CONFIG)
 				? [{ type: "web_search" }, ...(this.chat.config.tools?.filter((t) => t.type !== "web_search") ?? [])]
 				: this.chat.config.tools?.filter((t) => t.type !== "web_search")
 
@@ -412,7 +411,7 @@ export class ChatState {
 		const chatRequest: ChatRequest = {
 			config: {
 				...this.chat.config,
-				name: this.chat.config.name || this.chat.config.model || "Ukjent navn",
+				name: this.chat.config.name || getModelDisplayName(this.chat.config, this.APP_CONFIG) || "Ukjent navn",
 				tools: activeTools
 			},
 			// Uten lagring (store=false) har backend ingen historikk å bygge kontekst fra, så da må vi fortsatt sende hele samtalen selv.
