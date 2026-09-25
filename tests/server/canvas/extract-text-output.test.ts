@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 import type { ChatOutputItem } from "$lib/types/chat-item"
-import { extractTextOutput } from "../../../../src/routes/api/canvas/mermaid/extract-text-output"
+import { extractTextOutput } from "../../../src/routes/api/canvas/extract-text-output"
 
 const messageOutput = (text: string): ChatOutputItem => ({
 	id: "1",

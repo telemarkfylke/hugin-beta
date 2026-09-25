@@ -7,7 +7,7 @@ import { HTTPError } from "$lib/server/middleware/http-error"
 import { apiRequestMiddleware } from "$lib/server/middleware/http-request"
 import type { ApiNextFunction } from "$lib/types/middleware/http-request"
 import { parseMermaidRequest } from "$lib/validation/parse-mermaid-request"
-import { extractTextOutput } from "./extract-text-output"
+import { extractTextOutput } from "../extract-text-output"
 
 const MERMAID_VENDOR_ID = "OPENAI" as const
 const MERMAID_MODEL = "gpt-5.6-terra"
