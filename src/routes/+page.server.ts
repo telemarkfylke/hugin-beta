@@ -1,19 +1,23 @@
 import { env } from "$env/dynamic/private"
+import { APP_CONFIG } from "$lib/server/app-config/app-config"
 import { getChatConfigStore } from "$lib/server/db/get-db"
 import { serverLoadRequestMiddleware } from "$lib/server/middleware/http-request"
+import { resolveConfig } from "$lib/server/models/model-registry"
 import type { ChatConfig } from "$lib/types/chat"
 import type { ServerLoadNextFunction } from "$lib/types/middleware/http-request"
 import type { PageServerLoad } from "./$types"
 
 const chatConfigStore = getChatConfigStore()
 
-const fallbackAgent: ChatConfig = {
+// vendorId/project here are placeholders - resolveConfig fills them (and model) from the default chat profile.
+// NB: name/description describe Mistral because DEFAULTS.chat is "europeisk" - update them if that default changes.
+const fallbackAgent: ChatConfig = resolveConfig<ChatConfig>({
 	_id: "",
 	name: "Mistral",
 	description: "Mistral er en kraftig europeisk variant av ChatGPT",
 	vendorId: "MISTRAL",
 	project: "DEFAULT",
-	model: "mistral-large-latest",
+	profile: APP_CONFIG.DEFAULT_PROFILE_IDS.CHAT,
 	instructions: "",
 	accessGroups: ["all"],
 	type: "published",
@@ -29,7 +33,7 @@ const fallbackAgent: ChatConfig = {
 			id: "system"
 		}
 	}
-}
+})
 
 const homePageLoad: ServerLoadNextFunction<{ agent: ChatConfig }> = async () => {
 	if (!env.DEFAULT_AGENT_ID) {

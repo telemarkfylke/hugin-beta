@@ -18,6 +18,7 @@ import { runAgenticToolChatOrDegrade } from "$lib/server/mcp/run-agentic-chat"
 import { configHasMcpTool, mcpUnavailableStream } from "$lib/server/mcp/run-mcp-chat"
 import { HTTPError } from "$lib/server/middleware/http-error"
 import { apiRequestMiddleware } from "$lib/server/middleware/http-request"
+import { resolveConfig } from "$lib/server/models/model-registry"
 import { appendRagContextToInstructions } from "$lib/server/ragservice/format-rag-context"
 import { rewriteRagQuery } from "$lib/server/ragservice/rag-query-rewrite"
 import { searchRagStores } from "$lib/server/ragservice/rag-search"
@@ -40,7 +41,8 @@ const parseChatRequest = (body: unknown): ChatRequest => {
 	}
 	const incomingChatRequest: ChatRequest = body as ChatRequest
 
-	const config = parseChatConfig(incomingChatRequest.config, APP_CONFIG, { mode: "use" })
+	// Client-sent vendorId/model/project are never trusted - resolution overwrites them from profile/pin
+	const config = resolveConfig(parseChatConfig(incomingChatRequest.config, APP_CONFIG, { mode: "use" }))
 
 	if (!Array.isArray(incomingChatRequest.inputs) || incomingChatRequest.inputs.length === 0) {
 		throw new HTTPError(400, "inputs must be a non-empty array")

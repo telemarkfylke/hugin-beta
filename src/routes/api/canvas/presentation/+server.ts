@@ -5,12 +5,10 @@ import { getVendor } from "$lib/server/ai-vendors"
 import { APP_CONFIG } from "$lib/server/app-config/app-config"
 import { HTTPError } from "$lib/server/middleware/http-error"
 import { apiRequestMiddleware } from "$lib/server/middleware/http-request"
+import { getDefaultModel } from "$lib/server/models/model-registry"
 import type { ApiNextFunction } from "$lib/types/middleware/http-request"
 import { parsePresentationRequest } from "$lib/validation/parse-presentation-request"
 import { extractTextOutput } from "../extract-text-output"
-
-const PRESENTATION_VENDOR_ID = "OPENAI" as const
-const PRESENTATION_MODEL = "gpt-5.6-terra"
 
 const PRESENTATION_SYSTEM_PROMPT = `You are a presentation editor. The user will give you the current presentation content (may be empty) and a prompt describing what to create or change.
 The presentation is plain Markdown where each slide is separated by a line containing only "---".
@@ -26,8 +24,9 @@ const presentationHandler: ApiNextFunction = async ({ requestEvent, user }) => {
 	if (!canUseCanvas(user, APP_CONFIG.APP_ROLES)) {
 		throw new HTTPError(403, "Not authorized to use Canvas")
 	}
-	if (!APP_CONFIG.VENDORS.OPENAI.ENABLED) {
-		throw new HTTPError(503, "Presentation generation is not available — OpenAI vendor is not configured")
+	const canvasModel = getDefaultModel("canvas")
+	if (!canvasModel) {
+		throw new HTTPError(503, "Presentation generation is not available — the canvas model's vendor is not configured")
 	}
 
 	const body = await requestEvent.request.json()
@@ -43,15 +42,15 @@ const presentationHandler: ApiNextFunction = async ({ requestEvent, user }) => {
 
 	const userMessage = slides ? `Here is the current presentation Markdown:\n\n${slides}\n\n---\n\nUser instruction: ${prompt}` : prompt
 
-	const vendor = getVendor(PRESENTATION_VENDOR_ID)
+	const vendor = getVendor(canvasModel.vendorId)
 	const response = await vendor.createChatResponse({
 		config: {
 			_id: "",
 			name: "Canvas Presentation",
 			description: "",
-			vendorId: PRESENTATION_VENDOR_ID,
-			project: "DEFAULT",
-			model: PRESENTATION_MODEL,
+			vendorId: canvasModel.vendorId,
+			project: canvasModel.project,
+			model: canvasModel.model,
 			accessGroups: ["all"],
 			type: "private",
 			created: { at: "", by: { id: "" } },
