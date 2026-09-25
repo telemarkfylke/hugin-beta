@@ -68,11 +68,13 @@ describe("resolveChatConfig", () => {
 	it("ignores stale vendorId/model/project sent alongside a profile", () => {
 		const resolved = resolveChatConfig(config({ profile: "rask", vendorId: "MISTRAL", model: "mistral-large-latest", project: "OTHER" }), ctx())
 		expect(resolved).toMatchObject({ vendorId: "OPENAI", model: "gpt-luna", project: "DEFAULT" })
+		expect(warnSpy).not.toHaveBeenCalled()
 	})
 
 	it("uses a pinned model and project over the profile", () => {
 		const resolved = resolveChatConfig(config({ profile: "rask", pinned: { model: "terra", project: "STUDENTS" } }), ctx())
 		expect(resolved).toMatchObject({ vendorId: "OPENAI", model: "gpt-terra", project: "STUDENTS", pinned: { model: "terra", project: "STUDENTS" } })
+		expect(warnSpy).not.toHaveBeenCalled()
 	})
 
 	it("falls back to the profile when the pinned model is retired, keeping the pin", () => {
@@ -83,10 +85,12 @@ describe("resolveChatConfig", () => {
 
 	it("maps a pre-profile config through LEGACY and sets profile", () => {
 		expect(resolveChatConfig(config({ vendorId: "OPENAI", model: "gpt-old" }), ctx())).toMatchObject({ profile: "rask", model: "gpt-luna" })
+		expect(warnSpy).not.toHaveBeenCalled()
 	})
 
 	it("maps a pre-profile config whose model a profile uses directly, without a LEGACY entry", () => {
 		expect(resolveChatConfig(config({ vendorId: "OPENAI", model: "gpt-terra" }), ctx())).toMatchObject({ profile: "grundig", model: "gpt-terra" })
+		expect(warnSpy).not.toHaveBeenCalled()
 	})
 
 	it("falls back to DEFAULTS.assistant for an unknown model", () => {
