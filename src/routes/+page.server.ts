@@ -10,11 +10,11 @@ import type { PageServerLoad } from "./$types"
 const chatConfigStore = getChatConfigStore()
 
 // vendorId/project here are placeholders - resolveConfig fills them (and model) from the default chat profile.
-// NB: name/description describe Mistral because DEFAULTS.chat is "europeisk" - update them if that default changes.
+const defaultChatProfile = APP_CONFIG.MODEL_PROFILES.find((profile) => profile.id === APP_CONFIG.DEFAULT_PROFILE_IDS.CHAT)
 const fallbackAgent: ChatConfig = resolveConfig<ChatConfig>({
 	_id: "",
-	name: "Mistral",
-	description: "Mistral er en kraftig europeisk variant av ChatGPT",
+	name: defaultChatProfile?.label ?? APP_CONFIG.NAME,
+	description: "Standard KI-assistent",
 	vendorId: "MISTRAL",
 	project: "DEFAULT",
 	profile: APP_CONFIG.DEFAULT_PROFILE_IDS.CHAT,
