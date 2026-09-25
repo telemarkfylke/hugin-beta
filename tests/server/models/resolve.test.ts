@@ -26,6 +26,27 @@ const ctx = (enabled: VendorId[] = ["OPENAI", "MISTRAL", "LITELLM"]): ModelConte
 	isVendorEnabled: (vendorId) => enabled.includes(vendorId)
 })
 
+// Unlike ctx() above (enabled.includes(vendorId), which tolerates an undefined vendorId by just
+// returning false), this throws on anything but a known vendor key - proving a lookup actually
+// resolved to a real (or properly absent) catalogue entry, not an inherited prototype value.
+const strictCtx = (enabled: VendorId[] = ["OPENAI", "MISTRAL", "LITELLM"]): ModelContext => {
+	const enabledByVendor: Record<string, boolean> = {
+		OPENAI: enabled.includes("OPENAI"),
+		MISTRAL: enabled.includes("MISTRAL"),
+		LITELLM: enabled.includes("LITELLM"),
+		OLLAMA: enabled.includes("OLLAMA")
+	}
+	return {
+		modelConfig: MODEL_CONFIG,
+		isVendorEnabled: (vendorId) => {
+			if (!Object.hasOwn(enabledByVendor, vendorId)) {
+				throw new Error(`unknown vendor: ${vendorId}`)
+			}
+			return enabledByVendor[vendorId] as boolean
+		}
+	}
+}
+
 const config = (overrides: Partial<ModelSelection>): ModelSelection => ({ _id: "cfg-1", vendorId: "MISTRAL", project: "DEFAULT", ...overrides })
 
 describe("resolveChatConfig", () => {
@@ -85,6 +106,18 @@ describe("resolveChatConfig", () => {
 
 	it("falls back to the first enabled profile when DEFAULTS.assistant's vendor is disabled", () => {
 		expect(resolveChatConfig(config({ profile: "grundig" }), ctx(["MISTRAL"]))).toMatchObject({ profile: "europeisk", vendorId: "MISTRAL" })
+		expect(warnSpy).toHaveBeenCalled()
+	})
+
+	it("ignores an inherited-property pin key and falls back to the profile instead of crashing", () => {
+		const resolved = resolveChatConfig(config({ profile: "rask", pinned: { model: "constructor", project: "DEFAULT" } }), strictCtx())
+		expect(resolved).toMatchObject({ profile: "rask", vendorId: "OPENAI", model: "gpt-luna" })
+		expect(warnSpy).toHaveBeenCalled()
+	})
+
+	it("ignores an inherited-property stored model and falls back to DEFAULTS.assistant instead of crashing", () => {
+		const resolved = resolveChatConfig(config({ vendorId: "OPENAI", model: "constructor" }), strictCtx())
+		expect(resolved).toMatchObject({ profile: "rask", model: "gpt-luna" })
 		expect(warnSpy).toHaveBeenCalled()
 	})
 

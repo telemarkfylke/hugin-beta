@@ -14,8 +14,12 @@ export type ModelSelection = Pick<ChatConfig, "vendorId" | "project" | "model" |
 
 export type ResolvedModel = { vendorId: VendorId; model: string; project: string }
 
+// Object.hasOwn guards against a caller-supplied key like "constructor" or "__proto__" resolving to
+// an inherited prototype value instead of a real (or absent) catalogue entry - the plain object
+// literals in ModelConfig are indexed by input that can originate from a client (pinned.model,
+// a stored legacy model id), not just trusted static config.
 const usableModel = (key: string, ctx: ModelContext): CatalogueModel | null => {
-	const model = ctx.modelConfig.MODELS[key]
+	const model = Object.hasOwn(ctx.modelConfig.MODELS, key) ? ctx.modelConfig.MODELS[key] : undefined
 	if (!model || model.status === "retired" || model.internal || !ctx.isVendorEnabled(model.vendor)) {
 		return null
 	}
@@ -30,7 +34,8 @@ const usableProfile = (id: string, ctx: ModelContext): { profile: Profile; model
 
 const legacyProfileId = (providerModel: string, ctx: ModelContext): string | undefined => {
 	const { LEGACY, PROFILES, MODELS } = ctx.modelConfig
-	return LEGACY[providerModel] ?? PROFILES.find((p) => MODELS[p.model]?.providerModel === providerModel)?.id
+	const legacy = Object.hasOwn(LEGACY, providerModel) ? LEGACY[providerModel] : undefined
+	return legacy ?? PROFILES.find((p) => (Object.hasOwn(MODELS, p.model) ? MODELS[p.model] : undefined)?.providerModel === providerModel)?.id
 }
 
 const fallbackProfile = (ctx: ModelContext) => {
