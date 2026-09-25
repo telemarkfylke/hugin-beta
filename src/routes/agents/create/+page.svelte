@@ -1,10 +1,17 @@
 <script lang="ts">
 	import ChatComponent from "$lib/components/Chat/Chat.svelte"
 	import { ChatState } from "$lib/components/Chat/ChatState.svelte.js"
+	import { defaultProfileSelection } from "$lib/model-profiles"
 	import type { Chat } from "$lib/types/chat"
 	import type { PageProps } from "./$types"
 
 	let { data }: PageProps = $props()
+
+	// svelte-ignore state_referenced_locally (APP_CONFIG never changes during the page's lifetime)
+	const defaultSelection = defaultProfileSelection(data.APP_CONFIG, "ASSISTANT")
+	if (!defaultSelection) {
+		throw new Error("No model profile available - check models.config.ts and vendor API keys")
+	}
 
 	const defaultChat: Chat = {
 		_id: "chat-1",
@@ -18,9 +25,7 @@
 			_id: "",
 			name: "",
 			description: "",
-			project: "DEFAULT",
-			vendorId: "MISTRAL",
-			model: "mistral-medium-latest",
+			...defaultSelection,
 			instructions: "Answer in Norwegian.",
 			conversationId: "",
 			type: "private",

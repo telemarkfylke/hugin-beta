@@ -4,6 +4,7 @@
 	import { page } from "$app/state"
 	import { canEditPredefinedConfig, canPublishChatConfig, canSetAnonymousEmbed, canUseMcpSharepoint, canUseRagservice, canUseWebsiteDataSource } from "$lib/authorization"
 	import { McpSourcesApi } from "$lib/mcp-sources/adapters/mcpSourcesApi"
+	import { defaultProfileSelection } from "$lib/model-profiles"
 	import { RagServiceApi } from "$lib/ragservice/adapters/ragserviceApi"
 	import type { StoreConfig } from "$lib/ragservice/types"
 	import type { ChatConfig, DataSource, VendorId } from "$lib/types/chat"
@@ -11,7 +12,7 @@
 	import type { WebsiteSource } from "$lib/types/website-source"
 	import { WebsiteSourcesApi } from "$lib/website-sources/adapters/websiteSourcesApi"
 	import GrowingTextArea from "../GrowingTextArea.svelte"
-	import VendorModelSelector from "../VendorModelSelector.svelte"
+	import ProfilePicker from "../ProfilePicker.svelte"
 	import ChatConfigStats from "./ChatConfigStats.svelte"
 	import type { ChatState } from "./ChatState.svelte"
 
@@ -53,8 +54,7 @@
 		vendorAgent: { id: "" }
 	}
 	let manualConfigCache: Partial<ChatConfig> = {
-		vendorId: "MISTRAL",
-		model: "mistral-medium-latest",
+		...defaultProfileSelection(chatState.APP_CONFIG, "ASSISTANT"),
 		instructions: ""
 	}
 
@@ -161,12 +161,16 @@
 				vendorId: chatState.chat.config.vendorId,
 				project: chatState.chat.config.project,
 				model: chatState.chat.config.model,
+				profile: chatState.chat.config.profile,
+				pinned: chatState.chat.config.pinned,
 				instructions: chatState.chat.config.instructions
 			}
 			chatState.chat.config.vendorId = predefinedConfigCache.vendorId as VendorId
 			chatState.chat.config.project = predefinedConfigCache.project as string
 			chatState.chat.config.vendorAgent = predefinedConfigCache.vendorAgent
 			delete chatState.chat.config.model
+			delete chatState.chat.config.profile
+			delete chatState.chat.config.pinned
 			delete chatState.chat.config.instructions
 		} else {
 			predefinedConfigCache = {
@@ -177,6 +181,10 @@
 			chatState.chat.config.vendorId = manualConfigCache.vendorId as VendorId
 			chatState.chat.config.project = manualConfigCache.project as string
 			chatState.chat.config.model = manualConfigCache.model as string
+			chatState.chat.config.profile = manualConfigCache.profile
+			if (manualConfigCache.pinned) {
+				chatState.chat.config.pinned = manualConfigCache.pinned
+			}
 			chatState.chat.config.instructions = manualConfigCache.instructions as string
 			delete chatState.chat.config.vendorAgent
 		}
@@ -380,7 +388,7 @@
 				<!-- Model / vendor-agent -->
 				<div class="config-section">
 					{#if !chatState.chat.config.vendorAgent}
-						<VendorModelSelector bind:vendorId={chatState.chat.config.vendorId} bind:model={chatState.chat.config.model as string} appConfig={chatState.APP_CONFIG} />
+						<ProfilePicker bind:config={chatState.chat.config} appConfig={chatState.APP_CONFIG} user={chatState.user} />
 					{:else}
 						<div class="config-item">
 							<label for="vendor">KI-leverandør</label>
@@ -391,7 +399,7 @@
 							</select>
 						</div>
 					{/if}
-					{#if userCanEditPredefinedConfig}
+					{#if userCanEditPredefinedConfig && chatState.chat.config.vendorAgent}
 						<div class="config-item">
 							<label for="vendor-project">Prosjekt</label>
 							<select id="vendor-project" bind:value={chatState.chat.config.project}>
