@@ -26,13 +26,13 @@ const replaceChatConfig: ApiNextFunction = async ({ requestEvent, user }) => {
 
 	const body = await requestEvent.request.json()
 
-	const chatConfig = parseChatConfig(body, APP_CONFIG)
-
 	const chatConfigToReplace = await chatConfigStore.getChatConfig(chatConfigId)
 
 	if (!chatConfigToReplace) {
 		throw new HTTPError(404, "Chat config not found")
 	}
+
+	const chatConfig = parseChatConfig(body, APP_CONFIG, { mode: "save", user, previous: chatConfigToReplace })
 
 	if (!canUpdateChatConfig(user, APP_CONFIG.APP_ROLES, chatConfigToReplace, chatConfig)) {
 		throw new HTTPError(403, "Not authorized to update this chat config")

@@ -40,7 +40,7 @@ const parseChatRequest = (body: unknown): ChatRequest => {
 	}
 	const incomingChatRequest: ChatRequest = body as ChatRequest
 
-	const config = parseChatConfig(incomingChatRequest.config, APP_CONFIG)
+	const config = parseChatConfig(incomingChatRequest.config, APP_CONFIG, { mode: "use" })
 
 	if (!Array.isArray(incomingChatRequest.inputs) || incomingChatRequest.inputs.length === 0) {
 		throw new HTTPError(400, "inputs must be a non-empty array")

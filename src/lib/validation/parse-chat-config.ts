@@ -1,8 +1,43 @@
+import { canSeeSpotlight } from "../authorization"
 import { HTTPError } from "../server/middleware/http-error"
 import type { AppConfig } from "../types/app-config"
+import type { AuthenticatedPrincipal } from "../types/authentication"
 import { type ChatConfig, ChatConfigSchema } from "../types/chat"
 
-export const parseChatConfig = (input: unknown, APP_CONFIG: AppConfig): ChatConfig => {
+// "use": /api/chat on every message - no role/admin checks on profile/pinned (resolution handles unusable values).
+// "save": creating/updating an assistant. Checks only fire on values that CHANGED vs previous, so a non-admin
+// co-editor isn't locked out by an admin's pin or a profile they couldn't choose themselves.
+export type ParseChatConfigOptions = { mode: "use" } | { mode: "save"; user: AuthenticatedPrincipal; previous: ChatConfig | null }
+
+const samePinned = (a: ChatConfig["pinned"], b: ChatConfig["pinned"]): boolean => a?.model === b?.model && a?.project === b?.project
+
+const validateSavedModelSelection = (config: Pick<ChatConfig, "profile" | "pinned">, APP_CONFIG: AppConfig, user: AuthenticatedPrincipal, previous: ChatConfig | null): void => {
+	if (config.profile !== undefined && config.profile !== previous?.profile) {
+		const profile = APP_CONFIG.MODEL_PROFILES.find((p) => p.id === config.profile)
+		if (!profile) {
+			throw new HTTPError(400, `Unsupported profile: ${config.profile}`)
+		}
+		if (!canSeeSpotlight(user, APP_CONFIG.APP_ROLES, profile.roles ?? ["all"])) {
+			throw new HTTPError(403, `Not authorized to choose profile: ${profile.id}`)
+		}
+	}
+	if (config.pinned && !samePinned(config.pinned, previous?.pinned)) {
+		const pinned = config.pinned
+		const vendor = Object.values(APP_CONFIG.VENDORS).find((v) => v.MODELS.some((m) => m.KEY === pinned.model))
+		const model = vendor?.MODELS.find((m) => m.KEY === pinned.model)
+		if (!vendor || !model || model.RETIRED || !vendor.ENABLED) {
+			throw new HTTPError(400, `Unsupported pinned model: ${pinned.model}`)
+		}
+		if (!vendor.PROJECTS.includes(pinned.project)) {
+			throw new HTTPError(400, `Unsupported project: ${pinned.project} for pinned model: ${pinned.model}`)
+		}
+		if (!user.roles.includes(APP_CONFIG.APP_ROLES.ADMIN)) {
+			throw new HTTPError(403, "Only admins can pin a model")
+		}
+	}
+}
+
+export const parseChatConfig = (input: unknown, APP_CONFIG: AppConfig, options: ParseChatConfigOptions): ChatConfig => {
 	if (!input || typeof input !== "object") {
 		throw new Error("Invalid chat config input")
 	}
@@ -59,9 +94,13 @@ export const parseChatConfig = (input: unknown, APP_CONFIG: AppConfig): ChatConf
 			updated: parsedConfig.updated
 		}
 	}
-	// Manual config
-	if (!VENDOR.MODELS.some((model) => model.ID === parsedConfig.model)) {
+	// Manual config. With a profile or pin, vendorId/model are overwritten by resolution - only a
+	// pre-profile config (neither set) still needs its model checked here.
+	if (parsedConfig.profile === undefined && !parsedConfig.pinned && !VENDOR.MODELS.some((model) => model.ID === parsedConfig.model)) {
 		throw new HTTPError(400, `Unsupported model: ${parsedConfig.model} for vendorId: ${parsedConfig.vendorId}`)
+	}
+	if (options.mode === "save") {
+		validateSavedModelSelection(parsedConfig, APP_CONFIG, options.user, options.previous)
 	}
 
 	// NB : Husk å legge til propertiene i dette objektet også. Spesielt hvis det er optional så er det lett å glemme.
@@ -72,6 +111,8 @@ export const parseChatConfig = (input: unknown, APP_CONFIG: AppConfig): ChatConf
 		vendorId: parsedConfig.vendorId,
 		project: parsedConfig.project,
 		model: parsedConfig.model,
+		profile: parsedConfig.profile,
+		pinned: parsedConfig.pinned,
 		instructions: parsedConfig.instructions,
 		conversationId: parsedConfig.conversationId,
 		tools: parsedConfig.tools || [],

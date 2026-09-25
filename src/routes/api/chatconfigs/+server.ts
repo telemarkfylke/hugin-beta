@@ -33,7 +33,7 @@ const createChatConfig: ApiNextFunction = async ({ requestEvent, user }) => {
 
 	const body = await requestEvent.request.json()
 
-	const chatConfig: ChatConfig = parseChatConfig(body, APP_CONFIG)
+	const chatConfig: ChatConfig = parseChatConfig(body, APP_CONFIG, { mode: "save", user, previous: null })
 
 	if (chatConfig.type === "published" && !canPublishChatConfig(user, APP_CONFIG.APP_ROLES)) {
 		throw new HTTPError(403, "User is not authorized to create published chat configs")
