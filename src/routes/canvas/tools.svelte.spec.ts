@@ -19,8 +19,8 @@ describe("shouldShowToolTabs", () => {
 		expect(shouldShowToolTabs(tools)).toBe(true)
 	})
 
-	it("the real registry today has three tools, so the tab strip shows", () => {
+	it("the real registry today has four tools, so the tab strip shows", () => {
 		expect(shouldShowToolTabs(CANVAS_TOOLS)).toBe(true)
-		expect(CANVAS_TOOLS).toHaveLength(3)
+		expect(CANVAS_TOOLS).toHaveLength(4)
 	})
 })

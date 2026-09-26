@@ -23,6 +23,8 @@
 		"@types/html-to-text": "^9.0.4",
 		"@types/markdown-it": "^14.1.2",
 		"@types/node": "^25.6.0",
+		"@types/react": "^18.3.31",
+		"@types/react-dom": "^18.3.7",
 		"axe-core": "^4.11.3",
 		"jszip": "^3.10.2",
 		"svelte": "^5.55.4",
@@ -32,6 +34,8 @@
 		"vitest": "^4.1.4"
 	},
 	"dependencies": {
+		"@excalidraw/excalidraw": "^0.18.1",
+		"@excalidraw/mermaid-to-excalidraw": "^2.2.2",
 		"@mistralai/mistralai": "^2.2.0",
 		"@modelcontextprotocol/sdk": "^1.30.0",
 		"@vestfoldfylke/loglady": "^1.5.3",
@@ -49,6 +53,8 @@
 		"openai": "^6.34.0",
 		"pdf-lib": "^1.17.1",
 		"pptx-automizer": "^0.9.3",
+		"react": "^18.3.1",
+		"react-dom": "^18.3.1",
 		"reveal.js": "^6.0.2",
 		"zod": "^4.3.6"
 	},
