@@ -130,8 +130,20 @@ describe("parseChatConfig - save mode", () => {
 		expectStatus(() => parseChatConfig({ ...base }, APP_CONFIG, { mode: "save", user: employee, previous: null }), 400)
 	})
 
-	it("rejects a manual config that drops its profile on update with 400", () => {
-		expectStatus(() => parseChatConfig({ ...base }, APP_CONFIG, { mode: "save", user: student, previous: stored({ profile: "rask" }) }), 400)
+	it("keeps the stored profile and pin when an update carries neither (pre-profile snapshot)", () => {
+		const pinned = { model: "gpt-live", project: "STUDENTS" }
+		const config = parseChatConfig({ ...base, model: "gpt-old" }, APP_CONFIG, { mode: "save", user: student, previous: stored({ profile: "rask", pinned }) })
+		expect(config).toMatchObject({ profile: "rask", pinned })
+	})
+
+	it("still rejects a new manual config without profile or pin with 400", () => {
+		expectStatus(() => parseChatConfig({ ...base }, APP_CONFIG, { mode: "save", user: student, previous: null }), 400)
+	})
+
+	it("rejects a non-admin converting a pinned assistant to a vendor agent with 403", () => {
+		const previous = stored({ profile: "rask", pinned: { model: "gpt-live", project: "DEFAULT" } })
+		expectStatus(() => parseChatConfig({ ...base, vendorAgent: { id: "agent-1" } }, APP_CONFIG, { mode: "save", user: employee, previous }), 403)
+		expect(parseChatConfig({ ...base, vendorAgent: { id: "agent-1" } }, APP_CONFIG, { mode: "save", user: admin, previous }).vendorAgent).toEqual({ id: "agent-1" })
 	})
 
 	it("accepts a pinned-only admin config without a profile", () => {

@@ -63,7 +63,11 @@ const LEGACY: Record<string, ProfileId> = {
 	"gpt-5.5": "grundig",
 	"mistral-medium-latest": "europeisk",
 	"llama3:8b": "lokal",
-	"LTG/normistral-11b-thinking:latest": "lokal"
+	"LTG/normistral-11b-thinking:latest": "lokal",
+	// Local-server models from earlier app-config.ts versions - must never migrate to a cloud profile
+	"gemma:2b": "lokal",
+	"LTG/normistral-11b-thinking": "lokal",
+	llama3: "lokal"
 }
 
 export const MODEL_CONFIG: ModelConfig = { MODELS, PROFILES, DEFAULTS, LEGACY }

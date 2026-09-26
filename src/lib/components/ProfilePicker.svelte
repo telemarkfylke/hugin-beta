@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { getPinnableModels, getPinnedModelLabel, getProfileBadges, getSelectableProfiles, pinnedSelection, profileSelection } from "$lib/model-profiles"
+	import { defaultProfileSelection, getPinnableModels, getPinnedModelLabel, getProfileBadges, getSelectableProfiles, pinnedSelection, profileSelection } from "$lib/model-profiles"
 	import type { AppConfig } from "$lib/types/app-config"
 	import type { AuthenticatedPrincipal } from "$lib/types/authentication"
 	import type { ChatConfig } from "$lib/types/chat"
@@ -43,9 +43,19 @@
 
 	const resetPin = () => {
 		delete config.pinned
-		const profile = profiles.find((p) => p.id === config.profile) ?? profiles[0]
+		const profile = profiles.find((p) => p.id === config.profile)
 		if (profile) {
 			selectProfile(profile)
+			return
+		}
+		// The assistant's profile isn't offered here (its vendor is disabled) - keep it rather than silently
+		// switching vendor; the server resolves it (and fails closed for a dataLocation profile)
+		if (config.profile) {
+			return
+		}
+		const fallback = defaultProfileSelection(appConfig, "ASSISTANT")
+		if (fallback) {
+			Object.assign(config, fallback)
 		}
 	}
 </script>

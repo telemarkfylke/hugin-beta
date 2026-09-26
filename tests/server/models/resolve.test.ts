@@ -157,6 +157,31 @@ describe("resolveChatConfig", () => {
 		expect(resolveChatConfig(vendorAgentConfig, ctx())).toBe(vendorAgentConfig)
 	})
 
+	describe("pre-profile assistants on their own API-key project", () => {
+		const projectCtx = (): ModelContext => ({ ...ctx(), vendorProjects: (vendorId) => (vendorId === "OPENAI" ? ["DEFAULT", "SKOLE"] : ["DEFAULT"]) })
+
+		it("become an implicit pin on their stored model and project", () => {
+			const resolved = resolveChatConfig(config({ vendorId: "OPENAI", project: "SKOLE", model: "gpt-terra" }), projectCtx())
+			expect(resolved).toMatchObject({ pinned: { model: "terra", project: "SKOLE" }, profile: "grundig", vendorId: "OPENAI", model: "gpt-terra", project: "SKOLE" })
+		})
+
+		it("pin the mapped profile's model when the stored model is retired", () => {
+			const resolved = resolveChatConfig(config({ vendorId: "OPENAI", project: "SKOLE", model: "gpt-old" }), projectCtx())
+			expect(resolved).toMatchObject({ pinned: { model: "luna", project: "SKOLE" }, profile: "rask", model: "gpt-luna", project: "SKOLE" })
+		})
+
+		it("are left alone when the project has no key configured", () => {
+			const resolved = resolveChatConfig(config({ vendorId: "OPENAI", project: "GONE", model: "gpt-terra" }), projectCtx())
+			expect(resolved.pinned).toBeUndefined()
+			expect(resolved.project).toBe("DEFAULT")
+		})
+	})
+
+	it("never maps a stale pin's client-sent model onto another profile", () => {
+		const resolved = resolveChatConfig(config({ pinned: { model: "old", project: "DEFAULT" }, vendorId: "MISTRAL", model: "mistral-large-latest" }), ctx())
+		expect(resolved.profile).toBe("rask")
+	})
+
 	it("throws when no profile is usable at all", () => {
 		expect(() => resolveChatConfig(config({ profile: "rask" }), ctx([]))).toThrow(/No usable model profile/)
 	})

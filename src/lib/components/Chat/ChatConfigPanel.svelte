@@ -75,7 +75,9 @@
 			const availableProjects = getAvailableProjects(chatState.chat.config.vendorId)
 			if (!availableProjects.includes(chatState.chat.config.project)) {
 				if (!availableProjects[0]) {
-					throw new Error(`No available projects for vendor ${chatState.chat.config.vendorId}`)
+					// Vendor has no configured keys here (e.g. a dataLocation profile held on a disabled vendor) -
+					// leave project alone; the server resolves it and answers 503 if needed
+					return
 				}
 				chatState.chat.config.project = availableProjects[0]
 			}

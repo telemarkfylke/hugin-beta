@@ -73,6 +73,13 @@ describe("assertModelConfig", () => {
 })
 
 describe("real models.config.ts", () => {
+	// Assistants may still be stored on local-server models from earlier app-config.ts versions - they must stay on "lokal", never migrate to a cloud default
+	it("maps every historical local model ID to lokal", () => {
+		for (const id of ["gemma:2b", "LTG/normistral-11b-thinking", "LTG/normistral-11b-thinking:latest", "llama3", "llama3:8b"]) {
+			expect(MODEL_CONFIG.LEGACY[id]).toBe("lokal")
+		}
+	})
+
 	// Every model an existing assistant could have stored must map to a profile without hitting the
 	// "fell back to default" path - either via LEGACY or because a profile uses it directly.
 	it("maps every non-internal model's provider ID to a profile", () => {

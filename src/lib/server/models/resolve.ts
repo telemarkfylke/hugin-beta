@@ -7,6 +7,8 @@ import type { CatalogueModel, ModelConfig, Profile } from "./types"
 export type ModelContext = {
 	modelConfig: ModelConfig
 	isVendorEnabled: (vendorId: VendorId) => boolean
+	// Configured API-key projects per vendor. Optional so pure tests can omit it (no legacy project pins then)
+	vendorProjects?: (vendorId: VendorId) => string[]
 }
 
 // The fields resolution reads/writes - lets it work on both ChatConfig and NewChatConfig
@@ -36,6 +38,24 @@ const legacyProfileId = (providerModel: string, ctx: ModelContext): string | und
 	const { LEGACY, PROFILES, MODELS } = ctx.modelConfig
 	const legacy = Object.hasOwn(LEGACY, providerModel) ? LEGACY[providerModel] : undefined
 	return legacy ?? PROFILES.find((p) => (Object.hasOwn(MODELS, p.model) ? MODELS[p.model] : undefined)?.providerModel === providerModel)?.id
+}
+
+// Pre-profile assistants could be saved on their own API-key project (e.g. a department's OpenAI key).
+// Profiles always run on DEFAULT, so such an assistant becomes an implicit admin pin: its stored model if
+// still usable, else the model of the profile it maps to - same vendor only, since project keys are per vendor.
+const legacyProjectPin = (config: ModelSelection, ctx: ModelContext): { model: string; project: string } | undefined => {
+	if (config.pinned || config.profile !== undefined || !config.model || !config.project || config.project === DEFAULT_PROJECT_ID) {
+		return undefined
+	}
+	if (!(ctx.vendorProjects?.(config.vendorId) ?? []).includes(config.project)) {
+		return undefined
+	}
+	const { MODELS, PROFILES } = ctx.modelConfig
+	const storedKey = Object.keys(MODELS).find((key) => MODELS[key]?.vendor === config.vendorId && MODELS[key]?.providerModel === config.model)
+	const mappedProfileId = legacyProfileId(config.model, ctx)
+	const profileKey = PROFILES.find((p) => p.id === mappedProfileId)?.model
+	const key = [storedKey, profileKey].find((k) => k !== undefined && usableModel(k, ctx)?.vendor === config.vendorId)
+	return key ? { model: key, project: config.project } : undefined
 }
 
 const fallbackProfile = (ctx: ModelContext) => {
@@ -68,6 +88,12 @@ export const resolveChatConfig = <T extends ModelSelection>(config: T, ctx: Mode
 	if (config.vendorAgent) {
 		return config
 	}
+	const implicitPin = legacyProjectPin(config, ctx)
+	if (implicitPin) {
+		const pinnedModel = usableModel(implicitPin.model, ctx) as CatalogueModel
+		const profile = config.model ? legacyProfileId(config.model, ctx) : undefined
+		return { ...config, pinned: implicitPin, ...(profile ? { profile } : {}), vendorId: pinnedModel.vendor, model: pinnedModel.providerModel, project: implicitPin.project }
+	}
 	if (config.pinned) {
 		const pinnedModel = usableModel(config.pinned.model, ctx)
 		if (pinnedModel) {
@@ -76,7 +102,9 @@ export const resolveChatConfig = <T extends ModelSelection>(config: T, ctx: Mode
 		logger.warn("Config {configId} is pinned to unusable model {model} - using its profile instead", config._id ?? "(new)", config.pinned.model)
 	}
 
-	const requestedProfileId = config.profile ?? (config.model ? legacyProfileId(config.model, ctx) : undefined)
+	// A pinned config never falls back to its (client-controllable) model field - only to its own profile -
+	// otherwise a stale pin plus a crafted model could map a save onto a role-restricted profile
+	const requestedProfileId = config.profile ?? (config.model && !config.pinned ? legacyProfileId(config.model, ctx) : undefined)
 	const knownProfile = requestedProfileId ? ctx.modelConfig.PROFILES.find((p) => p.id === requestedProfileId) : undefined
 	const resolved = requestedProfileId ? usableProfile(requestedProfileId, ctx) : null
 

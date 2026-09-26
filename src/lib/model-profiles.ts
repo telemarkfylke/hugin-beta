@@ -100,7 +100,15 @@ export const supportsWebSearch = (config: ChatConfig, appConfig: AppConfig): boo
 	return model?.CAPABILITIES.includes("webSearch") ?? false
 }
 
-export const getModelDisplayName = (config: Pick<ChatConfig, "profile" | "model">, appConfig: AppConfig): string => {
+export const getModelDisplayName = (config: Pick<ChatConfig, "profile" | "model" | "pinned">, appConfig: AppConfig): string => {
+	// A working pin decides the model (and vendor), so don't show the profile's name - "🇪🇺 Europeisk"
+	// on an assistant pinned to an OpenAI model would misstate where the data goes
+	if (config.pinned) {
+		const found = findModelByKey(appConfig, config.pinned.model)
+		if (found && !found.model.RETIRED && appConfig.VENDORS[found.vendorId].ENABLED) {
+			return `📌 ${found.model.ID}`
+		}
+	}
 	const profile = config.profile ? appConfig.MODEL_PROFILES.find((p) => p.id === config.profile) : undefined
 	if (profile) {
 		return `${profile.icon} ${profile.label}`

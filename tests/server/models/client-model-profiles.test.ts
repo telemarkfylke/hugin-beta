@@ -137,6 +137,11 @@ describe("supportsWebSearch", () => {
 })
 
 describe("getModelDisplayName", () => {
+	it("shows a working pin instead of the profile, so the label never misstates the vendor", () => {
+		expect(getModelDisplayName({ profile: "rask", model: "gpt-live", pinned: { model: "normistral", project: "DEFAULT" } }, APP_CONFIG)).toBe("📌 normistral")
+		expect(getModelDisplayName({ profile: "rask", model: "gpt-live", pinned: { model: "gpt-old", project: "DEFAULT" } }, APP_CONFIG)).toBe("* RASK")
+	})
+
 	it("shows the profile icon + label", () => {
 		expect(getModelDisplayName({ profile: "rask", model: "gpt-live" }, APP_CONFIG)).toBe("* RASK")
 	})

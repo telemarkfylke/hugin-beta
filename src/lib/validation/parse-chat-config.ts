@@ -57,6 +57,14 @@ export const parseChatConfig = (input: unknown, APP_CONFIG: AppConfig, options: 
 	}
 	const parsedConfig = ChatConfigSchema.parse(input)
 
+	// A body with neither profile nor pin is a pre-profile snapshot (e.g. a conversation saved before profiles
+	// existed and reloaded into the editor). On update, keep the stored model selection instead of rejecting
+	// the save or re-mapping it from the snapshot's model.
+	if (options.mode === "save" && options.previous && !parsedConfig.vendorAgent && parsedConfig.profile === undefined && !parsedConfig.pinned) {
+		parsedConfig.profile = options.previous.profile
+		parsedConfig.pinned = options.previous.pinned
+	}
+
 	const VENDOR = APP_CONFIG.VENDORS[parsedConfig.vendorId]
 	if (!VENDOR) {
 		throw new HTTPError(400, `Unsupported vendorId: ${parsedConfig.vendorId}`)
@@ -74,7 +82,10 @@ export const parseChatConfig = (input: unknown, APP_CONFIG: AppConfig, options: 
 		}
 	}
 	if (parsedConfig.vendorAgent) {
-		// Predefined config
+		// Predefined config. Converting an admin-pinned assistant drops its pin, so it's a pin removal too
+		if (options.mode === "save" && options.previous?.pinned && !options.user.roles.includes(APP_CONFIG.APP_ROLES.ADMIN)) {
+			throw new HTTPError(403, "Only admins can remove a model pin")
+		}
 		if (!parsedConfig.vendorAgent.id || typeof parsedConfig.vendorAgent.id !== "string") {
 			throw new HTTPError(400, "vendorAgent.id must be a string")
 		}

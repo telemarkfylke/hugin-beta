@@ -41,7 +41,8 @@ const VENDORS: AppConfig["VENDORS"] = {
 
 export const MODEL_CONTEXT: ModelContext = {
 	modelConfig: MODEL_CONFIG,
-	isVendorEnabled: (vendorId) => VENDORS[vendorId].ENABLED
+	isVendorEnabled: (vendorId) => VENDORS[vendorId].ENABLED,
+	vendorProjects: (vendorId) => VENDORS[vendorId].PROJECTS
 }
 
 for (const profile of MODEL_CONFIG.PROFILES) {
