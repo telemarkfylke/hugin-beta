@@ -7,8 +7,7 @@ export type CanvasTool = {
 
 export const CANVAS_TOOLS: CanvasTool[] = [
 	{ id: "document", label: "Dokument", icon: "description", href: "/canvas/document" },
-	{ id: "mermaid", label: "Diagram", icon: "schema", href: "/canvas/mermaid" },
-	{ id: "excalidraw", label: "Excalidraw (test)", icon: "draw", href: "/canvas/excalidraw" },
+	{ id: "diagram", label: "Diagram", icon: "schema", href: "/canvas/diagram" },
 	{ id: "presentation", label: "Presentasjon", icon: "slideshow", href: "/canvas/presentation" }
 ]
 

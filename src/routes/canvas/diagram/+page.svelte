@@ -1,30 +1,69 @@
 <script lang="ts">
 	import type { ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types"
+	import { onMount } from "svelte"
 	import { page } from "$app/state"
 	import ExcalidrawCanvas from "$lib/components/Excalidraw/ExcalidrawCanvas.svelte"
+	import { DIAGRAM_STYLE_STORAGE_KEY, DIAGRAM_STYLES, type DiagramStyle, diagramStyleUpdates, parseDiagramStyle } from "$lib/diagram/diagram-style"
 	import PromptBar from "../PromptBar.svelte"
 	import { CANVAS_TOOLS, shouldShowToolTabs } from "../tools"
 
-	// Prototype: the LLM still writes Mermaid (same /api/canvas/mermaid endpoint and prompt as the Diagram
-	// tab). The browser converts it to Excalidraw elements, which the user can then move and draw on.
-	// Flowchart, sequence, class, ER and state become editable shapes; other types become one image.
+	// The LLM writes Mermaid (/api/canvas/mermaid); the browser converts it to Excalidraw elements, which the
+	// user can then move and draw on. Flowchart, sequence, class, ER and state become editable shapes; other
+	// diagram types become a single image. A new prompt or "Oppdater tegning" regenerates the drawing from the
+	// code, so manual edits in the drawing are replaced.
 
 	let api: ExcalidrawImperativeAPI | undefined = $state()
 	let code = $state("")
+	let codeDraft = $state("")
 	let prompt = $state("")
 	let isLoading = $state(false)
 	let errorMessage = $state("")
-	let showCode = $state(false)
+	let isEditingCode = $state(false)
+	let style: DiagramStyle = $state("sketch")
+
+	onMount(() => {
+		try {
+			style = parseDiagramStyle(localStorage.getItem(DIAGRAM_STYLE_STORAGE_KEY))
+		} catch {
+			// localStorage can be unavailable (privacy mode, cross-origin iframe) - keep the default
+		}
+	})
+
+	const loadExcalidraw = () => import("@excalidraw/excalidraw")
+
+	// New shapes the user draws follow the chosen style too
+	const applyStyleToAppState = (target: ExcalidrawImperativeAPI) => {
+		const { roughness, fontFamily } = DIAGRAM_STYLES[style]
+		target.updateScene({ appState: { currentItemRoughness: roughness, currentItemFontFamily: fontFamily } })
+	}
 
 	const renderMermaid = async (mermaidCode: string) => {
 		if (!api) return
-		const [{ parseMermaidToExcalidraw }, { convertToExcalidrawElements }] = await Promise.all([import("@excalidraw/mermaid-to-excalidraw"), import("@excalidraw/excalidraw")])
+		const [{ parseMermaidToExcalidraw }, { convertToExcalidrawElements, newElementWith }] = await Promise.all([import("@excalidraw/mermaid-to-excalidraw"), loadExcalidraw()])
 		const { elements, files } = await parseMermaidToExcalidraw(mermaidCode)
-		api.updateScene({ elements: convertToExcalidrawElements(elements) })
+		const styled = convertToExcalidrawElements(elements).map((element) => newElementWith(element, diagramStyleUpdates(element, style)))
+		api.updateScene({ elements: styled })
 		if (files) {
 			api.addFiles(Object.values(files))
 		}
+		applyStyleToAppState(api)
 		api.scrollToContent(undefined, { fitToContent: true })
+	}
+
+	const setStyle = async (next: DiagramStyle) => {
+		style = next
+		try {
+			localStorage.setItem(DIAGRAM_STYLE_STORAGE_KEY, next)
+		} catch {
+			// Not persisted - the choice still applies for this session
+		}
+		if (!api) return
+		const { newElementWith, restoreElements } = await loadExcalidraw()
+		// Restyle the current drawing in place (manual edits are kept). refreshDimensions re-measures text,
+		// since the two fonts have different widths.
+		const restyled = api.getSceneElements().map((element) => newElementWith(element, diagramStyleUpdates(element, next)))
+		api.updateScene({ elements: restoreElements(restyled, null, { refreshDimensions: true }) })
+		applyStyleToAppState(api)
 	}
 
 	const submitPrompt = async () => {
@@ -44,11 +83,28 @@
 			const data = (await res.json()) as { diagram: string }
 			await renderMermaid(data.diagram)
 			code = data.diagram
+			codeDraft = data.diagram
 			prompt = ""
 		} catch (e) {
 			errorMessage = e instanceof Error ? e.message : "Ukjent feil"
 		} finally {
 			isLoading = false
+		}
+	}
+
+	const toggleCodeEditor = () => {
+		codeDraft = code
+		isEditingCode = !isEditingCode
+	}
+
+	const applyCode = async () => {
+		if (!codeDraft.trim()) return
+		errorMessage = ""
+		try {
+			await renderMermaid(codeDraft)
+			code = codeDraft
+		} catch (e) {
+			errorMessage = `Kunne ikke tegne diagrammet: ${e instanceof Error ? e.message : "ugyldig Mermaid-syntaks"}`
 		}
 	}
 
@@ -63,7 +119,7 @@
 
 	const downloadPng = async () => {
 		if (!api) return
-		const { exportToBlob } = await import("@excalidraw/excalidraw")
+		const { exportToBlob } = await loadExcalidraw()
 		const blob = await exportToBlob({
 			elements: api.getSceneElements(),
 			appState: { ...api.getAppState(), exportBackground: true, viewBackgroundColor: "#ffffff" },
@@ -77,13 +133,13 @@
 	// A .excalidraw file opens on excalidraw.com or in the Excalidraw VS Code extension
 	const downloadExcalidraw = async () => {
 		if (!api) return
-		const { serializeAsJSON } = await import("@excalidraw/excalidraw")
+		const { serializeAsJSON } = await loadExcalidraw()
 		const json = serializeAsJSON(api.getSceneElements(), api.getAppState(), api.getFiles(), "local")
 		download(new Blob([json], { type: "application/json" }), "diagram.excalidraw")
 	}
 </script>
 
-<div class="excalidraw-page">
+<div class="diagram-page">
 	<div class="canvas-topbar">
 		{#if shouldShowToolTabs(CANVAS_TOOLS)}
 			<nav class="canvas-tabs">
@@ -96,9 +152,16 @@
 			</nav>
 		{/if}
 		<div class="topbar-actions">
-			<button onclick={() => (showCode = !showCode)} disabled={!code} title="Vis Mermaid-koden modellen laget">
+			<div class="style-toggle" role="radiogroup" aria-label="Stil">
+				{#each Object.entries(DIAGRAM_STYLES) as [id, option] (id)}
+					<button role="radio" aria-checked={style === id} class:active={style === id} onclick={() => setStyle(id as DiagramStyle)} disabled={!api}>
+						{option.label}
+					</button>
+				{/each}
+			</div>
+			<button onclick={toggleCodeEditor} title={isEditingCode ? "Skjul koden" : "Rediger Mermaid-koden"}>
 				<span class="material-symbols-outlined">code</span>
-				{showCode ? "Skjul kode" : "Vis kode"}
+				{isEditingCode ? "Skjul kode" : "Rediger kode"}
 			</button>
 			<button onclick={downloadPng} disabled={!api} title="Last ned som PNG">
 				<span class="material-symbols-outlined">download</span>
@@ -112,8 +175,14 @@
 	</div>
 
 	<div class="canvas-body">
-		{#if showCode}
-			<pre class="code-panel">{code}</pre>
+		{#if isEditingCode}
+			<div class="code-editor">
+				<textarea bind:value={codeDraft} placeholder="Mermaid-diagramkode, f.eks. flowchart TD&#10;  A[Start] --> B[Slutt]" spellcheck="false"></textarea>
+				<button class="apply-code" onclick={applyCode} disabled={!codeDraft.trim() || codeDraft === code || !api}>
+					<span class="material-symbols-outlined">refresh</span>
+					Oppdater tegning
+				</button>
+			</div>
 		{/if}
 		<div class="excalidraw-frame">
 			<ExcalidrawCanvas onReady={(excalidrawApi) => (api = excalidrawApi)} />
@@ -132,7 +201,7 @@
 </div>
 
 <style>
-	.excalidraw-page {
+	.diagram-page {
 		display: flex;
 		flex-direction: column;
 		flex: 1;
@@ -183,6 +252,26 @@
 		gap: 0.5rem;
 	}
 
+	.style-toggle {
+		display: flex;
+		border: 1px solid var(--color-primary-30);
+		border-radius: 14px;
+		overflow: hidden;
+	}
+
+	.style-toggle button {
+		border: none;
+		border-radius: 0;
+		padding: 0.3rem 0.75rem;
+		background: transparent;
+		color: var(--color-primary);
+	}
+
+	.style-toggle button.active {
+		background-color: var(--color-primary);
+		color: white;
+	}
+
 	.canvas-body {
 		flex: 1;
 		display: flex;
@@ -201,14 +290,30 @@
 		background: white;
 	}
 
-	.code-panel {
-		max-height: 25vh;
-		overflow: auto;
-		margin: 0;
+	.code-editor {
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+	}
+
+	.code-editor textarea {
+		min-height: 8rem;
+		max-height: 30vh;
+		resize: vertical;
 		padding: 0.75rem;
-		background: #f7f7f6;
+		font-family: monospace;
+		font-size: 0.85rem;
+		line-height: 1.5;
+		border: 1px solid var(--color-primary-20);
 		border-radius: 4px;
-		font-size: 0.8rem;
+		background: #f7f7f6;
+	}
+
+	.apply-code {
+		align-self: flex-start;
+		display: flex;
+		align-items: center;
+		gap: 0.25rem;
 	}
 
 	.canvas-bottom {
@@ -236,5 +341,11 @@
 		border-radius: 4px;
 		font-size: small;
 		color: #b71c1c;
+	}
+
+	@media (max-width: 768px) {
+		.canvas-body {
+			padding: 0.75rem;
+		}
 	}
 </style>

@@ -18,7 +18,7 @@ Hugin Beta is an internal AI-agent web application designed to provide a democra
 - **Real-Time Streaming** - Server-Sent Events (SSE) for incremental AI responses
 - **Enterprise Authentication** - Microsoft Entra ID integration with role-based and group-based access control
 - **Multi-Modal Input** - Support for text, images, and document uploads
-- **Canvas** - AI-assisted document editor with web search, manual editing, Mermaid diagram generation, and export to text and Word
+- **Canvas** - AI-assisted document editor with web search, manual editing, AI-generated Excalidraw diagrams, and export to text and Word
 - **Transcription (Tale-til-notat)** - Audio upload and transcription via an internal service, with group-gated sensitive use cases
 - **Datakilder** - Three kinds of data sources an agent can use: RAG document libraries (retrieval, injected into `instructions`), SharePoint MCP sources (scoped folder browsing/reading via tool-calling), and Website sources (scoped page fetching via tool-calling) - each with its own tab, private-by-default ownership, and an explicit "make public" toggle to share with other users
 - **Conversation Persistence** - Optional history with auto-generated titles, incognito mode, and at-rest encryption
@@ -238,7 +238,11 @@ Canvas is an AI-assisted document editor available at `/canvas/document`. It let
 - Toggle between rendered preview and raw markdown editing
 - Web search toggle — enables live internet sourcing, with citations appended to the document
 - Export to `.txt` or `.docx` (with proper heading, bold, italic, bullet, and horizontal rule formatting)
-- Mermaid diagram generation and editing via a separate endpoint (`POST /api/canvas/mermaid`)
+- **Diagram** (`/canvas/diagram`): the model writes Mermaid (`POST /api/canvas/mermaid`), and the browser converts it with `@excalidraw/mermaid-to-excalidraw` into an editable [Excalidraw](https://excalidraw.com) drawing.
+  - Flowchart, sequence, class, state and ER diagrams become shapes you can move and edit; other types become a single image. The prompt steers the model toward the editable types.
+  - "Håndtegnet" / "Ren" style toggle (roughness + font, remembered per browser), "Rediger kode" to edit the Mermaid and redraw, and export as PNG or `.excalidraw`.
+  - A new prompt or "Oppdater tegning" redraws from the code, so manual edits in the drawing are replaced.
+  - Excalidraw is a React component, mounted from Svelte in `src/lib/components/Excalidraw/ExcalidrawCanvas.svelte` and lazy-loaded only on this page. Its fonts are served by Hugin itself from `static/excalidraw-assets/` (copied from `node_modules` by `scripts/copy-excalidraw-assets.mjs` on `predev`/`prebuild`, gitignored).
 - Model comes from `DEFAULTS.canvas` in `models.config.ts` (currently the "Grundig" profile, OpenAI `gpt-5.6-terra`) — no model selection in the UI
 
 **Access control:**
@@ -731,7 +735,7 @@ src/
 │   ├── +page.svelte             # Home page
 │   ├── api/
 │   │   ├── chat/+server.ts      # Chat streaming endpoint
-│   │   ├── canvas/+server.ts    # Canvas streaming endpoint (+ mermaid/+server.ts)
+│   │   ├── canvas/+server.ts    # Canvas streaming endpoint (+ mermaid/+server.ts for diagrams)
 │   │   ├── chatconfigs/         # Config CRUD endpoints
 │   │   ├── conversations/       # Conversation history endpoints
 │   │   ├── transcription/       # Transcription job + upload/download endpoints
@@ -799,7 +803,7 @@ Emits `response.output_text.delta` events with the updated document, and `respon
 
 ### POST `/api/canvas/mermaid`
 
-Generate or edit a Mermaid diagram from a prompt. Same access control and streaming response shape as `/api/canvas`; uses the canvas model from `DEFAULTS.canvas` in `models.config.ts`.
+Generate or edit the Mermaid source behind a diagram from a prompt (the Diagram page turns it into an Excalidraw drawing). Same access control and streaming response shape as `/api/canvas`; uses the canvas model from `DEFAULTS.canvas` in `models.config.ts`.
 
 ### GET / POST `/api/chatconfigs`
 
@@ -992,7 +996,7 @@ PLAUSIBLE_SCRIPT_URL="https://plausible.io/js/pa-<site-id>.js"
 | Linting | Biome |
 | Testing | Vitest |
 | Markdown | markdown-it, highlight.js, KaTeX |
-| Documents | `docx` (Canvas/Transcription export), `mermaid` (diagram generation), `pdf-lib` |
+| Documents | `docx` (Canvas/Transcription export), `@excalidraw/excalidraw` + `@excalidraw/mermaid-to-excalidraw` (diagrams, with React 18), `pdf-lib` |
 | Logging | `@vestfoldfylke/loglady` (structured logging) |
 
 ---

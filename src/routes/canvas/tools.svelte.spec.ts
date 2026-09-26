@@ -14,13 +14,13 @@ describe("shouldShowToolTabs", () => {
 	it("returns true with multiple tools registered", () => {
 		const tools: CanvasTool[] = [
 			{ id: "document", label: "Dokument", icon: "description", href: "/canvas/document" },
-			{ id: "mermaid", label: "Diagram", icon: "schema", href: "/canvas/mermaid" }
+			{ id: "diagram", label: "Diagram", icon: "schema", href: "/canvas/diagram" }
 		]
 		expect(shouldShowToolTabs(tools)).toBe(true)
 	})
 
-	it("the real registry today has four tools, so the tab strip shows", () => {
+	it("the real registry today has three tools, so the tab strip shows", () => {
 		expect(shouldShowToolTabs(CANVAS_TOOLS)).toBe(true)
-		expect(CANVAS_TOOLS).toHaveLength(4)
+		expect(CANVAS_TOOLS).toHaveLength(3)
 	})
 })

@@ -19,6 +19,9 @@
 		let cancelled = false
 
 		const mount = async () => {
+			// Serve fonts from Hugin itself (static/excalidraw-assets, copied by scripts/copy-excalidraw-assets.mjs);
+			// Excalidraw only falls back to its CDN if these fail. Must be set before Excalidraw loads.
+			;(window as unknown as { EXCALIDRAW_ASSET_PATH?: string }).EXCALIDRAW_ASSET_PATH = "/excalidraw-assets/"
 			const [{ createElement }, { createRoot }, { Excalidraw }] = await Promise.all([
 				import("react"),
 				import("react-dom/client"),

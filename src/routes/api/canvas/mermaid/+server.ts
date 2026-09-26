@@ -15,6 +15,8 @@ Apply the requested changes and return ONLY valid Mermaid diagram syntax — no 
 
 For well-known diagram types (flowchart, sequenceDiagram, classDiagram, stateDiagram-v2, erDiagram, gantt, pie, mindmap, journey, timeline) you already know the correct syntax.
 
+The diagram is shown in an Excalidraw editor where the user can move and restyle shapes by hand. Only flowchart, sequenceDiagram, classDiagram, stateDiagram-v2 and erDiagram become editable shapes there; every other type is shown as a flat, non-editable image. So when the user has not asked for a specific diagram type, prefer one of those five whenever it can represent the request well. Use another type only when the user asks for it or when those five clearly cannot express the content (e.g. a gantt schedule or a pie chart).
+
 Some newer diagram types use stricter, less familiar keyword-based syntax. Do not improvise or guess syntax for these — use exactly this structure:
 
 venn-beta
