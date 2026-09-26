@@ -23,7 +23,7 @@ const base = {
 
 describe("parseChatConfig with website datasource", () => {
 	it("accepts a website datasource on its own", () => {
-		const config = parseChatConfig({ ...base, model: "gpt-4o", dataSources: [{ type: "website", id: "web-1" }] }, APP_CONFIG)
+		const config = parseChatConfig({ ...base, model: "gpt-4o", dataSources: [{ type: "website", id: "web-1" }] }, APP_CONFIG, { mode: "use" })
 		expect(config.dataSources).toEqual([{ type: "website", id: "web-1" }])
 	})
 
@@ -37,7 +37,8 @@ describe("parseChatConfig with website datasource", () => {
 					{ type: "website", id: "web-1" }
 				]
 			},
-			APP_CONFIG
+			APP_CONFIG,
+			{ mode: "use" }
 		)
 		expect(config.dataSources).toEqual([
 			{ type: "ragservice", id: "store-1" },
@@ -46,6 +47,6 @@ describe("parseChatConfig with website datasource", () => {
 	})
 
 	it("rejects a website datasource on a predefined vendor-agent config (same reasoning as mcp)", () => {
-		expect(() => parseChatConfig({ ...base, vendorAgent: { id: "agent-1" }, dataSources: [{ type: "website", id: "web-1" }] }, APP_CONFIG)).toThrow(HTTPError)
+		expect(() => parseChatConfig({ ...base, vendorAgent: { id: "agent-1" }, dataSources: [{ type: "website", id: "web-1" }] }, APP_CONFIG, { mode: "use" })).toThrow(HTTPError)
 	})
 })

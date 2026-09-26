@@ -23,7 +23,7 @@ const base = {
 
 describe("parseChatConfig with MCP tool", () => {
 	it("accepts an mcp tool + mcp datasource on a manual config", () => {
-		const config = parseChatConfig({ ...base, model: "gpt-4o", tools: [{ type: "mcp" }], dataSources: [{ type: "mcp", sourceId: "mcp-1" }] }, APP_CONFIG)
+		const config = parseChatConfig({ ...base, model: "gpt-4o", tools: [{ type: "mcp" }], dataSources: [{ type: "mcp", sourceId: "mcp-1" }] }, APP_CONFIG, { mode: "use" })
 		expect(config.tools).toEqual([{ type: "mcp" }])
 		expect(config.dataSources).toEqual([{ type: "mcp", sourceId: "mcp-1" }])
 	})
@@ -38,7 +38,8 @@ describe("parseChatConfig with MCP tool", () => {
 					{ type: "mcp", sourceId: "mcp-1" }
 				]
 			},
-			APP_CONFIG
+			APP_CONFIG,
+			{ mode: "use" }
 		)
 		expect(config.dataSources).toEqual([
 			{ type: "ragservice", id: "store-1" },
@@ -56,7 +57,8 @@ describe("parseChatConfig with MCP tool", () => {
 					{ type: "mcp", sourceId: "mcp-2" }
 				]
 			},
-			APP_CONFIG
+			APP_CONFIG,
+			{ mode: "use" }
 		)
 		expect(config.dataSources).toEqual([
 			{ type: "mcp", sourceId: "mcp-1" },
@@ -65,10 +67,10 @@ describe("parseChatConfig with MCP tool", () => {
 	})
 
 	it("rejects an mcp tool on a predefined vendor-agent config", () => {
-		expect(() => parseChatConfig({ ...base, vendorAgent: { id: "agent-1" }, tools: [{ type: "mcp" }] }, APP_CONFIG)).toThrow(HTTPError)
+		expect(() => parseChatConfig({ ...base, vendorAgent: { id: "agent-1" }, tools: [{ type: "mcp" }] }, APP_CONFIG, { mode: "use" })).toThrow(HTTPError)
 	})
 
 	it("rejects an mcp datasource on a predefined vendor-agent config", () => {
-		expect(() => parseChatConfig({ ...base, vendorAgent: { id: "agent-1" }, dataSources: [{ type: "mcp", sourceId: "mcp-1" }] }, APP_CONFIG)).toThrow(HTTPError)
+		expect(() => parseChatConfig({ ...base, vendorAgent: { id: "agent-1" }, dataSources: [{ type: "mcp", sourceId: "mcp-1" }] }, APP_CONFIG, { mode: "use" })).toThrow(HTTPError)
 	})
 })

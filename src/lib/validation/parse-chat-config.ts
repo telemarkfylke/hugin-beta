@@ -1,25 +1,99 @@
+import { canSeeSpotlight } from "../authorization"
 import { HTTPError } from "../server/middleware/http-error"
 import type { AppConfig } from "../types/app-config"
+import type { AuthenticatedPrincipal } from "../types/authentication"
 import { type ChatConfig, ChatConfigSchema } from "../types/chat"
 
-export const parseChatConfig = (input: unknown, APP_CONFIG: AppConfig): ChatConfig => {
+// "use": /api/chat on every message - no role/admin checks on profile/pinned (resolution handles unusable values).
+// "save": creating/updating an assistant. Checks only fire on values that CHANGED vs previous, so a non-admin
+// co-editor isn't locked out by an admin's pin or a profile they couldn't choose themselves.
+export type ParseChatConfigOptions = { mode: "use" } | { mode: "save"; user: AuthenticatedPrincipal; previous: ChatConfig | null }
+
+const samePinned = (a: ChatConfig["pinned"], b: ChatConfig["pinned"]): boolean => a?.model === b?.model && a?.project === b?.project
+
+const validateSavedModelSelection = (config: Pick<ChatConfig, "profile" | "pinned">, APP_CONFIG: AppConfig, user: AuthenticatedPrincipal, previous: ChatConfig | null): void => {
+	// Without profile/pinned the store would map vendorId/model to a profile (LEGACY/profile-model match)
+	// that never went through the role check below - e.g. a student naming the "lokal" model directly.
+	if (config.profile === undefined && !config.pinned) {
+		throw new HTTPError(400, "profile is required")
+	}
+	if (config.profile !== undefined && config.profile !== previous?.profile) {
+		const profile = APP_CONFIG.MODEL_PROFILES.find((p) => p.id === config.profile)
+		if (!profile) {
+			throw new HTTPError(400, `Unsupported profile: ${config.profile}`)
+		}
+		if (!canSeeSpotlight(user, APP_CONFIG.APP_ROLES, profile.roles ?? ["all"])) {
+			throw new HTTPError(403, `Not authorized to choose profile: ${profile.id}`)
+		}
+	}
+	if (!samePinned(config.pinned, previous?.pinned)) {
+		if (!config.pinned) {
+			// Removing a previously-set pin is a change too - only an admin may do it (same rule as
+			// setting/changing one below), otherwise a non-admin co-editor could silently strip an
+			// admin's pin just by omitting it from their save body. A legacy project pin (set by the
+			// server, not an admin) may be cleared by anyone allowed to edit the assistant.
+			if (!previous?.pinned?.legacy && !user.roles.includes(APP_CONFIG.APP_ROLES.ADMIN)) {
+				throw new HTTPError(403, "Only admins can remove a model pin")
+			}
+		} else {
+			const pinned = config.pinned
+			const vendor = Object.values(APP_CONFIG.VENDORS).find((v) => v.MODELS.some((m) => m.KEY === pinned.model))
+			const model = vendor?.MODELS.find((m) => m.KEY === pinned.model)
+			if (!vendor || !model || model.RETIRED || !vendor.ENABLED) {
+				throw new HTTPError(400, `Unsupported pinned model: ${pinned.model}`)
+			}
+			if (!vendor.PROJECTS.includes(pinned.project)) {
+				throw new HTTPError(400, `Unsupported project: ${pinned.project} for pinned model: ${pinned.model}`)
+			}
+			if (!user.roles.includes(APP_CONFIG.APP_ROLES.ADMIN)) {
+				throw new HTTPError(403, "Only admins can pin a model")
+			}
+		}
+	}
+}
+
+export const parseChatConfig = (input: unknown, APP_CONFIG: AppConfig, options: ParseChatConfigOptions): ChatConfig => {
 	if (!input || typeof input !== "object") {
 		throw new Error("Invalid chat config input")
 	}
 	const parsedConfig = ChatConfigSchema.parse(input)
 
+	// A body with neither profile nor pin is a pre-profile snapshot (e.g. a conversation saved before profiles
+	// existed and reloaded into the editor). On update, keep the stored model selection instead of rejecting
+	// the save or re-mapping it from the snapshot's model.
+	if (options.mode === "save" && options.previous && !parsedConfig.vendorAgent && parsedConfig.profile === undefined && !parsedConfig.pinned) {
+		parsedConfig.profile = options.previous.profile
+		parsedConfig.pinned = options.previous.pinned
+	}
+
+	// `legacy` is only ever carried over from the stored pin - a client could otherwise mark an admin pin as
+	// legacy and then remove it
+	if (parsedConfig.pinned) {
+		const keepLegacy = options.mode === "save" && samePinned(parsedConfig.pinned, options.previous?.pinned) && options.previous?.pinned?.legacy === true
+		parsedConfig.pinned = { model: parsedConfig.pinned.model, project: parsedConfig.pinned.project, ...(keepLegacy ? { legacy: true } : {}) }
+	}
+
 	const VENDOR = APP_CONFIG.VENDORS[parsedConfig.vendorId]
 	if (!VENDOR) {
 		throw new HTTPError(400, `Unsupported vendorId: ${parsedConfig.vendorId}`)
 	}
-	if (!VENDOR.PROJECTS.includes(parsedConfig.project)) {
-		throw new HTTPError(400, `Unsupported project: ${parsedConfig.project} for vendorId: ${parsedConfig.vendorId}`)
-	}
-	if (!VENDOR.ENABLED) {
-		throw new HTTPError(400, `VendorId: ${parsedConfig.vendorId} is not enabled`)
+	// A manual config with a profile or pin has vendorId/project overwritten by resolution, so they're only
+	// checked here for vendor agents and pre-profile configs. A resolved vendor that's disabled (a
+	// dataLocation profile is never substituted, see resolve.ts) is answered with 503 by the chat routes.
+	const selectedByProfile = !parsedConfig.vendorAgent && (parsedConfig.profile !== undefined || parsedConfig.pinned !== undefined)
+	if (!selectedByProfile) {
+		if (!VENDOR.PROJECTS.includes(parsedConfig.project)) {
+			throw new HTTPError(400, `Unsupported project: ${parsedConfig.project} for vendorId: ${parsedConfig.vendorId}`)
+		}
+		if (!VENDOR.ENABLED) {
+			throw new HTTPError(400, `VendorId: ${parsedConfig.vendorId} is not enabled`)
+		}
 	}
 	if (parsedConfig.vendorAgent) {
-		// Predefined config
+		// Predefined config. Converting an admin-pinned assistant drops its pin, so it's a pin removal too
+		if (options.mode === "save" && options.previous?.pinned && !options.previous.pinned.legacy && !options.user.roles.includes(APP_CONFIG.APP_ROLES.ADMIN)) {
+			throw new HTTPError(403, "Only admins can remove a model pin")
+		}
 		if (!parsedConfig.vendorAgent.id || typeof parsedConfig.vendorAgent.id !== "string") {
 			throw new HTTPError(400, "vendorAgent.id must be a string")
 		}
@@ -59,9 +133,13 @@ export const parseChatConfig = (input: unknown, APP_CONFIG: AppConfig): ChatConf
 			updated: parsedConfig.updated
 		}
 	}
-	// Manual config
-	if (!VENDOR.MODELS.some((model) => model.ID === parsedConfig.model)) {
+	// Manual config. With a profile or pin, vendorId/model are overwritten by resolution - only a
+	// pre-profile config (neither set) still needs its model checked here.
+	if (parsedConfig.profile === undefined && !parsedConfig.pinned && !VENDOR.MODELS.some((model) => model.ID === parsedConfig.model)) {
 		throw new HTTPError(400, `Unsupported model: ${parsedConfig.model} for vendorId: ${parsedConfig.vendorId}`)
+	}
+	if (options.mode === "save") {
+		validateSavedModelSelection(parsedConfig, APP_CONFIG, options.user, options.previous)
 	}
 
 	// NB : Husk å legge til propertiene i dette objektet også. Spesielt hvis det er optional så er det lett å glemme.
@@ -72,6 +150,8 @@ export const parseChatConfig = (input: unknown, APP_CONFIG: AppConfig): ChatConf
 		vendorId: parsedConfig.vendorId,
 		project: parsedConfig.project,
 		model: parsedConfig.model,
+		profile: parsedConfig.profile,
+		pinned: parsedConfig.pinned,
 		instructions: parsedConfig.instructions,
 		conversationId: parsedConfig.conversationId,
 		tools: parsedConfig.tools || [],

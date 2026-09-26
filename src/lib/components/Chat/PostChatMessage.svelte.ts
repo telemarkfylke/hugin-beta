@@ -28,12 +28,17 @@ export const postChatMessage = async (chatRequest: ChatRequest, chatResponseObje
 				chatResponseObject.status = "failed"
 				return
 			}
-			if (response.status === 429) {
-				// Rate limited (currently only /public/embed/api/chat - see its own comment on the
-				// two limits). Not an error state worth an [Error occurred ...] banner - show the
-				// server's own message (already Norwegian, user-facing) instead.
+			if (response.status === 429 || response.status === 503) {
+				// 429: rate limited (currently only /public/embed/api/chat - see its own comment on the
+				// two limits). 503: the assistant's model is unavailable (a dataLocation profile whose
+				// vendor is disabled - see resolve.ts). Not an error state worth an [Error occurred ...]
+				// banner - show the server's own message (already Norwegian, user-facing) instead.
 				const errorData = await response.json().catch(() => null)
-				addMessageDeltaToChatItem(chatResponseObject, `error_${Date.now()}`, errorData?.message ?? "For mange forespørsler akkurat nå. Prøv igjen om litt.")
+				addMessageDeltaToChatItem(
+					chatResponseObject,
+					`error_${Date.now()}`,
+					errorData?.message ?? (response.status === 429 ? "For mange forespørsler akkurat nå. Prøv igjen om litt." : "Tjenesten er ikke tilgjengelig akkurat nå. Prøv igjen senere.")
+				)
 				chatResponseObject.status = "failed"
 				return
 			}

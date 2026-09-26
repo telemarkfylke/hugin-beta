@@ -1,9 +1,13 @@
+import type { ClientModelProfile, MimeTypes, ModelCapability } from "./model-profiles"
+
 export type ModelInfo = {
+	// Catalogue key in $lib/server/models/models.config.ts - what ChatConfig.pinned.model refers to
+	KEY: string
+	// Provider model ID - what ChatConfig.model holds after resolution
 	ID: string
-	SUPPORTED_MESSAGE_FILE_MIME_TYPES: {
-		FILE: string[]
-		IMAGE: string[]
-	}
+	SUPPORTED_MESSAGE_FILE_MIME_TYPES: MimeTypes
+	CAPABILITIES: ModelCapability[]
+	RETIRED: boolean
 }
 
 export type VendorInfo = {
@@ -35,6 +39,10 @@ export type AppConfig = {
 	CANVAS_ENABLED: boolean
 	TRANSCRIPTION_GREEN_GROUP_ID: string | undefined
 	TRANSCRIPTION_GROUPS: TranscriptionGroup[]
+	// Profiles whose vendor is enabled - the picker filters by role client-side, the server enforces on save
+	MODEL_PROFILES: ClientModelProfile[]
+	// Resolved default profile ids ("" only if no profile is usable at all - logged at startup)
+	DEFAULT_PROFILE_IDS: { CHAT: string; ASSISTANT: string }
 	VENDORS: {
 		MISTRAL: VendorInfo
 		OPENAI: VendorInfo

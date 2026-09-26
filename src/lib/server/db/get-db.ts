@@ -6,6 +6,8 @@ import { MockConversationStore } from "$lib/conversationstore/server/adapters/mo
 import type { IMcpSourceStore } from "$lib/mcp-sources/server/adapters/interface"
 import { MongoMcpSourceStore } from "$lib/mcp-sources/server/adapters/mcp-source-store"
 import { MockMcpSourceStore } from "$lib/mcp-sources/server/adapters/mock-mcp-source-store"
+import { resolveConfig } from "$lib/server/models/model-registry"
+import { ResolvingChatConfigStore } from "$lib/server/models/resolving-chat-config-store"
 import { MockRateLimiter } from "$lib/server/rate-limit/mock-rate-limiter"
 import { MongoRateLimiter } from "$lib/server/rate-limit/mongo-rate-limiter"
 import type { IStatsStore } from "$lib/statsstore/server/adapters/interface"
@@ -27,7 +29,7 @@ let statsStore: IStatsStore
 let rateLimiter: IRateLimiter
 
 if (env.MOCK_DB === "true") {
-	chatConfigStore = new MockChatConfigStore()
+	chatConfigStore = new ResolvingChatConfigStore(new MockChatConfigStore(), resolveConfig)
 	websiteSourceStore = new MockWebsiteSourceStore()
 	mcpSourceStore = new MockMcpSourceStore()
 	conversationStore = new MockConversationStore()
@@ -39,7 +41,7 @@ if (env.MOCK_DB === "true") {
 	}
 	// Shared across all stores below - one connection pool against Mongo, not one per store.
 	const mongoClient = new MongoClient(env.MONGODB_CONNECTION_STRING, { ignoreUndefined: true })
-	chatConfigStore = new MongoChatConfigStore(mongoClient)
+	chatConfigStore = new ResolvingChatConfigStore(new MongoChatConfigStore(mongoClient), resolveConfig)
 	websiteSourceStore = new MongoWebsiteSourceStore(mongoClient)
 	mcpSourceStore = new MongoMcpSourceStore(mongoClient)
 	conversationStore = new MongoConversationStore(mongoClient, null)

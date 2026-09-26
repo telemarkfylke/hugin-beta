@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from "svelte"
+	import { getModelDisplayName } from "$lib/model-profiles"
 	import type { ChatState } from "./ChatState.svelte"
 	import EmbedChat from "./EmbedChat.svelte"
 
@@ -78,7 +79,7 @@
 	<div class="widget-wrapper">
 		<div class="widget-topbar">
 			<span class="material-symbols-outlined widget-topbar-icon">chat</span>
-			<span class="widget-topbar-title">{chatState.chat.config.name || chatState.chat.config.model || "Chat"}</span>
+			<span class="widget-topbar-title">{chatState.chat.config.name || getModelDisplayName(chatState.chat.config, chatState.APP_CONFIG) || "Chat"}</span>
 			<button class="icon-button widget-minimize" onclick={toggleWidget} title="Minimer" aria-label="Minimer chat">
 				<span class="material-symbols-outlined">close</span>
 			</button>

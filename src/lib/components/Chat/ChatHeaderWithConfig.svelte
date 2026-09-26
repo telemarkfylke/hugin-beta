@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { slide } from "svelte/transition"
 	import { canEditChatConfig } from "$lib/authorization"
+	import { getModelDisplayName } from "$lib/model-profiles"
 	import ChatConfigPanel from "./ChatConfigPanel.svelte"
 	import type { ChatState } from "./ChatState.svelte"
 	import ConversationList from "./ConversationList.svelte"
@@ -33,7 +34,7 @@
 		if (chatState.configEdited && !chatState.chat.config.name) {
 			return "Uten navn*"
 		}
-		let name = chatState.chat.config.name || chatState.chat.config.model
+		let name = chatState.chat.config.name || getModelDisplayName(chatState.chat.config, chatState.APP_CONFIG)
 		if (!name) {
 			name = chatState.chat.config._id ? "Uten navn" : "Ny assistent"
 		}

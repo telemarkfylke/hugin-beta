@@ -6,6 +6,7 @@ import { ANONYMOUS_PRINCIPAL } from "$lib/anonymous-principal"
 import { getVendor } from "$lib/server/ai-vendors"
 import { classifyQuestion, recordQuestionCategoryStat } from "$lib/server/categorize-question"
 import { getChatConfigStore, getRateLimiter, getStatsStore } from "$lib/server/db/get-db"
+import { isModelAvailable, MODEL_UNAVAILABLE_MESSAGE } from "$lib/server/models/model-registry"
 import { appendRagContextToInstructions } from "$lib/server/ragservice/format-rag-context"
 import { formatHistoryForRewrite } from "$lib/server/ragservice/rag-query-rewrite"
 import { searchRagStores } from "$lib/server/ragservice/rag-search"
@@ -111,6 +112,12 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 	const dbConfig = await chatConfigStore.getChatConfig(parsed.data.config._id)
 	if (!dbConfig?.allowAnonymousEmbed) {
 		return json({ message: "Not found" }, { status: 404 })
+	}
+
+	// The store already resolved dbConfig. Fail closed when that kept a dataLocation profile on its own
+	// disabled vendor (see resolve.ts) - this route returns its errors rather than throwing HTTPError.
+	if (!isModelAvailable(dbConfig)) {
+		return json({ message: MODEL_UNAVAILABLE_MESSAGE }, { status: 503 })
 	}
 
 	// Rate limiting - see the module-level comment above for the three limits and the
