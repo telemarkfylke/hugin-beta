@@ -4,7 +4,9 @@
 	"private": true,
 	"type": "module",
 	"scripts": {
+		"predev": "node scripts/copy-excalidraw-assets.mjs",
 		"dev": "vite dev",
+		"prebuild": "node scripts/copy-excalidraw-assets.mjs",
 		"build": "vite build --mode build",
 		"preview": "vite preview",
 		"prepare": "svelte-kit sync || echo ''",
@@ -23,15 +25,19 @@
 		"@types/html-to-text": "^9.0.4",
 		"@types/markdown-it": "^14.1.2",
 		"@types/node": "^25.6.0",
+		"@types/react": "^18.3.31",
+		"@types/react-dom": "^18.3.7",
 		"axe-core": "^4.11.3",
 		"jszip": "^3.10.2",
 		"svelte": "^5.55.4",
 		"svelte-check": "^4.4.6",
 		"typescript": "^5.9.3",
 		"vite": "^7.3.2",
-		"vitest": "^4.1.4"
+		"vitest": "^4.1.11"
 	},
 	"dependencies": {
+		"@excalidraw/excalidraw": "^0.18.1",
+		"@excalidraw/mermaid-to-excalidraw": "^2.2.2",
 		"@mistralai/mistralai": "^2.2.0",
 		"@modelcontextprotocol/sdk": "^1.30.0",
 		"@vestfoldfylke/loglady": "^1.5.3",
@@ -43,17 +49,26 @@
 		"jwt-decode": "^4.0.0",
 		"katex": "^0.16.45",
 		"markdown-it": "^14.1.1",
-		"mermaid": "^11.17.0",
 		"mongodb": "^7.1.1",
 		"ollama": "^0.6.3",
 		"openai": "^6.34.0",
 		"pdf-lib": "^1.17.1",
 		"pptx-automizer": "^0.9.3",
+		"react": "^18.3.1",
+		"react-dom": "^18.3.1",
 		"reveal.js": "^6.0.2",
 		"zod": "^4.3.6"
 	},
 	"overrides": {
 		"cookie": "^0.7.1",
-		"uuid": "11.1.1"
+		"uuid": "11.1.1",
+		"lodash-es": "^4.18.1",
+		"@excalidraw/excalidraw": {
+			"nanoid": "^3.3.19"
+		},
+		"@excalidraw/mermaid-to-excalidraw": {
+			"nanoid": "^5.1.16"
+		},
+		"devalue": "^5.9.1"
 	}
 }

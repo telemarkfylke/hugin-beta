@@ -15,6 +15,8 @@ const MODELS = {
 	"gpt-5.4": { vendor: "OPENAI", providerModel: "gpt-5.4", files: "openai", capabilities: ["webSearch"], status: "retired" },
 	"gpt-5.5": { vendor: "OPENAI", providerModel: "gpt-5.5", files: "openai", capabilities: ["webSearch"], status: "retired" },
 	"gpt-5.6-terra": { vendor: "OPENAI", providerModel: "gpt-5.6-terra", files: "openai", capabilities: ["webSearch"] },
+	"gpt-6-sol": { vendor: "OPENAI", providerModel: "gpt-6-sol", files: "openai", capabilities: ["webSearch"] },
+	"gpt-6-luna": { vendor: "OPENAI", providerModel: "gpt-6-luna", files: "openai", capabilities: ["webSearch"] },
 	"gpt-5.6-luna": { vendor: "OPENAI", providerModel: "gpt-5.6-luna", files: "openai", capabilities: ["webSearch"] },
 	"mistral-medium": { vendor: "MISTRAL", providerModel: "mistral-medium-latest", files: "mistral", capabilities: ["webSearch"], status: "retired" },
 	"mistral-large": { vendor: "MISTRAL", providerModel: "mistral-large-latest", files: "mistral", capabilities: ["webSearch"] },
@@ -32,8 +34,8 @@ type ModelKey = keyof typeof MODELS
 type ProfileId = "rask" | "grundig" | "europeisk" | "lokal"
 
 const PROFILES: (Profile & { id: ProfileId; model: ModelKey })[] = [
-	{ id: "rask", label: "Rask", icon: "⚡", description: "Raske svar på enkle oppgaver", model: "gpt-5.6-luna" },
-	{ id: "grundig", label: "Grundig", icon: "🧠", description: "Analyse, resonnering og lange dokumenter", model: "gpt-5.6-terra" },
+	{ id: "rask", label: "Rask", icon: "⚡", description: "Raske svar på enkle oppgaver", model: "gpt-6-luna" },
+	{ id: "grundig", label: "Grundig", icon: "🧠", description: "Analyse, resonnering og lange dokumenter", model: "gpt-6-sol" },
 	{ id: "europeisk", label: "Europeisk", icon: "🇪🇺", description: "Data behandles innenfor EU", model: "mistral-large", dataLocation: "EU" },
 	{
 		id: "lokal",
@@ -61,6 +63,10 @@ const LEGACY: Record<string, ProfileId> = {
 	"gpt-5.2": "rask",
 	"gpt-5.4": "rask",
 	"gpt-5.5": "grundig",
+	// Grundig's previous model - no profile uses it directly any more
+	"gpt-5.6-terra": "grundig",
+	// Rask's previous model - no profile uses it directly any more
+	"gpt-5.6-luna": "rask",
 	"mistral-medium-latest": "europeisk",
 	"llama3:8b": "lokal",
 	"LTG/normistral-11b-thinking:latest": "lokal",

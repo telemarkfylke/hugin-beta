@@ -37,3 +37,6 @@ ignore/
 input-plan.md
 docs/
 superpowers/
+
+# Excalidraw fonts, copied from node_modules by scripts/copy-excalidraw-assets.mjs
+static/excalidraw-assets/

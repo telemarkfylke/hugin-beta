@@ -15,7 +15,7 @@ const NO_MIME = { FILE: [], IMAGE: [] }
 describe("deriveVendorModels on the real catalogue", () => {
 	it("keeps every OpenAI model ID and mime type that app-config.ts had before profiles", () => {
 		const models = deriveVendorModels(MODEL_CONFIG, "OPENAI")
-		expect(models.map((m) => m.ID)).toEqual(["gpt-4o", "gpt-4", "gpt-4.1", "gpt-5.2", "gpt-5.4", "gpt-5.5", "gpt-5.6-terra", "gpt-5.6-luna"])
+		expect(models.map((m) => m.ID)).toEqual(["gpt-4o", "gpt-4", "gpt-4.1", "gpt-5.2", "gpt-5.4", "gpt-5.5", "gpt-5.6-terra", "gpt-6-sol", "gpt-6-luna", "gpt-5.6-luna"])
 		for (const model of models) {
 			expect(model.SUPPORTED_MESSAGE_FILE_MIME_TYPES).toEqual(OPENAI_MIME)
 		}

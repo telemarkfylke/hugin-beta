@@ -14,7 +14,7 @@ describe("shouldShowToolTabs", () => {
 	it("returns true with multiple tools registered", () => {
 		const tools: CanvasTool[] = [
 			{ id: "document", label: "Dokument", icon: "description", href: "/canvas/document" },
-			{ id: "mermaid", label: "Diagram", icon: "schema", href: "/canvas/mermaid" }
+			{ id: "diagram", label: "Diagram", icon: "schema", href: "/canvas/diagram" }
 		]
 		expect(shouldShowToolTabs(tools)).toBe(true)
 	})
