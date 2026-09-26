@@ -186,7 +186,7 @@ Assistants and the default chat choose a **model profile** instead of a vendor, 
 | Profile | Meaning | Model (today) |
 |---|---|---|
 | ⚡ Rask | Quick answers, simple tasks | OpenAI `gpt-5.6-luna` |
-| 🧠 Grundig | Analysis, reasoning, long documents | OpenAI `gpt-5.6-terra` |
+| 🧠 Grundig | Analysis, reasoning, long documents | OpenAI `gpt-6-sol` |
 | 🇪🇺 Europeisk | Data processed within the EU | Mistral `mistral-large-latest` |
 | 🏠 Lokal | Data never leaves our own servers (employees only) | LiteLLM `norallm/normistral-11b-thinking` |
 
@@ -243,7 +243,7 @@ Canvas is an AI-assisted document editor available at `/canvas/document`. It let
   - "Håndtegnet" / "Ren" style toggle (roughness + font, remembered per browser), "Rediger kode" to edit the Mermaid and redraw, and export as PNG or `.excalidraw`.
   - A new prompt or "Oppdater tegning" redraws from the code, so manual edits in the drawing are replaced.
   - Excalidraw is a React component, mounted from Svelte in `src/lib/components/Excalidraw/ExcalidrawCanvas.svelte` and lazy-loaded only on this page. Its fonts are served by Hugin itself from `static/excalidraw-assets/` (copied from `node_modules` by `scripts/copy-excalidraw-assets.mjs` on `predev`/`prebuild`, gitignored).
-- Model comes from `DEFAULTS.canvas` in `models.config.ts` (currently the "Grundig" profile, OpenAI `gpt-5.6-terra`) — no model selection in the UI
+- Model comes from `DEFAULTS.canvas` in `models.config.ts` (currently the "Grundig" profile, OpenAI `gpt-6-sol`) — no model selection in the UI
 
 **Access control:**
 
