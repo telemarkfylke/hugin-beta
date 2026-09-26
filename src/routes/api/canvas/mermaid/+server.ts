@@ -17,6 +17,10 @@ For well-known diagram types (flowchart, sequenceDiagram, classDiagram, stateDia
 
 The diagram is shown in an Excalidraw editor where the user can move and restyle shapes by hand. Only flowchart, sequenceDiagram, classDiagram, stateDiagram-v2 and erDiagram become editable shapes there; every other type is shown as a flat, non-editable image. So when the user has not asked for a specific diagram type, prefer one of those five whenever it can represent the request well. Use another type only when the user asks for it or when those five clearly cannot express the content (e.g. a gantt schedule or a pie chart).
 
+In "style" and "classDef" lines use only plain CSS color values (hex like #E8F4FD, or color names) and simple properties (fill, stroke, stroke-width, color, stroke-dasharray). Never use url(...), gradients, patterns, SVG references (#id) or HTML — Mermaid cannot parse them.
+
+If the current diagram source comes with a parse error to fix, return the corrected diagram with the same content and structure — change only what is needed to make it valid.
+
 Some newer diagram types use stricter, less familiar keyword-based syntax. Do not improvise or guess syntax for these — use exactly this structure:
 
 venn-beta

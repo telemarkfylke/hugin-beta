@@ -4,6 +4,7 @@
 	import { page } from "$app/state"
 	import ExcalidrawCanvas from "$lib/components/Excalidraw/ExcalidrawCanvas.svelte"
 	import { DIAGRAM_STYLE_STORAGE_KEY, DIAGRAM_STYLES, type DiagramStyle, diagramStyleUpdates, parseDiagramStyle } from "$lib/diagram/diagram-style"
+	import { sanitizeMermaid } from "$lib/diagram/sanitize-mermaid"
 	import PromptBar from "../PromptBar.svelte"
 	import { CANVAS_TOOLS, shouldShowToolTabs } from "../tools"
 
@@ -66,27 +67,52 @@
 		applyStyleToAppState(api)
 	}
 
+	// Thrown for network/HTTP failures, so they aren't mistaken for (repairable) Mermaid syntax errors
+	class RequestError extends Error {}
+
+	const requestDiagram = async (diagram: string, instruction: string): Promise<string> => {
+		const res = await fetch("/api/canvas/mermaid", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ diagram, prompt: instruction })
+		})
+		if (!res.ok) {
+			const err = await res.json().catch(() => ({}))
+			throw new RequestError((err as { message?: string }).message ?? `HTTP ${res.status}`)
+		}
+		const data = (await res.json()) as { diagram: string }
+		return sanitizeMermaid(data.diagram)
+	}
+
+	// The model occasionally writes Mermaid that doesn't parse. Instead of showing the parser's error, send it
+	// back to the model to fix (up to MAX_REPAIRS times). Only if that fails too does the user see a message -
+	// and the previous drawing is left as it was, since the scene is only replaced after a successful parse.
+	const MAX_REPAIRS = 2
+	const renderWithRepair = async (firstAttempt: string): Promise<string> => {
+		let attempt = firstAttempt
+		for (let repair = 0; ; repair++) {
+			try {
+				await renderMermaid(attempt)
+				return attempt
+			} catch (e) {
+				if (e instanceof RequestError || repair >= MAX_REPAIRS) throw e
+				const parseError = e instanceof Error ? e.message : String(e)
+				attempt = await requestDiagram(attempt, `The diagram source above fails to parse with this error:\n${parseError}\nFix it and return only valid Mermaid, keeping the same content.`)
+			}
+		}
+	}
+
 	const submitPrompt = async () => {
 		if (!prompt.trim() || isLoading) return
 		isLoading = true
 		errorMessage = ""
 		try {
-			const res = await fetch("/api/canvas/mermaid", {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ diagram: code, prompt })
-			})
-			if (!res.ok) {
-				const err = await res.json().catch(() => ({}))
-				throw new Error((err as { message?: string }).message ?? `HTTP ${res.status}`)
-			}
-			const data = (await res.json()) as { diagram: string }
-			await renderMermaid(data.diagram)
-			code = data.diagram
-			codeDraft = data.diagram
+			const diagram = await renderWithRepair(await requestDiagram(code, prompt))
+			code = diagram
+			codeDraft = diagram
 			prompt = ""
 		} catch (e) {
-			errorMessage = e instanceof Error ? e.message : "Ukjent feil"
+			errorMessage = e instanceof RequestError ? e.message : "Klarte ikke å lage et gyldig diagram denne gangen. Prøv å formulere instruksjonen litt annerledes."
 		} finally {
 			isLoading = false
 		}
@@ -100,11 +126,15 @@
 	const applyCode = async () => {
 		if (!codeDraft.trim()) return
 		errorMessage = ""
+		// The user's own code: clean known-invalid style values, but show a real syntax error - it helps
+		// someone who is editing the code directly
+		const cleaned = sanitizeMermaid(codeDraft)
 		try {
-			await renderMermaid(codeDraft)
-			code = codeDraft
+			await renderMermaid(cleaned)
+			code = cleaned
+			codeDraft = cleaned
 		} catch (e) {
-			errorMessage = `Kunne ikke tegne diagrammet: ${e instanceof Error ? e.message : "ugyldig Mermaid-syntaks"}`
+			errorMessage = `Koden inneholder en feil: ${e instanceof Error ? e.message.split("\n")[0] : "ugyldig Mermaid-syntaks"}`
 		}
 	}
 
