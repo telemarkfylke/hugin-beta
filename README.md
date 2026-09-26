@@ -185,7 +185,7 @@ Assistants and the default chat choose a **model profile** instead of a vendor, 
 
 | Profile | Meaning | Model (today) |
 |---|---|---|
-| ⚡ Rask | Quick answers, simple tasks | OpenAI `gpt-5.6-luna` |
+| ⚡ Rask | Quick answers, simple tasks | OpenAI `gpt-6-luna` |
 | 🧠 Grundig | Analysis, reasoning, long documents | OpenAI `gpt-6-sol` |
 | 🇪🇺 Europeisk | Data processed within the EU | Mistral `mistral-large-latest` |
 | 🏠 Lokal | Data never leaves our own servers (employees only) | LiteLLM `norallm/normistral-11b-thinking` |
