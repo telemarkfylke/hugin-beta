@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { sanitizeMermaid } from "$lib/diagram/sanitize-mermaid"
+import { cleanLabelText, cleanSkeletonText, sanitizeMermaid } from "$lib/diagram/sanitize-mermaid"
 
 describe("sanitizeMermaid", () => {
 	it("removes url() fills but keeps the other style properties", () => {
@@ -25,5 +25,20 @@ describe("sanitizeMermaid", () => {
 	it("leaves valid diagrams untouched", () => {
 		const code = "flowchart TD\n  A[Start] --> B{Valg}\n  style A fill:#E8F4FD,stroke:#0072B1"
 		expect(sanitizeMermaid(code)).toBe(code)
+	})
+})
+
+describe("cleanLabelText / cleanSkeletonText", () => {
+	it("turns every <br> variant into a newline and drops inline tags", () => {
+		expect(cleanLabelText("Chip RAM<br>512 KB<br/>2 MB<BR />maks")).toBe("Chip RAM\n512 KB\n2 MB\nmaks")
+		expect(cleanLabelText("<b>Fast</b> RAM <span class='x'>valgfri</span>")).toBe("Fast RAM valgfri")
+		expect(cleanLabelText("a < b og c > d")).toBe("a < b og c > d")
+	})
+
+	it("cleans free text and shape/arrow labels", () => {
+		expect(cleanSkeletonText({ type: "text", text: "Kickstart<br>ROM" })).toEqual({ type: "text", text: "Kickstart\nROM" })
+		expect(cleanSkeletonText({ type: "rectangle", label: { text: "Fast RAM<br>Valgfri" } })).toEqual({ type: "rectangle", label: { text: "Fast RAM\nValgfri" } })
+		const arrow = { type: "arrow" }
+		expect(cleanSkeletonText(arrow)).toBe(arrow)
 	})
 })

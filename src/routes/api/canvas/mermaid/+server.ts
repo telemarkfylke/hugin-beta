@@ -19,6 +19,8 @@ The diagram is shown in an Excalidraw editor where the user can move and restyle
 
 In "style" and "classDef" lines use only plain CSS color values (hex like #E8F4FD, or color names) and simple properties (fill, stroke, stroke-width, color, stroke-dasharray). Never use url(...), gradients, patterns, SVG references (#id) or HTML — Mermaid cannot parse them.
 
+Never put HTML in node or edge labels — no <br>, <b>, <i> or other tags. Keep labels short; if a label needs a second line, write it as a separate node or shorten it instead.
+
 If the current diagram source comes with a parse error to fix, return the corrected diagram with the same content and structure — change only what is needed to make it valid.
 
 Some newer diagram types use stricter, less familiar keyword-based syntax. Do not improvise or guess syntax for these — use exactly this structure:

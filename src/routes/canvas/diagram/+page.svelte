@@ -4,7 +4,7 @@
 	import { page } from "$app/state"
 	import ExcalidrawCanvas from "$lib/components/Excalidraw/ExcalidrawCanvas.svelte"
 	import { DIAGRAM_STYLE_STORAGE_KEY, DIAGRAM_STYLES, type DiagramStyle, diagramStyleUpdates, parseDiagramStyle, sceneFingerprint, styleSkeleton } from "$lib/diagram/diagram-style"
-	import { sanitizeMermaid } from "$lib/diagram/sanitize-mermaid"
+	import { cleanSkeletonText, sanitizeMermaid } from "$lib/diagram/sanitize-mermaid"
 	import PromptBar from "../PromptBar.svelte"
 	import { CANVAS_TOOLS, shouldShowToolTabs } from "../tools"
 
@@ -51,7 +51,7 @@
 	const drawScene = async ({ elements, files }: Awaited<ReturnType<typeof parseMermaid>>) => {
 		if (!api) throw new Error("Excalidraw er ikke klar")
 		const { convertToExcalidrawElements, newElementWith, CaptureUpdateAction } = await loadExcalidraw()
-		const converted = convertToExcalidrawElements(elements.map((skeleton) => styleSkeleton(skeleton, style)))
+		const converted = convertToExcalidrawElements(elements.map((skeleton) => styleSkeleton(cleanSkeletonText(skeleton), style)))
 		const styled = converted.map((element) => newElementWith(element, { roughness: DIAGRAM_STYLES[style].roughness }))
 		// Files first, so image elements never reference a file that isn't added yet
 		if (files) {
