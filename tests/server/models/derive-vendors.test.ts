@@ -21,6 +21,12 @@ describe("deriveVendorModels on the real catalogue", () => {
 		}
 	})
 
+	// The Responses API reads Office, text and code files as input_file, not just PDF - keep parity with Mistral
+	it("lets OpenAI models accept the same document types as Mistral", () => {
+		const terra = deriveVendorModels(MODEL_CONFIG, "OPENAI").find((m) => m.ID === "gpt-5.6-terra")
+		expect(terra?.SUPPORTED_MESSAGE_FILE_MIME_TYPES.FILE).toEqual(expect.arrayContaining(MISTRAL_DEFAULT_SUPPORTED_MESSAGE_FILE_MIME_TYPES))
+	})
+
 	it("keeps every Mistral model ID and mime type", () => {
 		const models = deriveVendorModels(MODEL_CONFIG, "MISTRAL")
 		expect(models.map((m) => m.ID)).toEqual(["mistral-medium-latest", "mistral-large-latest"])
