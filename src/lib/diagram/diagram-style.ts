@@ -20,3 +20,15 @@ export const diagramStyleUpdates = (element: { type: string }, style: DiagramSty
 	const { roughness, fontFamily } = DIAGRAM_STYLES[style]
 	return element.type === "text" ? { roughness, fontFamily } : { roughness }
 }
+
+// Put the font on Mermaid-converted skeletons BEFORE Excalidraw converts them, so text is measured and
+// wrapped with the font it is shown in (changing fontFamily afterwards leaves Excalifont-sized boxes).
+export const styleSkeleton = <T extends { type: string; label?: object }>(skeleton: T, style: DiagramStyle): T => {
+	const { fontFamily } = DIAGRAM_STYLES[style]
+	if (skeleton.type === "text") return { ...skeleton, fontFamily }
+	if (skeleton.label) return { ...skeleton, label: { ...skeleton.label, fontFamily } }
+	return skeleton
+}
+
+// Cheap fingerprint of a drawing: changes whenever any element is edited, moved or added/removed
+export const sceneFingerprint = (elements: readonly { id: string; version: number }[]): string => elements.map((element) => `${element.id}:${element.version}`).join("|")
