@@ -19,7 +19,7 @@
 
 	// A pinned assistant is locked for anyone but an admin - the radios must be disabled (not just
 	// dimmed) and config.pinned must never be touched from this path, or saving returns 403.
-	const lockedForNonAdmin = $derived(Boolean(config.pinned) && !isAdmin)
+	const lockedForNonAdmin = $derived(Boolean(config.pinned) && !config.pinned?.legacy && !isAdmin)
 
 	// config.profile can point at a profile whose vendor is disabled in this deployment - it's then
 	// absent from `profiles` entirely (APP_CONFIG.MODEL_PROFILES only ships enabled-vendor profiles).
@@ -86,6 +86,10 @@
 
 	{#if lockedForNonAdmin}
 		<div class="picker-note">Denne assistenten er låst til en bestemt modell av en administrator.</div>
+	{:else if config.pinned?.legacy}
+		<div class="picker-note">
+			Denne assistenten bruker avdelingens egen API-nøkkel (prosjekt {config.pinned.project}). Velger du en profil, går den over til standardnøkkelen.
+		</div>
 	{/if}
 
 	{#if profileUnavailable}

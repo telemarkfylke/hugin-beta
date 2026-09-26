@@ -321,7 +321,13 @@ export class ChatState {
 				return
 			}
 
-			this.applyLoadedConversation(data.conversation, data.history, originalConfig ?? this.chat.config)
+			// Same agent: the snapshot's model selection may be stale (a pin or profile changed since, or a
+			// pre-profile snapshot) - keep the live one, so saving from here never reverts it or trips a 403
+			const current = this.chat.config
+			const config: ChatConfig = originalConfig
+				? { ...originalConfig, vendorId: current.vendorId, project: current.project, model: current.model, profile: current.profile, pinned: current.pinned }
+				: current
+			this.applyLoadedConversation(data.conversation, data.history, config)
 		} finally {
 			this.isLoading = false
 		}

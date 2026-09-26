@@ -140,6 +140,25 @@ describe("parseChatConfig - save mode", () => {
 		expectStatus(() => parseChatConfig({ ...base }, APP_CONFIG, { mode: "save", user: student, previous: null }), 400)
 	})
 
+	it("lets a non-admin clear a legacy project pin (set by the server, not an admin)", () => {
+		const previous = stored({ profile: "rask", pinned: { model: "gpt-live", project: "STUDENTS", legacy: true } })
+		const config = parseChatConfig({ ...base, profile: "rask" }, APP_CONFIG, { mode: "save", user: employee, previous })
+		expect(config.pinned).toBeUndefined()
+		expect(parseChatConfig({ ...base, vendorAgent: { id: "agent-1" } }, APP_CONFIG, { mode: "save", user: employee, previous }).vendorAgent).toEqual({ id: "agent-1" })
+	})
+
+	it("never trusts a client-sent legacy flag on an admin pin", () => {
+		const pinned = { model: "gpt-live", project: "STUDENTS" }
+		const config = parseChatConfig({ ...base, profile: "rask", pinned: { ...pinned, legacy: true } }, APP_CONFIG, { mode: "save", user: employee, previous: stored({ profile: "rask", pinned }) })
+		expect(config.pinned).toEqual(pinned)
+	})
+
+	it("keeps the legacy flag when a legacy pin is saved unchanged", () => {
+		const pinned = { model: "gpt-live", project: "STUDENTS", legacy: true }
+		const config = parseChatConfig({ ...base, profile: "rask", pinned }, APP_CONFIG, { mode: "save", user: employee, previous: stored({ profile: "rask", pinned }) })
+		expect(config.pinned).toEqual(pinned)
+	})
+
 	it("rejects a non-admin converting a pinned assistant to a vendor agent with 403", () => {
 		const previous = stored({ profile: "rask", pinned: { model: "gpt-live", project: "DEFAULT" } })
 		expectStatus(() => parseChatConfig({ ...base, vendorAgent: { id: "agent-1" } }, APP_CONFIG, { mode: "save", user: employee, previous }), 403)

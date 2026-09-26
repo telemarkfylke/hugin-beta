@@ -41,9 +41,11 @@ const legacyProfileId = (providerModel: string, ctx: ModelContext): string | und
 }
 
 // Pre-profile assistants could be saved on their own API-key project (e.g. a department's OpenAI key).
-// Profiles always run on DEFAULT, so such an assistant becomes an implicit admin pin: its stored model if
-// still usable, else the model of the profile it maps to - same vendor only, since project keys are per vendor.
-const legacyProjectPin = (config: ModelSelection, ctx: ModelContext): { model: string; project: string } | undefined => {
+// Profiles always run on DEFAULT, so such an assistant becomes an implicit pin (marked legacy, so its editors
+// may clear it): its stored model if not retired, else the model of the profile it maps to - same vendor only,
+// since project keys are per vendor. Built even while the vendor is disabled, so a save during an outage
+// persists the pin instead of dropping the department's project for good.
+const legacyProjectPin = (config: ModelSelection, ctx: ModelContext): { model: string; project: string; legacy: true } | undefined => {
 	if (config.pinned || config.profile !== undefined || !config.model || !config.project || config.project === DEFAULT_PROJECT_ID) {
 		return undefined
 	}
@@ -54,8 +56,12 @@ const legacyProjectPin = (config: ModelSelection, ctx: ModelContext): { model: s
 	const storedKey = Object.keys(MODELS).find((key) => MODELS[key]?.vendor === config.vendorId && MODELS[key]?.providerModel === config.model)
 	const mappedProfileId = legacyProfileId(config.model, ctx)
 	const profileKey = PROFILES.find((p) => p.id === mappedProfileId)?.model
-	const key = [storedKey, profileKey].find((k) => k !== undefined && usableModel(k, ctx)?.vendor === config.vendorId)
-	return key ? { model: key, project: config.project } : undefined
+	const pinnable = (key: string | undefined): key is string => {
+		const model = key !== undefined && Object.hasOwn(MODELS, key) ? MODELS[key] : undefined
+		return Boolean(model && model.vendor === config.vendorId && model.status !== "retired" && !model.internal)
+	}
+	const key = [storedKey, profileKey].find(pinnable)
+	return key ? { model: key, project: config.project, legacy: true } : undefined
 }
 
 const fallbackProfile = (ctx: ModelContext) => {
@@ -90,9 +96,8 @@ export const resolveChatConfig = <T extends ModelSelection>(config: T, ctx: Mode
 	}
 	const implicitPin = legacyProjectPin(config, ctx)
 	if (implicitPin) {
-		const pinnedModel = usableModel(implicitPin.model, ctx) as CatalogueModel
 		const profile = config.model ? legacyProfileId(config.model, ctx) : undefined
-		return { ...config, pinned: implicitPin, ...(profile ? { profile } : {}), vendorId: pinnedModel.vendor, model: pinnedModel.providerModel, project: implicitPin.project }
+		config = { ...config, pinned: implicitPin, ...(profile ? { profile } : {}) }
 	}
 	if (config.pinned) {
 		const pinnedModel = usableModel(config.pinned.model, ctx)

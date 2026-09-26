@@ -41,7 +41,9 @@ export type ChatConfig = {
 	// overwritten from it on the server - see $lib/server/models/resolve.ts.
 	profile?: string | undefined
 	// Admin-only escape hatch: model = catalogue key, not provider ID. Wins over profile while its model isn't retired.
-	pinned?: { model: string; project: string } | undefined
+	// legacy: set by the server for a pre-profile assistant on its own project (never trusted from a client);
+	// the assistant's editors may clear it, unlike an admin pin
+	pinned?: { model: string; project: string; legacy?: boolean | undefined } | undefined
 	instructions?: string | undefined
 	conversationId?: string | undefined
 	tools?: ChatTool[] | undefined | null
@@ -173,7 +175,7 @@ export const ChatConfigSchema = schemaForType<ChatConfig>()(
 		vendorAgent: z.object({ id: z.string() }).optional(),
 		model: z.string().optional(),
 		profile: z.string().optional(),
-		pinned: z.object({ model: z.string(), project: z.string() }).optional(),
+		pinned: z.object({ model: z.string(), project: z.string(), legacy: z.boolean().optional() }).optional(),
 		tools: z
 			.array(z.discriminatedUnion("type", [z.object({ type: z.literal("web_search") }), z.object({ type: z.literal("datasource") }), z.object({ type: z.literal("mcp") })]))
 			.nullable()

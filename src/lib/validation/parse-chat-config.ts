@@ -30,8 +30,9 @@ const validateSavedModelSelection = (config: Pick<ChatConfig, "profile" | "pinne
 		if (!config.pinned) {
 			// Removing a previously-set pin is a change too - only an admin may do it (same rule as
 			// setting/changing one below), otherwise a non-admin co-editor could silently strip an
-			// admin's pin just by omitting it from their save body.
-			if (!user.roles.includes(APP_CONFIG.APP_ROLES.ADMIN)) {
+			// admin's pin just by omitting it from their save body. A legacy project pin (set by the
+			// server, not an admin) may be cleared by anyone allowed to edit the assistant.
+			if (!previous?.pinned?.legacy && !user.roles.includes(APP_CONFIG.APP_ROLES.ADMIN)) {
 				throw new HTTPError(403, "Only admins can remove a model pin")
 			}
 		} else {
@@ -65,6 +66,13 @@ export const parseChatConfig = (input: unknown, APP_CONFIG: AppConfig, options: 
 		parsedConfig.pinned = options.previous.pinned
 	}
 
+	// `legacy` is only ever carried over from the stored pin - a client could otherwise mark an admin pin as
+	// legacy and then remove it
+	if (parsedConfig.pinned) {
+		const keepLegacy = options.mode === "save" && samePinned(parsedConfig.pinned, options.previous?.pinned) && options.previous?.pinned?.legacy === true
+		parsedConfig.pinned = { model: parsedConfig.pinned.model, project: parsedConfig.pinned.project, ...(keepLegacy ? { legacy: true } : {}) }
+	}
+
 	const VENDOR = APP_CONFIG.VENDORS[parsedConfig.vendorId]
 	if (!VENDOR) {
 		throw new HTTPError(400, `Unsupported vendorId: ${parsedConfig.vendorId}`)
@@ -83,7 +91,7 @@ export const parseChatConfig = (input: unknown, APP_CONFIG: AppConfig, options: 
 	}
 	if (parsedConfig.vendorAgent) {
 		// Predefined config. Converting an admin-pinned assistant drops its pin, so it's a pin removal too
-		if (options.mode === "save" && options.previous?.pinned && !options.user.roles.includes(APP_CONFIG.APP_ROLES.ADMIN)) {
+		if (options.mode === "save" && options.previous?.pinned && !options.previous.pinned.legacy && !options.user.roles.includes(APP_CONFIG.APP_ROLES.ADMIN)) {
 			throw new HTTPError(403, "Only admins can remove a model pin")
 		}
 		if (!parsedConfig.vendorAgent.id || typeof parsedConfig.vendorAgent.id !== "string") {

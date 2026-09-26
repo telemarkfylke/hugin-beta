@@ -1,8 +1,19 @@
 # Model profiles — remaining work after the deep review
 
-Branch: `modelabstraction`. The deep review (2026-09-26) ran as multiple review angles plus verifiers,
-but was interrupted before its final roll-up, and six verifiers never finished. The confirmed findings
-listed below as fixed are in commit `7f87b5b`. This file lists what is left.
+Branch: `modelabstraction`. The deep review (2026-09-26) ran as multiple review angles plus verifiers.
+It was interrupted, then completed the same day with a separate review of the fix commit `7f87b5b` and
+a sweep of the whole branch. Confirmed findings are fixed in `7f87b5b` and in the follow-up commit (A–D
+below). This file lists what is left.
+
+Fixed in the follow-up commit:
+- A: automatic department pins are marked `pinned.legacy`. The assistant's editors may clear them (choose
+  a profile → default key), and the UI explains this instead of claiming an admin locked it. `legacy` is
+  only ever carried over from the stored config, never trusted from a client.
+- B: the department pin is also built while the vendor is disabled, so a save during an outage can't lose
+  the project.
+- C: stored configs with an unknown or lowercase `vendorId` (early versions) no longer crash resolution
+  (which would 500 the agents list).
+- D: reopening an old conversation keeps the assistant's current profile and pin, not the snapshot's.
 
 ## Before production (rollout checks)
 
@@ -16,6 +27,8 @@ Run these read-only queries against the prod DB (collection `chat-configs`) befo
   These assistants become implicit admin pins on their own project (fixed in `7f87b5b`). Check that each
   project's key (`OPENAI_API_KEY_PROJECT_<NAME>` / `MISTRAL_API_KEY_PROJECT_<NAME>`) exists in the prod
   env. Otherwise the pin is skipped and the assistant falls back to `DEFAULT`.
+- `db["chat-configs"].distinct("vendorId")`: anything besides OPENAI/MISTRAL/OLLAMA/LITELLM is a very old
+  config (lowercase ids). It no longer crashes, but it falls back to the default profile.
 - Check that `LITELLM_BASE_URL` / `LITELLM_API_KEY` are set in prod. If they aren't, the "Lokal" profile
   is hidden and existing Lokal assistants answer 503 (fail closed because of the data location).
 
@@ -25,7 +38,8 @@ Manual browser test on beta (nobody has clicked through this yet):
 - Admin: pin, re-pin to another vendor, "Tilbakestill til profil".
 - Non-admin on a pinned assistant: the list is locked and saving works.
 - Open an old conversation and save the assistant: no 400.
-- An old assistant with its own project answers, and "Avansert" shows the right project.
+- An old assistant with its own project answers, and "Avansert" shows the right project. As a non-admin, the
+  note about the department's key appears and choosing a profile works (moves it to the default key).
 - Toggle manual ↔ predefined (vendor agent).
 
 ## Open findings (confirmed, not fixed)
@@ -45,10 +59,11 @@ Manual browser test on beta (nobody has clicked through this yet):
 | 11 | **`manualConfigCache` in ChatConfigPanel has no guard** for `defaultProfileSelection` returning null (no usable profile). | Low | Same guard as `agents/create`. |
 | 12 | **`app-config.ts` only logs an error when no profile at all is usable,** not when `DEFAULTS.chat`/`assistant` themselves are disabled (the spec asks for an error). | Low | Log an error when a default profile's vendor is disabled. |
 
-## Not verified (the verifier was interrupted)
+## Design question (from the review, not a bug today)
 
-- The persisted *derived* fields (vendorId/model/project written to the DB on save) are fed back as input
-  to `legacyProfileId`. A design question: persist only `profile`/`pinned`, not the resolved fields.
+- The store writes the *resolved* fields (vendorId/model/project) to the DB on save, and they are later
+  read as input (e.g. `legacyProfileId` for configs without a profile). Consider persisting only
+  `profile`/`pinned`. The sweep found no concrete failure from this after the A–D fixes.
 
 ## Unrelated, noted during the work
 

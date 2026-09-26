@@ -41,8 +41,9 @@ const VENDORS: AppConfig["VENDORS"] = {
 
 export const MODEL_CONTEXT: ModelContext = {
 	modelConfig: MODEL_CONFIG,
-	isVendorEnabled: (vendorId) => VENDORS[vendorId].ENABLED,
-	vendorProjects: (vendorId) => VENDORS[vendorId].PROJECTS
+	// Stored configs from early versions can carry lowercase/unknown vendor ids - never index VENDORS blindly
+	isVendorEnabled: (vendorId) => Object.hasOwn(VENDORS, vendorId) && VENDORS[vendorId].ENABLED,
+	vendorProjects: (vendorId) => (Object.hasOwn(VENDORS, vendorId) ? VENDORS[vendorId].PROJECTS : [])
 }
 
 for (const profile of MODEL_CONFIG.PROFILES) {

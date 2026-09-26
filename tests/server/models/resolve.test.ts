@@ -170,6 +170,17 @@ describe("resolveChatConfig", () => {
 			expect(resolved).toMatchObject({ pinned: { model: "luna", project: "SKOLE" }, profile: "rask", model: "gpt-luna", project: "SKOLE" })
 		})
 
+		it("mark the pin as legacy so the assistant's editors may clear it", () => {
+			expect(resolveChatConfig(config({ vendorId: "OPENAI", project: "SKOLE", model: "gpt-terra" }), projectCtx()).pinned?.legacy).toBe(true)
+		})
+
+		it("keep the project pin while the vendor is disabled, so a save during an outage can't drop it", () => {
+			const outage: ModelContext = { ...projectCtx(), isVendorEnabled: (vendorId) => vendorId === "MISTRAL" }
+			const resolved = resolveChatConfig(config({ vendorId: "OPENAI", project: "SKOLE", model: "gpt-terra" }), outage)
+			expect(resolved.pinned).toEqual({ model: "terra", project: "SKOLE", legacy: true })
+			expect(resolved.profile).toBe("grundig")
+		})
+
 		it("are left alone when the project has no key configured", () => {
 			const resolved = resolveChatConfig(config({ vendorId: "OPENAI", project: "GONE", model: "gpt-terra" }), projectCtx())
 			expect(resolved.pinned).toBeUndefined()
