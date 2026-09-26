@@ -14,6 +14,7 @@ Hugin Beta is an internal AI-agent web application designed to provide a democra
 ### Key Features
 
 - **Multi-Provider Support** - Unified interface for OpenAI, Mistral AI, Ollama, and LiteLLM
+- **Model Profiles** - Users pick a profile ("Rask", "Grundig", "Europeisk", "Lokal") instead of a vendor/model/project; all models, profiles and defaults live in one config file
 - **Real-Time Streaming** - Server-Sent Events (SSE) for incremental AI responses
 - **Enterprise Authentication** - Microsoft Entra ID integration with role-based and group-based access control
 - **Multi-Modal Input** - Support for text, images, and document uploads
@@ -35,6 +36,7 @@ Hugin Beta is an internal AI-agent web application designed to provide a democra
   - [Streaming Architecture](#streaming-architecture)
   - [Authorization](#authorization)
 - [Features](#features)
+  - [Model Profiles](#model-profiles)
   - [Canvas](#canvas)
   - [Transcription (Tale-til-notat)](#transcription-tale-til-notat)
   - [Datakilder (RAG)](#datakilder-rag)
@@ -110,7 +112,7 @@ Four vendors are implemented today: OpenAI, Mistral AI, Ollama, and LiteLLM (`sr
 | `{vendor}-mapping.ts` | Converts between internal types and vendor SDK types |
 | `{vendor}-stream.ts` | Handles SSE streaming and event normalization |
 
-Vendors are registered in `src/lib/server/ai-vendors.ts` and enabled/configured per-vendor via `APP_CONFIG.VENDORS` (`src/lib/server/app-config/app-config.ts`). **`vendorId` values are uppercase** (`"OPENAI"`, `"MISTRAL"`, `"OLLAMA"`, `"LITELLM"`), matching the `VENDORS` keys in `APP_CONFIG`.
+Vendors are registered in `src/lib/server/ai-vendors.ts` and enabled/configured per-vendor via `APP_CONFIG.VENDORS` (`src/lib/server/app-config/app-config.ts`). Each vendor's model list is derived from the model catalogue - see [Model Profiles](#model-profiles). **`vendorId` values are uppercase** (`"OPENAI"`, `"MISTRAL"`, `"OLLAMA"`, `"LITELLM"`), matching the `VENDORS` keys in `APP_CONFIG`.
 
 **Data Flow:**
 ```
@@ -177,6 +179,48 @@ Regular users can define their own chat configs and test them against `/api/chat
 
 ## Features
 
+### Model Profiles
+
+Assistants and the default chat choose a **model profile** instead of a vendor, model and project. The profile list in the assistant editor shows a short description and badges derived from the model (📎 files, 🖼️ images, 🌐 web search, 📍 data location).
+
+| Profile | Meaning | Model (today) |
+|---|---|---|
+| ⚡ Rask | Quick answers, simple tasks | OpenAI `gpt-5.6-luna` |
+| 🧠 Grundig | Analysis, reasoning, long documents | OpenAI `gpt-5.6-terra` |
+| 🇪🇺 Europeisk | Data processed within the EU | Mistral `mistral-large-latest` |
+| 🏠 Lokal | Data never leaves our own servers (employees only) | LiteLLM `norallm/normistral-11b-thinking` |
+
+**One file to maintain:** `src/lib/server/models/models.config.ts` holds everything:
+
+- `MODELS`: the catalogue (vendor, provider model id, file preset, capabilities, `status: "retired"`, `internal`)
+- `PROFILES`: what users see, and which model each profile uses
+- `DEFAULTS`: the profiles for the default chat, new assistants and Canvas, plus the internal utility model
+- `LEGACY`: maps model ids stored on assistants created before profiles to a profile
+
+**To add a model**, add one line to `MODELS`. **To upgrade a profile**, change its `model`; every assistant on that profile follows on the next deploy. **To retire a model**, set `status: "retired"` and map its provider id in `LEGACY`. A typo is a type error, and `assertModelConfig` stops startup on an inconsistent config.
+
+**How it works:**
+
+- The server always works out the concrete `vendorId`/`model`/`project` from the profile (`src/lib/server/models/resolve.ts`, bound in `model-registry.ts`). It does this in a store decorator (`resolving-chat-config-store.ts`), so every stored config is resolved, and again in `/api/chat`. Values the client sends are never used as-is.
+- **Admin pins:** admins can lock an assistant to a specific model and API-key project under "Avansert". Non-admins can't set, change or remove a pin (403). Old assistants that were saved on their own project (e.g. a department's OpenAI key) automatically become a pin on that project, so they keep using their key.
+- **Role limits:** a profile can be limited to certain roles (Lokal: employees). This decides who may *choose* the profile when saving. Who may *use* an assistant is still decided by its `accessGroups`.
+- **When a vendor is missing:** a profile whose vendor has no API key is hidden. Assistants on it are served by a fallback profile, except profiles with a data location (Europeisk, Lokal). Those fail closed: chat answers 503 instead of sending data to another vendor.
+- **Capabilities:** the web search button and allowed file types follow the model (`capabilities`, file presets in `supported-mime-types.ts`). OpenAI and Mistral both accept PDF, Office, text and code files.
+
+Open work and rollout checks: see `TODO-model-profiles.md`.
+
+**Relevant files:**
+
+| File | Purpose |
+|------|---------|
+| `src/lib/server/models/models.config.ts` | Models, profiles, defaults, legacy map (the one file to edit) |
+| `src/lib/server/models/resolve.ts` | Pure resolution: pin → profile → legacy → fallback |
+| `src/lib/server/models/model-registry.ts` | Binds resolution to the real config (`resolveConfig`, `getDefaultModel`) |
+| `src/lib/server/models/resolving-chat-config-store.ts` | Resolves every config read from or written to the store |
+| `src/lib/validation/parse-chat-config.ts` | Save/use validation: admin-only pins, role-limited profiles |
+| `src/lib/model-profiles.ts` | Client helpers: badges, selectable profiles, web search, display names |
+| `src/lib/components/ProfilePicker.svelte` | Profile list + admin "Avansert" |
+
 ### Canvas
 
 Canvas is an AI-assisted document editor available at `/canvas/document`. It lets users create and refine markdown documents through natural language prompts, with optional web search for sourcing content.
@@ -195,7 +239,7 @@ Canvas is an AI-assisted document editor available at `/canvas/document`. It let
 - Web search toggle — enables live internet sourcing, with citations appended to the document
 - Export to `.txt` or `.docx` (with proper heading, bold, italic, bullet, and horizontal rule formatting)
 - Mermaid diagram generation and editing via a separate endpoint (`POST /api/canvas/mermaid`)
-- Hardcoded to OpenAI `gpt-5.6-terra` — no model selection needed
+- Model comes from `DEFAULTS.canvas` in `models.config.ts` (currently the "Grundig" profile, OpenAI `gpt-5.6-terra`) — no model selection in the UI
 
 **Access control:**
 
@@ -563,7 +607,10 @@ Create a `.env` file in the project root:
 # AI Provider API Keys (at least one required)
 MISTRAL_API_KEY_PROJECT_DEFAULT="your-mistral-api-key"
 OPENAI_API_KEY_PROJECT_DEFAULT="your-openai-api-key"
+# Extra API-key projects: MISTRAL_API_KEY_PROJECT_<NAME> / OPENAI_API_KEY_PROJECT_<NAME> (used by admin pins)
 # OLLAMA_HOST / LITELLM_BASE_URL enable the Ollama / LiteLLM vendors if set
+# LITELLM_BASE_URL="..."          # Required for the "Lokal" profile
+# LITELLM_API_KEY="..."
 
 # Mock Database Configuration
 MOCK_DB="true"                    # Use in-memory database (required for local dev)
@@ -752,15 +799,15 @@ Emits `response.output_text.delta` events with the updated document, and `respon
 
 ### POST `/api/canvas/mermaid`
 
-Generate or edit a Mermaid diagram from a prompt. Same access control and streaming response shape as `/api/canvas`; hardcoded to OpenAI `gpt-5.6-terra`.
+Generate or edit a Mermaid diagram from a prompt. Same access control and streaming response shape as `/api/canvas`; uses the canvas model from `DEFAULTS.canvas` in `models.config.ts`.
 
 ### GET / POST `/api/chatconfigs`
 
-List, or create, chat configurations.
+List, or create, chat configurations. A new manual config must carry a `profile` (or an admin `pinned`). Choosing a role-limited profile you don't have gets 403, and so does setting a pin as a non-admin. Returned configs are always resolved (concrete `vendorId`/`model`/`project`).
 
 ### PUT `/api/chatconfigs/[_id]`
 
-Update an existing chat configuration.
+Update an existing chat configuration. Role and pin checks only apply to values that changed. An unchanged profile or pin is always accepted, and only an admin can set, change or remove a pin (403 otherwise).
 
 ### DELETE `/api/chatconfigs/[_id]`
 
@@ -823,6 +870,8 @@ type ChatConfig = {
   name: string
   vendorId: "OPENAI" | "MISTRAL" | "OLLAMA" | "LITELLM"
   model?: string
+  profile?: string                             // model profile id - see Model Profiles
+  pinned?: { model: string; project: string }  // admin-only pin (catalogue key + API-key project)
   // ...
 }
 
@@ -842,7 +891,7 @@ Everywhere else, validation is hand-written parse functions in `src/lib/validati
 
 | Type | Description | Location |
 |------|-------------|----------|
-| `ChatConfig` | Chat configuration (vendor, model, instructions) | [chat.ts](src/lib/types/chat.ts) |
+| `ChatConfig` | Chat configuration (profile/pin, resolved vendor + model, instructions) | [chat.ts](src/lib/types/chat.ts) |
 | `ChatRequest` | Request payload with config and inputs | [chat.ts](src/lib/types/chat.ts) |
 | `ChatResponseObject` | Complete response with outputs and usage | [chat.ts](src/lib/types/chat.ts) |
 | `ChatInputMessage` | User/system input message | [chat-item.ts](src/lib/types/chat-item.ts) |
