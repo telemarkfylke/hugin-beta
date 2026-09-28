@@ -38,10 +38,27 @@ describe("parseChatConfig with embed widget fields", () => {
 		expect(config.suggestedQuestions).toEqual(["Spørsmål 1"])
 	})
 
+	it("passes hideAttachmentButton, hideWebSearchButton and hideDataSourceButton through on a manual config", () => {
+		const config = parseChatConfig({ ...base, model: "gpt-4o", hideAttachmentButton: true, hideWebSearchButton: true, hideDataSourceButton: true }, APP_CONFIG, { mode: "use" })
+		expect(config.hideAttachmentButton).toBe(true)
+		expect(config.hideWebSearchButton).toBe(true)
+		expect(config.hideDataSourceButton).toBe(true)
+	})
+
+	it("passes the same hide* flags through on a predefined vendor-agent config", () => {
+		const config = parseChatConfig({ ...base, vendorAgent: { id: "agent-1" }, hideAttachmentButton: true, hideWebSearchButton: true, hideDataSourceButton: true }, APP_CONFIG, { mode: "use" })
+		expect(config.hideAttachmentButton).toBe(true)
+		expect(config.hideWebSearchButton).toBe(true)
+		expect(config.hideDataSourceButton).toBe(true)
+	})
+
 	it("leaves the fields undefined when entirely absent (pre-existing config shape)", () => {
 		const config = parseChatConfig({ ...base, model: "gpt-4o" }, APP_CONFIG, { mode: "use" })
 		expect(config.avatarUrl).toBeUndefined()
 		expect(config.welcomeMessage).toBeUndefined()
 		expect(config.suggestedQuestions).toBeUndefined()
+		expect(config.hideAttachmentButton).toBeUndefined()
+		expect(config.hideWebSearchButton).toBeUndefined()
+		expect(config.hideDataSourceButton).toBeUndefined()
 	})
 })
