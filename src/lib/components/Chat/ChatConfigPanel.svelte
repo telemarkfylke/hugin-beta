@@ -301,6 +301,8 @@
 							<label for="avatar-url">Avatar-URL (valgfritt)</label>
 							<input id="avatar-url" type="text" placeholder="https://.../avatar.png" bind:value={chatState.chat.config.avatarUrl} />
 						</div>
+					</div>
+					<div class="config-section">
 						<div class="config-item">
 							<label for="welcome-message">Velkomstmelding i embed-widget</label>
 							<GrowingTextArea
@@ -311,6 +313,8 @@
 								bind:value={chatState.chat.config.welcomeMessage}
 							/>
 						</div>
+					</div>
+					<div class="config-section">
 						<div class="config-item">
 							<label for="new-suggested-question">Forslag til spørsmål (maks 4)</label>
 							{#each chatState.chat.config.suggestedQuestions ?? [] as question}
@@ -334,6 +338,36 @@
 							<div class="share-description">
 								Vises som klikkbare forslag før første melding i embed-widgeten. Tomt felt viser ingen forslag.
 							</div>
+						</div>
+					</div>
+					<div class="config-section">
+						<span class="field-group-label">Vis knapper i embed-widget</span>
+						<div class="toggle-group">
+							<label class="toggle-label">
+								<span>Vedlegg</span>
+								<span class="toggle">
+									<input
+										type="checkbox"
+										checked={chatState.chat.config.showAttachmentButton !== false}
+										onchange={(e) => { chatState.chat.config.showAttachmentButton = (e.target as HTMLInputElement).checked }}
+									/>
+									<span class="toggle-track"></span>
+								</span>
+							</label>
+							<label class="toggle-label">
+								<span>Nettsøk</span>
+								<span class="toggle">
+									<input
+										type="checkbox"
+										checked={chatState.chat.config.showWebSearchButton !== false}
+										onchange={(e) => { chatState.chat.config.showWebSearchButton = (e.target as HTMLInputElement).checked }}
+									/>
+									<span class="toggle-track"></span>
+								</span>
+							</label>
+						</div>
+						<div class="share-description">
+							På (standard): knappen vises i embed-widgeten, forutsatt at assistenten faktisk støtter den. Av: knappen skjules helt, uavhengig av støtte. Påvirker ikke den vanlige chat-siden internt.
 						</div>
 					</div>
 				{/if}
@@ -830,6 +864,19 @@
 		font-size: small;
 		display: inline-block;
 		padding-bottom: 0.5rem;
+	}
+	.field-group-label {
+		color: var(--color-primary);
+		font-size: small;
+		display: inline-block;
+		padding-bottom: 0.5rem;
+		flex-basis: 100%;
+	}
+	.toggle-group {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.5rem 1.5rem;
+		margin-bottom: 0.5rem;
 	}
 	textarea.name-input {
 		font: inherit;

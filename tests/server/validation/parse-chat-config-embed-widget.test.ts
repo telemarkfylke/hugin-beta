@@ -38,10 +38,24 @@ describe("parseChatConfig with embed widget fields", () => {
 		expect(config.suggestedQuestions).toEqual(["Spørsmål 1"])
 	})
 
+	it("passes showAttachmentButton and showWebSearchButton (set to false) through on a manual config", () => {
+		const config = parseChatConfig({ ...base, model: "gpt-4o", showAttachmentButton: false, showWebSearchButton: false }, APP_CONFIG, { mode: "use" })
+		expect(config.showAttachmentButton).toBe(false)
+		expect(config.showWebSearchButton).toBe(false)
+	})
+
+	it("passes the same show* flags through on a predefined vendor-agent config", () => {
+		const config = parseChatConfig({ ...base, vendorAgent: { id: "agent-1" }, showAttachmentButton: false, showWebSearchButton: false }, APP_CONFIG, { mode: "use" })
+		expect(config.showAttachmentButton).toBe(false)
+		expect(config.showWebSearchButton).toBe(false)
+	})
+
 	it("leaves the fields undefined when entirely absent (pre-existing config shape)", () => {
 		const config = parseChatConfig({ ...base, model: "gpt-4o" }, APP_CONFIG, { mode: "use" })
 		expect(config.avatarUrl).toBeUndefined()
 		expect(config.welcomeMessage).toBeUndefined()
 		expect(config.suggestedQuestions).toBeUndefined()
+		expect(config.showAttachmentButton).toBeUndefined()
+		expect(config.showWebSearchButton).toBeUndefined()
 	})
 })
