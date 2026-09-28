@@ -154,6 +154,11 @@
 		chatState.chat.config.categories = (chatState.chat.config.categories ?? []).filter((c) => c !== category)
 	}
 
+	// Collapsed by default - the common case is just copying the embed link above; avatar/welcome/
+	// suggested questions, anonymous embedding, guardrails and rate limits are all secondary and stay
+	// out of the way until someone explicitly asks for them.
+	let embedAdvancedOpen = $state(false)
+
 	// Same free-text add/remove pattern as categories above, capped at 4 - see EmbedWelcome.svelte,
 	// which only ever renders the first 4 anyway, so a 5th here would just silently never show.
 	let newSuggestedQuestionInput = $state("")
@@ -276,9 +281,21 @@
 					</div>
 				{/if}
 
+				<!-- Advanced embed settings - avatar/welcome/suggested questions, anonymous embedding,
+				     guardrails and rate limits. Collapsed by default: the common case is just copying
+				     the embed link above, not touching any of this. -->
+				{#if chatState.chat.config._id || userCanSetAnonymousEmbed}
+					<div class="config-section">
+						<button class="advanced-toggle" onclick={() => { embedAdvancedOpen = !embedAdvancedOpen }} type="button" aria-expanded={embedAdvancedOpen}>
+							<span class="material-symbols-outlined">{embedAdvancedOpen ? "expand_less" : "expand_more"}</span>
+							Avansert
+						</button>
+					</div>
+				{/if}
+
 				<!-- Embed widget presentation - used by both /embed/agents/[agentId] and any anonymous
 				     embed below; independent of auth mode, so it isn't gated on userCanSetAnonymousEmbed. -->
-				{#if chatState.chat.config._id}
+				{#if embedAdvancedOpen && chatState.chat.config._id}
 					<div class="config-section">
 						<div class="config-item">
 							<label for="avatar-url">Avatar-URL (valgfritt)</label>
@@ -322,7 +339,7 @@
 				{/if}
 
 				<!-- Anonymous embed - independent of type/shared, admin-only -->
-				{#if userCanSetAnonymousEmbed}
+				{#if embedAdvancedOpen && userCanSetAnonymousEmbed}
 					<div class="config-section">
 						<div class="share-row">
 							<label class="toggle-label">
@@ -749,6 +766,21 @@
 		font-size: smaller;
 		color: #888;
 		margin-top: 0.25rem;
+	}
+	.advanced-toggle {
+		display: flex;
+		align-items: center;
+		gap: 0.25rem;
+		background: none;
+		border: none;
+		padding: 0;
+		color: var(--color-primary);
+		font: inherit;
+		font-size: 0.9rem;
+		cursor: pointer;
+	}
+	.advanced-toggle:hover {
+		text-decoration: underline;
 	}
 	.subsection-label {
 		/* Forces a line break in the wrapping .config-section flex row, same way a long
