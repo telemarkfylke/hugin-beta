@@ -58,6 +58,11 @@ export type ChatConfig = {
 	// incoming user question is classified into exactly one of these (or "Ukategorisert" as a fallback
 	// when none fit), never shown to the end user, purely for aggregate stats - never per-person.
 	categories?: string[] | undefined | null
+	// Embed widget presentation (see EmbedChat.svelte) - used by /embed/agents/[agentId] and
+	// /public/embed/agents/[agentId]. Absent/empty falls back to generated defaults there.
+	avatarUrl?: string | undefined
+	welcomeMessage?: string | undefined
+	suggestedQuestions?: string[] | undefined | null
 	// A/B flag, public embed route only (see embed/api/chat/+server.ts) - never read by supahChat.
 	// true: pre-classifies each question (category + scope, one utility-model call - see
 	// classifyQuestion) BEFORE answering, and refuses out-of-scope questions instead of forwarding
@@ -193,6 +198,9 @@ export const ChatConfigSchema = schemaForType<ChatConfig>()(
 		shared: z.boolean().optional(),
 		allowAnonymousEmbed: z.boolean().optional(),
 		categories: z.array(z.string()).nullable().optional(),
+		avatarUrl: z.string().optional(),
+		welcomeMessage: z.string().optional(),
+		suggestedQuestions: z.array(z.string()).nullable().optional(),
 		scopeGuardEnabled: z.boolean().optional(),
 		emptyRagGuardEnabled: z.boolean().optional(),
 		rateLimitPerIpPerMinute: z.number().optional(),
