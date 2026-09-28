@@ -155,9 +155,8 @@
 	<div class="chat-input-container">
 		<ChatInput
 			{chatState}
-			hideAttachment={chatState.chat.config.hideAttachmentButton}
-			hideWebSearch={chatState.chat.config.hideWebSearchButton}
-			hideDataSource={chatState.chat.config.hideDataSourceButton}
+			hideAttachment={chatState.chat.config.showAttachmentButton === false}
+			hideWebSearch={chatState.chat.config.showWebSearchButton === false}
 		/>
 	</div>
 	{#if !bare}

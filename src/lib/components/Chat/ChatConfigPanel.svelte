@@ -341,32 +341,33 @@
 						</div>
 					</div>
 					<div class="config-section">
-						<span class="field-group-label">Skjul knapper i embed-widget</span>
+						<span class="field-group-label">Vis knapper i embed-widget</span>
 						<div class="toggle-group">
 							<label class="toggle-label">
 								<span>Vedlegg</span>
 								<span class="toggle">
-									<input type="checkbox" bind:checked={chatState.chat.config.hideAttachmentButton} />
+									<input
+										type="checkbox"
+										checked={chatState.chat.config.showAttachmentButton !== false}
+										onchange={(e) => { chatState.chat.config.showAttachmentButton = (e.target as HTMLInputElement).checked }}
+									/>
 									<span class="toggle-track"></span>
 								</span>
 							</label>
 							<label class="toggle-label">
 								<span>Nettsøk</span>
 								<span class="toggle">
-									<input type="checkbox" bind:checked={chatState.chat.config.hideWebSearchButton} />
-									<span class="toggle-track"></span>
-								</span>
-							</label>
-							<label class="toggle-label">
-								<span>Datakilder</span>
-								<span class="toggle">
-									<input type="checkbox" bind:checked={chatState.chat.config.hideDataSourceButton} />
+									<input
+										type="checkbox"
+										checked={chatState.chat.config.showWebSearchButton !== false}
+										onchange={(e) => { chatState.chat.config.showWebSearchButton = (e.target as HTMLInputElement).checked }}
+									/>
 									<span class="toggle-track"></span>
 								</span>
 							</label>
 						</div>
 						<div class="share-description">
-							Skjuler knappen i embed-widgeten uavhengig av om assistenten faktisk støtter den. Påvirker ikke den vanlige chat-siden internt.
+							På (standard): knappen vises i embed-widgeten, forutsatt at assistenten faktisk støtter den. Av: knappen skjules helt, uavhengig av støtte. Påvirker ikke den vanlige chat-siden internt.
 						</div>
 					</div>
 				{/if}
