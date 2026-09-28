@@ -85,7 +85,10 @@
 			</button>
 		</div>
 		<div class="widget-body">
-			<EmbedChat {chatState} />
+			<!-- This widget already has its own topbar/box (above) and is sized to a small fixed
+			     corner box by widget.js via postMessage, not the full iframe viewport - EmbedChat's
+			     own header and 100dvh sizing are for the standalone /embed/agents/[agentId] page only. -->
+			<EmbedChat {chatState} showHeader={false} fillViewport={false} />
 		</div>
 	</div>
 {:else}
