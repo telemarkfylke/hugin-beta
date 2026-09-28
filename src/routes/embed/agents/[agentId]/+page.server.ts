@@ -1,4 +1,4 @@
-import { parseEmbedThemeParams, type EmbedThemeParams } from "$lib/embed/parse-embed-theme"
+import { type EmbedThemeParams, parseEmbedThemeParams } from "$lib/embed/parse-embed-theme"
 import { loadAgentForPrompt } from "$lib/server/agents/load-agent-for-prompt"
 import { serverLoadRequestMiddleware } from "$lib/server/middleware/http-request"
 import type { ChatConfig } from "$lib/types/chat"

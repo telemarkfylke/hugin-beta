@@ -1,14 +1,14 @@
 <script lang="ts">
 	import { tick } from "svelte"
-	import { ACCENT_HEX_PATTERN } from "$lib/embed/parse-embed-theme"
 	import { getAccentContrastText } from "$lib/embed/accent-contrast"
+	import { ACCENT_HEX_PATTERN } from "$lib/embed/parse-embed-theme"
 	import { getModelDisplayName } from "$lib/model-profiles"
 	import ChatHistoryItem from "./ChatHistoryItem.svelte"
 	import ChatInput from "./ChatInput.svelte"
+	import type { ChatState } from "./ChatState.svelte"
 	import EmbedFooter from "./EmbedFooter.svelte"
 	import EmbedHeader from "./EmbedHeader.svelte"
 	import EmbedWelcome from "./EmbedWelcome.svelte"
-	import type { ChatState } from "./ChatState.svelte"
 
 	// Widget shell for both /embed/agents/[agentId] (authenticated, the one actually iframed into
 	// SharePoint - standalone, fills the whole iframe) and /public/embed/agents/[agentId] (anonymous,
