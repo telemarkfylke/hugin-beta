@@ -12,8 +12,13 @@
 		// UI always shows these buttons subject only to their existing capability checks below.
 		hideAttachment?: boolean | undefined
 		hideWebSearch?: boolean | undefined
+		// Always true from EmbedChat.svelte (no per-bot config) - the embed widget never exposes this
+		// toggle to end visitors; a configured RAG datasource still gets used automatically in the
+		// background (see ChatState's default-on-if-configured datasourceEnabled), just without a
+		// button most external visitors wouldn't know what to do with.
+		hideDataSource?: boolean | undefined
 	}
-	let { chatState, hideAttachment = false, hideWebSearch = false }: Props = $props()
+	let { chatState, hideAttachment = false, hideWebSearch = false, hideDataSource = false }: Props = $props()
 
 	// Determine allowed file mime types based on model/vendor
 	let allowedMessageMimeTypes = $derived.by(() => {
@@ -232,7 +237,7 @@
 						<span class="material-symbols-outlined">travel_explore</span>
 					</button>
 				{/if}
-				{#if !toolsLocked && hasDatasources}
+				{#if !hideDataSource && !toolsLocked && hasDatasources}
 					<button
 						class="icon-button input-action-button"
 						class:active={datasourceEnabled}

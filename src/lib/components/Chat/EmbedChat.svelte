@@ -31,12 +31,11 @@
 	let { chatState, showHeader = true, fillViewport = true, bare = false, theme = "auto", accent = undefined, titleOverride = undefined, compact = false }: Props = $props()
 
 	let container: HTMLDivElement
-	let lastChatItem: HTMLDivElement
 	let autoScroll = $state(true)
 	let previousHistoryLength = 0
-	// Set while our own scrollIntoView animation is running, so the scroll events it fires aren't
-	// misread as the user scrolling up (which would otherwise stop auto-scroll mid-stream even though
-	// the user never touched anything - see the code review that caught this).
+	// Set while our own smooth scroll is animating, so the scroll events it fires aren't misread as
+	// the user scrolling up (which would otherwise stop auto-scroll mid-stream even though the user
+	// never touched anything).
 	let isProgrammaticScroll = false
 
 	let displayName = $derived(chatState.chat.config.name || getModelDisplayName(chatState.chat.config, chatState.APP_CONFIG) || "Hugin")
@@ -77,15 +76,20 @@
 
 	const prefersReducedMotion = (): boolean => typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches
 
-	const scrollToBottom = (): void => {
-		if (!lastChatItem) return
-		isProgrammaticScroll = true
-		if (prefersReducedMotion()) {
-			lastChatItem.scrollIntoView({ behavior: "auto" })
-			isProgrammaticScroll = false
+	// Scrolls only the chat log element itself. Deliberately not element.scrollIntoView(): that walks
+	// every scrollable ancestor to reveal the element, and in Chromium (Edge/Chrome) that includes the
+	// host page outside a cross-origin <iframe> - which is what made the whole SharePoint page jump on
+	// load, on every send and on every streamed chunk. Setting the container's own scroll position
+	// can never move anything outside it.
+	const scrollToBottom = (smooth: boolean): void => {
+		if (!container) return
+		const top = container.scrollHeight
+		if (!smooth || prefersReducedMotion()) {
+			container.scrollTop = top
 			return
 		}
-		lastChatItem.scrollIntoView({ behavior: "smooth" })
+		isProgrammaticScroll = true
+		container.scrollTo({ top, behavior: "smooth" })
 		// "scrollend" fires once the smooth scroll actually finishes (Chrome/Firefox/Safari 17.4+) -
 		// fall back to a timeout comfortably longer than any realistic smooth-scroll duration for
 		// older engines, so the guard never gets stuck true if the event never fires.
@@ -128,7 +132,9 @@
 			return
 		}
 		autoScroll = true
-		tick().then(scrollToBottom)
+		// Smooth for a new turn, instant for streamed chunks - a fresh smooth animation per chunk
+		// (tens per second) just stutters.
+		tick().then(() => scrollToBottom(historyGrew))
 	})
 
 	const sendSuggestion = async (question: string): Promise<void> => {
@@ -149,7 +155,7 @@
 			{#each chatState.chat.history as chatHistoryItem}
 				<ChatHistoryItem {chatHistoryItem} />
 			{/each}
-			<div bind:this={lastChatItem}>&nbsp;</div>
+			<div aria-hidden="true">&nbsp;</div>
 		</div>
 	</div>
 	<div class="chat-input-container">
@@ -157,6 +163,7 @@
 			{chatState}
 			hideAttachment={chatState.chat.config.showAttachmentButton === false}
 			hideWebSearch={chatState.chat.config.showWebSearchButton === false}
+			hideDataSource={true}
 		/>
 	</div>
 	{#if !bare}
