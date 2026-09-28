@@ -101,7 +101,7 @@
   .user-message {
     align-self: flex-end;
     background-color: var(--embed-user-bubble-bg, #daf1da);
-    padding: 0.5rem 0.75rem;
+    padding: var(--embed-user-bubble-padding, 0.5rem);
     border-radius: var(--embed-bubble-radius, 8px);
     max-width: 20rem;
     overflow-wrap: break-word;

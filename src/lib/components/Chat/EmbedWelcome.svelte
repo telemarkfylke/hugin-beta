@@ -48,6 +48,9 @@
 		padding: 0.45rem 0.9rem;
 		font: inherit;
 		font-size: 0.85rem;
+		text-align: left;
+		white-space: normal;
+		height: auto;
 		cursor: pointer;
 		transition:
 			background-color 0.15s,

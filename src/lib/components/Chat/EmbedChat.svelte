@@ -12,25 +12,32 @@
 
 	// Widget shell for both /embed/agents/[agentId] (authenticated, the one actually iframed into
 	// SharePoint - standalone, fills the whole iframe) and /public/embed/agents/[agentId] (anonymous,
-	// nested one level down inside EmbedWidgetChrome's own floating-bubble topbar/box). showHeader and
-	// fillViewport default to the standalone case; EmbedWidgetChrome passes both as false so it keeps
-	// rendering exactly as it did before this component grew a header/footer.
+	// nested one level down inside EmbedWidgetChrome's own floating-bubble topbar/box). `bare` is the
+	// master switch for the latter: it must render pixel-identical to how it did before this component
+	// grew a header/welcome/footer/theming, since EmbedWidgetChrome already has its own topbar and its
+	// own (unthemed) bubble chrome. showHeader/fillViewport stay separate props so the standalone route
+	// can still turn either off independently if ever needed, but `bare` is what EmbedWidgetChrome uses.
 	type Props = {
 		chatState: ChatState
 		showHeader?: boolean
 		fillViewport?: boolean
+		bare?: boolean
 		theme?: "light" | "dark" | "auto"
 		accent?: string | undefined
 		titleOverride?: string | undefined
 		compact?: boolean
 	}
 
-	let { chatState, showHeader = true, fillViewport = true, theme = "auto", accent = undefined, titleOverride = undefined, compact = false }: Props = $props()
+	let { chatState, showHeader = true, fillViewport = true, bare = false, theme = "auto", accent = undefined, titleOverride = undefined, compact = false }: Props = $props()
 
 	let container: HTMLDivElement
 	let lastChatItem: HTMLDivElement
 	let autoScroll = $state(true)
 	let previousHistoryLength = 0
+	// Set while our own scrollIntoView animation is running, so the scroll events it fires aren't
+	// misread as the user scrolling up (which would otherwise stop auto-scroll mid-stream even though
+	// the user never touched anything - see the code review that caught this).
+	let isProgrammaticScroll = false
 
 	let displayName = $derived(chatState.chat.config.name || getModelDisplayName(chatState.chat.config, chatState.APP_CONFIG) || "Hugin")
 	let effectiveTitle = $derived(titleOverride ?? displayName)
@@ -40,8 +47,10 @@
 	// accent already comes from parseEmbedThemeParams server-side (Task 2), but this is where it
 	// gets interpolated into a real style="" attribute - re-checking the pattern here means this
 	// component is safe even if it's ever reused with an unvalidated prop from somewhere else.
+	// Never applied in bare mode - EmbedWidgetChrome never passes accent, but this also guards
+	// against a future caller doing so by mistake and re-theming the unthemed bubble chrome.
 	let accentStyle = $derived.by((): string | undefined => {
-		if (!accent || !ACCENT_HEX_PATTERN.test(accent)) {
+		if (bare || !accent || !ACCENT_HEX_PATTERN.test(accent)) {
 			return undefined
 		}
 		const fg = getAccentContrastText(accent)
@@ -62,10 +71,38 @@
 	}
 
 	const handleScroll = (): void => {
+		if (isProgrammaticScroll) return
 		autoScroll = isNearBottom()
 	}
 
 	const prefersReducedMotion = (): boolean => typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches
+
+	const scrollToBottom = (): void => {
+		if (!lastChatItem) return
+		isProgrammaticScroll = true
+		if (prefersReducedMotion()) {
+			lastChatItem.scrollIntoView({ behavior: "auto" })
+			isProgrammaticScroll = false
+			return
+		}
+		lastChatItem.scrollIntoView({ behavior: "smooth" })
+		// "scrollend" fires once the smooth scroll actually finishes (Chrome/Firefox/Safari 17.4+) -
+		// fall back to a timeout comfortably longer than any realistic smooth-scroll duration for
+		// older engines, so the guard never gets stuck true if the event never fires.
+		if (container && "onscrollend" in container) {
+			container.addEventListener(
+				"scrollend",
+				() => {
+					isProgrammaticScroll = false
+				},
+				{ once: true }
+			)
+		} else {
+			setTimeout(() => {
+				isProgrammaticScroll = false
+			}, 600)
+		}
+	}
 
 	$effect(() => {
 		const length = chatState.chat.history.length
@@ -77,17 +114,21 @@
 			last?.type === "chat_response"
 				? last.outputs.reduce((total, outputMessage) => total + outputMessage.content.reduce((innerTotal, part) => innerTotal + (part.type === "output_text" ? part.text.length : 0), 0), 0)
 				: 0
-		const isNewUserMessage = length > previousHistoryLength && last?.type === "message.input"
+		// promptChat pushes the user's own message AND a queued placeholder response synchronously
+		// (ChatState.svelte.ts), so by the time this effect runs, the last item is always the
+		// placeholder, never the user's message - checking the last item's type here would make this
+		// always false. A length increase, on the other hand, only ever happens when the user sends
+		// something (streaming deltas mutate existing items in place), so it's a sufficient signal on
+		// its own for "the user just acted, scroll down regardless of where they'd scrolled to".
+		const historyGrew = length > previousHistoryLength
 		previousHistoryLength = length
 		void lastOutputSize // establishes the reactive dependency above; the value itself isn't needed
 
-		if (!autoScroll && !isNewUserMessage) {
+		if (!autoScroll && !historyGrew) {
 			return
 		}
 		autoScroll = true
-		tick().then(() => {
-			lastChatItem?.scrollIntoView({ behavior: prefersReducedMotion() ? "auto" : "smooth" })
-		})
+		tick().then(scrollToBottom)
 	})
 
 	const sendSuggestion = async (question: string): Promise<void> => {
@@ -96,13 +137,13 @@
 	}
 </script>
 
-<div class="embed-widget" class:fill-viewport={fillViewport} data-theme={theme} data-compact={compact} style={accentStyle}>
+<div class="embed-widget" class:bare class:fill-viewport={fillViewport} data-theme={theme} data-compact={compact} style={accentStyle}>
 	{#if showHeader}
 		<EmbedHeader name={effectiveTitle} avatarUrl={chatState.chat.config.avatarUrl} statusText="Svarer vanligvis på sekunder" onNewChat={chatState.newChat} />
 	{/if}
 	<div class="chat-items-container" bind:this={container} onscroll={handleScroll} role="log" aria-live="polite" aria-label="Samtale">
 		<div class="chat-items">
-			{#if chatState.chat.history.length === 0}
+			{#if !bare && chatState.chat.history.length === 0}
 				<EmbedWelcome {welcomeMessage} {suggestedQuestions} onSuggestionClick={sendSuggestion} />
 			{/if}
 			{#each chatState.chat.history as chatHistoryItem}
@@ -114,7 +155,9 @@
 	<div class="chat-input-container">
 		<ChatInput {chatState} />
 	</div>
-	<EmbedFooter />
+	{#if !bare}
+		<EmbedFooter />
+	{/if}
 </div>
 
 <style>
@@ -123,6 +166,17 @@
 		display: flex;
 		flex-direction: column;
 		overflow: hidden;
+	}
+
+	/* Bare mode (nested inside EmbedWidgetChrome's own floating bubble/topbar) must render exactly
+	   like the old chrome-less EmbedChat did - no border/shadow/radius, no theme palette, no welcome
+	   state, no footer. Everything new lives under :not(.bare) so the bubble is provably unaffected. */
+	.embed-widget.bare {
+		height: 100%;
+		padding-bottom: 1.5rem;
+	}
+
+	.embed-widget:not(.bare) {
 		background: var(--embed-bg);
 		color: var(--embed-text);
 		border: 1px solid var(--embed-border);
@@ -137,6 +191,7 @@
 		--embed-muted-text: #5f6b6d;
 		--embed-border: var(--color-primary-30, #d8d8d8);
 		--embed-user-bubble-bg: var(--color-primary-10, #eef2f2);
+		--embed-user-bubble-padding: 0.5rem 0.75rem;
 		--embed-assistant-bubble-bg: #f4f5f6;
 		--embed-assistant-bubble-padding: 0.6rem 0.85rem;
 		--embed-bubble-radius: 14px;
@@ -148,16 +203,19 @@
 		color-scheme: light;
 	}
 
-	/* Standalone usage (/embed/agents/[agentId]) fills the whole iframe. Nested usage (inside
-	   EmbedWidgetChrome's own fixed-size floating box) must stay height:100% - the ancestor there
-	   is already sized to a small corner box, not the full viewport. */
+	/* Standalone usage (/embed/agents/[agentId]) fills the whole iframe. Nested, non-bare usage would
+	   otherwise fall through to height:100% below. */
 	.embed-widget.fill-viewport {
 		height: 100dvh;
 	}
-	.embed-widget:not(.fill-viewport) {
+	.embed-widget:not(.fill-viewport):not(.bare) {
 		height: 100%;
 	}
 
+	/* Dark palette. Also re-tints --color-primary* (used well beyond this file - ChatInput's border/
+	   focus ring, style.css's .filled buttons, link colours) since the default light-mode teal has
+	   poor contrast against a dark background; an explicit ?accent= still overrides these via the
+	   inline style attribute, which always wins the cascade over these class/attribute selectors. */
 	.embed-widget[data-theme="dark"] {
 		--embed-bg: #17181a;
 		--embed-surface: #202225;
@@ -166,6 +224,12 @@
 		--embed-border: #34383b;
 		--embed-user-bubble-bg: #2c3e40;
 		--embed-assistant-bubble-bg: #232527;
+		--color-primary: #5fb8c9;
+		--color-primary-10: color-mix(in srgb, #5fb8c9 12%, #17181a);
+		--color-primary-20: color-mix(in srgb, #5fb8c9 22%, #17181a);
+		--color-primary-30: color-mix(in srgb, #5fb8c9 32%, #17181a);
+		--color-primary-70: color-mix(in srgb, #5fb8c9 70%, white);
+		--color-primary-80: color-mix(in srgb, #5fb8c9 85%, white);
 		color-scheme: dark;
 	}
 
@@ -178,6 +242,12 @@
 			--embed-border: #34383b;
 			--embed-user-bubble-bg: #2c3e40;
 			--embed-assistant-bubble-bg: #232527;
+			--color-primary: #5fb8c9;
+			--color-primary-10: color-mix(in srgb, #5fb8c9 12%, #17181a);
+			--color-primary-20: color-mix(in srgb, #5fb8c9 22%, #17181a);
+			--color-primary-30: color-mix(in srgb, #5fb8c9 32%, #17181a);
+			--color-primary-70: color-mix(in srgb, #5fb8c9 70%, white);
+			--color-primary-80: color-mix(in srgb, #5fb8c9 85%, white);
 			color-scheme: dark;
 		}
 	}
@@ -229,6 +299,16 @@
 		.embed-widget[data-theme="auto"] :global(pre code.hljs) {
 			background: #1e1e1e;
 			color: #e6e6e6;
+		}
+	}
+
+	/* style.css's global `a:hover { color: black }` is invisible against a dark embed background. */
+	.embed-widget[data-theme="dark"] :global(a:hover) {
+		color: var(--color-primary-70);
+	}
+	@media (prefers-color-scheme: dark) {
+		.embed-widget[data-theme="auto"] :global(a:hover) {
+			color: var(--color-primary-70);
 		}
 	}
 

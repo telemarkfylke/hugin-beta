@@ -86,9 +86,10 @@
 		</div>
 		<div class="widget-body">
 			<!-- This widget already has its own topbar/box (above) and is sized to a small fixed
-			     corner box by widget.js via postMessage, not the full iframe viewport - EmbedChat's
-			     own header and 100dvh sizing are for the standalone /embed/agents/[agentId] page only. -->
-			<EmbedChat {chatState} showHeader={false} fillViewport={false} />
+			     corner box by widget.js via postMessage, not the full iframe viewport - `bare` strips
+			     every bit of the standalone /embed/agents/[agentId] page's new header/welcome/footer/
+			     theming so this bubble keeps rendering exactly as it did before that page's redesign. -->
+			<EmbedChat {chatState} showHeader={false} fillViewport={false} bare={true} />
 		</div>
 	</div>
 {:else}
