@@ -1,3 +1,6 @@
+<script lang="ts">
+</script>
+
 <footer class="embed-footer">
 	<span>Drevet av Hugin · KI kan gjøre feil – sjekk viktige svar</span>
 </footer>
