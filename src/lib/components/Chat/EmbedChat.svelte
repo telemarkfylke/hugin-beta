@@ -200,13 +200,16 @@
 		--embed-radius: 16px;
 		--embed-accent-fg: #ffffff;
 		--embed-typing-dot-color: var(--embed-text);
+		--embed-frame-gutter: 0.5rem;
 		color-scheme: light;
 	}
 
-	/* Standalone usage (/embed/agents/[agentId]) fills the whole iframe. Nested, non-bare usage would
-	   otherwise fall through to height:100% below. */
-	.embed-widget.fill-viewport {
-		height: 100dvh;
+	/* Standalone usage (/embed/agents/[agentId]) fills the whole iframe, but not flush to its edges -
+	   a border/shadow drawn exactly at the iframe boundary has no room to render and is invisible, so
+	   this leaves a small gutter all round for the frame to actually show against the host page. */
+	.embed-widget.fill-viewport:not(.bare) {
+		height: calc(100dvh - (var(--embed-frame-gutter) * 2));
+		margin: var(--embed-frame-gutter);
 	}
 	.embed-widget:not(.fill-viewport):not(.bare) {
 		height: 100%;
@@ -254,6 +257,7 @@
 
 	.embed-widget[data-compact="true"] {
 		--embed-header-height: 3rem;
+		--embed-frame-gutter: 0.25rem;
 	}
 
 	.chat-items-container {
