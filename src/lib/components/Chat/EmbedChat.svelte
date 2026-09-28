@@ -138,11 +138,13 @@
 		--embed-border: var(--color-primary-30, #d8d8d8);
 		--embed-user-bubble-bg: var(--color-primary-10, #eef2f2);
 		--embed-assistant-bubble-bg: #f4f5f6;
+		--embed-assistant-bubble-padding: 0.6rem 0.85rem;
 		--embed-bubble-radius: 14px;
 		--embed-header-height: 4rem;
 		--embed-content-max-width: 760px;
 		--embed-radius: 16px;
 		--embed-accent-fg: #ffffff;
+		--embed-typing-dot-color: var(--embed-text);
 		color-scheme: light;
 	}
 

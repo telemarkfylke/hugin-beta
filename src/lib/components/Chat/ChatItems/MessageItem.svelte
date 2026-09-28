@@ -100,11 +100,17 @@
 <style>
   .user-message {
     align-self: flex-end;
-    background-color: #daf1da;
-    padding: 0.5rem;
-    border-radius: 8px;
+    background-color: var(--embed-user-bubble-bg, #daf1da);
+    padding: 0.5rem 0.75rem;
+    border-radius: var(--embed-bubble-radius, 8px);
     max-width: 20rem;
     overflow-wrap: break-word;
+  }
+  .assistant-message {
+    background-color: var(--embed-assistant-bubble-bg, transparent);
+    border-radius: var(--embed-bubble-radius, 0);
+    padding: var(--embed-assistant-bubble-padding, 0);
+    color: var(--embed-text, inherit);
   }
   .citations {
     margin-top: 0.75rem;

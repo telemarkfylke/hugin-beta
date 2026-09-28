@@ -15,7 +15,7 @@
   }
   .typing .dot {
     animation: TypingAnimation 1.8s infinite ease-in-out;
-    background-color: black;
+    background-color: var(--embed-typing-dot-color, black);
     border-radius: 50%;
     height: 7px;
     margin-right: 4px;
@@ -45,6 +45,12 @@
     }
     44% {
       transform: translateY(0px);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .typing .dot {
+      animation: none;
     }
   }
 </style>
