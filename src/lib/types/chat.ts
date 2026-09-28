@@ -63,6 +63,13 @@ export type ChatConfig = {
 	avatarUrl?: string | undefined
 	welcomeMessage?: string | undefined
 	suggestedQuestions?: string[] | undefined | null
+	// Hide the corresponding ChatInput button in the embed widget specifically (EmbedChat passes
+	// these into ChatInput as props) - the normal /agents/[agentId] chat UI never reads them, so
+	// hiding a button for embedded visitors never affects the bot's own editors testing it there.
+	// undefined/false: button shows as before (subject to its existing capability check).
+	hideAttachmentButton?: boolean | undefined
+	hideWebSearchButton?: boolean | undefined
+	hideDataSourceButton?: boolean | undefined
 	// A/B flag, public embed route only (see embed/api/chat/+server.ts) - never read by supahChat.
 	// true: pre-classifies each question (category + scope, one utility-model call - see
 	// classifyQuestion) BEFORE answering, and refuses out-of-scope questions instead of forwarding
@@ -201,6 +208,9 @@ export const ChatConfigSchema = schemaForType<ChatConfig>()(
 		avatarUrl: z.string().optional(),
 		welcomeMessage: z.string().optional(),
 		suggestedQuestions: z.array(z.string()).nullable().optional(),
+		hideAttachmentButton: z.boolean().optional(),
+		hideWebSearchButton: z.boolean().optional(),
+		hideDataSourceButton: z.boolean().optional(),
 		scopeGuardEnabled: z.boolean().optional(),
 		emptyRagGuardEnabled: z.boolean().optional(),
 		rateLimitPerIpPerMinute: z.number().optional(),

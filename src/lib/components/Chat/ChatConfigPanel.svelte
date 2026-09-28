@@ -335,6 +335,33 @@
 								Vises som klikkbare forslag før første melding i embed-widgeten. Tomt felt viser ingen forslag.
 							</div>
 						</div>
+						<div class="config-item">
+							<span class="field-group-label">Skjul knapper i embed-widget</span>
+							<label class="toggle-label">
+								<span>Vedlegg</span>
+								<span class="toggle">
+									<input type="checkbox" bind:checked={chatState.chat.config.hideAttachmentButton} />
+									<span class="toggle-track"></span>
+								</span>
+							</label>
+							<label class="toggle-label">
+								<span>Nettsøk</span>
+								<span class="toggle">
+									<input type="checkbox" bind:checked={chatState.chat.config.hideWebSearchButton} />
+									<span class="toggle-track"></span>
+								</span>
+							</label>
+							<label class="toggle-label">
+								<span>Datakilder</span>
+								<span class="toggle">
+									<input type="checkbox" bind:checked={chatState.chat.config.hideDataSourceButton} />
+									<span class="toggle-track"></span>
+								</span>
+							</label>
+							<div class="share-description">
+								Skjuler knappen i embed-widgeten uavhengig av om assistenten faktisk støtter den. Påvirker ikke den vanlige chat-siden internt.
+							</div>
+						</div>
 					</div>
 				{/if}
 
@@ -826,6 +853,12 @@
 		color: #c00;
 	}
 	label {
+		color: var(--color-primary);
+		font-size: small;
+		display: inline-block;
+		padding-bottom: 0.5rem;
+	}
+	.field-group-label {
 		color: var(--color-primary);
 		font-size: small;
 		display: inline-block;

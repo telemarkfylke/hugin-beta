@@ -153,7 +153,12 @@
 		</div>
 	</div>
 	<div class="chat-input-container">
-		<ChatInput {chatState} />
+		<ChatInput
+			{chatState}
+			hideAttachment={chatState.chat.config.hideAttachmentButton}
+			hideWebSearch={chatState.chat.config.hideWebSearchButton}
+			hideDataSource={chatState.chat.config.hideDataSourceButton}
+		/>
 	</div>
 	{#if !bare}
 		<EmbedFooter />
@@ -206,10 +211,16 @@
 
 	/* Standalone usage (/embed/agents/[agentId]) fills the whole iframe, but not flush to its edges -
 	   a border/shadow drawn exactly at the iframe boundary has no room to render and is invisible, so
-	   this leaves a small gutter all round for the frame to actually show against the host page. */
+	   this leaves a small gutter all round for the frame to actually show against the host page.
+	   `position: fixed` (not a margin) is deliberate: this component is the sole in-flow child of
+	   <body> on this route (see +layout.svelte's bare rendering for isEmbedRoute), so a margin here
+	   would collapse with body's own margin and inflate the document past the iframe's own viewport
+	   height - producing exactly the whole-page scroll/bounce this replaced. `inset` on a fixed
+	   element is sized independently of document flow, so it can't do that. */
 	.embed-widget.fill-viewport:not(.bare) {
-		height: calc(100dvh - (var(--embed-frame-gutter) * 2));
-		margin: var(--embed-frame-gutter);
+		position: fixed;
+		inset: var(--embed-frame-gutter);
+		height: auto;
 	}
 	.embed-widget:not(.fill-viewport):not(.bare) {
 		height: 100%;

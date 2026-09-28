@@ -7,8 +7,14 @@
 
 	type Props = {
 		chatState: ChatState
+		// Set only by EmbedChat.svelte, from the bot's own config (hideAttachmentButton/hideWebSearchButton/
+		// hideDataSourceButton) - Chat.svelte never passes these, so the normal /agents/[agentId] chat UI
+		// always shows these buttons subject only to their existing capability checks below.
+		hideAttachment?: boolean | undefined
+		hideWebSearch?: boolean | undefined
+		hideDataSource?: boolean | undefined
 	}
-	let { chatState }: Props = $props()
+	let { chatState, hideAttachment = false, hideWebSearch = false, hideDataSource = false }: Props = $props()
 
 	// Determine allowed file mime types based on model/vendor
 	let allowedMessageMimeTypes = $derived.by(() => {
@@ -196,7 +202,7 @@
 
 			<div class="input-actions">
 				<!-- Attachment button (left) -->
-				{#if allowedMessageMimeTypes.length > 0}
+				{#if !hideAttachment && allowedMessageMimeTypes.length > 0}
 					<button
 						class="icon-button input-action-button"
 						onclick={triggerFileInput}
@@ -214,7 +220,7 @@
 						hidden
 					/>
 				{/if}
-				{#if !toolsLocked && supportsWebSearch(chatState.chat.config, chatState.APP_CONFIG)}
+				{#if !hideWebSearch && !toolsLocked && supportsWebSearch(chatState.chat.config, chatState.APP_CONFIG)}
 					<button
 						class="icon-button input-action-button"
 						class:active={webSearchEnabled}
@@ -227,7 +233,7 @@
 						<span class="material-symbols-outlined">travel_explore</span>
 					</button>
 				{/if}
-				{#if !toolsLocked && hasDatasources}
+				{#if !hideDataSource && !toolsLocked && hasDatasources}
 					<button
 						class="icon-button input-action-button"
 						class:active={datasourceEnabled}
