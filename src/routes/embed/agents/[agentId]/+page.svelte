@@ -23,4 +23,10 @@
 	const embedChatState = new ChatState(initialChat, data.authenticatedUser, data.APP_CONFIG)
 </script>
 
-<EmbedChat chatState={embedChatState} />
+<EmbedChat
+	chatState={embedChatState}
+	theme={data.embedTheme.theme}
+	accent={data.embedTheme.accent}
+	titleOverride={data.embedTheme.title}
+	compact={data.embedTheme.compact}
+/>
