@@ -157,6 +157,7 @@
 			{chatState}
 			hideAttachment={chatState.chat.config.showAttachmentButton === false}
 			hideWebSearch={chatState.chat.config.showWebSearchButton === false}
+			hideDataSource={true}
 		/>
 	</div>
 	{#if !bare}

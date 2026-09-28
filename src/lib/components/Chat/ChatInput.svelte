@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { tick } from "svelte"
 	import { supportsWebSearch } from "$lib/model-profiles"
 	import FileDropZone from "../FileDropZone.svelte"
 	import TypingDots from "../TypingDots.svelte"
@@ -12,8 +13,13 @@
 		// UI always shows these buttons subject only to their existing capability checks below.
 		hideAttachment?: boolean | undefined
 		hideWebSearch?: boolean | undefined
+		// Always true from EmbedChat.svelte (no per-bot config) - the embed widget never exposes this
+		// toggle to end visitors; a configured RAG datasource still gets used automatically in the
+		// background (see ChatState's default-on-if-configured datasourceEnabled), just without a
+		// button most external visitors wouldn't know what to do with.
+		hideDataSource?: boolean | undefined
 	}
-	let { chatState, hideAttachment = false, hideWebSearch = false }: Props = $props()
+	let { chatState, hideAttachment = false, hideWebSearch = false, hideDataSource = false }: Props = $props()
 
 	// Determine allowed file mime types based on model/vendor
 	let allowedMessageMimeTypes = $derived.by(() => {
@@ -62,7 +68,18 @@
 		const textToSend = inputText
 		const filesToSend = filesToFileList(inputFiles)
 		inputFiles = [] // Clear chat files after submission
+		// Blurring before clearing the text (rather than just setting inputText = "") means the
+		// textarea's sudden height collapse - back to one line, potentially from several - doesn't
+		// happen while it's the focused element. Some browsers treat a focused element resizing/moving
+		// as "scroll to keep it visible", and that heuristic can propagate up through an <iframe>
+		// boundary into the host page - which is exactly the whole-page jump/scroll this embed widget
+		// is loaded into on SharePoint. Refocusing immediately after, with preventScroll, restores
+		// focus for continued typing without re-triggering the same thing.
+		textArea?.blur()
 		inputText = ""
+		await tick()
+		textArea?.focus({ preventScroll: true })
+
 		messageInProgress = true
 		try {
 			await chatState.promptChat(textToSend, filesToSend)
@@ -232,7 +249,7 @@
 						<span class="material-symbols-outlined">travel_explore</span>
 					</button>
 				{/if}
-				{#if !toolsLocked && hasDatasources}
+				{#if !hideDataSource && !toolsLocked && hasDatasources}
 					<button
 						class="icon-button input-action-button"
 						class:active={datasourceEnabled}
