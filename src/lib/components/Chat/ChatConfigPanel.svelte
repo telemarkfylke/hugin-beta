@@ -154,6 +154,23 @@
 		chatState.chat.config.categories = (chatState.chat.config.categories ?? []).filter((c) => c !== category)
 	}
 
+	// Same free-text add/remove pattern as categories above, capped at 4 - see EmbedWelcome.svelte,
+	// which only ever renders the first 4 anyway, so a 5th here would just silently never show.
+	let newSuggestedQuestionInput = $state("")
+
+	function addSuggestedQuestion() {
+		const trimmed = newSuggestedQuestionInput.trim()
+		if (!trimmed) return
+		const existing = chatState.chat.config.suggestedQuestions ?? []
+		if (existing.length >= 4 || existing.some((q) => q.toLowerCase() === trimmed.toLowerCase())) return
+		chatState.chat.config.suggestedQuestions = [...existing, trimmed]
+		newSuggestedQuestionInput = ""
+	}
+
+	function removeSuggestedQuestion(question: string) {
+		chatState.chat.config.suggestedQuestions = (chatState.chat.config.suggestedQuestions ?? []).filter((q) => q !== question)
+	}
+
 	let activeTab: "settings" | "stats" = $state("settings")
 
 	const onConfigTypeChange = (event: Event) => {
@@ -255,6 +272,51 @@
 						</div>
 						<div class="share-description">
 							Chrome-løst chatvindu uten meny/header. Krever fortsatt innlogging og de samme tilgangsreglene som selve assistenten.
+						</div>
+					</div>
+				{/if}
+
+				<!-- Embed widget presentation - used by both /embed/agents/[agentId] and any anonymous
+				     embed below; independent of auth mode, so it isn't gated on userCanSetAnonymousEmbed. -->
+				{#if chatState.chat.config._id}
+					<div class="config-section">
+						<div class="config-item">
+							<label for="avatar-url">Avatar-URL (valgfritt)</label>
+							<input id="avatar-url" type="text" placeholder="https://.../avatar.png" bind:value={chatState.chat.config.avatarUrl} />
+						</div>
+						<div class="config-item">
+							<label for="welcome-message">Velkomstmelding i embed-widget</label>
+							<GrowingTextArea
+								id="welcome-message"
+								style="textarea"
+								initialRows={2}
+								placeholder="Hei! Jeg er {chatState.chat.config.name || 'assistenten'}. Hva kan jeg hjelpe deg med?"
+								bind:value={chatState.chat.config.welcomeMessage}
+							/>
+						</div>
+						<div class="config-item">
+							<label for="new-suggested-question">Forslag til spørsmål (maks 4)</label>
+							{#each chatState.chat.config.suggestedQuestions ?? [] as question}
+								<div class="source-row">
+									<span>{question}</span>
+									<button class="remove-source" onclick={() => removeSuggestedQuestion(question)}>×</button>
+								</div>
+							{/each}
+							{#if (chatState.chat.config.suggestedQuestions?.length ?? 0) < 4}
+								<div class="share-row">
+									<input
+										id="new-suggested-question"
+										type="text"
+										placeholder="Legg til forslag..."
+										bind:value={newSuggestedQuestionInput}
+										onkeydown={(e) => { if (e.key === "Enter") { e.preventDefault(); addSuggestedQuestion() } }}
+									/>
+									<button onclick={addSuggestedQuestion}>Legg til</button>
+								</div>
+							{/if}
+							<div class="share-description">
+								Vises som klikkbare forslag før første melding i embed-widgeten. Tomt felt viser ingen forslag.
+							</div>
 						</div>
 					</div>
 				{/if}
