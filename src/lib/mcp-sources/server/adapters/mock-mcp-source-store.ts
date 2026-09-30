@@ -10,13 +10,21 @@ import type { IMcpSourceStore } from "./interface"
 // pre-seed data shaped like something a real person would knowingly create.
 let mockMcpSources: McpSource[] = []
 
+// Same reasoning as MongoMcpSourceStore's normalizeMcpSource: a source object created (in memory,
+// here) before `lists` existed on McpSourceConfig and still sitting in this module-scoped array
+// across a dev-server session is missing the field entirely, not holding an empty array - reading
+// it as-is would crash callers that trust McpSource's `lists: string[]` (McpSourceList.svelte,
+// McpSourceForm.svelte).
+const normalizeMcpSource = (source: McpSource): McpSource => (source.server === "sharepoint" && source.lists === undefined ? { ...source, lists: [] } : source)
+
 export class MockMcpSourceStore implements IMcpSourceStore {
 	async getMcpSource(sourceId: string): Promise<McpSource | null> {
-		return mockMcpSources.find((source) => source._id === sourceId) ?? null
+		const source = mockMcpSources.find((source) => source._id === sourceId)
+		return source ? normalizeMcpSource(source) : null
 	}
 
 	async getMcpSources(principal: AuthenticatedPrincipal): Promise<McpSource[]> {
-		return mockMcpSources.filter((source) => canViewMcpSource(source, principal, APP_CONFIG.APP_ROLES))
+		return mockMcpSources.filter((source) => canViewMcpSource(source, principal, APP_CONFIG.APP_ROLES)).map(normalizeMcpSource)
 	}
 
 	async createMcpSource(source: NewMcpSource): Promise<McpSource> {

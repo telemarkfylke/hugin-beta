@@ -138,15 +138,6 @@
 			</div>
 
 			<div class="rag-tabs">
-				{#if store._embedded.access.search}
-					<button
-						class="rag-tab-button"
-						disabled={activeTab === "search"}
-						onclick={() => {
-							activeTab = "search";
-						}}>Søk</button
-					>
-				{/if}
 				{#if store._embedded.access.upload}
 					<button
 						class="rag-tab-button"
@@ -178,6 +169,15 @@
 						onclick={() => {
 							activeTab = "settings";
 						}}>Innstillinger</button
+					>
+				{/if}
+				{#if store._embedded.access.search}
+					<button
+						class="rag-tab-button"
+						disabled={activeTab === "search"}
+						onclick={() => {
+							activeTab = "search";
+						}}>Finjustering</button
 					>
 				{/if}
 			</div>
