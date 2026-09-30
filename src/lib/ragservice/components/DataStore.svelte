@@ -30,8 +30,7 @@
 		store = await api.getStore(storeId, true)
 		if (store) {
 			const access = store._embedded.access
-			if (access.search) activeTab = "search"
-			else if (access.upload) activeTab = "files"
+			if (access.upload) activeTab = "files"
 			else if (access.admin) activeTab = "access"
 			else activeTab = "view"
 		}
