@@ -22,7 +22,8 @@ const MODELS = {
 	"mistral-large": { vendor: "MISTRAL", providerModel: "mistral-large-latest", files: "mistral", capabilities: ["webSearch"] },
 	"ollama-llama3": { vendor: "OLLAMA", providerModel: "llama3:8b", files: "none", capabilities: [], status: "retired" },
 	"ollama-normistral": { vendor: "OLLAMA", providerModel: "LTG/normistral-11b-thinking:latest", files: "none", capabilities: [], status: "retired" },
-	normistral: { vendor: "LITELLM", providerModel: "norallm/normistral-11b-thinking", files: "none", capabilities: [] },
+	// MIDLERTIDIG retired mens den lokale KI-serveren er frakoblet - fjern status for å koble til igjen
+	normistral: { vendor: "LITELLM", providerModel: "norallm/normistral-11b-thinking", files: "none", capabilities: [], status: "retired" },
 	// Small, mechanical text tasks (RAG query rewriting, conversation titles, question categories) via
 	// the KI-server LiteLLM gateway. Must also be on the KI-server's own model allow-list. Avoid
 	// "thinking" variants - the extra reasoning pass is wasted latency here. UTILITY_LLM_MODEL in env
@@ -36,17 +37,21 @@ type ProfileId = "rask" | "grundig" | "europeisk" | "lokal"
 const PROFILES: (Profile & { id: ProfileId; model: ModelKey })[] = [
 	{ id: "rask", label: "Rask", icon: "⚡", description: "Raske svar på enkle oppgaver", model: "gpt-6-luna" },
 	{ id: "grundig", label: "Grundig", icon: "🧠", description: "Analyse, resonnering og lange dokumenter", model: "gpt-6-sol" },
-	{ id: "europeisk", label: "Europeisk", icon: "🇪🇺", description: "Data behandles innenfor EU", model: "mistral-large", dataLocation: "EU" }
-	/*
+	{ id: "europeisk", label: "Europeisk", icon: "🇪🇺", description: "Data behandles innenfor EU", model: "mistral-large", dataLocation: "EU" },
 	{
 		id: "lokal",
 		label: "Lokal",
 		icon: "🏠",
-		description: "Data forlater aldri fylkeskommunens servere",
-		model: "normistral",
-		dataLocation: "Egne servere",
-		roles: ["employee", "edu_employee"]
-	}*/
+		// MIDLERTIDIG: lokal KI-server er frakoblet, så profilen kjører på mistral-large. Assistenter beholder
+		// profile: "lokal" i databasen - for å koble til igjen: sett model: "normistral",
+		// description: "Data forlater aldri fylkeskommunens servere", dataLocation: "Egne servere",
+		// roles: ["employee", "edu_employee"] (tom nå = ingen kan velge den, heller ikke admins),
+		// og fjern status: "retired" på normistral og LEGACY-linja for norallm/normistral-11b-thinking.
+		description: "Midlertidig: data behandles innenfor EU (lokal server er frakoblet)",
+		model: "mistral-large",
+		dataLocation: "EU",
+		roles: []
+	}
 ]
 
 const DEFAULTS: { chat: ProfileId; assistant: ProfileId; canvas: ProfileId; utility: ModelKey } = {
@@ -69,12 +74,14 @@ const LEGACY: Record<string, ProfileId> = {
 	// Rask's previous model - no profile uses it directly any more
 	"gpt-5.6-luna": "rask",
 	"mistral-medium-latest": "europeisk",
-	"llama3:8b": "europeisk", //"lokal",
-	"LTG/normistral-11b-thinking:latest": "europeisk", //"lokal",
+	// MIDLERTIDIG - normistral er retired mens den lokale serveren er frakoblet (se profilen "lokal")
+	"norallm/normistral-11b-thinking": "lokal",
+	"llama3:8b": "lokal",
+	"LTG/normistral-11b-thinking:latest": "lokal",
 	// Local-server models from earlier app-config.ts versions - must never migrate to a cloud profile
-	"gemma:2b": "europeisk", //"lokal",
-	"LTG/normistral-11b-thinking": "europeisk", //"lokal",
-	llama3: "europeisk" //"lokal"
+	"gemma:2b": "lokal",
+	"LTG/normistral-11b-thinking": "lokal",
+	llama3: "lokal"
 }
 
 export const MODEL_CONFIG: ModelConfig = { MODELS, PROFILES, DEFAULTS, LEGACY }
