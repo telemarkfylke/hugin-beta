@@ -100,6 +100,16 @@ export const canSeeSpotlight = (user: AuthenticatedPrincipal, appRoles: AppRoles
 	return accessGroups.some((group) => typeof group !== "string" && user.groups.includes(group.id))
 }
 
+// Who may choose a model profile (models.config.ts PROFILES[].roles). Same semantics as
+// canSeeSpotlight, except an explicitly empty list means nobody - admins included - so a profile
+// can be taken out of the picker while assistants already on it keep it.
+export const canChooseProfile = (user: AuthenticatedPrincipal, appRoles: AppRoles, roles: RoleAccessGroups[] | undefined): boolean => {
+	if (roles !== undefined && roles.length === 0) {
+		return false
+	}
+	return canSeeSpotlight(user, appRoles, roles ?? ["all"])
+}
+
 export const canUseCanvas = (user: AuthenticatedPrincipal, appRoles: AppRoles): boolean => {
 	return user.roles.includes(appRoles.EMPLOYEE) || user.roles.includes(appRoles.ADMIN) || user.roles.includes(appRoles.EDU_EMPLOYEE) || user.roles.includes(appRoles.STUDENT)
 }

@@ -1,4 +1,4 @@
-import { canSeeSpotlight } from "../authorization"
+import { canChooseProfile } from "../authorization"
 import { HTTPError } from "../server/middleware/http-error"
 import type { AppConfig } from "../types/app-config"
 import type { AuthenticatedPrincipal } from "../types/authentication"
@@ -22,7 +22,7 @@ const validateSavedModelSelection = (config: Pick<ChatConfig, "profile" | "pinne
 		if (!profile) {
 			throw new HTTPError(400, `Unsupported profile: ${config.profile}`)
 		}
-		if (!canSeeSpotlight(user, APP_CONFIG.APP_ROLES, profile.roles ?? ["all"])) {
+		if (!canChooseProfile(user, APP_CONFIG.APP_ROLES, profile.roles)) {
 			throw new HTTPError(403, `Not authorized to choose profile: ${profile.id}`)
 		}
 	}
