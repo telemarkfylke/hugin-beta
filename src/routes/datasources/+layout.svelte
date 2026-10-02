@@ -2,13 +2,14 @@
 	import { page } from "$app/state"
 	import type { LayoutProps } from "./$types"
 
-	let { children }: LayoutProps = $props()
+	let { children, data }: LayoutProps = $props()
 
-	const TABS = [
+	const ALL_TABS = [
 		{ id: "ragservice", label: "Dokumentsøk", icon: "database", href: "/datasources/ragservice" },
 		{ id: "mcp", label: "MCP", icon: "cable", href: "/datasources/mcp" },
 		{ id: "web", label: "Websites", icon: "public", href: "/datasources/web" }
 	]
+	const TABS = $derived(ALL_TABS.filter((tab) => tab.id !== "mcp" || data.canManageMcpSources))
 </script>
 
 <div class="datasources-page">

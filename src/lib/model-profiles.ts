@@ -1,4 +1,4 @@
-import { canSeeSpotlight } from "./authorization"
+import { canChooseProfile } from "./authorization"
 import type { AppConfig, AppRoles, ModelInfo } from "./types/app-config"
 import type { AuthenticatedPrincipal } from "./types/authentication"
 import type { ChatConfig, VendorId } from "./types/chat"
@@ -31,7 +31,7 @@ export const getProfileBadges = (profile: ClientModelProfile): ProfileBadge[] =>
 // Cosmetic - the server enforces profile roles on save. The config's current profile stays visible so
 // a co-editor who couldn't choose it themselves doesn't see an empty selection.
 export const getSelectableProfiles = (profiles: ClientModelProfile[], user: AuthenticatedPrincipal, appRoles: AppRoles, currentProfileId: string | undefined): ClientModelProfile[] => {
-	return profiles.filter((profile) => profile.id === currentProfileId || canSeeSpotlight(user, appRoles, profile.roles ?? ["all"]))
+	return profiles.filter((profile) => profile.id === currentProfileId || canChooseProfile(user, appRoles, profile.roles))
 }
 
 export const profileSelection = (profile: ClientModelProfile): ProfileSelection => ({

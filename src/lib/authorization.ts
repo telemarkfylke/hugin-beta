@@ -100,8 +100,18 @@ export const canSeeSpotlight = (user: AuthenticatedPrincipal, appRoles: AppRoles
 	return accessGroups.some((group) => typeof group !== "string" && user.groups.includes(group.id))
 }
 
+// Who may choose a model profile (models.config.ts PROFILES[].roles). Same semantics as
+// canSeeSpotlight, except an explicitly empty list means nobody - admins included - so a profile
+// can be taken out of the picker while assistants already on it keep it.
+export const canChooseProfile = (user: AuthenticatedPrincipal, appRoles: AppRoles, roles: RoleAccessGroups[] | undefined): boolean => {
+	if (roles !== undefined && roles.length === 0) {
+		return false
+	}
+	return canSeeSpotlight(user, appRoles, roles ?? ["all"])
+}
+
 export const canUseCanvas = (user: AuthenticatedPrincipal, appRoles: AppRoles): boolean => {
-	return user.roles.includes(appRoles.EMPLOYEE) || user.roles.includes(appRoles.ADMIN)
+	return user.roles.includes(appRoles.EMPLOYEE) || user.roles.includes(appRoles.ADMIN) || user.roles.includes(appRoles.EDU_EMPLOYEE) || user.roles.includes(appRoles.STUDENT)
 }
 
 export const canUseRagservice = (user: AuthenticatedPrincipal, appRoles: AppRoles): boolean => {
@@ -110,6 +120,14 @@ export const canUseRagservice = (user: AuthenticatedPrincipal, appRoles: AppRole
 
 export const canUseMcpSharepoint = (user: AuthenticatedPrincipal, appRoles: AppRoles): boolean => {
 	return user.roles.includes(appRoles.EMPLOYEE) || user.roles.includes(appRoles.ADMIN)
+}
+
+// Managing MCP sources (the /datasources/mcp tab, create/edit/delete, SharePoint browsing) is
+// admin-only - the MCP connection is one shared, unscoped service credential, so configuring a
+// source effectively grants access to anything it can see. canUseMcpSharepoint above still gates
+// *using* MCP (picking visible sources in ChatConfigPanel, chatting with bots that have them).
+export const canManageMcpSources = (user: AuthenticatedPrincipal, appRoles: AppRoles): boolean => {
+	return user.roles.includes(appRoles.ADMIN)
 }
 
 // Unlike Ragservice/MCP, Website sources touch no live external system and grant no org-wide
