@@ -1,5 +1,5 @@
 import { json, type RequestHandler } from "@sveltejs/kit"
-import { canUseMcpSharepoint } from "$lib/authorization"
+import { canManageMcpSources } from "$lib/authorization"
 import { APP_CONFIG } from "$lib/server/app-config/app-config"
 import { getSharepointMcpClient } from "$lib/server/mcp/mcp-client"
 import { parseFolderList } from "$lib/server/mcp/parse-sharepoint-folder-list"
@@ -10,7 +10,7 @@ import type { ApiNextFunction } from "$lib/types/middleware/http-request"
 // Admin-only folder browser backing McpFolderBrowser.svelte - lets someone setting up a
 // SharePoint MCP source pick a real, correctly-spelled folder path instead of typing one by hand
 // (a typo in a hand-typed path would silently make a scope entry match nothing, with no error
-// anywhere - see mcp-source.ts). Gated by the same canUseMcpSharepoint check as using MCP at all;
+// anywhere - see mcp-source.ts). Gated by the same admin-only canManageMcpSources check as creating/editing MCP sources;
 // this doesn't expose anything beyond what that gate already implies today (see the discussion
 // in the session this was built - the MCP connection is one shared, unscoped service credential,
 // not per-user delegated access, so "can configure an MCP source" already means "can see anything
@@ -21,7 +21,7 @@ const browseSharePointFolders: ApiNextFunction = async ({ requestEvent, user }) 
 	if (!requestEvent) {
 		throw new HTTPError(400, "No request event")
 	}
-	if (!canUseMcpSharepoint(user, APP_CONFIG.APP_ROLES)) {
+	if (!canManageMcpSources(user, APP_CONFIG.APP_ROLES)) {
 		throw new HTTPError(403, "Not authorized to browse SharePoint")
 	}
 

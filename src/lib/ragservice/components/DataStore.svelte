@@ -84,6 +84,10 @@
 		></DataStoreCreate>
 	{:else}
 		<div class="store-header">
+			<button onclick={() => (createNew = true)}>
+				<span class="material-symbols-outlined">add</span>Lag nytt bibliotek
+			</button>
+
 			{#if stores.length > 0}
 				<select bind:value={selectedStoreId}>
 					{#each stores as s}
@@ -91,9 +95,7 @@
 					{/each}
 				</select>
 			{/if}
-			<button onclick={() => (createNew = true)}>
-				<span class="material-symbols-outlined">add</span>Lag nytt bibliotek
-			</button>
+
 
 			{#if store}
 				<button

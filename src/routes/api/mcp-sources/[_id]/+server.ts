@@ -1,5 +1,5 @@
 import { json, type RequestHandler } from "@sveltejs/kit"
-import { canEditMcpSource, canUseMcpSharepoint } from "$lib/authorization"
+import { canEditMcpSource, canManageMcpSources } from "$lib/authorization"
 import { APP_CONFIG } from "$lib/server/app-config/app-config"
 import { getMcpSourceStore } from "$lib/server/db/get-db"
 import { HTTPError } from "$lib/server/middleware/http-error"
@@ -14,8 +14,8 @@ const replaceMcpSource: ApiNextFunction = async ({ requestEvent, user }) => {
 	if (!requestEvent) {
 		throw new HTTPError(400, "No request event")
 	}
-	if (!canUseMcpSharepoint(user, APP_CONFIG.APP_ROLES)) {
-		throw new HTTPError(403, "Not authorized to use MCP data sources")
+	if (!canManageMcpSources(user, APP_CONFIG.APP_ROLES)) {
+		throw new HTTPError(403, "Not authorized to manage MCP data sources")
 	}
 
 	const sourceId = requestEvent.params._id
@@ -57,8 +57,8 @@ const deleteMcpSource: ApiNextFunction = async ({ requestEvent, user }) => {
 	if (!requestEvent) {
 		throw new HTTPError(400, "No request event")
 	}
-	if (!canUseMcpSharepoint(user, APP_CONFIG.APP_ROLES)) {
-		throw new HTTPError(403, "Not authorized to use MCP data sources")
+	if (!canManageMcpSources(user, APP_CONFIG.APP_ROLES)) {
+		throw new HTTPError(403, "Not authorized to manage MCP data sources")
 	}
 
 	const sourceId = requestEvent.params._id

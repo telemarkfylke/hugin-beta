@@ -112,6 +112,14 @@ export const canUseMcpSharepoint = (user: AuthenticatedPrincipal, appRoles: AppR
 	return user.roles.includes(appRoles.EMPLOYEE) || user.roles.includes(appRoles.ADMIN)
 }
 
+// Managing MCP sources (the /datasources/mcp tab, create/edit/delete, SharePoint browsing) is
+// admin-only - the MCP connection is one shared, unscoped service credential, so configuring a
+// source effectively grants access to anything it can see. canUseMcpSharepoint above still gates
+// *using* MCP (picking visible sources in ChatConfigPanel, chatting with bots that have them).
+export const canManageMcpSources = (user: AuthenticatedPrincipal, appRoles: AppRoles): boolean => {
+	return user.roles.includes(appRoles.ADMIN)
+}
+
 // Unlike Ragservice/MCP, Website sources touch no live external system and grant no org-wide
 // search/document access - they're just admin-curated URLs a bot is allowed to fetch. Open to
 // every authenticated user, students included: someone must still create/publish a source (or
