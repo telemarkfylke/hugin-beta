@@ -16,7 +16,7 @@
 
 	type Props = {
 		id: string
-		// `| undefined` (not just `?`) on these four: SpotlightHost passes them straight through
+		// `| undefined` (not just `?`) on these five: SpotlightHost passes them straight through
 		// from a data object where they're optional, so the value can be the literal `undefined`,
 		// not just omitted - exactOptionalPropertyTypes (see tsconfig.json) treats those differently.
 		icon?: string | undefined
@@ -26,10 +26,12 @@
 		active?: boolean
 		backdrop?: boolean | undefined
 		placement?: FixedPlacement | undefined
+		/** Any CSS length, e.g. "32rem" for long copy. Still capped by max-width on narrow screens. */
+		width?: string | undefined
 		onDismiss?: () => void
 	}
 
-	let { id, icon, header, text, subtext, active = true, backdrop = false, placement = "top-center", onDismiss }: Props = $props()
+	let { id, icon, header, text, subtext, active = true, backdrop = false, placement = "top-center", width = "20rem", onDismiss }: Props = $props()
 
 	// Computed synchronously (not in an $effect) so the very first render already
 	// reflects dismissal state - an $effect only runs after that first render commits,
@@ -64,6 +66,7 @@
 		class:bottom-center={placement === "bottom-center"}
 		class:bottom-left={placement === "bottom-left"}
 		class:top-left={placement === "top-left"}
+		style:width
 		transition:fade={{ duration: 150 }}
 	>
 		<button class="icon-button close-button" onclick={close} title="Lukk">
@@ -107,7 +110,6 @@
 		border-radius: 10px;
 		box-shadow: 0 4px 24px rgba(0, 0, 0, 0.15);
 		padding: 1rem;
-		width: 20rem;
 		max-width: calc(100vw - 2rem);
 		display: flex;
 		flex-direction: column;

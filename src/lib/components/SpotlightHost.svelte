@@ -21,6 +21,7 @@
 		subtext={spotlight.subtext}
 		placement={spotlight.placement}
 		backdrop={spotlight.backdrop}
+		width={spotlight.width}
 		active={canSeeSpotlight(authenticatedUser, appRoles, spotlight.accessGroups ?? ["all"])}
 	/>
 {/each}
