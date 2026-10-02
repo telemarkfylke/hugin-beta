@@ -95,6 +95,12 @@ describe("getSelectableProfiles", () => {
 	it("keeps the config's current profile visible even when the user couldn't choose it", () => {
 		expect(getSelectableProfiles(APP_CONFIG.MODEL_PROFILES, user(["Student"]), APP_ROLES, "lokal").map((p) => p.id)).toEqual(["rask", "lokal"])
 	})
+
+	it("hides a profile with an empty roles list from everyone, admins included, unless it's the current one", () => {
+		const profiles = [profile("rask"), profile("lokal", { roles: [] })]
+		expect(getSelectableProfiles(profiles, user(["Admin"]), APP_ROLES, undefined).map((p) => p.id)).toEqual(["rask"])
+		expect(getSelectableProfiles(profiles, user(["Admin"]), APP_ROLES, "lokal").map((p) => p.id)).toEqual(["rask", "lokal"])
+	})
 })
 
 describe("selections", () => {
