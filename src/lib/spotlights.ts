@@ -31,25 +31,25 @@ export type SpotlightDefinition = {
 }
 
 export const SPOTLIGHTS: SpotlightDefinition[] = [
-  // {
-  //   id: "Historikk-elev-1",
-  //   icon: "auto_awesome",
-  //   header: "Historikk i Hugin",
-  //   text: `Hugin husker nå samtalene du har med den. 🎉
+	// {
+	//   id: "Historikk-elev-1",
+	//   icon: "auto_awesome",
+	//   header: "Historikk i Hugin",
+	//   text: `Hugin husker nå samtalene du har med den. 🎉
 
-		// 	Samtaler lagres automatisk. Du kan slette gamle samtaler eller gjenoppta en samtale under <span class="spotlight-pill"><span class="material-symbols-rounded">history</span>Samtaler</span> i toppmenyen.
+	// 	Samtaler lagres automatisk. Du kan slette gamle samtaler eller gjenoppta en samtale under <span class="spotlight-pill"><span class="material-symbols-rounded">history</span>Samtaler</span> i toppmenyen.
 
-		// 	Hvis du ikke ønsker å lagre samtaler, skrur du på <span class="spotlight-pill">Inkognito</span>-modus.`,
-  //   placement: "top-center",
-  //   backdrop: true,
-  //   accessGroups: ["student"],
-  // },
-  {
-    id: "simple-models-1",
-    icon: "auto_awesome",
-    width: "32rem",
-    header: "Enklere modellvalg",
-    text: `Nå er det enklere å velge. 🎉
+	// 	Hvis du ikke ønsker å lagre samtaler, skrur du på <span class="spotlight-pill">Inkognito</span>-modus.`,
+	//   placement: "top-center",
+	//   backdrop: true,
+	//   accessGroups: ["student"],
+	// },
+	{
+		id: "simple-models-1",
+		icon: "auto_awesome",
+		width: "32rem",
+		header: "Enklere modellvalg",
+		text: `Nå er det enklere å velge. 🎉
 
 		KI utvikler seg i rasende fart.	Nå kan du velge om KI-modellen skal være:
 
