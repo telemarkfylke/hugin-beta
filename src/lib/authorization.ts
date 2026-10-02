@@ -101,7 +101,7 @@ export const canSeeSpotlight = (user: AuthenticatedPrincipal, appRoles: AppRoles
 }
 
 export const canUseCanvas = (user: AuthenticatedPrincipal, appRoles: AppRoles): boolean => {
-	return user.roles.includes(appRoles.EMPLOYEE) || user.roles.includes(appRoles.ADMIN)
+	return user.roles.includes(appRoles.EMPLOYEE) || user.roles.includes(appRoles.ADMIN) || user.roles.includes(appRoles.EDU_EMPLOYEE) || user.roles.includes(appRoles.STUDENT)
 }
 
 export const canUseRagservice = (user: AuthenticatedPrincipal, appRoles: AppRoles): boolean => {
