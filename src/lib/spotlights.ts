@@ -31,21 +31,6 @@ export type SpotlightDefinition = {
 }
 
 export const SPOTLIGHTS: SpotlightDefinition[] = [
-	{
-		id: "Historikk-124",
-		icon: "auto_awesome",
-		header: "Historikk i Hugin",
-		text: `Hugin husker nå samtalene du har med den. 🎉
-
-			Samtaler lagres automatisk. Du kan slette gamle samtaler eller gjenoppta en samtale under <span class="spotlight-pill"><span class="material-symbols-rounded">history</span>Samtaler</span> i toppmenyen.
-
-			Hvis du ikke ønsker å lagre samtaler, skrur du på <span class="spotlight-pill">Inkognito</span>-modus.`,
-    placement: "top-center",
-    backdrop: true,
-    // Excludes "student": student-only accounts are forced incognito and never get
-    // history stored (see canUseHistory in $lib/authorization), so this doesn't apply.
-    accessGroups: ["employee", "edu_employee"],
-  },
   // {
   //   id: "Historikk-elev-1",
   //   icon: "auto_awesome",
