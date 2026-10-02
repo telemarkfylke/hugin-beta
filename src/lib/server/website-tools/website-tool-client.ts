@@ -1,3 +1,5 @@
+import { lookup } from "node:dns/promises"
+import { BlockList, isIP } from "node:net"
 import { logger } from "@vestfoldfylke/loglady"
 import { convert } from "html-to-text"
 import type { WebsiteSourceEntry } from "$lib/types/website-source"
@@ -12,10 +14,73 @@ const FETCH_TIMEOUT_MS = 20_000
 const MAX_HTML_CHARS = 2_000_000
 const MAX_OUTPUT_CHARS = 20_000
 const MAX_LINKS_RETURNED = 30
+const MAX_REDIRECTS = 5
 
 const TOOL_NAME = "browse_website"
 
+// SSRF guard: any logged-in user can create a website source with any http(s) URL, so the allow-list
+// alone says nothing about where the server ends up connecting. Never fetch loopback, private,
+// link-local (incl. the Azure metadata endpoint 169.254.169.254), CGNAT, multicast or reserved
+// addresses. IPv4-mapped IPv6 (::ffff:*) is blocked wholesale in isBlockedAddress - real public DNS
+// never needs it, and it can't be a BlockList rule since BlockList matches every IPv4 address against it.
+const BLOCKED_ADDRESSES = new BlockList()
+for (const [network, prefix] of [
+	["0.0.0.0", 8],
+	["10.0.0.0", 8],
+	["100.64.0.0", 10],
+	["127.0.0.0", 8],
+	["169.254.0.0", 16],
+	["172.16.0.0", 12],
+	["192.0.0.0", 24],
+	["192.168.0.0", 16],
+	["198.18.0.0", 15],
+	["224.0.0.0", 4],
+	["240.0.0.0", 4]
+] as const) {
+	BLOCKED_ADDRESSES.addSubnet(network, prefix, "ipv4")
+}
+for (const [network, prefix] of [
+	["::", 128],
+	["::1", 128],
+	["64:ff9b::", 96],
+	["fc00::", 7],
+	["fe80::", 10],
+	["ff00::", 8]
+] as const) {
+	BLOCKED_ADDRESSES.addSubnet(network, prefix, "ipv6")
+}
+
 // Everything below is exported for unit testing.
+
+export const isBlockedAddress = (address: string): boolean => {
+	const family = isIP(address)
+	if (family === 0) return true
+	if (family === 6 && /^::ffff:/i.test(address)) return true
+	return BLOCKED_ADDRESSES.check(address, family === 4 ? "ipv4" : "ipv6")
+}
+
+// Resolves the host and refuses if ANY of its addresses is internal. Checked per request (and per
+// redirect hop), not when the source is saved, since DNS can change after saving. Doesn't close DNS
+// rebinding between this lookup and fetch's own - that would need a pinned-address HTTP agent.
+export const assertPublicHost = async (url: URL): Promise<void> => {
+	const hostname = url.hostname.replace(/^\[|\]$/g, "")
+	const addresses = isIP(hostname) ? [hostname] : (await lookup(hostname, { all: true, verbatim: true })).map((entry) => entry.address)
+	if (addresses.length === 0 || addresses.some(isBlockedAddress)) {
+		throw new Error(`«${url.href}» peker til en intern adresse og kan ikke hentes`)
+	}
+}
+
+// Every URL we connect to - the requested one and each redirect hop - must be http(s), inside the
+// allow-list and on a public address. fetch's own redirect following is off, since it would skip this.
+const assertFetchable = async (url: URL, entries: WebsiteSourceEntry[]): Promise<void> => {
+	if (url.protocol !== "http:" && url.protocol !== "https:") {
+		throw new Error("Kun http/https-URL-er støttes")
+	}
+	if (!isUrlAllowed(url, entries)) {
+		throw new Error(`«${url.href}» er ikke blant sidene/prefiksene denne datakilden gir tilgang til`)
+	}
+	await assertPublicHost(url)
+}
 
 export const describeEntry = (entry: WebsiteSourceEntry): string => (entry.matchType === "exact" ? entry.value : `Alt under ${entry.value}`)
 
@@ -105,12 +170,6 @@ export const createWebsiteToolClient = (entries: WebsiteSourceEntry[]): McpClien
 			} catch {
 				throw new Error(`«${rawUrl}» er ikke en gyldig URL`)
 			}
-			if (url.protocol !== "http:" && url.protocol !== "https:") {
-				throw new Error("Kun http/https-URL-er støttes")
-			}
-			if (!isUrlAllowed(url, entries)) {
-				throw new Error(`«${rawUrl}» er ikke blant sidene/prefiksene denne datakilden gir tilgang til`)
-			}
 
 			logger.info("[website-tool-client] Fetching URL: {url}", url.href)
 
@@ -118,7 +177,17 @@ export const createWebsiteToolClient = (entries: WebsiteSourceEntry[]): McpClien
 			const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS)
 			let html: string
 			try {
-				const res = await fetch(url, { signal: controller.signal, headers: { "user-agent": "Hugin/1.0 (+https://telemarkfylke.no)" } })
+				let res: Response
+				for (let hop = 0; ; hop++) {
+					await assertFetchable(url, entries)
+					res = await fetch(url, { signal: controller.signal, redirect: "manual", headers: { "user-agent": "Hugin/1.0 (+https://telemarkfylke.no)" } })
+					const location = res.status >= 300 && res.status < 400 ? res.headers.get("location") : null
+					if (!location) break
+					if (hop >= MAX_REDIRECTS) {
+						throw new Error("Siden videresender for mange ganger")
+					}
+					url = new URL(location, url)
+				}
 				if (!res.ok) {
 					throw new Error(`Henting av siden feilet (HTTP ${res.status})`)
 				}

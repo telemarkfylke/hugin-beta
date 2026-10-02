@@ -1,10 +1,11 @@
 import { json, type RequestHandler } from "@sveltejs/kit"
 import { logger } from "@vestfoldfylke/loglady"
-import { canPromptConfig, canUseHistory, canUseMcpSharepoint, canUseWebsiteDataSource } from "$lib/authorization"
+import { canPromptConfig, canUseHistory, canUseMcpSharepoint, canUseWebsiteDataSource, canViewMcpSource, canViewWebsiteSource } from "$lib/authorization"
 import { chatHistoryToInputItems } from "$lib/chat-history"
 import { applyChatSseEventToResponseObject } from "$lib/chat-response-builder"
 import type { ConversationManager } from "$lib/conversationstore/server/conv_manager"
 import { getConversationManager } from "$lib/conversationstore/server/get-conversation-manager"
+import { loadSavedConfigSourceGrant } from "$lib/server/agents/saved-config-source-grant"
 import { getVendor } from "$lib/server/ai-vendors"
 import { APP_CONFIG } from "$lib/server/app-config/app-config"
 import { MS_AUTH_TOKEN_HEADER } from "$lib/server/auth/auth-constants"
@@ -31,7 +32,7 @@ import type { ChatInputMessage } from "$lib/types/chat-item"
 import type { InputText } from "$lib/types/chat-item-content"
 import type { McpSource } from "$lib/types/mcp-source"
 import type { ApiNextFunction } from "$lib/types/middleware/http-request"
-import type { WebsiteSourceEntry } from "$lib/types/website-source"
+import type { WebsiteSource, WebsiteSourceEntry } from "$lib/types/website-source"
 import { validateFileInputs } from "$lib/validation/file-input"
 import { parseChatConfig } from "$lib/validation/parse-chat-config"
 
@@ -149,22 +150,35 @@ const supahChat: ApiNextFunction = async ({ requestEvent, user }) => {
 	// Flatten every selected website source's entries into one combined allow-list - a bot can
 	// have several website sources active at once, so the browse_website tool built from this
 	// covers all of them together.
-	let websiteEntries: WebsiteSourceEntry[] = []
-	if (websiteSourceIds.length > 0) {
-		const websiteSourceStore = getWebsiteSourceStore()
-		const sources = await Promise.all(websiteSourceIds.map((id) => websiteSourceStore.getWebsiteSource(id)))
-		websiteEntries = sources.flatMap((source) => source?.entries ?? [])
-	}
-	const websiteToolActive = websiteEntries.length > 0
-
 	// mcpSharepointActive is its own ChatTool flag (independent of datasourceToolActive, unlike
 	// ragservice/website) - resolve which McpSource(s) were actually selected only when it's on.
 	const mcpSourceIds = mcpSharepointActive ? (chatRequest.config.dataSources?.filter((s) => s.type === "mcp").map((s) => s.sourceId) ?? []) : []
+
+	// The source ids come from the client-sent config, so each one must be authorized server-side:
+	// either the user may see the source themselves, or the SAVED version of this assistant (which the
+	// user may prompt) references it - e.g. a published assistant built on its creator's private source.
+	const isGrantedBySavedConfig = websiteSourceIds.length > 0 || mcpSourceIds.length > 0 ? await loadSavedConfigSourceGrant(chatRequest.config._id, user) : () => false
+
+	let websiteEntries: WebsiteSourceEntry[] = []
+	let deniedSourceCount = 0
+	if (websiteSourceIds.length > 0) {
+		const websiteSourceStore = getWebsiteSourceStore()
+		const resolved = await Promise.all(websiteSourceIds.map((id) => websiteSourceStore.getWebsiteSource(id).catch(() => null)))
+		const sources = resolved.filter((source): source is WebsiteSource => source !== null && (canViewWebsiteSource(source, user, APP_CONFIG.APP_ROLES) || isGrantedBySavedConfig("website", source._id)))
+		deniedSourceCount += resolved.filter((source) => source !== null).length - sources.length
+		websiteEntries = sources.flatMap((source) => source.entries)
+	}
+	const websiteToolActive = websiteEntries.length > 0
+
 	let mcpSources: McpSource[] = []
 	if (mcpSourceIds.length > 0) {
 		const mcpSourceStore = getMcpSourceStore()
-		const resolved = await Promise.all(mcpSourceIds.map((id) => mcpSourceStore.getMcpSource(id)))
-		mcpSources = resolved.filter((source): source is McpSource => source !== null)
+		const resolved = await Promise.all(mcpSourceIds.map((id) => mcpSourceStore.getMcpSource(id).catch(() => null)))
+		mcpSources = resolved.filter((source): source is McpSource => source !== null && (canViewMcpSource(source, user, APP_CONFIG.APP_ROLES) || isGrantedBySavedConfig("mcp", source._id)))
+		deniedSourceCount += resolved.filter((source) => source !== null).length - mcpSources.length
+	}
+	if (deniedSourceCount > 0) {
+		logger.warn("Ignored {count} data source(s) on config {configId} that {userId} may not use", deniedSourceCount, chatRequest.config._id, user.userId)
 	}
 
 	if (ragStoreIds.length > 0) {
