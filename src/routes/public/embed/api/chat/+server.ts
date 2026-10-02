@@ -4,8 +4,10 @@ import z from "zod"
 import { env } from "$env/dynamic/private"
 import { ANONYMOUS_PRINCIPAL } from "$lib/anonymous-principal"
 import { getVendor } from "$lib/server/ai-vendors"
+import { APP_CONFIG } from "$lib/server/app-config/app-config"
 import { classifyQuestion, recordQuestionCategoryStat } from "$lib/server/categorize-question"
 import { getChatConfigStore, getRateLimiter, getStatsStore } from "$lib/server/db/get-db"
+import { HTTPError } from "$lib/server/middleware/http-error"
 import { isModelAvailable, MODEL_UNAVAILABLE_MESSAGE } from "$lib/server/models/model-registry"
 import { appendRagContextToInstructions } from "$lib/server/ragservice/format-rag-context"
 import { formatHistoryForRewrite } from "$lib/server/ragservice/rag-query-rewrite"
@@ -14,6 +16,7 @@ import { createSse, responseStream } from "$lib/streaming"
 import type { ChatConfig, ChatResponseObject } from "$lib/types/chat"
 import type { ChatInputItem, ChatInputMessage } from "$lib/types/chat-item"
 import type { InputText } from "$lib/types/chat-item-content"
+import { parseEmbedInputs } from "$lib/validation/parse-embed-inputs"
 
 const chatConfigStore = getChatConfigStore()
 const rateLimiter = getRateLimiter()
@@ -94,9 +97,10 @@ const buildRefusalStream = (text: string): ReadableStream<Uint8Array> =>
 // fine: config._id is used only as a lookup key below. Every value that actually reaches the vendor
 // (instructions, tools, vendorId, ...) comes from the fresh DB-authoritative dbConfig, never from
 // this parsed client object - the rest of the client's config is read nowhere and simply discarded.
+// inputs are validated against dbConfig by parseEmbedInputs once it's loaded.
 const EmbedChatRequestSchema = z.object({
 	config: z.object({ _id: z.string() }),
-	inputs: z.array(z.any()).min(1),
+	inputs: z.unknown(),
 	stream: z.boolean().optional()
 })
 
@@ -162,7 +166,16 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 		}
 	}
 
-	const inputs = parsed.data.inputs as ChatInputItem[]
+	// This route returns its errors rather than throwing HTTPError (no middleware here to convert them)
+	let inputs: ChatInputItem[]
+	try {
+		inputs = parseEmbedInputs(parsed.data.inputs, dbConfig, APP_CONFIG)
+	} catch (error) {
+		if (error instanceof HTTPError) {
+			return json({ message: error.message }, { status: error.status })
+		}
+		throw error
+	}
 	const wantsStream = Boolean(parsed.data.stream)
 
 	// --- From here down: the same RAG-search + vendor-dispatch logic as supahChat
