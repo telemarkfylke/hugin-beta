@@ -36,7 +36,8 @@ type ProfileId = "rask" | "grundig" | "europeisk" | "lokal"
 const PROFILES: (Profile & { id: ProfileId; model: ModelKey })[] = [
 	{ id: "rask", label: "Rask", icon: "⚡", description: "Raske svar på enkle oppgaver", model: "gpt-6-luna" },
 	{ id: "grundig", label: "Grundig", icon: "🧠", description: "Analyse, resonnering og lange dokumenter", model: "gpt-6-sol" },
-	{ id: "europeisk", label: "Europeisk", icon: "🇪🇺", description: "Data behandles innenfor EU", model: "mistral-large", dataLocation: "EU" },
+	{ id: "europeisk", label: "Europeisk", icon: "🇪🇺", description: "Data behandles innenfor EU", model: "mistral-large", dataLocation: "EU" }
+	/*
 	{
 		id: "lokal",
 		label: "Lokal",
@@ -45,7 +46,7 @@ const PROFILES: (Profile & { id: ProfileId; model: ModelKey })[] = [
 		model: "normistral",
 		dataLocation: "Egne servere",
 		roles: ["employee", "edu_employee"]
-	}
+	}*/
 ]
 
 const DEFAULTS: { chat: ProfileId; assistant: ProfileId; canvas: ProfileId; utility: ModelKey } = {
@@ -68,12 +69,12 @@ const LEGACY: Record<string, ProfileId> = {
 	// Rask's previous model - no profile uses it directly any more
 	"gpt-5.6-luna": "rask",
 	"mistral-medium-latest": "europeisk",
-	"llama3:8b": "lokal",
-	"LTG/normistral-11b-thinking:latest": "lokal",
+	"llama3:8b": "europeisk", //"lokal",
+	"LTG/normistral-11b-thinking:latest": "europeisk", //"lokal",
 	// Local-server models from earlier app-config.ts versions - must never migrate to a cloud profile
-	"gemma:2b": "lokal",
-	"LTG/normistral-11b-thinking": "lokal",
-	llama3: "lokal"
+	"gemma:2b": "europeisk", //"lokal",
+	"LTG/normistral-11b-thinking": "europeisk", //"lokal",
+	llama3: "europeisk" //"lokal"
 }
 
 export const MODEL_CONFIG: ModelConfig = { MODELS, PROFILES, DEFAULTS, LEGACY }
