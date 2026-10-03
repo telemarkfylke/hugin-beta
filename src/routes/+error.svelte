@@ -1,21 +1,33 @@
 <script lang="ts">
 	import { page } from "$app/stores"
+
+	// True for both /embed/** (authenticated) and /public/embed/** (anonymous) - mirrors
+	// +layout.server.ts's isEmbedRoute. An embed is rendered inside someone else's page/iframe, so
+	// a "go to homepage"/"log in" link back into the main app isn't just clutter, it's broken: it
+	// would navigate the embedding page's iframe to a login screen the visitor never asked for.
+	const isEmbedRoute = $derived(Boolean($page.route.id?.includes("/embed/")))
 </script>
 
 <div class="error-container">
 	{#if $page.status === 401}
 		<h1>Sesjonen din har utløpt</h1>
 		<p>Du må logge inn på nytt for å fortsette.</p>
-		<a href="/">Logg inn</a>
+		{#if !isEmbedRoute}
+			<a href="/">Logg inn</a>
+		{/if}
 	{:else if $page.status === 403}
 		<h1>Ingen tilgang</h1>
 		<p>Du har ikke tilgang til denne siden.</p>
-		<a href="/">Gå til forsiden</a>
-		<a href="/.auth/login/aad?post_login_redirect_uri=/" class="secondary">Logg inn på nytt</a>
+		{#if !isEmbedRoute}
+			<a href="/">Gå til forsiden</a>
+			<a href="/.auth/login/aad?post_login_redirect_uri=/" class="secondary">Logg inn på nytt</a>
+		{/if}
 	{:else}
 		<h1>Noe gikk galt</h1>
 		<p>{$page.error?.message ?? "En ukjent feil oppstod."}</p>
-		<a href="/">Gå til forsiden</a>
+		{#if !isEmbedRoute}
+			<a href="/">Gå til forsiden</a>
+		{/if}
 	{/if}
 </div>
 

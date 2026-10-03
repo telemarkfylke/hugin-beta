@@ -35,6 +35,8 @@
 	// button's own label instead of a separate message, so it clears itself automatically.
 	const SAVED_CONFIRMATION_MS = 2000
 
+	const showFineTuningFields = false
+
 	async function save() {
 		saving = true
 		justSaved = false
@@ -78,59 +80,61 @@
 		</div>
 	</div>
 
-	<h3 class="rag-section-title">Søkevekting</h3>
-	<div class="rag-field-grid">
-		<div class="rag-field">
-			<span class="rag-field-label">
-				Vector &lt;-&gt; Tekst
-				<InfoTooltip
-					text="Balanse mellom semantisk (vector) søk og tekst-/nøkkelordsøk. Helt til venstre = kun vector, helt til høyre = kun tekst."
-				/>
-			</span>
-			<input type="range" step="0.1" min="0" max="1" bind:value={weightsText} />
-			<span class="rag-field-value">{(1 - weightsText).toFixed(1)} / {weightsText.toFixed(1)}</span>
+	{#if showFineTuningFields}
+		<h3 class="rag-section-title">Søkevekting</h3>
+		<div class="rag-field-grid">
+			<div class="rag-field">
+				<span class="rag-field-label">
+					Vector &lt;-&gt; Tekst
+					<InfoTooltip
+						text="Balanse mellom semantisk (vector) søk og tekst-/nøkkelordsøk. Helt til venstre = kun vector, helt til høyre = kun tekst."
+					/>
+				</span>
+				<input type="range" step="0.1" min="0" max="1" bind:value={weightsText} />
+				<span class="rag-field-value">{(1 - weightsText).toFixed(1)} / {weightsText.toFixed(1)}</span>
+			</div>
 		</div>
-	</div>
 
-	<h3 class="rag-section-title">Terskler</h3>
-	<div class="rag-field-grid">
-		<NullableRangeField
-			label="Text Threshold"
-			min={0}
-			max={50}
-			step={1}
-			bind:value={thresholdsText}
-			help="Minimum tekst-score et treff må ha for å bli tatt med. Skru av for å ikke filtrere på tekst-score."
-		/>
-
-		<LogicRadioField
-			highlight
-			disabled={thresholdsText === null || thresholdsVector === null}
-			bind:value={thresholdsLogic}
-			help="'And' krever at treffet passerer både tekst- og vector-terskel. 'Or' krever at minst én av dem er oppfylt."
-		>
-			{#snippet icon()}
-				<VennLogicIcon mode={thresholdsLogic} />
-			{/snippet}
-		</LogicRadioField>
-
-		<NullableRangeField
-			label="Vector Threshold"
-			min={0}
-			max={1}
-			step={0.01}
-			decimals={2}
-			bind:value={thresholdsVector}
-			help="Minimum vector-score (semantisk likhet) et treff må ha for å bli tatt med. Skru av for å ikke filtrere på vector-score."
-		/>
-		{#if RERANK_ENABLED}
-			<NullableBooleanField
-				label="Rerank"
-				bind:value={rerank}
-				help="Ekstra steg som sorterer treffene på nytt for bedre relevans, på bekostning av noe høyere søketid. 'Ikke satt' bruker standard oppførsel."
+		<h3 class="rag-section-title">Terskler</h3>
+		<div class="rag-field-grid">
+			<NullableRangeField
+				label="Text Threshold"
+				min={0}
+				max={50}
+				step={1}
+				bind:value={thresholdsText}
+				help="Minimum tekst-score et treff må ha for å bli tatt med. Skru av for å ikke filtrere på tekst-score."
 			/>
-		{/if}
-	</div>
+
+			<LogicRadioField
+				highlight
+				disabled={thresholdsText === null || thresholdsVector === null}
+				bind:value={thresholdsLogic}
+				help="'And' krever at treffet passerer både tekst- og vector-terskel. 'Or' krever at minst én av dem er oppfylt."
+			>
+				{#snippet icon()}
+					<VennLogicIcon mode={thresholdsLogic} />
+				{/snippet}
+			</LogicRadioField>
+
+			<NullableRangeField
+				label="Vector Threshold"
+				min={0}
+				max={1}
+				step={0.01}
+				decimals={2}
+				bind:value={thresholdsVector}
+				help="Minimum vector-score (semantisk likhet) et treff må ha for å bli tatt med. Skru av for å ikke filtrere på vector-score."
+			/>
+			{#if RERANK_ENABLED}
+				<NullableBooleanField
+					label="Rerank"
+					bind:value={rerank}
+					help="Ekstra steg som sorterer treffene på nytt for bedre relevans, på bekostning av noe høyere søketid. 'Ikke satt' bruker standard oppførsel."
+				/>
+			{/if}
+		</div>
+	{/if}
 
 	<div class="actions">
 		<button class="filled" onclick={() => save()} disabled={saving}>

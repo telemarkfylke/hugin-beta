@@ -1,0 +1,102 @@
+
+//  Buckets for antall medlinger i conversations
+[
+{ $group: { _id: "$conversationId", count: { $sum: 1 } } },
+  { $bucket: {
+      groupBy: "$count",
+      boundaries: [1, 2, 3, 4, 5, 7, 10, 15, 20, 25, 30,  40, 50, 70, 100, 999999],
+      output: { conversations: { $sum: 1 } }
+  }},
+  { $project: {
+      _id: 0,
+      //conversations: "$_id",
+    lower: "$_id",
+      upper: {
+        $let: {
+          vars: { b: [1, 2, 3, 4, 5, 7, 10, 15, 20, 25, 30,  40, 50, 70, 100, 999999] },
+          in: {
+            $arrayElemAt: [
+              "$$b",
+              { $add: [ { $indexOfArray: ["$$b", "$_id"] }, 1 ] }
+            ]
+          }
+        }
+      },
+      conversations: 1
+  }},
+  { $group: {
+      _id: null,
+      items: { $push: { k: { $concat: [ { $toString: "$lower" }, "->", { $toString: "$upper" } ] }, v: "$conversations" } }
+  }},
+  { $replaceRoot: { newRoot: { $arrayToObject: "$items" } } }
+]
+
+
+
+// Samtaler pr person
+[
+{ $group: { _id: "$owner", count: { $sum: 1 } } },
+  { $bucket: {
+      groupBy: "$count",
+      boundaries: [1, 2, 3, 4, 5, 7, 10, 15, 20, 25, 30,  40, 50, 70, 100, 999999],
+      output: { personer: { $sum: 1 } }
+  }},
+  { $project: {
+      _id: 0,
+      //conversations: "$_id",
+    lower: "$_id",
+      upper: {
+        $let: {
+          vars: { b: [1, 2, 3, 4, 5, 7, 10, 15, 20, 25, 30,  40, 50, 70, 100, 999999] },
+          in: {
+            $arrayElemAt: [
+              "$$b",
+              { $add: [ { $indexOfArray: ["$$b", "$_id"] }, 1 ] }
+            ]
+          }
+        }
+      },
+      personer: 1
+  }},
+  { $group: {
+      _id: null,
+      items: { $push: { k: { $concat: [ { $toString: "$lower" }, "->", { $toString: "$upper" } ] }, v: "$personer" } }
+  }},
+  { $replaceRoot: { newRoot: { $arrayToObject: "$items" } } }
+]
+  
+
+// Samtaler gruppert på antall dager siden sist oppdatert
+[
+  { $project: {
+      daysSinceUpdate: { $dateDiff: { startDate: "$updatedAt", endDate: "$$NOW", unit: "day" } }
+  }},
+  { $bucket: {
+      groupBy: "$daysSinceUpdate",
+      boundaries: [0, 1, 2, 3, 5, 7, 14, 21, 30, 60, 90, 180, 365, 999999],
+      output: { conversations: { $sum: 1 } }
+  }},
+  { $project: {
+      _id: 0,
+      lower: "$_id",
+      upper: {
+        $let: {
+          vars: { b: [0, 1, 2, 3, 5, 7, 14, 21, 30, 60, 90, 180, 365, 999999] },
+          in: {
+            $arrayElemAt: [
+              "$$b",
+              { $add: [ { $indexOfArray: ["$$b", "$_id"] }, 1 ] }
+            ]
+          }
+        }
+      },
+      conversations: 1
+  }},
+  { $group: {
+      _id: null,
+      items: { $push: { k: { $concat: [ { $toString: "$lower" }, "->", { $toString: "$upper" } ] }, v: "$conversations" } }
+  }},
+  { $replaceRoot: { newRoot: { $arrayToObject: "$items" } } }
+]
+
+  

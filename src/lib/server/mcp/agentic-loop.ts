@@ -1,0 +1,147 @@
+import { logger } from "@vestfoldfylke/loglady"
+import { createSse } from "$lib/streaming"
+import type { ChatResponseUsage } from "$lib/types/chat"
+import { describeToolCallForUser } from "./describe-tool-call"
+import type { McpClient } from "./mcp-client"
+
+export type ToolTurnEvent =
+	| { type: "text_delta"; itemId: string; content: string }
+	| { type: "tool_call"; callId: string; toolName: string; arguments: string }
+	| { type: "usage"; usage: ChatResponseUsage }
+
+export type ToolResult = { callId: string; toolName: string; output: string; isError: boolean }
+
+export interface ToolTurnDriver {
+	start(): AsyncIterable<ToolTurnEvent>
+	continueWith(results: ToolResult[]): AsyncIterable<ToolTurnEvent>
+}
+
+type PendingCall = { callId: string; toolName: string; arguments: string }
+
+// A real multi-step research turn (search, list a folder, list again after a scope correction,
+// open several documents) can legitimately need more than a handful of round-trips with the model
+// before it has enough to answer - see the fallback message above for what happens if this still
+// isn't enough. Raised from 5 to 10 after live testing showed a legitimate (non-looping) research
+// turn exhausting the old cap one step before it would have reached real document content.
+const DEFAULT_MAX_ITERATIONS = 10
+
+// A model that only ever calls tools and never narrates a word (reproduced live: gpt-5.6-terra
+// chained 11 tool calls across 5 turns without a single response.output_text.delta) previously
+// produced a response.done with zero accumulated output - a completely silent, blank response to
+// the user, indistinguishable from the request having failed outright, with no error shown either.
+// This is the fallback for that case, checked right before response.done fires either way (loop
+// exhausted its pending calls naturally, or hit maxIterations).
+const NO_TEXT_FALLBACK_MESSAGE = "Jeg brukte for mange forsøk på å hente informasjon uten å finne et klart svar. Prøv å presisere spørsmålet, eller spør på nytt."
+
+export const runMcpAgenticLoop = (driver: ToolTurnDriver, mcpClient: McpClient, options?: { maxIterations?: number }): ReadableStream<Uint8Array> => {
+	const maxIterations = options?.maxIterations ?? DEFAULT_MAX_ITERATIONS
+	// Set by cancel() when the consumer disconnects (e.g. the client's HTTP connection drops mid-way
+	// through a long sequence of tool calls - the more documents/tool calls a turn needs, the bigger
+	// this window is). Checked before every controller.enqueue() and before starting any further
+	// work, since the controller throws ERR_INVALID_STATE if written to after cancellation - without
+	// this guard, the loop just keeps making real MCP/vendor calls for a request nobody is listening
+	// to anymore, and eventually crashes trying to report progress on those calls to nobody.
+	let cancelled = false
+
+	return new ReadableStream<Uint8Array>({
+		async start(controller) {
+			const accumulatedUsage: ChatResponseUsage = { inputTokens: 0, outputTokens: 0, totalTokens: 0 }
+			let hasEmittedText = false
+			const enqueue = (chunk: Uint8Array): void => {
+				if (cancelled) return
+				controller.enqueue(chunk)
+			}
+			try {
+				let turn = driver.start()
+				for (let iteration = 0; ; iteration++) {
+					if (cancelled) return
+
+					const pendingCalls: PendingCall[] = []
+
+					for await (const event of turn) {
+						if (cancelled) return
+						if (event.type === "text_delta") {
+							hasEmittedText = true
+							enqueue(createSse({ event: "response.output_text.delta", data: { itemId: event.itemId, content: event.content } }))
+						} else if (event.type === "tool_call") {
+							const detail = describeToolCallForUser(event.toolName, event.arguments)
+							enqueue(createSse({ event: "response.tool_call", data: { itemId: event.callId, toolName: event.toolName, detail } }))
+							pendingCalls.push({ callId: event.callId, toolName: event.toolName, arguments: event.arguments })
+						} else if (event.type === "usage") {
+							accumulatedUsage.inputTokens += event.usage.inputTokens
+							accumulatedUsage.outputTokens += event.usage.outputTokens
+							accumulatedUsage.totalTokens += event.usage.totalTokens
+						}
+					}
+
+					if (cancelled) return
+
+					if (pendingCalls.length === 0) {
+						break
+					}
+
+					if (iteration + 1 >= maxIterations) {
+						logger.warn("[agentic-loop] Hit max iterations: {max}", maxIterations)
+						// Any response.tool_call already emitted above for this turn's pendingCalls is
+						// intentionally left without a matching response.tool_result - we break before
+						// executing them. The stream still closes cleanly via response.done right after,
+						// so downstream consumers must not treat an unresolved tool_call as an error.
+						break
+					}
+
+					const results: ToolResult[] = []
+					for (const call of pendingCalls) {
+						if (cancelled) return
+						const result = await executeToolCall(mcpClient, call)
+						if (cancelled) return
+						results.push(result)
+						enqueue(createSse({ event: "response.tool_result", data: { itemId: call.callId, toolName: call.toolName, status: result.isError ? "error" : "ok" } }))
+					}
+
+					if (cancelled) return
+					turn = driver.continueWith(results)
+				}
+
+				if (cancelled) return
+				if (!hasEmittedText) {
+					enqueue(createSse({ event: "response.output_text.delta", data: { itemId: "fallback", content: NO_TEXT_FALLBACK_MESSAGE } }))
+				}
+				enqueue(createSse({ event: "response.done", data: { usage: accumulatedUsage } }))
+				controller.close()
+			} catch (error) {
+				if (cancelled) return
+				logger.errorException(error, "[agentic-loop] Agentic loop failed")
+				const message = error instanceof Error ? error.message : "Unknown error"
+				enqueue(createSse({ event: "response.error", data: { code: "mcp_loop_error", message } }))
+				controller.close()
+			}
+		},
+		cancel(reason) {
+			cancelled = true
+			logger.info("[agentic-loop] Stream cancelled by consumer: {reason}", String(reason ?? "unknown"))
+		}
+	})
+}
+
+const executeToolCall = async (mcpClient: McpClient, call: PendingCall): Promise<ToolResult> => {
+	let parsedArgs: Record<string, unknown>
+	try {
+		parsedArgs = call.arguments.trim().length > 0 ? (JSON.parse(call.arguments) as Record<string, unknown>) : {}
+	} catch {
+		return { callId: call.callId, toolName: call.toolName, output: `Invalid tool arguments JSON: ${call.arguments}`, isError: true }
+	}
+	try {
+		const output = await mcpClient.callTool(call.toolName, parsedArgs)
+		return { callId: call.callId, toolName: call.toolName, output, isError: false }
+	} catch (error) {
+		const message = error instanceof Error ? error.message : "Unknown tool error"
+		// The response.tool_result SSE event only ever carries an ok/error status (see below), not
+		// the reason - without this, diagnosing a failed call means guessing whether it was a scope
+		// rejection (createScopedSharePointClient/website-tool-client's own thrown errors) or a real
+		// upstream failure (SharePoint/website unreachable, folder renamed mid-test, etc.). Logging
+		// the exact arguments the model sent is what actually answers "why did it look there" -
+		// there's no other place these are visible.
+		logger.warn("[agentic-loop] Tool call failed: {name}({arguments}) - {message}", call.toolName, call.arguments, message)
+		return { callId: call.callId, toolName: call.toolName, output: `Tool execution failed: ${message}`, isError: true }
+	}
+}

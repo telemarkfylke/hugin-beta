@@ -1,0 +1,229 @@
+import { describe, expect, it, vi } from "vitest"
+import { runMcpAgenticLoop, type ToolResult, type ToolTurnDriver, type ToolTurnEvent } from "../../../src/lib/server/mcp/agentic-loop"
+import type { McpClient } from "../../../src/lib/server/mcp/mcp-client"
+
+// Spied on directly (rather than asserting on an unhandled rejection, which Node/the Streams spec
+// already "handles" internally by erroring the stream - it never actually reaches
+// process.on("unhandledRejection")) - errorException is exactly what agentic-loop.ts's catch block
+// calls when a write to an already-closed controller throws, so its absence is the observable proof
+// that the cancellation path never attempted that write in the first place.
+const { errorException } = vi.hoisted(() => ({ errorException: vi.fn() }))
+vi.mock("@vestfoldfylke/loglady", () => ({
+	logger: {
+		logConfig: vi.fn(),
+		info: vi.fn(),
+		warn: vi.fn(),
+		error: vi.fn(),
+		errorException
+	}
+}))
+
+const collect = async (stream: ReadableStream<Uint8Array>): Promise<{ event: string; data: unknown }[]> => {
+	const reader = stream.getReader()
+	const decoder = new TextDecoder()
+	let buffer = ""
+	for (;;) {
+		const { value, done } = await reader.read()
+		if (value) buffer += decoder.decode(value, { stream: true })
+		if (done) break
+	}
+	return buffer
+		.split("\n\n")
+		.filter((block) => block.length > 0)
+		.map((block) => {
+			const [eventLine, dataLine] = block.split("\n")
+			return { event: (eventLine ?? "").slice(7), data: JSON.parse((dataLine ?? "").slice(6)) }
+		})
+}
+
+async function* gen(events: ToolTurnEvent[]): AsyncIterable<ToolTurnEvent> {
+	for (const e of events) yield e
+}
+
+const usage = { inputTokens: 1, outputTokens: 1, totalTokens: 2 }
+
+describe("runMcpAgenticLoop", () => {
+	it("executes a tool call then streams the final answer", async () => {
+		const driver: ToolTurnDriver = {
+			start: () =>
+				gen([
+					{ type: "tool_call", callId: "c1", toolName: "Search_SharePoint", arguments: '{"query":"budsjett"}' },
+					{ type: "usage", usage }
+				]),
+			continueWith: (results: ToolResult[]) => {
+				expect(results).toEqual([{ callId: "c1", toolName: "Search_SharePoint", output: "RESULT", isError: false }])
+				return gen([
+					{ type: "text_delta", itemId: "m1", content: "Svaret" },
+					{ type: "usage", usage }
+				])
+			}
+		}
+		const mcp: McpClient = { listTools: vi.fn(), callTool: vi.fn().mockResolvedValue("RESULT") }
+		const events = await collect(runMcpAgenticLoop(driver, mcp))
+
+		expect(events.map((e) => e.event)).toEqual(["response.tool_call", "response.tool_result", "response.output_text.delta", "response.done"])
+		expect(mcp.callTool).toHaveBeenCalledWith("Search_SharePoint", { query: "budsjett" })
+
+		const toolCallEvent = events.find((e) => e.event === "response.tool_call")
+		expect((toolCallEvent?.data as { detail: string }).detail).toBe("Søker i SharePoint etter «budsjett»")
+	})
+
+	it("defaults to allowing more than 5 iterations when maxIterations is not specified - a real multi-step research turn (search, list, list again, open documents) can legitimately need more than 5 round-trips with the model before it has enough to answer", async () => {
+		const TURNS_NEEDED = 8
+		let turnsCompleted = 0
+		const driver: ToolTurnDriver = {
+			start: () => {
+				turnsCompleted++
+				return gen([{ type: "tool_call", callId: `c${turnsCompleted}`, toolName: "loop", arguments: "{}" }])
+			},
+			continueWith: () => {
+				turnsCompleted++
+				if (turnsCompleted >= TURNS_NEEDED) {
+					return gen([{ type: "text_delta", itemId: "m1", content: "Svaret" }])
+				}
+				return gen([{ type: "tool_call", callId: `c${turnsCompleted}`, toolName: "loop", arguments: "{}" }])
+			}
+		}
+		const mcp: McpClient = { listTools: vi.fn(), callTool: vi.fn().mockResolvedValue("X") }
+		// No maxIterations option passed - relies entirely on the default.
+		const events = await collect(runMcpAgenticLoop(driver, mcp))
+		const textDeltas = events.filter((e) => e.event === "response.output_text.delta")
+		expect(textDeltas).toEqual([{ event: "response.output_text.delta", data: { itemId: "m1", content: "Svaret" } }])
+	})
+
+	it("stops at maxIterations and still emits done", async () => {
+		const driver: ToolTurnDriver = {
+			start: () => gen([{ type: "tool_call", callId: "c1", toolName: "loop", arguments: "{}" }]),
+			continueWith: () => gen([{ type: "tool_call", callId: "c2", toolName: "loop", arguments: "{}" }])
+		}
+		const mcp: McpClient = { listTools: vi.fn(), callTool: vi.fn().mockResolvedValue("X") }
+		const events = await collect(runMcpAgenticLoop(driver, mcp, { maxIterations: 2 }))
+		expect(events.at(-1)?.event).toBe("response.done")
+		expect((mcp.callTool as ReturnType<typeof vi.fn>).mock.calls.length).toBe(1)
+	})
+
+	it("emits a fallback message when maxIterations is hit without the model ever producing any text - the real bug: a model that only ever calls tools, never narrates, previously produced a completely silent response.done with zero output_text.delta events (reproduced live: gpt-5.6-terra chained 11 tool calls across 5 turns and never emitted a single word)", async () => {
+		let callCount = 0
+		const driver: ToolTurnDriver = {
+			start: () => gen([{ type: "tool_call", callId: `c${++callCount}`, toolName: "loop", arguments: "{}" }]),
+			continueWith: () => gen([{ type: "tool_call", callId: `c${++callCount}`, toolName: "loop", arguments: "{}" }])
+		}
+		const mcp: McpClient = { listTools: vi.fn(), callTool: vi.fn().mockResolvedValue("X") }
+		const events = await collect(runMcpAgenticLoop(driver, mcp, { maxIterations: 5 }))
+
+		const textDeltas = events.filter((e) => e.event === "response.output_text.delta")
+		expect(textDeltas).toHaveLength(1)
+		expect((textDeltas[0]?.data as { content: string }).content.length).toBeGreaterThan(0)
+		// The fallback must come before response.done, and after the last tool_result - i.e. it reads
+		// as part of the normal response, not tacked on after the stream already looked finished.
+		expect(events.at(-1)?.event).toBe("response.done")
+		expect(events.at(-2)?.event).toBe("response.output_text.delta")
+	})
+
+	it("emits the same fallback message when a turn simply ends with no pending calls and no text ever produced - the same silent-response bug can happen without ever hitting maxIterations at all", async () => {
+		const driver: ToolTurnDriver = {
+			start: () => gen([{ type: "usage", usage }]), // a turn that produces nothing at all - no text, no tool calls
+			continueWith: () => gen([]) // never actually reached - pendingCalls is empty after the first turn
+		}
+		const mcp: McpClient = { listTools: vi.fn(), callTool: vi.fn() }
+		const events = await collect(runMcpAgenticLoop(driver, mcp))
+
+		const textDeltas = events.filter((e) => e.event === "response.output_text.delta")
+		expect(textDeltas).toHaveLength(1)
+		expect(events.at(-1)?.event).toBe("response.done")
+	})
+
+	it("emits tool_result error when a tool throws, and feeds error back", async () => {
+		const seen: ToolResult[] = []
+		const driver: ToolTurnDriver = {
+			start: () => gen([{ type: "tool_call", callId: "c1", toolName: "bad", arguments: "{}" }]),
+			continueWith: (results: ToolResult[]) => {
+				seen.push(...results)
+				return gen([{ type: "text_delta", itemId: "m1", content: "beklager" }])
+			}
+		}
+		const mcp: McpClient = { listTools: vi.fn(), callTool: vi.fn().mockRejectedValue(new Error("boom")) }
+		const events = await collect(runMcpAgenticLoop(driver, mcp))
+		const toolResult = events.find((e) => e.event === "response.tool_result")
+		expect((toolResult?.data as { status: string }).status).toBe("error")
+		expect(seen[0]?.isError).toBe(true)
+	})
+
+	it("stops cleanly without crashing when the consumer cancels the stream mid-loop", async () => {
+		// Reproduces the exact race seen in production: the client disconnects (reader.cancel())
+		// while mcpClient.callTool is still in flight, and that call still resolves afterward (a real
+		// network call can't be un-sent) - the loop must notice cancellation before its next write
+		// (response.tool_result), not throw ERR_INVALID_STATE trying to report a result to nobody.
+		let resolveFirstCall: ((value: string) => void) | undefined
+		const firstCallPromise = new Promise<string>((resolve) => {
+			resolveFirstCall = resolve
+		})
+		let callToolInvocations = 0
+		let reader: ReadableStreamDefaultReader<Uint8Array>
+		const driver: ToolTurnDriver = {
+			start: () => gen([{ type: "tool_call", callId: "c1", toolName: "loop", arguments: "{}" }]),
+			// Only reached if the loop incorrectly proceeds past cancellation.
+			continueWith: () => gen([{ type: "tool_call", callId: "c2", toolName: "loop", arguments: "{}" }])
+		}
+		const mcp: McpClient = {
+			listTools: vi.fn(),
+			callTool: vi.fn(() => {
+				callToolInvocations++
+				if (callToolInvocations === 1) {
+					// Fires the instant the call starts, before it resolves - simulating the client
+					// disconnecting while this exact call is in flight.
+					reader.cancel("client disconnected")
+					return firstCallPromise
+				}
+				return Promise.resolve("X")
+			})
+		}
+		errorException.mockClear()
+		const stream = runMcpAgenticLoop(driver, mcp)
+		reader = stream.getReader()
+
+		await reader.read() // response.tool_call for c1; by the time this resolves, callTool has
+		// already been invoked once and cancel() has already fired (both happen synchronously inside
+		// the producer before it yields on callTool's still-pending promise).
+
+		resolveFirstCall?.("RESULT") // let the in-flight tool call resolve, as it would on a real (uncancellable) network call
+
+		// Flush microtasks so the producer's post-resolution continuation (attempting to enqueue
+		// response.tool_result, and agentic-loop's own catch block reacting to that) runs.
+		for (let i = 0; i < 10; i++) {
+			await Promise.resolve()
+		}
+
+		// The loop must not proceed to call continueWith / execute a second tool call once cancelled...
+		expect(callToolInvocations).toBe(1)
+		// ...and, critically, must never attempt (and fail) to write to the now-closed controller -
+		// this is exactly the call site agentic-loop.ts's catch block hits in production when that
+		// write throws (see the real "Agentic loop failed ---> TypeError [ERR_INVALID_STATE]" log).
+		expect(errorException).not.toHaveBeenCalled()
+	})
+
+	it("emits tool_call eagerly - interleaved with text_delta in the same turn", async () => {
+		const driver: ToolTurnDriver = {
+			start: () =>
+				gen([
+					{ type: "text_delta", itemId: "m1", content: "intro" },
+					{ type: "tool_call", callId: "c1", toolName: "Search_SharePoint", arguments: "{}" },
+					{ type: "usage", usage }
+				]),
+			continueWith: () =>
+				gen([
+					{ type: "text_delta", itemId: "m2", content: "done" },
+					{ type: "usage", usage }
+				])
+		}
+		const mcp: McpClient = { listTools: vi.fn(), callTool: vi.fn().mockResolvedValue("R") }
+		const events = await collect(runMcpAgenticLoop(driver, mcp))
+
+		const eventNames = events.map((e) => e.event)
+		const deltaIndex = eventNames.indexOf("response.output_text.delta")
+		const toolCallIndex = eventNames.indexOf("response.tool_call")
+		expect(deltaIndex).toBeGreaterThanOrEqual(0)
+		expect(toolCallIndex).toBeGreaterThanOrEqual(0)
+		expect(deltaIndex).toBeLessThan(toolCallIndex)
+	})
+})

@@ -76,6 +76,26 @@ const ResponseWebsearch = z.object({
 	data: z.object({})
 })
 
+const ResponseToolCall = z.object({
+	event: z.literal("response.tool_call"),
+	data: z.object({
+		itemId: z.string(),
+		toolName: z.string(),
+		// Human-readable status text (e.g. "Ser gjennom mappen «FLG-Referat»") - see
+		// describe-tool-call.ts. Optional so an older/not-yet-updated producer of this event still validates.
+		detail: z.string().optional()
+	})
+})
+
+const ResponseToolResult = z.object({
+	event: z.literal("response.tool_result"),
+	data: z.object({
+		itemId: z.string(),
+		toolName: z.string(),
+		status: z.enum(["ok", "error"])
+	})
+})
+
 export const MuginSse = z.discriminatedUnion("event", [
 	// New events
 	ResponseConfig,
@@ -86,7 +106,9 @@ export const MuginSse = z.discriminatedUnion("event", [
 	ConversationCreated,
 	HuginConversationCreated,
 	ResponseAnnotations,
-	ResponseWebsearch
+	ResponseWebsearch,
+	ResponseToolCall,
+	ResponseToolResult
 ])
 
 export type MuginSse = z.infer<typeof MuginSse>

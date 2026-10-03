@@ -5,17 +5,23 @@ import { getVendor } from "$lib/server/ai-vendors"
 import { APP_CONFIG } from "$lib/server/app-config/app-config"
 import { HTTPError } from "$lib/server/middleware/http-error"
 import { apiRequestMiddleware } from "$lib/server/middleware/http-request"
+import { getDefaultModel } from "$lib/server/models/model-registry"
 import type { ApiNextFunction } from "$lib/types/middleware/http-request"
 import { parseMermaidRequest } from "$lib/validation/parse-mermaid-request"
-import { extractTextOutput } from "./extract-text-output"
-
-const MERMAID_VENDOR_ID = "OPENAI" as const
-const MERMAID_MODEL = "gpt-5.6-terra"
+import { extractTextOutput } from "../extract-text-output"
 
 const MERMAID_SYSTEM_PROMPT = `You are a Mermaid diagram generator. The user will give you the current Mermaid diagram source (may be empty) and a prompt describing what to create or change.
 Apply the requested changes and return ONLY valid Mermaid diagram syntax — no explanations, no preamble, no markdown code fences around the output.
 
 For well-known diagram types (flowchart, sequenceDiagram, classDiagram, stateDiagram-v2, erDiagram, gantt, pie, mindmap, journey, timeline) you already know the correct syntax.
+
+The diagram is shown in an Excalidraw editor where the user can move and restyle shapes by hand. Only flowchart, sequenceDiagram, classDiagram, stateDiagram-v2 and erDiagram become editable shapes there; every other type is shown as a flat, non-editable image. So when the user has not asked for a specific diagram type, prefer one of those five whenever it can represent the request well. Use another type only when the user asks for it or when those five clearly cannot express the content (e.g. a gantt schedule or a pie chart).
+
+In "style" and "classDef" lines use only plain CSS color values (hex like #E8F4FD, or color names) and simple properties (fill, stroke, stroke-width, color, stroke-dasharray). Never use url(...), gradients, patterns, SVG references (#id) or HTML — Mermaid cannot parse them.
+
+Never put HTML in node or edge labels — no <br>, <b>, <i> or other tags. Keep labels short; if a label needs a second line, write it as a separate node or shorten it instead.
+
+If the current diagram source comes with a parse error to fix, return the corrected diagram with the same content and structure — change only what is needed to make it valid.
 
 Some newer diagram types use stricter, less familiar keyword-based syntax. Do not improvise or guess syntax for these — use exactly this structure:
 
@@ -64,8 +70,9 @@ const mermaidHandler: ApiNextFunction = async ({ requestEvent, user }) => {
 	if (!canUseCanvas(user, APP_CONFIG.APP_ROLES)) {
 		throw new HTTPError(403, "Not authorized to use Canvas")
 	}
-	if (!APP_CONFIG.VENDORS.OPENAI.ENABLED) {
-		throw new HTTPError(503, "Diagram is not available — OpenAI vendor is not configured")
+	const canvasModel = getDefaultModel("canvas")
+	if (!canvasModel) {
+		throw new HTTPError(503, "Diagram is not available — the canvas model's vendor is not configured")
 	}
 
 	const body = await requestEvent.request.json()
@@ -75,15 +82,15 @@ const mermaidHandler: ApiNextFunction = async ({ requestEvent, user }) => {
 
 	const userMessage = diagram ? `Here is the current Mermaid diagram source:\n\n${diagram}\n\n---\n\nUser instruction: ${prompt}` : prompt
 
-	const vendor = getVendor(MERMAID_VENDOR_ID)
+	const vendor = getVendor(canvasModel.vendorId)
 	const response = await vendor.createChatResponse({
 		config: {
 			_id: "",
 			name: "Canvas Mermaid",
 			description: "",
-			vendorId: MERMAID_VENDOR_ID,
-			project: "DEFAULT",
-			model: MERMAID_MODEL,
+			vendorId: canvasModel.vendorId,
+			project: canvasModel.project,
+			model: canvasModel.model,
 			accessGroups: ["all"],
 			type: "private",
 			created: { at: "", by: { id: "" } },

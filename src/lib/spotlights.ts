@@ -23,25 +23,43 @@ export type SpotlightDefinition = {
 	subtext?: string
 	placement?: SpotlightPlacement
 	backdrop?: boolean
+	/** CSS length, e.g. "32rem" for long copy. Defaults to "20rem". */
+	width?: string
 	/** Same semantics as ChatConfig.accessGroups / canPromptConfig. Omit for everyone
 	 *  (SpotlightHost defaults to ["all"]) - ADMIN always sees it regardless. */
 	accessGroups?: (RoleAccessGroups | EntraAccessGroup)[]
 }
 
 export const SPOTLIGHTS: SpotlightDefinition[] = [
+	// {
+	//   id: "Historikk-elev-1",
+	//   icon: "auto_awesome",
+	//   header: "Historikk i Hugin",
+	//   text: `Hugin husker nå samtalene du har med den. 🎉
+
+	// 	Samtaler lagres automatisk. Du kan slette gamle samtaler eller gjenoppta en samtale under <span class="spotlight-pill"><span class="material-symbols-rounded">history</span>Samtaler</span> i toppmenyen.
+
+	// 	Hvis du ikke ønsker å lagre samtaler, skrur du på <span class="spotlight-pill">Inkognito</span>-modus.`,
+	//   placement: "top-center",
+	//   backdrop: true,
+	//   accessGroups: ["student"],
+	// },
 	{
-		id: "Historikk-124",
+		id: "simple-models-1",
 		icon: "auto_awesome",
-		header: "Historikk i Hugin",
-		text: `Hugin husker nå samtalene du har med den. 🎉
+		width: "32rem",
+		header: "Enklere modellvalg",
+		text: `Nå er det enklere å velge. 🎉
 
-			Samtaler lagres automatisk. Du kan slette gamle samtaler eller gjenoppta en samtale under <span class="spotlight-pill"><span class="material-symbols-rounded">history</span>Samtaler</span> i toppmenyen.
+		KI utvikler seg i rasende fart.	Nå kan du velge om KI-modellen skal være:
 
-			Hvis du ikke ønsker å lagre samtaler, skrur du på <span class="spotlight-pill">Inkognito</span>-modus.`,
+		⚡ Rask - Raske svar på enkle oppgaver
+		🧠 Grundig - Analyse, resonnering og lange dokumenter
+		🇪🇺 Europeisk - Data behandles innenfor EU`,
 		placement: "top-center",
 		backdrop: true,
 		// Excludes "student": student-only accounts are forced incognito and never get
-		// history stored (see isStudentOnly in $lib/authorization), so this doesn't apply.
+		// history stored (see canUseHistory in $lib/authorization), so this doesn't apply.
 		accessGroups: ["employee", "edu_employee"]
 	}
 ]
