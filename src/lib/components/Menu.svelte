@@ -4,8 +4,10 @@
 	import { onNavigate } from "$app/navigation"
 	import { page } from "$app/state"
 	import favicon16 from "$lib/assets/favicon-16x16.png"
+	import { ROLE_PREVIEW_LABELS, ROLE_PREVIEW_ROLES, type RolePreviewRole, setRolePreview } from "$lib/role-preview"
 	import type { AuthenticatedPrincipal } from "$lib/types/authentication"
 	import type { ChatConfig } from "$lib/types/chat"
+	import RolePreviewBanner from "./RolePreviewBanner.svelte"
 
 	type Props = {
 		authenticatedUser: AuthenticatedPrincipal
@@ -14,8 +16,9 @@
 		canUseTranscription: boolean
 		canvasEnabled: boolean
 		isAdmin: boolean
+		canPreviewRoles: boolean
 	}
-	let { authenticatedUser, appName, isEmployee, canUseTranscription, canvasEnabled, isAdmin }: Props = $props()
+	let { authenticatedUser, appName, isEmployee, canUseTranscription, canvasEnabled, isAdmin, canPreviewRoles }: Props = $props()
 
 	let menuOpen = $state(true)
 	let menuAgents: { isLoading: boolean; agents: ChatConfig[]; error: string | null } = $state({ isLoading: false, agents: [], error: null })
@@ -93,21 +96,39 @@
 
 	let showUserSettings = $state(false)
 	let settingSkipNewChatConfirm = $state(false)
+	// "" = no preview (see yourself with your real roles)
+	let settingRolePreview: RolePreviewRole | "" = $state("")
 
 	const openUserSettings = () => {
 		settingSkipNewChatConfirm = localStorage.getItem(STORAGE_KEY) === "true"
+		settingRolePreview = authenticatedUser.rolePreview ?? ""
 		showUserSettings = true
 	}
 
-	const saveUserSettings = () => {
+	const saveUserSettings = async () => {
 		localStorage.setItem(STORAGE_KEY, settingSkipNewChatConfirm ? "true" : "false")
 		showUserSettings = false
+		if (canPreviewRoles && settingRolePreview !== (authenticatedUser.rolePreview ?? "")) {
+			try {
+				await setRolePreview(settingRolePreview || null)
+			} catch (error) {
+				console.error("Error setting role preview:", error)
+				alert("Kunne ikke bytte rolle")
+			}
+		}
 	}
 </script>
 
 {#if !menuOpen}
 	<div class="open-menu-container" transition:fade={{ duration: 100, delay: 100 }}>
-		<button class="icon-button" onclick={toggleMenu} title="Åpne meny">
+		<!-- With the menu closed the RolePreviewBanner isn't visible - mark the open button instead, so a
+		     preview never goes unnoticed. -->
+		<button
+			class="icon-button"
+			class:role-preview-active={authenticatedUser.rolePreview}
+			onclick={toggleMenu}
+			title={authenticatedUser.rolePreview ? `Åpne meny (du ser Hugin som ${ROLE_PREVIEW_LABELS[authenticatedUser.rolePreview]})` : "Åpne meny"}
+		>
 			<span class="material-symbols-rounded">left_panel_open</span>
 		</button>
 	</div>
@@ -202,6 +223,9 @@
 				</div>
 			{/if}
 		</div>
+		{#if authenticatedUser.rolePreview}
+			<RolePreviewBanner role={authenticatedUser.rolePreview} />
+		{/if}
 		<div class="menu-footer">
 			<button class="icon-button logged-in-user" onclick={openUserSettings} title="Brukerinnstillinger">
 				<span class="material-symbols-outlined">account_circle</span>
@@ -223,6 +247,17 @@
 					<input type="checkbox" bind:checked={settingSkipNewChatConfirm} />
 					<span>Ikke vis advarsel ved ny samtale</span>
 				</label>
+				{#if canPreviewRoles}
+					<label class="settings-select">
+						<span>Opplev Hugin som</span>
+						<select bind:value={settingRolePreview}>
+							<option value="">Meg selv</option>
+							{#each ROLE_PREVIEW_ROLES as role}
+								<option value={role}>{ROLE_PREVIEW_LABELS[role]}</option>
+							{/each}
+						</select>
+					</label>
+				{/if}
 			</div>
 			<div class="settings-actions">
 				<button onclick={() => showUserSettings = false}>Avbryt</button>
@@ -249,6 +284,10 @@
 	.open-menu-container {
 		position: fixed;
 		z-index: 100;
+	}
+	.role-preview-active {
+		background-color: var(--color-primary);
+		color: white;
 	}
 	.menu-header {
 		justify-content: space-between;
@@ -379,6 +418,14 @@
 	}
 	.settings-toggle input {
 		width: auto;
+	}
+	.settings-select {
+		display: flex;
+		flex-direction: column;
+		gap: 0.3rem;
+		font-size: 0.9rem;
+		color: inherit;
+		padding-bottom: 0;
 	}
 	.settings-actions {
 		display: flex;

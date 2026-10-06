@@ -1,4 +1,5 @@
 import z from "zod"
+import { ROLE_PREVIEW_ROLES } from "$lib/role-preview"
 
 /**
  * @links
@@ -49,7 +50,9 @@ export const AuthenticatedPrincipalSchema = z.object({
 	/** list of roles (values) the user has */
 	roles: z.array(z.string()),
 	/** list of groupIds the user is a member of */
-	groups: z.array(z.string())
+	groups: z.array(z.string()),
+	/** Set when an admin is previewing Hugin as a lower role ("Opplev Hugin som") - roles/groups above are then the previewed ones, not the real ones */
+	rolePreview: z.enum(ROLE_PREVIEW_ROLES).optional()
 })
 
 export type AuthenticatedPrincipal = z.infer<typeof AuthenticatedPrincipalSchema>

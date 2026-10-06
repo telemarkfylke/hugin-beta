@@ -29,7 +29,7 @@ const profile = (id: string, extra: Partial<ClientModelProfile> = {}): ClientMod
 })
 
 const noMime = { FILE: [], IMAGE: [] }
-const APP_ROLES = { ADMIN: "Admin", AGENT_MAINTAINER: "AgentMaintainer", EMPLOYEE: "Employee", STUDENT: "Student", EDU_EMPLOYEE: "eduemployee" }
+const APP_ROLES = { ADMIN: "Admin", AGENT_MAINTAINER: "AgentMaintainer", EMPLOYEE: "Employee", STUDENT: "Student", EDU_EMPLOYEE: "eduemployee", QA: "QA" }
 const APP_CONFIG = {
 	APP_ROLES,
 	MODEL_PROFILES: [profile("rask"), profile("lokal", { roles: ["employee"], vendorId: "LITELLM", model: "normistral" })],

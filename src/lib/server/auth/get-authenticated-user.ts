@@ -4,6 +4,7 @@ import { logger } from "@vestfoldfylke/loglady"
 import type { AuthenticatedPrincipal, MSPrincipalClaims } from "$lib/types/authentication"
 import { MS_AUTH_PRINCIPAL_CLAIMS_HEADER, MS_PRINCIPAL_CLAIM_TYPS } from "./auth-constants"
 import { injectMockAuthenticatedUserHeaders, MOCK_AUTH } from "./mock-authenticated-user"
+import { applyRolePreview } from "./role-preview"
 
 export const getPrincipalClaims = (base64EncodedHeaderValue: string): MSPrincipalClaims => {
 	if (!base64EncodedHeaderValue) {
@@ -37,7 +38,12 @@ export const getPrincipalClaims = (base64EncodedHeaderValue: string): MSPrincipa
 	return principalClaims as MSPrincipalClaims
 }
 
-export const getAuthenticatedPrincipal = (headers: Headers): AuthenticatedPrincipal => {
+/**
+ * The user exactly as EasyAuth/Entra says - ignoring any "Opplev Hugin som" role preview. Only for
+ * the few places that must decide based on who the user really is (switching the preview itself),
+ * everything else uses getAuthenticatedPrincipal.
+ */
+export const getRealAuthenticatedPrincipal = (headers: Headers): AuthenticatedPrincipal => {
 	if (MOCK_AUTH) {
 		headers = injectMockAuthenticatedUserHeaders(headers)
 	}
@@ -69,4 +75,9 @@ export const getAuthenticatedPrincipal = (headers: Headers): AuthenticatedPrinci
 		roles,
 		groups
 	}
+}
+
+/** The user as the rest of the app should see them - with the QA role preview applied, if active (see ./role-preview). */
+export const getAuthenticatedPrincipal = (headers: Headers): AuthenticatedPrincipal => {
+	return applyRolePreview(getRealAuthenticatedPrincipal(headers), headers)
 }

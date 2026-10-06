@@ -23,6 +23,8 @@ export type AppRoles = {
 	EMPLOYEE: string
 	STUDENT: string
 	EDU_EMPLOYEE: string
+	// Grants the "Opplev Hugin som" role switcher (see $lib/role-preview) - assign in test environments only
+	QA: string
 }
 
 export type TranscriptionGroup = {

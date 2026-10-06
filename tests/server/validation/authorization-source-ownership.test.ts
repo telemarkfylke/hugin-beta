@@ -5,7 +5,7 @@ import type { AuthenticatedPrincipal } from "../../../src/lib/types/authenticati
 import type { McpSource } from "../../../src/lib/types/mcp-source"
 import type { WebsiteSource } from "../../../src/lib/types/website-source"
 
-const appRoles: AppRoles = { ADMIN: "Admin", AGENT_MAINTAINER: "AgentMaintainer", EMPLOYEE: "Employee", STUDENT: "Student", EDU_EMPLOYEE: "eduemployee" }
+const appRoles: AppRoles = { ADMIN: "Admin", AGENT_MAINTAINER: "AgentMaintainer", EMPLOYEE: "Employee", STUDENT: "Student", EDU_EMPLOYEE: "eduemployee", QA: "QA" }
 
 const owner: AuthenticatedPrincipal = { userId: "owner-1", name: "Eier", preferredUserName: "owner", roles: ["Employee"], groups: [] }
 const otherEmployee: AuthenticatedPrincipal = { userId: "other-1", name: "Annen", preferredUserName: "other", roles: ["Employee"], groups: [] }

@@ -48,6 +48,7 @@
 			canUseTranscription={canUseTranscription(data.authenticatedUser, data.APP_CONFIG)}
 			canvasEnabled={data.APP_CONFIG.CANVAS_ENABLED}
 			isAdmin={data.authenticatedUser.roles.includes(data.APP_CONFIG.APP_ROLES.ADMIN)}
+			canPreviewRoles={data.authenticatedUser.roles.includes(data.APP_CONFIG.APP_ROLES.QA) || data.authenticatedUser.rolePreview !== undefined}
 		/>
 		<div class="page-content">
 			{#if children}

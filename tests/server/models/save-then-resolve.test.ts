@@ -29,7 +29,7 @@ const ctx: ModelContext = { modelConfig: MODEL_CONFIG, isVendorEnabled: () => tr
 const vendor = (name: string, vendorId: "OPENAI" | "LITELLM") => ({ NAME: name, ENABLED: true, PROJECTS: ["DEFAULT"], MODELS: deriveVendorModels(MODEL_CONFIG, vendorId) })
 
 const APP_CONFIG = {
-	APP_ROLES: { ADMIN: "Admin", AGENT_MAINTAINER: "AgentMaintainer", EMPLOYEE: "Employee", STUDENT: "Student", EDU_EMPLOYEE: "eduemployee" },
+	APP_ROLES: { ADMIN: "Admin", AGENT_MAINTAINER: "AgentMaintainer", EMPLOYEE: "Employee", STUDENT: "Student", EDU_EMPLOYEE: "eduemployee", QA: "QA" },
 	MODEL_PROFILES: buildClientProfiles(ctx),
 	VENDORS: { OPENAI: vendor("OpenAI", "OPENAI"), LITELLM: vendor("LiteLLM", "LITELLM") }
 } as unknown as AppConfig

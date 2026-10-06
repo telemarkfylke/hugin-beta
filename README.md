@@ -616,6 +616,7 @@ APP_ROLE_STUDENT="Student"
 APP_ROLE_ADMIN="Admin"
 APP_ROLE_AGENT_MAINTAINER="AgentMaintainer"
 APP_ROLE_EDU_EMPLOYEE="eduemployee" # optional - defaults to "eduemployee" if unset
+APP_ROLE_QA="QA"              # optional - defaults to "QA" if unset; grants "Opplev Hugin som" - assign in test environments only
 
 # Feature flags
 CANVAS_ENABLED="true"             # Enable the Canvas document editor
