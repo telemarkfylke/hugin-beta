@@ -84,8 +84,8 @@ const supahChat: ApiNextFunction = async ({ requestEvent, user }) => {
 
 	const chatRequest = parseChatRequest(body)
 
-	// Students' conversations must never be persisted - enforce server-side regardless of
-	// what the client sent, since the incognito toggle is only hidden/disabled client-side.
+	// Users without history must never have conversations persisted - enforce server-side regardless
+	// of what the client sent, since the incognito toggle is only hidden/disabled client-side.
 	if (!canUseHistory(user, APP_CONFIG.APP_ROLES)) {
 		chatRequest.store = false
 	}

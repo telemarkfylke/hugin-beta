@@ -169,7 +169,7 @@ All access-control decisions go through named functions in `src/lib/authorizatio
 | `canViewMcpSource` / `canViewWebsiteSource` | `ADMIN`; the source's own `type === "published"`; or the source's creator |
 | `canEditMcpSource` / `canEditWebsiteSource` | `ADMIN`, or the source's creator - regardless of `type` (a published source is still owner/admin-only to edit or delete) |
 | `isStudentOnly` | `STUDENT` is the user's *only* role (a user who is both `STUDENT` and `EDU_EMPLOYEE` does not count) |
-| `canUseHistory` | anyone except a student-only user — students are always forced into incognito, no history is ever stored |
+| `canUseHistory` | everyone — the former student-only restriction is commented out in `authorization.ts` and can be re-enabled with a one-line change; when false, incognito is forced and history hidden |
 | `canSeeSpotlight` | audience gate for [Feature Spotlight](#feature-spotlight) announcements; uses the same `accessGroups` semantics as `canPromptConfig` |
 
 Regular users can define their own chat configs and test them against `/api/chat`, but cannot create configs pointing at predefined agent/prompt IDs configured in a vendor — those are only usable via a predefined chat config in the database, created by a user with `AGENT_MAINTAINER` or `ADMIN` permissions. Transcription access is currently gated separately from this table — see [Transcription](#transcription-tale-til-notat).
@@ -410,7 +410,7 @@ When called, the server fetches the page, converts it to plain text (`html-to-te
 
 Conversations can be persisted so users can revisit earlier chats, with an auto-generated title and optional at-rest encryption for message content and titles/summaries.
 
-- **History** — `canUseHistory` gates this: everyone except a student-only user (see [Authorization](#authorization)) — student conversations are never stored, forcing incognito mode everywhere, client and server.
+- **History** — `canUseHistory` gates this (see [Authorization](#authorization)): currently everyone, students included, with the same defaults as employees. When it returns false, incognito is forced everywhere, client and server.
 - **Incognito** — any chat can opt out of persistence per-request (`store: false`), regardless of role.
 - **Encryption** — optional; if `CONVERSATION_ENCRYPTION_KEYS`/`CONVERSATION_ENCRYPTION_ACTIVE_KEY` are unset, messages/titles/summaries are stored in plaintext. When set, encryption is keyed by a free-form "key version" string so keys can be rotated per environment.
 
@@ -489,7 +489,7 @@ This is rendered through its own small `markdown-it` instance (`src/lib/formatti
 
 `.spotlight-pill` is deliberately styled *unlike* a real button (no pointer cursor, no hover state, a subtle background instead of the transparent-hover-highlight look real buttons have) — it's a reference chip saying "this is what to look for," not a clickable mimic that could confuse users into clicking it. `text` is standard Markdown throughout — this inline HTML isn't a separate mechanism layered on top, it's CommonMark's normal inline-HTML passthrough, just correctly left enabled.
 
-**Restricting the audience:** not every announcement applies to every user (e.g. a conversation-history announcement is meaningless for student-only accounts, who never get history stored — see `isStudentOnly` in `src/lib/authorization.ts`). There's no dedicated prop for this — reuse the existing `active` gate with `canSeeSpotlight`, which shares the exact same `accessGroups` semantics as `ChatConfig.accessGroups`/`canPromptConfig`, so an announcement's audience is declared the same way an agent's audience is:
+**Restricting the audience:** not every announcement applies to every user (e.g. an announcement only relevant to employees shouldn't be shown to student-only accounts — see `isStudentOnly` in `src/lib/authorization.ts`). There's no dedicated prop for this — reuse the existing `active` gate with `canSeeSpotlight`, which shares the exact same `accessGroups` semantics as `ChatConfig.accessGroups`/`canPromptConfig`, so an announcement's audience is declared the same way an agent's audience is:
 
 ```svelte
 <script lang="ts">

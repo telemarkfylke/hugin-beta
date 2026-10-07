@@ -133,9 +133,8 @@ export class ChatState {
 	public apiEndpoint: string
 	// See ChatStateOptions.lockedTools - null means the user is free to toggle both, same as today.
 	public lockedTools: { webSearch: boolean; datasource: boolean } | null = null
-	// Students-only accounts (role STUDENT and nothing else) never get their conversations stored -
-	// incognito isn't a separate toggle for them, it's just what having no history means. See
-	// canUseHistory in $lib/authorization.
+	// When false, conversations are never stored - incognito isn't a separate toggle then, it's just
+	// what having no history means. See canUseHistory in $lib/authorization.
 	public canUseHistory: boolean = $state(true)
 	public configMode: boolean = $state(false)
 	public initialConfig: ChatConfig = $state(placeHolderConfig)

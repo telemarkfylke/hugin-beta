@@ -71,11 +71,14 @@ export const isStudentOnly = (user: AuthenticatedPrincipal, appRoles: AppRoles):
 	return user.roles.includes(appRoles.STUDENT) && user.roles.every((role) => role === appRoles.STUDENT)
 }
 
-// Students' conversations must never be stored. Everyone can use history except a student-only
-// user (see isStudentOnly above). Used to force incognito mode and hide conversation history
-// everywhere, client and server.
-export const canUseHistory = (user: AuthenticatedPrincipal, appRoles: AppRoles): boolean => {
-	return !isStudentOnly(user, appRoles)
+// Gates conversation history everywhere, client and server - when false, incognito is forced and
+// history is hidden. Student-only users (see isStudentOnly above) used to be blocked here; that
+// restriction is now lifted and everyone gets history, same defaults as employees. The check is
+// kept commented out (rather than removed along with the call sites) so it can be switched back
+// on with a one-line change.
+export const canUseHistory = (_user: AuthenticatedPrincipal, _appRoles: AppRoles): boolean => {
+	// return !isStudentOnly(_user, _appRoles)
+	return true
 }
 
 // Same accessGroups semantics as ChatConfig.accessGroups/canPromptConfig - reused here so a
