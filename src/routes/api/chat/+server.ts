@@ -133,7 +133,10 @@ const supahChat: ApiNextFunction = async ({ requestEvent, user }) => {
 
 	const datasourceToolActive = chatRequest.config.tools?.some((t) => t.type === "datasource") ?? false
 	const ragStoreIds = datasourceToolActive ? (chatRequest.config.dataSources?.filter((s) => s.type === "ragservice").map((s) => s.id) ?? []) : []
-	const websiteSourceIds = datasourceToolActive ? (chatRequest.config.dataSources?.filter((s) => s.type === "website").map((s) => s.id) ?? []) : []
+	// Website sources are dropped (not rejected) for users who may not use them, so an existing
+	// assistant that has one keeps working for everyone else - see canUseWebsiteDataSource.
+	const websiteSourceIds =
+		datasourceToolActive && canUseWebsiteDataSource(user, APP_CONFIG.APP_ROLES) ? (chatRequest.config.dataSources?.filter((s) => s.type === "website").map((s) => s.id) ?? []) : []
 	// Read before stripping tools below - RAG search (if active) still runs first and mutates
 	// chatRequest.config.instructions either way, so the MCP/website loop (if also active) sees the
 	// RAG-augmented instructions.
@@ -141,10 +144,6 @@ const supahChat: ApiNextFunction = async ({ requestEvent, user }) => {
 
 	if (mcpSharepointActive && !canUseMcpSharepoint(user, APP_CONFIG.APP_ROLES)) {
 		throw new HTTPError(403, "Not authorized to use SharePoint MCP")
-	}
-
-	if (websiteSourceIds.length > 0 && !canUseWebsiteDataSource(user, APP_CONFIG.APP_ROLES)) {
-		throw new HTTPError(403, "Not authorized to use website data sources")
 	}
 
 	// Flatten every selected website source's entries into one combined allow-list - a bot can

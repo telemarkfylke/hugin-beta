@@ -5,7 +5,7 @@
 	import favicon32 from "$lib/assets/favicon-32x32.png"
 	import "../style.css" // Add global css (and make it hot reload)
 	import "../lib/axe.js"
-	import { canUseTranscription } from "$lib/authorization"
+	import { canUseCanvas, canUseDatasources, canUseTranscription } from "$lib/authorization"
 	import Menu from "$lib/components/Menu.svelte"
 	import SpotlightHost from "$lib/components/SpotlightHost.svelte"
 	import type { LayoutProps } from "./$types.js"
@@ -46,7 +46,8 @@
 			appName={data.APP_CONFIG.NAME}
 			isEmployee={data.authenticatedUser.roles.includes(data.APP_CONFIG.APP_ROLES.EMPLOYEE)}
 			canUseTranscription={canUseTranscription(data.authenticatedUser, data.APP_CONFIG)}
-			canvasEnabled={data.APP_CONFIG.CANVAS_ENABLED}
+			canUseCanvas={data.APP_CONFIG.CANVAS_ENABLED && canUseCanvas(data.authenticatedUser, data.APP_CONFIG.APP_ROLES)}
+			canUseDatasources={canUseDatasources(data.authenticatedUser, data.APP_CONFIG.APP_ROLES)}
 			isAdmin={data.authenticatedUser.roles.includes(data.APP_CONFIG.APP_ROLES.ADMIN)}
 			canPreviewRoles={data.authenticatedUser.roles.includes(data.APP_CONFIG.APP_ROLES.QA) || data.authenticatedUser.rolePreview !== undefined}
 		/>

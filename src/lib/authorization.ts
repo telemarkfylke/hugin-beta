@@ -133,13 +133,19 @@ export const canManageMcpSources = (user: AuthenticatedPrincipal, appRoles: AppR
 	return user.roles.includes(appRoles.ADMIN)
 }
 
-// Unlike Ragservice/MCP, Website sources touch no live external system and grant no org-wide
-// search/document access - they're just admin-curated URLs a bot is allowed to fetch. Open to
-// every authenticated user, students included: someone must still create/publish a source (or
-// have one shared with them) before it's usable, so there's no meaningful "who can use the
-// feature at all" gate left to apply here beyond being logged in.
-export const canUseWebsiteDataSource = (_user: AuthenticatedPrincipal, _appRoles: AppRoles): boolean => {
-	return true
+// Admin-only for now: the network firewall blocks a large share of outside sites, so most
+// browse_website fetches fail and bots answer badly. Hidden from everyone else (Websites tab,
+// source picker, chat) until that is sorted out. Website sources grant no org-wide access, so
+// opening this back up is safe once fetching works - it used to return true for every
+// authenticated user, students included.
+export const canUseWebsiteDataSource = (user: AuthenticatedPrincipal, appRoles: AppRoles): boolean => {
+	return user.roles.includes(appRoles.ADMIN)
+}
+
+// Whether the user has at least one /datasources tab - gates the Datakilder menu link and the
+// /datasources layout. Each tab still enforces its own check.
+export const canUseDatasources = (user: AuthenticatedPrincipal, appRoles: AppRoles): boolean => {
+	return canUseRagservice(user, appRoles) || canManageMcpSources(user, appRoles) || canUseWebsiteDataSource(user, appRoles)
 }
 
 // canUse{Mcp,WebsiteData}Source above only gates whether someone can use the *feature* at all

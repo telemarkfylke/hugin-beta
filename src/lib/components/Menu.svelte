@@ -14,11 +14,13 @@
 		appName: string
 		isEmployee: boolean
 		canUseTranscription: boolean
-		canvasEnabled: boolean
+		canUseCanvas: boolean
+		canUseDatasources: boolean
 		isAdmin: boolean
 		canPreviewRoles: boolean
 	}
-	let { authenticatedUser, appName, isEmployee, canUseTranscription, canvasEnabled, isAdmin, canPreviewRoles }: Props = $props()
+	let { authenticatedUser, appName, isEmployee, canUseTranscription, canUseCanvas, canUseDatasources, isAdmin, canPreviewRoles }: Props = $props()
+	const showTranscription = $derived((isEmployee || isAdmin) && canUseTranscription)
 
 	let menuOpen = $state(true)
 	let menuAgents: { isLoading: boolean; agents: ChatConfig[]; error: string | null } = $state({ isLoading: false, agents: [], error: null })
@@ -197,23 +199,19 @@
 				{/if}
 			</div>
 			<!-- Hugin-only services. Hidden unless APP_NAME="Hugin" (defaults to "Mugin"); set it in your .env for local dev. -->
-			{#if appName === "Hugin"}
+			{#if appName === "Hugin" && (showTranscription || canUseCanvas || canUseDatasources)}
 				<div class="menu-section">
 					<div class="menu-section-title">Andre tjenester</div>
 					<div class="menu-items">
-						{#if isEmployee || isAdmin}
-							{#if canUseTranscription}
-								<a class="menu-item" class:active={page.url.pathname === "/transcription"} href="/transcription">Tale-til-notat</a>
-							{/if}
-							{#if canvasEnabled}
-								<a class="menu-item" class:active={page.url.pathname.startsWith("/canvas")} href="/canvas/document">Kladdeboka</a>
-							{/if}
+						{#if showTranscription}
+							<a class="menu-item" class:active={page.url.pathname === "/transcription"} href="/transcription">Tale-til-notat</a>
 						{/if}
-						<!-- Open to everyone, students included: Websites (one of its three tabs) has no
-						     role restriction - see canUseWebsiteDataSource - so the link itself can't be
-						     employee-gated even though Dokumentsøk/MCP still are (each tab enforces its
-						     own check server-side regardless of this link's visibility). -->
-						<a class="menu-item" class:active={page.url.pathname.startsWith("/datasources")} href="/datasources">Datakilder</a>
+						{#if canUseCanvas}
+							<a class="menu-item" class:active={page.url.pathname.startsWith("/canvas")} href="/canvas/document">Kladdeboka</a>
+						{/if}
+						{#if canUseDatasources}
+							<a class="menu-item" class:active={page.url.pathname.startsWith("/datasources")} href="/datasources">Datakilder</a>
+						{/if}
 					</div>
 				</div>
 			{/if}

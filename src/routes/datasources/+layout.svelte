@@ -9,7 +9,7 @@
 		{ id: "mcp", label: "MCP", icon: "cable", href: "/datasources/mcp" },
 		{ id: "web", label: "Websites", icon: "public", href: "/datasources/web" }
 	]
-	const TABS = $derived(ALL_TABS.filter((tab) => tab.id !== "mcp" || data.canManageMcpSources))
+	const TABS = $derived(ALL_TABS.filter((tab) => (tab.id !== "mcp" || data.canManageMcpSources) && (tab.id !== "web" || data.canUseWebsiteDataSource)))
 </script>
 
 <div class="datasources-page">
