@@ -92,21 +92,16 @@
 		menuOpen = !menuOpen
 	}
 
-	const STORAGE_KEY = "hugin_skip_new_chat_confirm"
-
 	let showUserSettings = $state(false)
-	let settingSkipNewChatConfirm = $state(false)
 	// "" = no preview (see yourself with your real roles)
 	let settingRolePreview: RolePreviewRole | "" = $state("")
 
 	const openUserSettings = () => {
-		settingSkipNewChatConfirm = localStorage.getItem(STORAGE_KEY) === "true"
 		settingRolePreview = authenticatedUser.rolePreview ?? ""
 		showUserSettings = true
 	}
 
 	const saveUserSettings = async () => {
-		localStorage.setItem(STORAGE_KEY, settingSkipNewChatConfirm ? "true" : "false")
 		showUserSettings = false
 		if (canPreviewRoles && settingRolePreview !== (authenticatedUser.rolePreview ?? "")) {
 			try {
@@ -243,10 +238,6 @@
 				<p class="settings-tagline">Ikke mye her ennå…</p>
 			</div>
 			<div class="settings-options">
-				<label class="settings-toggle">
-					<input type="checkbox" bind:checked={settingSkipNewChatConfirm} />
-					<span>Ikke vis advarsel ved ny samtale</span>
-				</label>
 				{#if canPreviewRoles}
 					<label class="settings-select">
 						<span>Opplev Hugin som</span>
@@ -406,18 +397,6 @@
 		display: flex;
 		flex-direction: column;
 		gap: 0.75rem;
-	}
-	.settings-toggle {
-		display: flex;
-		align-items: center;
-		gap: 0.6rem;
-		font-size: 0.9rem;
-		cursor: pointer;
-		color: inherit;
-		padding-bottom: 0;
-	}
-	.settings-toggle input {
-		width: auto;
 	}
 	.settings-select {
 		display: flex;
