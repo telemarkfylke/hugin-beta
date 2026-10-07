@@ -202,22 +202,19 @@
 				{/if}
 			</div>
 			<!-- Hugin-only services. Hidden unless APP_NAME="Hugin" (defaults to "Mugin"); set it in your .env for local dev. -->
-			{#if appName === "Hugin"}
+			{#if appName === "Hugin" && (isEmployee || isAdmin)}
 				<div class="menu-section">
 					<div class="menu-section-title">Andre tjenester</div>
 					<div class="menu-items">
-						{#if isEmployee || isAdmin}
-							{#if canUseTranscription}
-								<a class="menu-item" class:active={page.url.pathname === "/transcription"} href="/transcription">Tale-til-notat</a>
-							{/if}
-							{#if canvasEnabled}
-								<a class="menu-item" class:active={page.url.pathname.startsWith("/canvas")} href="/canvas/document">Kladdeboka</a>
-							{/if}
+						{#if canUseTranscription}
+							<a class="menu-item" class:active={page.url.pathname === "/transcription"} href="/transcription">Tale-til-notat</a>
 						{/if}
-						<!-- Open to everyone, students included: Websites (one of its three tabs) has no
-						     role restriction - see canUseWebsiteDataSource - so the link itself can't be
-						     employee-gated even though Dokumentsøk/MCP still are (each tab enforces its
-						     own check server-side regardless of this link's visibility). -->
+						{#if canvasEnabled}
+							<a class="menu-item" class:active={page.url.pathname.startsWith("/canvas")} href="/canvas/document">Kladdeboka</a>
+						{/if}
+						<!-- Every /datasources tab is employee-or-admin now (Websites is admin-only, see
+						     canManageWebsiteSources), so students/edu_employee-only have no tab to land on.
+						     Each tab still enforces its own check server-side regardless of this link. -->
 						<a class="menu-item" class:active={page.url.pathname.startsWith("/datasources")} href="/datasources">Datakilder</a>
 					</div>
 				</div>

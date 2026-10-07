@@ -1,5 +1,5 @@
 import { json, type RequestHandler } from "@sveltejs/kit"
-import { canUseWebsiteDataSource } from "$lib/authorization"
+import { canManageWebsiteSources, canUseWebsiteDataSource } from "$lib/authorization"
 import { APP_CONFIG } from "$lib/server/app-config/app-config"
 import { getWebsiteSourceStore } from "$lib/server/db/get-db"
 import { HTTPError } from "$lib/server/middleware/http-error"
@@ -32,8 +32,8 @@ const createWebsiteSource: ApiNextFunction = async ({ requestEvent, user }) => {
 	if (!requestEvent) {
 		throw new HTTPError(400, "No request event")
 	}
-	if (!canUseWebsiteDataSource(user, APP_CONFIG.APP_ROLES)) {
-		throw new HTTPError(403, "Not authorized to use website data sources")
+	if (!canManageWebsiteSources(user, APP_CONFIG.APP_ROLES)) {
+		throw new HTTPError(403, "Not authorized to manage website data sources")
 	}
 
 	const body = await requestEvent.request.json()
