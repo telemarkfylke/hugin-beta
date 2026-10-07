@@ -82,6 +82,25 @@ const assertFetchable = async (url: URL, entries: WebsiteSourceEntry[]): Promise
 	await assertPublicHost(url)
 }
 
+// Node's fetch reports every network-level failure (DNS, refused connection, TLS, timeout) as a bare
+// "fetch failed" TypeError, with the actual reason only on error.cause. The full cause is logged
+// server-side only - its message can carry internal details (proxy IP:port, TLS chain) and the
+// thrown message goes to the model as a tool result, which it may repeat to the end user. The
+// thrown message gets just the generic error code (ENOTFOUND, ECONNREFUSED, ...).
+const fetchWithCause = async (url: URL, signal: AbortSignal): Promise<Response> => {
+	try {
+		return await fetch(url, { signal, redirect: "manual", headers: { "user-agent": "Hugin/1.0 (+https://telemarkfylke.no)" } })
+	} catch (error) {
+		if (signal.aborted) {
+			throw new Error(`Henting av «${url.href}» tok for lang tid (over ${FETCH_TIMEOUT_MS / 1000} sekunder)`)
+		}
+		const cause = error instanceof Error ? (error.cause as { code?: string; message?: string } | undefined) : undefined
+		logger.warn("[website-tool-client] Fetch failed for {url}: {code} {message}", url.href, cause?.code ?? "unknown", cause?.message ?? String(error))
+		const code = cause?.code && /^[A-Z0-9_]+$/.test(cause.code) ? ` (${cause.code})` : ""
+		throw new Error(`Kunne ikke koble til «${url.href}»${code}`)
+	}
+}
+
 export const describeEntry = (entry: WebsiteSourceEntry): string => (entry.matchType === "exact" ? entry.value : `Alt under ${entry.value}`)
 
 export const buildToolDescription = (entries: WebsiteSourceEntry[]): string => {
@@ -180,7 +199,7 @@ export const createWebsiteToolClient = (entries: WebsiteSourceEntry[]): McpClien
 				let res: Response
 				for (let hop = 0; ; hop++) {
 					await assertFetchable(url, entries)
-					res = await fetch(url, { signal: controller.signal, redirect: "manual", headers: { "user-agent": "Hugin/1.0 (+https://telemarkfylke.no)" } })
+					res = await fetchWithCause(url, controller.signal)
 					const location = res.status >= 300 && res.status < 400 ? res.headers.get("location") : null
 					if (!location) break
 					if (hop >= MAX_REDIRECTS) {
