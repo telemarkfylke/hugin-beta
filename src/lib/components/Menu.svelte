@@ -12,13 +12,12 @@
 	type Props = {
 		authenticatedUser: AuthenticatedPrincipal
 		appName: string
-		isEmployee: boolean
 		canUseTranscription: boolean
-		canvasEnabled: boolean
-		isAdmin: boolean
+		canUseCanvas: boolean
+		canUseDatasources: boolean
 		canPreviewRoles: boolean
 	}
-	let { authenticatedUser, appName, isEmployee, canUseTranscription, canvasEnabled, isAdmin, canPreviewRoles }: Props = $props()
+	let { authenticatedUser, appName, canUseTranscription, canUseCanvas, canUseDatasources, canPreviewRoles }: Props = $props()
 
 	let menuOpen = $state(true)
 	let menuAgents: { isLoading: boolean; agents: ChatConfig[]; error: string | null } = $state({ isLoading: false, agents: [], error: null })
@@ -197,20 +196,22 @@
 				{/if}
 			</div>
 			<!-- Hugin-only services. Hidden unless APP_NAME="Hugin" (defaults to "Mugin"); set it in your .env for local dev. -->
-			{#if appName === "Hugin" && (isEmployee || isAdmin)}
+			{#if appName === "Hugin" && (canUseTranscription || canUseCanvas || canUseDatasources)}
 				<div class="menu-section">
 					<div class="menu-section-title">Andre tjenester</div>
 					<div class="menu-items">
 						{#if canUseTranscription}
 							<a class="menu-item" class:active={page.url.pathname === "/transcription"} href="/transcription">Tale-til-notat</a>
 						{/if}
-						{#if canvasEnabled}
+						{#if canUseCanvas}
 							<a class="menu-item" class:active={page.url.pathname.startsWith("/canvas")} href="/canvas/document">Kladdeboka</a>
 						{/if}
 						<!-- Every /datasources tab is employee-or-admin now (Websites is admin-only, see
 						     canManageWebsiteSources), so students/edu_employee-only have no tab to land on.
 						     Each tab still enforces its own check server-side regardless of this link. -->
-						<a class="menu-item" class:active={page.url.pathname.startsWith("/datasources")} href="/datasources">Datakilder</a>
+						{#if canUseDatasources}
+							<a class="menu-item" class:active={page.url.pathname.startsWith("/datasources")} href="/datasources">Datakilder</a>
+						{/if}
 					</div>
 				</div>
 			{/if}
@@ -232,7 +233,7 @@
 	<div class="settings-backdrop" onclick={() => showUserSettings = false}>
 		<div class="settings-modal" onclick={(e) => e.stopPropagation()}>
 			<div class="settings-hero">
-				<p class="settings-tagline">Ikke mye her ennå…</p>
+				<p class="settings-tagline">Flere brukerinstillinger kommer</p>
 			</div>
 			<div class="settings-options">
 				{#if canPreviewRoles}

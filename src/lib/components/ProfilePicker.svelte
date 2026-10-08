@@ -73,11 +73,11 @@
 					disabled={lockedForNonAdmin}
 					onchange={() => selectProfile(profile)}
 				/>
-				<span class="profile-title">{profile.icon} {profile.label}</span>
+				<span class="profile-title"><span class="material-symbols-outlined">{profile.icon}</span>{profile.label}</span>
 				<span class="profile-description">{profile.description}</span>
 				<span class="profile-badges">
 					{#each getProfileBadges(profile) as badge}
-						<span class="badge" class:location={badge.kind === "location"} title={badge.label}>{badge.icon} {badge.label}</span>
+						<span class="badge" class:location={badge.kind === "location"} title={badge.label}><span class="material-symbols-outlined">{badge.icon}</span>{badge.label}</span>
 					{/each}
 				</span>
 			</label>
@@ -137,7 +137,7 @@
 			</div>
 			{#if config.pinned}
 				<div class="pinned-note">
-					<span>📌 Assistenten er låst til <b>{getPinnedModelLabel(config.pinned, appConfig)}</b> og følger ikke profilendringer.</span>
+					<span><span class="material-symbols-outlined">push_pin</span> Assistenten er låst til <b>{getPinnedModelLabel(config.pinned, appConfig)}</b> og følger ikke profilendringer.</span>
 					<button type="button" class="link-button" onclick={resetPin}>Tilbakestill til profil</button>
 				</div>
 			{/if}
@@ -187,9 +187,15 @@
 		cursor: default;
 	}
 	.profile-title {
-		font-weight: 700;
+		font-weight: 500;
 		width: 8rem;
 		flex-shrink: 0;
+		display: inline-flex;
+		align-items: center;
+		gap: 0.35rem;
+	}
+	.profile-title .material-symbols-outlined {
+		font-size: 1.25rem;
 	}
 	.profile-description {
 		flex: 1;
@@ -207,6 +213,12 @@
 		border-radius: 999px;
 		background-color: var(--color-secondary-10);
 		white-space: nowrap;
+		display: inline-flex;
+		align-items: center;
+		gap: 0.2rem;
+	}
+	.badge .material-symbols-outlined {
+		font-size: 0.9rem;
 	}
 	.badge.location {
 		background-color: var(--color-primary-10);
@@ -245,6 +257,10 @@
 		padding: 0.25rem;
 		border: none;
 		background-color: inherit;
+	}
+	.pinned-note .material-symbols-outlined {
+		font-size: 1rem;
+		vertical-align: -0.2em;
 	}
 	.pinned-note {
 		margin-top: 0.6rem;

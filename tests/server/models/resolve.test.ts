@@ -13,9 +13,9 @@ const MODEL_CONFIG: ModelConfig = {
 		util: { vendor: "LITELLM", providerModel: "llama-util", files: "none", capabilities: [], internal: true }
 	},
 	PROFILES: [
-		{ id: "rask", label: "Rask", icon: "⚡", description: "Raske svar", model: "luna" },
-		{ id: "grundig", label: "Grundig", icon: "🧠", description: "Analyse", model: "terra" },
-		{ id: "europeisk", label: "Europeisk", icon: "🇪🇺", description: "EU", model: "large", dataLocation: "EU", roles: ["employee"] }
+		{ id: "rask", label: "Rask", icon: "bolt", description: "Raske svar", model: "luna" },
+		{ id: "grundig", label: "Grundig", icon: "psychology", description: "Analyse", model: "terra" },
+		{ id: "europeisk", label: "Europeisk", icon: "shield", description: "EU", model: "large", dataLocation: "EU", roles: ["employee"] }
 	],
 	DEFAULTS: { chat: "europeisk", assistant: "rask", canvas: "grundig", utility: "util" },
 	LEGACY: { "gpt-old": "rask" }

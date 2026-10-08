@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { page } from "$app/state"
-	import { getModelDisplayName, getPinnedModelLabel } from "$lib/model-profiles"
+	import { getModelDisplay, getPinnedModelLabel } from "$lib/model-profiles"
 	import type { AppConfig } from "$lib/types/app-config"
 	import type { AuthenticatedPrincipal } from "$lib/types/authentication"
 	import type { ChatConfig } from "$lib/types/chat"
@@ -50,8 +50,8 @@
 		<div class="agent-meta">
 			{#if !agent.vendorAgent}
 				<div class="meta-item">
-					<span class="material-symbols-outlined">smart_toy</span>
-					<span>{getModelDisplayName(agent, appConfig)}</span>
+					<span class="material-symbols-outlined">{getModelDisplay(agent, appConfig).icon}</span>
+					<span>{getModelDisplay(agent, appConfig).label}</span>
 				</div>
 				{#if agent.pinned && isAdmin}
 					<div class="meta-item" title="Låst til modell">

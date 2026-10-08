@@ -159,7 +159,7 @@
 
 	<div class="rag-field-grid whole-area-field">
 		<div class="rag-simple-field">
-			<label class="rag-field-label" for="whole-area-access">⚠️ Gi tilgang til HELE SharePoint-området (ingen mappe-begrensning)</label>
+			<label class="rag-field-label warning-label" for="whole-area-access"><span class="material-symbols-outlined">warning</span>Gi tilgang til HELE SharePoint-området (ingen mappe-begrensning)</label>
 			<input id="whole-area-access" type="checkbox" bind:checked={wholeAreaAccess} />
 		</div>
 	</div>
@@ -219,6 +219,14 @@
 </main>
 
 <style>
+	.warning-label {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.25rem;
+	}
+	.warning-label .material-symbols-outlined {
+		font-size: 1.1em;
+	}
 	.entry-rows {
 		display: flex;
 		flex-direction: column;

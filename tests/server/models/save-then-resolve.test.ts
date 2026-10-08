@@ -17,8 +17,8 @@ const MODEL_CONFIG: ModelConfig = {
 		normistral: { vendor: "LITELLM", providerModel: "norallm/normistral-11b-thinking", files: "none", capabilities: [] }
 	},
 	PROFILES: [
-		{ id: "rask", label: "Rask", icon: "⚡", description: "Raske svar", model: "luna" },
-		{ id: "lokal", label: "Lokal", icon: "🏠", description: "Lokalt", model: "normistral", dataLocation: "Egne servere", roles: ["employee"] }
+		{ id: "rask", label: "Rask", icon: "bolt", description: "Raske svar", model: "luna" },
+		{ id: "lokal", label: "Lokal", icon: "home", description: "Lokalt", model: "normistral", dataLocation: "Egne servere", roles: ["employee"] }
 	],
 	DEFAULTS: { chat: "rask", assistant: "rask", canvas: "rask", utility: "luna" },
 	LEGACY: {}

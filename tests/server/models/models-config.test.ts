@@ -9,7 +9,7 @@ const validConfig = (): ModelConfig => ({
 		old: { vendor: "OPENAI", providerModel: "gpt-old", files: "openai", capabilities: [], status: "retired" },
 		util: { vendor: "LITELLM", providerModel: "llama-util", files: "none", capabilities: [], internal: true }
 	},
-	PROFILES: [{ id: "rask", label: "Rask", icon: "⚡", description: "d", model: "luna" }],
+	PROFILES: [{ id: "rask", label: "Rask", icon: "bolt", description: "d", model: "luna" }],
 	DEFAULTS: { chat: "rask", assistant: "rask", canvas: "rask", utility: "util" },
 	LEGACY: { "gpt-old": "rask" }
 })

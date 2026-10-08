@@ -20,6 +20,7 @@ export type CatalogueModel = {
 export type Profile = {
 	id: string
 	label: string
+	// Material Symbols name (e.g. "bolt"), not an emoji - flag emoji don't render on Windows
 	icon: string
 	description: string
 	// Key into ModelConfig.MODELS

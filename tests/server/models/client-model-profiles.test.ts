@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 import {
 	defaultProfileSelection,
+	getModelDisplay,
 	getModelDisplayName,
 	getPinnableModels,
 	getPinnedModelLabel,
@@ -74,6 +75,7 @@ describe("getProfileBadges", () => {
 	it("derives badges from mime types, capabilities and data location", () => {
 		const badges = getProfileBadges(profile("x", { mimeTypes: { FILE: ["application/pdf"], IMAGE: ["image/png"] }, capabilities: ["webSearch"], dataLocation: "EU" }))
 		expect(badges.map((b) => b.label)).toEqual(["Filer", "Bilder", "Nettsøk", "EU"])
+		expect(badges.map((b) => b.icon)).toEqual(["attach_file", "image", "language", "location_on"])
 		expect(badges.at(-1)?.kind).toBe("location")
 	})
 
@@ -142,19 +144,26 @@ describe("supportsWebSearch", () => {
 	})
 })
 
-describe("getModelDisplayName", () => {
+describe("getModelDisplay", () => {
 	it("shows a working pin instead of the profile, so the label never misstates the vendor", () => {
-		expect(getModelDisplayName({ profile: "rask", model: "gpt-live", pinned: { model: "normistral", project: "DEFAULT" } }, APP_CONFIG)).toBe("📌 normistral")
-		expect(getModelDisplayName({ profile: "rask", model: "gpt-live", pinned: { model: "gpt-old", project: "DEFAULT" } }, APP_CONFIG)).toBe("* RASK")
+		expect(getModelDisplay({ profile: "rask", model: "gpt-live", pinned: { model: "normistral", project: "DEFAULT" } }, APP_CONFIG)).toEqual({ icon: "push_pin", label: "normistral" })
+		expect(getModelDisplay({ profile: "rask", model: "gpt-live", pinned: { model: "gpt-old", project: "DEFAULT" } }, APP_CONFIG)).toEqual({ icon: "*", label: "RASK" })
 	})
 
 	it("shows the profile icon + label", () => {
-		expect(getModelDisplayName({ profile: "rask", model: "gpt-live" }, APP_CONFIG)).toBe("* RASK")
+		expect(getModelDisplay({ profile: "rask", model: "gpt-live" }, APP_CONFIG)).toEqual({ icon: "*", label: "RASK" })
 	})
 
 	it("falls back to the raw model when the profile is unknown", () => {
-		expect(getModelDisplayName({ profile: "gone", model: "gpt-live" }, APP_CONFIG)).toBe("gpt-live")
-		expect(getModelDisplayName({}, APP_CONFIG)).toBe("")
+		expect(getModelDisplay({ profile: "gone", model: "gpt-live" }, APP_CONFIG)).toEqual({ icon: "smart_toy", label: "gpt-live" })
+		expect(getModelDisplay({}, APP_CONFIG)).toEqual({ icon: "smart_toy", label: "" })
+	})
+})
+
+describe("getModelDisplayName", () => {
+	it("is the plain label, without the icon", () => {
+		expect(getModelDisplayName({ profile: "rask", model: "gpt-live" }, APP_CONFIG)).toBe("RASK")
+		expect(getModelDisplayName({ profile: "rask", model: "gpt-live", pinned: { model: "normistral", project: "DEFAULT" } }, APP_CONFIG)).toBe("normistral")
 	})
 })
 

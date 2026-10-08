@@ -7,23 +7,25 @@ import { type ClientModelProfile, DEFAULT_PROJECT_ID } from "./types/model-profi
 // Client-safe helpers for model profiles (the picker, web search gating, display names). Pure, so
 // they're unit-tested in tests/server/models/client-model-profiles.test.ts.
 
+// Icons are Material Symbols names, rendered with <span class="material-symbols-outlined">
 export type ProfileBadge = { icon: string; label: string; kind: "feature" | "location" }
+export type ModelDisplay = { icon: string; label: string }
 export type ProfileSelection = { profile: string; vendorId: VendorId; model: string; project: string }
 export type PinnedSelection = { vendorId: VendorId; model: string; project: string; pinned: { model: string; project: string } }
 
 export const getProfileBadges = (profile: ClientModelProfile): ProfileBadge[] => {
 	const badges: ProfileBadge[] = []
 	if (profile.mimeTypes.FILE.length > 0) {
-		badges.push({ icon: "📎", label: "Filer", kind: "feature" })
+		badges.push({ icon: "attach_file", label: "Filer", kind: "feature" })
 	}
 	if (profile.mimeTypes.IMAGE.length > 0) {
-		badges.push({ icon: "🖼️", label: "Bilder", kind: "feature" })
+		badges.push({ icon: "image", label: "Bilder", kind: "feature" })
 	}
 	if (profile.capabilities.includes("webSearch")) {
-		badges.push({ icon: "🌐", label: "Nettsøk", kind: "feature" })
+		badges.push({ icon: "language", label: "Nettsøk", kind: "feature" })
 	}
 	if (profile.dataLocation) {
-		badges.push({ icon: "📍", label: profile.dataLocation, kind: "location" })
+		badges.push({ icon: "location_on", label: profile.dataLocation, kind: "location" })
 	}
 	return badges
 }
@@ -100,18 +102,21 @@ export const supportsWebSearch = (config: ChatConfig, appConfig: AppConfig): boo
 	return model?.CAPABILITIES.includes("webSearch") ?? false
 }
 
-export const getModelDisplayName = (config: Pick<ChatConfig, "profile" | "model" | "pinned">, appConfig: AppConfig): string => {
-	// A working pin decides the model (and vendor), so don't show the profile's name - "🇪🇺 Europeisk"
+export const getModelDisplay = (config: Pick<ChatConfig, "profile" | "model" | "pinned">, appConfig: AppConfig): ModelDisplay => {
+	// A working pin decides the model (and vendor), so don't show the profile's name - "Europeisk"
 	// on an assistant pinned to an OpenAI model would misstate where the data goes
 	if (config.pinned) {
 		const found = findModelByKey(appConfig, config.pinned.model)
 		if (found && !found.model.RETIRED && appConfig.VENDORS[found.vendorId].ENABLED) {
-			return `📌 ${found.model.ID}`
+			return { icon: "push_pin", label: found.model.ID }
 		}
 	}
 	const profile = config.profile ? appConfig.MODEL_PROFILES.find((p) => p.id === config.profile) : undefined
 	if (profile) {
-		return `${profile.icon} ${profile.label}`
+		return { icon: profile.icon, label: profile.label }
 	}
-	return config.model ?? ""
+	return { icon: "smart_toy", label: config.model ?? "" }
 }
+
+// Plain text, for titles and names (headers, the "Hei! Jeg er ..." welcome, the chat request name)
+export const getModelDisplayName = (config: Pick<ChatConfig, "profile" | "model" | "pinned">, appConfig: AppConfig): string => getModelDisplay(config, appConfig).label

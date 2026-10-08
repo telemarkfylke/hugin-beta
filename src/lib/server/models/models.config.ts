@@ -35,13 +35,13 @@ type ModelKey = keyof typeof MODELS
 type ProfileId = "rask" | "grundig" | "europeisk" | "lokal"
 
 const PROFILES: (Profile & { id: ProfileId; model: ModelKey })[] = [
-	{ id: "rask", label: "Rask", icon: "⚡", description: "Raske svar på enkle oppgaver", model: "gpt-6-luna" },
-	{ id: "grundig", label: "Grundig", icon: "🧠", description: "Analyse, resonnering og lange dokumenter", model: "gpt-6-sol" },
-	{ id: "europeisk", label: "Europeisk", icon: "🇪🇺", description: "Data behandles innenfor EU", model: "mistral-large", dataLocation: "EU" },
+	{ id: "rask", label: "Rask", icon: "bolt", description: "Raske svar på enkle oppgaver", model: "gpt-6-luna" },
+	{ id: "grundig", label: "Grundig", icon: "psychology", description: "Analyse, resonnering og lange dokumenter", model: "gpt-6-sol" },
+	{ id: "europeisk", label: "Europeisk", icon: "shield", description: "Data behandles innenfor EU", model: "mistral-large", dataLocation: "EU" },
 	{
 		id: "lokal",
 		label: "Lokal",
-		icon: "🏠",
+		icon: "home",
 		// MIDLERTIDIG: lokal KI-server er frakoblet, så profilen kjører på mistral-large. Assistenter beholder
 		// profile: "lokal" i databasen - for å koble til igjen: sett model: "normistral",
 		// description: "Data forlater aldri fylkeskommunens servere", dataLocation: "Egne servere",

@@ -107,7 +107,7 @@
 						<td>{serverLabel(source)}</td>
 						<td>{scopeLabel(source)}</td>
 						<td>{ownerLabel(source)}</td>
-						<td>{source.type === "published" ? "🌐 Offentlig" : "🔒 Privat"}</td>
+						<td><span class="type-label"><span class="material-symbols-outlined">{source.type === "published" ? "public" : "lock"}</span>{source.type === "published" ? "Offentlig" : "Privat"}</span></td>
 						<td class="row-actions">
 							{#if canEdit(source)}
 								<button class="icon-button" onclick={() => (editing = source)} title="Rediger">
@@ -140,6 +140,14 @@
 {/if}
 
 <style>
+	.type-label {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.25rem;
+	}
+	.type-label .material-symbols-outlined {
+		font-size: 1.1em;
+	}
 	.list-header {
 		display: flex;
 		margin-bottom: 16px;

@@ -179,11 +179,8 @@ export const canEditWebsiteSource = (source: WebsiteSource, user: AuthenticatedP
 	return source.createdBy.id === user.userId
 }
 
-export const canUseTranscription = (user: AuthenticatedPrincipal, appConfig: AppConfig): boolean => {
-	if (user.roles.includes(appConfig.APP_ROLES.ADMIN)) {
-		return true
-	}
-	return appConfig.TRANSCRIPTION_GREEN_GROUP_ID !== undefined && user.groups.includes(appConfig.TRANSCRIPTION_GREEN_GROUP_ID)
+export const canUseTranscription = (user: AuthenticatedPrincipal, appRoles: AppRoles): boolean => {
+	return user.roles.includes(appRoles.EMPLOYEE) || user.roles.includes(appRoles.EDU_EMPLOYEE) || user.roles.includes(appRoles.ADMIN)
 }
 
 export const canPromptConfig = (user: AuthenticatedPrincipal, appConfig: AppConfig, chatConfig: ChatConfig): boolean => {

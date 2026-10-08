@@ -162,8 +162,9 @@ All access-control decisions go through named functions in `src/lib/authorizatio
 | `canEditChatConfig` | new config (`_id === ""`), `ADMIN`, `AGENT_MAINTAINER` on a published config, or the private config's own creator |
 | `canUpdateChatConfig` | same as above, plus validates the existing/incoming config `_id`s match before checking |
 | `canPromptConfig` | `ADMIN`; a `shared` config; a private config owned by the user; or a published config matching the user's role/group via `accessGroups` (`"all"`, `"employee"`, `"edu_employee"`, `"student"`, or an explicit Entra group id) |
-| `canUseCanvas` | `EMPLOYEE` or `ADMIN` |
+| `canUseCanvas` | `EMPLOYEE`, `EDU_EMPLOYEE`, `STUDENT` or `ADMIN` (and `CANVAS_ENABLED`) |
 | `canUseRagservice` | `EMPLOYEE` or `ADMIN` |
+| `canUseTranscription` | `EMPLOYEE`, `EDU_EMPLOYEE` or `ADMIN` - only gates the menu link today, see [Transcription](#transcription-tale-til-notat) |
 | `canUseMcpSharepoint` | `EMPLOYEE` or `ADMIN` - can use the MCP feature at all (see one below for per-source ownership) |
 | `canUseWebsiteDataSource` | anyone authenticated, students included - Website sources touch no live external system or org-wide search, so there's no role gate beyond being logged in (see one below for per-source ownership) |
 | `canViewMcpSource` / `canViewWebsiteSource` | `ADMIN`; the source's own `type === "published"`; or the source's creator |
@@ -172,7 +173,7 @@ All access-control decisions go through named functions in `src/lib/authorizatio
 | `canUseHistory` | everyone — the former student-only restriction is commented out in `authorization.ts` and can be re-enabled with a one-line change; when false, incognito is forced and history hidden |
 | `canSeeSpotlight` | audience gate for [Feature Spotlight](#feature-spotlight) announcements; uses the same `accessGroups` semantics as `canPromptConfig` |
 
-Regular users can define their own chat configs and test them against `/api/chat`, but cannot create configs pointing at predefined agent/prompt IDs configured in a vendor — those are only usable via a predefined chat config in the database, created by a user with `AGENT_MAINTAINER` or `ADMIN` permissions. Transcription access is currently gated separately from this table — see [Transcription](#transcription-tale-til-notat).
+Regular users can define their own chat configs and test them against `/api/chat`, but cannot create configs pointing at predefined agent/prompt IDs configured in a vendor — those are only usable via a predefined chat config in the database, created by a user with `AGENT_MAINTAINER` or `ADMIN` permissions.
 
 ---
 
@@ -180,14 +181,14 @@ Regular users can define their own chat configs and test them against `/api/chat
 
 ### Model Profiles
 
-Assistants and the default chat choose a **model profile** instead of a vendor, model and project. The profile list in the assistant editor shows a short description and badges derived from the model (📎 files, 🖼️ images, 🌐 web search, 📍 data location).
+Assistants and the default chat choose a **model profile** instead of a vendor, model and project. The profile list in the assistant editor shows a short description and badges derived from the model (files, images, web search, data location). Profile and badge icons are [Material Symbols](https://fonts.google.com/icons) names, not emoji - flag emoji like 🇪🇺 don't render on Windows.
 
 | Profile | Meaning | Model (today) |
 |---|---|---|
-| ⚡ Rask | Quick answers, simple tasks | OpenAI `gpt-6-luna` |
-| 🧠 Grundig | Analysis, reasoning, long documents | OpenAI `gpt-6-sol` |
-| 🇪🇺 Europeisk | Data processed within the EU | Mistral `mistral-large-latest` |
-| 🏠 Lokal | Data never leaves our own servers (employees only) | LiteLLM `norallm/normistral-11b-thinking` |
+| Rask | Quick answers, simple tasks | OpenAI `gpt-6-luna` |
+| Grundig | Analysis, reasoning, long documents | OpenAI `gpt-6-sol` |
+| Europeisk | Data processed within the EU | Mistral `mistral-large-latest` |
+| Lokal | Data never leaves our own servers (employees only) | LiteLLM `norallm/normistral-11b-thinking` |
 
 **One file to maintain:** `src/lib/server/models/models.config.ts` holds everything:
 
@@ -273,7 +274,7 @@ Audio-to-text transcription via an internal service ("tale-til-notat"), availabl
 3. The external service calls back `POST /api/transcription/callback` (secret-gated via `TRANSCRIPTION_CALLBACK_SECRET`) when done
 4. The finished transcription can be downloaded as a `.docx`
 
-**Access control:** "Red" (sensitive) use cases are gated by Entra ID group membership — `TRANSCRIPTION_GROUP_N_ID`/`TRANSCRIPTION_GROUP_N_LABEL` env vars (dynamically scanned, `N = 1, 2, 3, …`) define the available groups, checked against the user's Entra groups.
+**Access control:** The menu link is shown to `EMPLOYEE`, `EDU_EMPLOYEE` and `ADMIN` (`canUseTranscription`). The page and API routes don't check roles yet. "Red" (sensitive) use cases are gated by Entra ID group membership — `TRANSCRIPTION_GROUP_N_ID`/`TRANSCRIPTION_GROUP_N_LABEL` env vars (dynamically scanned, `N = 1, 2, 3, …`) define the available groups, checked against the user's Entra groups.
 
 **Relevant files:**
 
