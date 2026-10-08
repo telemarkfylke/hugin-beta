@@ -1,7 +1,15 @@
-# Docs for the Azure Web Apps Deploy action: https://github.com/azure/functions-action
-# More GitHub Actions for Azure: https://github.com/Azure/actions
+# Builds, tests and deploys beta to the test/dev Web App (tfkdlzchataimugin2web).
+#
+# Only what the server needs at runtime is deployed: build/, production node_modules, package.json
+# and the PPTX template - not the whole repository. Client-only libraries (Excalidraw, React,
+# reveal.js, docx, pdf-lib, jwt-decode) are devDependencies, bundled into build/client by Vite.
+#
+# App settings this workflow expects on the Web App (set outside the repo):
+#   SCM_DO_BUILD_DURING_DEPLOYMENT=false  never npm install/build on the server (the old functions-action forced this per deploy)
+#   WEBSITE_RUN_FROM_PACKAGE=1            run straight from the deployed zip (atomic switch, no file-by-file extraction)
+#   Startup command: ORIGIN=... node /home/site/wwwroot/build/   (unchanged - build/ is at the package root)
 
-name: BETA - Build and deploy Node.js project to Azure Function App
+name: BETA - Build and deploy to Azure Web App
 
 on:
   push:
@@ -9,45 +17,57 @@ on:
       - beta
   workflow_dispatch:
 
+# Never run two deploys to the same app at once - a second push waits for the first to finish
+# instead of cancelling it halfway through a deploy.
+concurrency:
+  group: deploy-beta
+  cancel-in-progress: false
+
 env:
-  APP_NAME: 'tfkdlzchataimugin2web' # set this to your function or web app name
-  AZURE_FUNCTIONAPP_PACKAGE_PATH: '.' # set this to the path to your web app project, defaults to the repository root
-  NODE_VERSION: '22.x' # set this to the node version to use (supports 8.x, 10.x, 12.x)
+  APP_NAME: 'tfkdlzchataimugin2web'
+  NODE_VERSION: '22.x'
+  DEPLOY_DIR: 'deploy'
 
 jobs:
   build-and-deploy:
     runs-on: self-hosted
     steps:
-      - name: 'Checkout GitHub Action'
+      - name: 'Checkout'
         uses: actions/checkout@v4
 
-      - name: Setup Node ${{ env.NODE_VERSION }} Environment
+      # No `cache: npm`: on this persistent self-hosted runner npm's own ~/.npm cache survives
+      # between runs, and restoring the ~800 MB Actions cache took longer than npm ci itself.
+      - name: Setup Node ${{ env.NODE_VERSION }}
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
 
       - name: 'Install dependencies'
-        shell: bash
-        run: npm ci
+        run: npm ci --no-audit --no-fund
 
       - name: 'Lint and type check'
-        shell: bash
         run: npx tsc --noEmit && npx @biomejs/biome check
 
-      - name: 'Build'
-        shell: bash
-        run: npm run build
-
       - name: 'Run unit tests'
-        shell: bash
         run: npm run test:unit -- --run
 
-      - name: 'Run Azure Functions Action'
-        uses: Azure/functions-action@v1
-        id: fa
+      - name: 'Build'
+        run: npm run build
+
+      - name: 'Assemble deploy package'
+        run: |
+          npm prune --omit=dev --no-audit --no-fund
+          rm -rf "$DEPLOY_DIR"
+          mkdir -p "$DEPLOY_DIR/src/lib/server/canvas/presentation/templates"
+          cp -r build node_modules package.json package-lock.json "$DEPLOY_DIR/"
+          # Read at runtime via process.cwd() - see src/lib/server/canvas/presentation/template-path.ts
+          cp src/lib/server/canvas/presentation/templates/tfk-mal.pptx "$DEPLOY_DIR/src/lib/server/canvas/presentation/templates/"
+          echo "Deploy package: $(du -sh "$DEPLOY_DIR" | cut -f1), $(find "$DEPLOY_DIR" -type f | wc -l) files"
+
+      - name: 'Deploy to Azure Web App'
+        uses: azure/webapps-deploy@v3
         with:
-          app-name: ${{ env.APP_NAME }} # set this to your function or web app name
+          app-name: ${{ env.APP_NAME }}
           slot-name: 'Production'
-          package: ${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}
           publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_TEST }}
+          package: ${{ env.DEPLOY_DIR }}

@@ -949,7 +949,17 @@ CANVAS_ENABLED="true"
 1. Configure Azure App Service with Node.js runtime
 2. Enable EasyAuth with Microsoft Entra ID
 3. Set environment variables in Application Settings
-4. Deploy using your preferred method (Azure CLI, GitHub Actions, etc.)
+4. Deploy with GitHub Actions (`.github/workflows/publish-beta.yml`)
+
+The beta workflow deploys only what the server runs: `build/`, production `node_modules`, `package.json` and the PPTX template - not the repository. Client-only libraries (Excalidraw, React, reveal.js, docx, pdf-lib, jwt-decode) are `devDependencies`; Vite bundles them into `build/client`. Keep new browser-only libraries in `devDependencies` too, and guard dynamic imports of them with `import.meta.env.SSR` so the server build doesn't pull them in.
+
+The Web App needs these settings for that package:
+
+| Setting | Value | Why |
+|---------|-------|-----|
+| `SCM_DO_BUILD_DURING_DEPLOYMENT` | `false` | Never `npm install`/build on the server |
+| `WEBSITE_RUN_FROM_PACKAGE` | `1` | Runs straight from the deployed zip - one atomic switch instead of extracting files over the running app |
+| Startup command | `ORIGIN=<site url> node /home/site/wwwroot/build/` | `build/` is at the package root (`npm start` does the same) |
 
 ---
 
