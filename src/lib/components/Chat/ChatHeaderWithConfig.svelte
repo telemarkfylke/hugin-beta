@@ -6,7 +6,6 @@
 	import type { ChatState } from "./ChatState.svelte"
 	import ConversationList from "./ConversationList.svelte"
 	import LoadConversationDialog from "./LoadConversationDialog.svelte"
-	import NewChatDialog from "./NewChatDialog.svelte"
 	import NewChatMenu from "./NewChatMenu.svelte"
 
 	type Props = {
@@ -16,19 +15,8 @@
 	let { chatState = $bindable() }: Props = $props()
 
 	let showDescription: boolean = $state(false)
-	let showNewChatDialog: boolean = $state(false)
-
-	const STORAGE_KEY = "hugin_skip_new_chat_confirm"
 
 	let userCanEditConfig = $derived(canEditChatConfig(chatState.chat, chatState.user, chatState.APP_CONFIG.APP_ROLES))
-
-	const handleNewChat = () => {
-		if (chatState.APP_CONFIG.NEW_CHAT_CONFIRM_DISABLED || localStorage.getItem(STORAGE_KEY) === "true") {
-			chatState.newChat()
-		} else {
-			showNewChatDialog = true
-		}
-	}
 
 	const getAgentName = () => {
 		if (chatState.configEdited && !chatState.chat.config.name) {
@@ -61,7 +49,7 @@
 	<div class="chat-header-right">
 		<div class="chat-actions">
 			{#if !chatState.configMode}
-				<NewChatMenu bind:chatState onNewChat={handleNewChat} exportDisabled={chatState.APP_CONFIG.CONVERSATION_EXPORT_DISABLED} />
+				<NewChatMenu bind:chatState onNewChat={() => chatState.newChat()} exportDisabled={chatState.APP_CONFIG.CONVERSATION_EXPORT_DISABLED} />
 				{#if chatState.canUseHistory}
 					<ConversationList bind:chatState />
 					<button
@@ -94,7 +82,6 @@
 
 <ChatConfigPanel bind:chatState />
 
-<NewChatDialog bind:show={showNewChatDialog} onConfirm={() => chatState.newChat()} />
 
 <LoadConversationDialog bind:chatState />
 

@@ -37,7 +37,6 @@ export type AppConfig = {
 	BODY_SIZE_LIMIT_BYTES: number
 	APP_ROLES: AppRoles
 	CONVERSATION_EXPORT_DISABLED: boolean
-	NEW_CHAT_CONFIRM_DISABLED: boolean
 	CANVAS_ENABLED: boolean
 	TRANSCRIPTION_GREEN_GROUP_ID: string | undefined
 	TRANSCRIPTION_GROUPS: TranscriptionGroup[]
