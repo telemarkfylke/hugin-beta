@@ -84,6 +84,9 @@ export const canUseHistory = (_user: AuthenticatedPrincipal, _appRoles: AppRoles
 // Same accessGroups semantics as ChatConfig.accessGroups/canPromptConfig - reused here so a
 // FeatureSpotlight's audience is declared the same way an agent's audience is, rather than a
 // second bespoke convention. ADMIN always sees everything, mirroring canPromptConfig.
+// One deliberate difference: "student" means the STUDENT role only. For assistants it includes
+// EDU_EMPLOYEE (teachers see what students get), but a student announcement isn't news to teachers.
+// NB: canChooseProfile is built on this function, so the same applies to profile roles.
 export const canSeeSpotlight = (user: AuthenticatedPrincipal, appRoles: AppRoles, accessGroups: (RoleAccessGroups | EntraAccessGroup)[]): boolean => {
 	if (user.roles.includes(appRoles.ADMIN)) {
 		return true
@@ -97,7 +100,7 @@ export const canSeeSpotlight = (user: AuthenticatedPrincipal, appRoles: AppRoles
 	if (accessGroups.includes("edu_employee") && user.roles.includes(appRoles.EDU_EMPLOYEE)) {
 		return true
 	}
-	if (accessGroups.includes("student") && (user.roles.includes(appRoles.STUDENT) || user.roles.includes(appRoles.EDU_EMPLOYEE))) {
+	if (accessGroups.includes("student") && user.roles.includes(appRoles.STUDENT)) {
 		return true
 	}
 	return accessGroups.some((group) => typeof group !== "string" && user.groups.includes(group.id))

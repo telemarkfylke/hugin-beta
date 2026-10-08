@@ -171,7 +171,7 @@ All access-control decisions go through named functions in `src/lib/authorizatio
 | `canEditMcpSource` / `canEditWebsiteSource` | `ADMIN`, or the source's creator - regardless of `type` (a published source is still owner/admin-only to edit or delete) |
 | `isStudentOnly` | `STUDENT` is the user's *only* role (a user who is both `STUDENT` and `EDU_EMPLOYEE` does not count) |
 | `canUseHistory` | everyone — the former student-only restriction is commented out in `authorization.ts` and can be re-enabled with a one-line change; when false, incognito is forced and history hidden |
-| `canSeeSpotlight` | audience gate for [Feature Spotlight](#feature-spotlight) announcements; uses the same `accessGroups` semantics as `canPromptConfig` |
+| `canSeeSpotlight` | audience gate for [Feature Spotlight](#feature-spotlight) announcements; uses the same `accessGroups` semantics as `canPromptConfig`, except `"student"` means the `STUDENT` role only (not `EDU_EMPLOYEE`) |
 
 Regular users can define their own chat configs and test them against `/api/chat`, but cannot create configs pointing at predefined agent/prompt IDs configured in a vendor — those are only usable via a predefined chat config in the database, created by a user with `AGENT_MAINTAINER` or `ADMIN` permissions.
 
@@ -506,7 +506,7 @@ This is rendered through its own small `markdown-it` instance (`src/lib/formatti
 />
 ```
 
-`canSeeSpotlight` always returns `true` for `ADMIN`, matching `canPromptConfig`'s convention.
+`canSeeSpotlight` always returns `true` for `ADMIN`, matching `canPromptConfig`'s convention. Unlike `canPromptConfig`, `"student"` matches only the `STUDENT` role, so a student announcement is not shown to `EDU_EMPLOYEE` users.
 
 **Dismissal behavior:**
 
