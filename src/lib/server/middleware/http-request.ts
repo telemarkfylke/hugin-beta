@@ -24,7 +24,7 @@ export const apiRequestMiddleware = async (requestEvent: RequestEvent, next: Api
 	let user: AuthenticatedPrincipal
 	try {
 		user = getAuthenticatedPrincipal(request.headers)
-		loggerPrefix += ` - User: ${user.userId} (${user.name})`
+		loggerPrefix += ` - User: ${user.userId} (${user.name})${user.rolePreview ? ` [role preview: ${user.rolePreview}]` : ""}`
 		logger.info(`${loggerPrefix} - Authenticated user: {userId}`, user.userId)
 	} catch (error) {
 		logger.errorException(error, `${loggerPrefix} - Error during authentication`)
@@ -74,7 +74,7 @@ export const serverLoadRequestMiddleware = async <T>(requestEvent: RequestEvent,
 	let user: AuthenticatedPrincipal
 	try {
 		user = getAuthenticatedPrincipal(request.headers)
-		loggerPrefix += ` - User: ${user.userId} (${user.name})`
+		loggerPrefix += ` - User: ${user.userId} (${user.name})${user.rolePreview ? ` [role preview: ${user.rolePreview}]` : ""}`
 		logger.info(`${loggerPrefix} - Authenticated user: {userId}`, user.userId)
 	} catch (error) {
 		logger.errorException(error, `${loggerPrefix} - Error during authentication`)

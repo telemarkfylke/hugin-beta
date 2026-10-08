@@ -2,12 +2,18 @@
 	import { onMount } from "svelte"
 	import { slide } from "svelte/transition"
 	import { page } from "$app/state"
-	import { canEditPredefinedConfig, canPublishChatConfig, canUseRagservice } from "$lib/authorization"
+	import { canEditPredefinedConfig, canPublishChatConfig, canSetAnonymousEmbed, canUseMcpSharepoint, canUseRagservice, canUseWebsiteDataSource } from "$lib/authorization"
+	import { McpSourcesApi } from "$lib/mcp-sources/adapters/mcpSourcesApi"
+	import { defaultProfileSelection } from "$lib/model-profiles"
 	import { RagServiceApi } from "$lib/ragservice/adapters/ragserviceApi"
 	import type { StoreConfig } from "$lib/ragservice/types"
-	import type { ChatConfig, VendorId } from "$lib/types/chat"
+	import type { ChatConfig, DataSource, VendorId } from "$lib/types/chat"
+	import type { McpSource } from "$lib/types/mcp-source"
+	import type { WebsiteSource } from "$lib/types/website-source"
+	import { WebsiteSourcesApi } from "$lib/website-sources/adapters/websiteSourcesApi"
 	import GrowingTextArea from "../GrowingTextArea.svelte"
-	import VendorModelSelector from "../VendorModelSelector.svelte"
+	import ProfilePicker from "../ProfilePicker.svelte"
+	import ChatConfigStats from "./ChatConfigStats.svelte"
 	import type { ChatState } from "./ChatState.svelte"
 
 	type Props = {
@@ -17,7 +23,30 @@
 	let { chatState = $bindable() }: Props = $props()
 
 	let userCanEditPredefinedConfig = $derived(canEditPredefinedConfig(chatState.user, chatState.APP_CONFIG.APP_ROLES))
+	let userCanSetAnonymousEmbed = $derived(canSetAnonymousEmbed(chatState.user, chatState.APP_CONFIG.APP_ROLES))
 	let userCanUseRagservice = $derived(canUseRagservice(chatState.user, chatState.APP_CONFIG.APP_ROLES))
+	let userCanUseWebsiteDataSource = $derived(canUseWebsiteDataSource(chatState.user, chatState.APP_CONFIG.APP_ROLES))
+	// Deliberately just a role check, not "is the real SharePoint connection configured right now"
+	// (there used to be a separate AppConfig flag for that, removed as dead weight along with this
+	// check - see mcp-config.ts's own env.MCP_SHAREPOINT_ENABLED, which still gates the server
+	// connection itself). Gating this picker on connection availability would hide already-created,
+	// published MCP sources the moment the env vars are missing/wrong on a given deployment, while
+	// the admin list page (role-only) would still show them as selectable-looking. Matches
+	// ragservice/website: whether the underlying source is actually reachable is a chat-time concern
+	// (see chat/+server.ts's mcpUnavailableStream), not a config-time one.
+	let userCanUseMcpSharepoint = $derived(canUseMcpSharepoint(chatState.user, chatState.APP_CONFIG.APP_ROLES))
+	let embedUrl = $derived(chatState.chat.config._id ? `${page.url.origin}/embed/agents/${chatState.chat.config._id}` : "")
+	let publicEmbedUrl = $derived(chatState.chat.config._id ? `${page.url.origin}/public/embed/agents/${chatState.chat.config._id}` : "")
+	// Recommended snippet - drops a floating, ready-styled chat bubble via static/public/widget.js,
+	// rather than requiring the embedding site to build/style its own <iframe> around publicEmbedUrl.
+	// Served from under /public/ (not site root) so a single "/public/*" auth-exclusion rule at the
+	// platform level covers both this script and the embed routes it points at - see widget.js's own
+	// comment on why it derives its target origin rather than path-slicing its own src.
+	// The escape below is required, not defensive: the closing tag's raw text (unescaped) would
+	// truncate this file's own enclosing script block at compile time, since both Svelte's and
+	// Biome's script-boundary scanners work off raw text, not JS syntax.
+	// biome-ignore lint/suspicious/noUselessEscapeInString: see comment above
+	let publicWidgetSnippet = $derived(chatState.chat.config._id ? `<script src="${page.url.origin}/public/widget.js" data-agent-id="${chatState.chat.config._id}"><\/script>` : "")
 
 	// Not reactive state, to "remember" predefined vs manual config when toggling
 	let predefinedConfigCache: Partial<ChatConfig> = {
@@ -25,8 +54,7 @@
 		vendorAgent: { id: "" }
 	}
 	let manualConfigCache: Partial<ChatConfig> = {
-		vendorId: "MISTRAL",
-		model: "mistral-medium-latest",
+		...defaultProfileSelection(chatState.APP_CONFIG, "ASSISTANT"),
 		instructions: ""
 	}
 
@@ -47,7 +75,9 @@
 			const availableProjects = getAvailableProjects(chatState.chat.config.vendorId)
 			if (!availableProjects.includes(chatState.chat.config.project)) {
 				if (!availableProjects[0]) {
-					throw new Error(`No available projects for vendor ${chatState.chat.config.vendorId}`)
+					// Vendor has no configured keys here (e.g. a dataLocation profile held on a disabled vendor) -
+					// leave project alone; the server resolves it and answers 503 if needed
+					return
 				}
 				chatState.chat.config.project = availableProjects[0]
 			}
@@ -57,22 +87,96 @@
 	const ragApi = new RagServiceApi()
 	let availableStores: StoreConfig[] = $state([])
 
+	const websiteSourcesApi = new WebsiteSourcesApi()
+	let availableWebsiteSources: WebsiteSource[] = $state([])
+
+	const mcpSourcesApi = new McpSourcesApi()
+	let availableMcpSources: McpSource[] = $state([])
+
 	onMount(async () => {
 		if (userCanUseRagservice) {
 			availableStores = await ragApi.getStores()
 		}
+		if (userCanUseWebsiteDataSource) {
+			availableWebsiteSources = await websiteSourcesApi.getSources()
+		}
+		if (userCanUseMcpSharepoint) {
+			availableMcpSources = await mcpSourcesApi.getSources()
+		}
 	})
 
-	function addDataSource(storeId: string) {
-		if (!storeId) return
+	const WEBSITE_OPTION_PREFIX = "website:"
+	const MCP_OPTION_PREFIX = "mcp:"
+
+	function addDataSource(value: string) {
+		if (!value) return
 		const existing = chatState.chat.config.dataSources ?? []
-		if (existing.some((s) => s.id === storeId)) return
-		chatState.chat.config.dataSources = [...existing, { type: "ragservice", id: storeId }]
+		if (value.startsWith(MCP_OPTION_PREFIX)) {
+			const mcpSourceId = value.slice(MCP_OPTION_PREFIX.length)
+			if (existing.some((s) => s.type === "mcp" && s.sourceId === mcpSourceId)) return
+			chatState.chat.config.dataSources = [...existing, { type: "mcp", sourceId: mcpSourceId }]
+			return
+		}
+		if (value.startsWith(WEBSITE_OPTION_PREFIX)) {
+			const websiteId = value.slice(WEBSITE_OPTION_PREFIX.length)
+			if (existing.some((s) => s.type === "website" && s.id === websiteId)) return
+			chatState.chat.config.dataSources = [...existing, { type: "website", id: websiteId }]
+			return
+		}
+		if (existing.some((s) => s.type === "ragservice" && s.id === value)) return
+		chatState.chat.config.dataSources = [...existing, { type: "ragservice", id: value }]
 	}
 
-	function removeDataSource(storeId: string) {
-		chatState.chat.config.dataSources = (chatState.chat.config.dataSources ?? []).filter((s) => s.id !== storeId)
+	function removeDataSource(source: DataSource) {
+		chatState.chat.config.dataSources = (chatState.chat.config.dataSources ?? []).filter((s) => {
+			if (source.type === "ragservice") return !(s.type === "ragservice" && s.id === source.id)
+			if (source.type === "website") return !(s.type === "website" && s.id === source.id)
+			if (source.type === "mcp") return !(s.type === "mcp" && s.sourceId === source.sourceId)
+			return true
+		})
 	}
+
+	// Categories drive write-time question statistics (see $lib/statsstore/types) - every incoming user
+	// question gets classified into one of these by a utility model, purely for anonymous, aggregate
+	// counts. Kept as free-text, author-defined labels rather than a fixed taxonomy.
+	let newCategoryInput = $state("")
+
+	function addCategory() {
+		const trimmed = newCategoryInput.trim()
+		if (!trimmed) return
+		const existing = chatState.chat.config.categories ?? []
+		if (existing.some((c) => c.toLowerCase() === trimmed.toLowerCase())) return
+		chatState.chat.config.categories = [...existing, trimmed]
+		newCategoryInput = ""
+	}
+
+	function removeCategory(category: string) {
+		chatState.chat.config.categories = (chatState.chat.config.categories ?? []).filter((c) => c !== category)
+	}
+
+	// Collapsed by default - the common case is just copying the embed link above; avatar/welcome/
+	// suggested questions, anonymous embedding, guardrails and rate limits are all secondary and stay
+	// out of the way until someone explicitly asks for them.
+	let embedAdvancedOpen = $state(false)
+
+	// Same free-text add/remove pattern as categories above, capped at 4 - see EmbedWelcome.svelte,
+	// which only ever renders the first 4 anyway, so a 5th here would just silently never show.
+	let newSuggestedQuestionInput = $state("")
+
+	function addSuggestedQuestion() {
+		const trimmed = newSuggestedQuestionInput.trim()
+		if (!trimmed) return
+		const existing = chatState.chat.config.suggestedQuestions ?? []
+		if (existing.length >= 4 || existing.some((q) => q.toLowerCase() === trimmed.toLowerCase())) return
+		chatState.chat.config.suggestedQuestions = [...existing, trimmed]
+		newSuggestedQuestionInput = ""
+	}
+
+	function removeSuggestedQuestion(question: string) {
+		chatState.chat.config.suggestedQuestions = (chatState.chat.config.suggestedQuestions ?? []).filter((q) => q !== question)
+	}
+
+	let activeTab: "settings" | "stats" = $state("settings")
 
 	const onConfigTypeChange = (event: Event) => {
 		const target = event.target as HTMLInputElement
@@ -81,12 +185,16 @@
 				vendorId: chatState.chat.config.vendorId,
 				project: chatState.chat.config.project,
 				model: chatState.chat.config.model,
+				profile: chatState.chat.config.profile,
+				pinned: chatState.chat.config.pinned,
 				instructions: chatState.chat.config.instructions
 			}
 			chatState.chat.config.vendorId = predefinedConfigCache.vendorId as VendorId
 			chatState.chat.config.project = predefinedConfigCache.project as string
 			chatState.chat.config.vendorAgent = predefinedConfigCache.vendorAgent
 			delete chatState.chat.config.model
+			delete chatState.chat.config.profile
+			delete chatState.chat.config.pinned
 			delete chatState.chat.config.instructions
 		} else {
 			predefinedConfigCache = {
@@ -97,6 +205,10 @@
 			chatState.chat.config.vendorId = manualConfigCache.vendorId as VendorId
 			chatState.chat.config.project = manualConfigCache.project as string
 			chatState.chat.config.model = manualConfigCache.model as string
+			chatState.chat.config.profile = manualConfigCache.profile
+			if (manualConfigCache.pinned) {
+				chatState.chat.config.pinned = manualConfigCache.pinned
+			}
 			chatState.chat.config.instructions = manualConfigCache.instructions as string
 			delete chatState.chat.config.vendorAgent
 		}
@@ -105,154 +217,414 @@
 
 {#if chatState.configMode}
 	<div class="chat-config-container" transition:slide={{ duration: 200 }}>
+		<div class="config-tabs">
+			<button class="config-tab-button" disabled={activeTab === "settings"} onclick={() => { activeTab = "settings" }}>Innstillinger</button>
+			<button class="config-tab-button" disabled={activeTab === "stats"} onclick={() => { activeTab = "stats" }}>Statistikk</button>
+		</div>
+
 		<div class="chat-config">
-			<!-- Name -->
-			<div class="config-section">
-				<div class="config-item">
-					<label for="agent-name">Navn</label>
-					<textarea
-						class="name-input"
-						id="agent-name"
-						rows="1"
-						placeholder="Gi assistenten et navn"
-						bind:value={chatState.chat.config.name}
-						onkeydown={(e) => { if (e.key === "Enter") e.preventDefault() }}
-					></textarea>
-				</div>
-			</div>
-
-			<!-- Description -->
-			<div class="config-section">
-				<div class="config-item">
-					<label for="description">Beskrivelse av assistent</label>
-					<GrowingTextArea id="description" style="textarea" initialRows={1} placeholder="Skriv en beskrivelse av assistenten her" bind:value={chatState.chat.config.description} />
-				</div>
-			</div>
-
-			<!-- Sharing -->
-			<div class="config-section">
-				<div class="share-row">
-					<label class="toggle-label">
-						<span>Del assistent</span>
-						<span class="toggle">
-							<input type="checkbox" bind:checked={chatState.chat.config.shared} />
-							<span class="toggle-track"></span>
-						</span>
-					</label>
-					<button class="icon-button" disabled={!chatState.chat.config.shared || !chatState.chat.config._id} onclick={copyAgentUrl} title="Kopier lenke">
-						<span class="material-symbols-outlined">content_copy</span>
-					</button>
-				</div>
-				<div class="share-description">
-					Ved å dele din assistent kan de som har lenken bruke den, men den blir ikke listet opp noe sted.
-				</div>
-			</div>
-
-			<!-- Publish options -->
-			{#if canPublishChatConfig(chatState.user, chatState.APP_CONFIG.APP_ROLES)}
+			{#if activeTab === "settings"}
+				<!-- Name -->
 				<div class="config-section">
 					<div class="config-item">
-						<label for="publish-status">Publiseringsstatus</label>
-						<select id="publish-status" bind:value={chatState.chat.config.type}>
-							<option value="private">Privat</option>
-							<option value="published">Publisert</option>
-						</select>
+						<label for="agent-name">Navn</label>
+						<textarea
+							class="name-input"
+							id="agent-name"
+							rows="1"
+							placeholder="Gi assistenten et navn"
+							bind:value={chatState.chat.config.name}
+							onkeydown={(e) => { if (e.key === "Enter") e.preventDefault() }}
+						></textarea>
 					</div>
-					{#if chatState.chat.config.type === "published"}
+				</div>
+
+				<!-- Description -->
+				<div class="config-section">
+					<div class="config-item">
+						<label for="description">Beskrivelse av assistent</label>
+						<GrowingTextArea id="description" style="textarea" initialRows={1} placeholder="Skriv en beskrivelse av assistenten her" bind:value={chatState.chat.config.description} />
+					</div>
+				</div>
+
+				<!-- Sharing -->
+				<div class="config-section">
+					<div class="share-row">
+						<label class="toggle-label">
+							<span>Del assistent</span>
+							<span class="toggle">
+								<input type="checkbox" bind:checked={chatState.chat.config.shared} />
+								<span class="toggle-track"></span>
+							</span>
+						</label>
+						<button class="icon-button" disabled={!chatState.chat.config.shared || !chatState.chat.config._id} onclick={copyAgentUrl} title="Kopier lenke">
+							<span class="material-symbols-outlined">content_copy</span>
+						</button>
+					</div>
+					<div class="share-description">
+						Ved å dele din assistent kan de som har lenken bruke den, men den blir ikke listet opp noe sted.
+					</div>
+				</div>
+
+				<!-- Embed link (chrome-less, but still requires login + normal access rules) -->
+				{#if chatState.chat.config._id}
+					<div class="config-section">
+						<div class="share-row">
+							<span>Embed-lenke (for iframe på interne sider)</span>
+							<button class="icon-button" onclick={() => navigator.clipboard.writeText(embedUrl)} title="Kopier embed-lenke">
+								<span class="material-symbols-outlined">content_copy</span>
+							</button>
+						</div>
+						<div class="share-description">
+							Chrome-løst chatvindu uten meny/header. Krever fortsatt innlogging og de samme tilgangsreglene som selve assistenten.
+						</div>
+					</div>
+				{/if}
+
+				<!-- Advanced embed settings - avatar/welcome/suggested questions, anonymous embedding,
+				     guardrails and rate limits. Collapsed by default: the common case is just copying
+				     the embed link above, not touching any of this. -->
+				{#if chatState.chat.config._id || userCanSetAnonymousEmbed}
+					<div class="config-section">
+						<button class="advanced-toggle" onclick={() => { embedAdvancedOpen = !embedAdvancedOpen }} type="button" aria-expanded={embedAdvancedOpen}>
+							<span class="material-symbols-outlined">{embedAdvancedOpen ? "expand_less" : "expand_more"}</span>
+							Avansert
+						</button>
+					</div>
+				{/if}
+
+				<!-- Embed widget presentation - used by both /embed/agents/[agentId] and any anonymous
+				     embed below; independent of auth mode, so it isn't gated on userCanSetAnonymousEmbed. -->
+				{#if embedAdvancedOpen && chatState.chat.config._id}
+					<div class="config-section">
 						<div class="config-item">
-							<label for="access-groups">Tilgang</label>
-							<select multiple id="access-groups" bind:value={chatState.chat.config.accessGroups}>
-								<option value="all">Alle</option>
-								<option value="employee">Ansatte</option>
-								<option value="edu_employee">Skole-ansatte</option>
-								<option value="student">Elever og skole-ansatte</option>
+							<label for="avatar-url">Avatar-URL (valgfritt)</label>
+							<input id="avatar-url" type="text" placeholder="https://.../avatar.png" bind:value={chatState.chat.config.avatarUrl} />
+						</div>
+					</div>
+					<div class="config-section">
+						<div class="config-item">
+							<label for="welcome-message">Velkomstmelding i embed-widget</label>
+							<GrowingTextArea
+								id="welcome-message"
+								style="textarea"
+								initialRows={2}
+								placeholder="Hei! Jeg er {chatState.chat.config.name || 'assistenten'}. Hva kan jeg hjelpe deg med?"
+								bind:value={chatState.chat.config.welcomeMessage}
+							/>
+						</div>
+					</div>
+					<div class="config-section">
+						<div class="config-item">
+							<label for="new-suggested-question">Forslag til spørsmål (maks 4)</label>
+							{#each chatState.chat.config.suggestedQuestions ?? [] as question}
+								<div class="source-row">
+									<span>{question}</span>
+									<button class="remove-source" onclick={() => removeSuggestedQuestion(question)}>×</button>
+								</div>
+							{/each}
+							{#if (chatState.chat.config.suggestedQuestions?.length ?? 0) < 4}
+								<div class="share-row">
+									<input
+										id="new-suggested-question"
+										type="text"
+										placeholder="Legg til forslag..."
+										bind:value={newSuggestedQuestionInput}
+										onkeydown={(e) => { if (e.key === "Enter") { e.preventDefault(); addSuggestedQuestion() } }}
+									/>
+									<button onclick={addSuggestedQuestion}>Legg til</button>
+								</div>
+							{/if}
+							<div class="share-description">
+								Vises som klikkbare forslag før første melding i embed-widgeten. Tomt felt viser ingen forslag.
+							</div>
+						</div>
+					</div>
+					<div class="config-section">
+						<span class="field-group-label">Vis knapper i embed-widget</span>
+						<div class="toggle-group">
+							<label class="toggle-label">
+								<span>Vedlegg</span>
+								<span class="toggle">
+									<input
+										type="checkbox"
+										checked={chatState.chat.config.showAttachmentButton !== false}
+										onchange={(e) => { chatState.chat.config.showAttachmentButton = (e.target as HTMLInputElement).checked }}
+									/>
+									<span class="toggle-track"></span>
+								</span>
+							</label>
+							<label class="toggle-label">
+								<span>Nettsøk</span>
+								<span class="toggle">
+									<input
+										type="checkbox"
+										checked={chatState.chat.config.showWebSearchButton !== false}
+										onchange={(e) => { chatState.chat.config.showWebSearchButton = (e.target as HTMLInputElement).checked }}
+									/>
+									<span class="toggle-track"></span>
+								</span>
+							</label>
+						</div>
+						<div class="share-description">
+							På (standard): knappen vises i embed-widgeten, forutsatt at assistenten faktisk støtter den. Av: knappen skjules helt, uavhengig av støtte. Påvirker ikke den vanlige chat-siden internt.
+						</div>
+					</div>
+				{/if}
+
+				<!-- Anonymous embed - independent of type/shared, admin-only -->
+				{#if embedAdvancedOpen && userCanSetAnonymousEmbed}
+					<div class="config-section">
+						<div class="share-row">
+							<label class="toggle-label">
+								<span>Tillat anonym embedding (ingen innlogging)</span>
+								<span class="toggle">
+									<input type="checkbox" bind:checked={chatState.chat.config.allowAnonymousEmbed} />
+									<span class="toggle-track"></span>
+								</span>
+							</label>
+						</div>
+						<div class="share-description">
+							Gjør assistenten tilgjengelig helt uten innlogging via en egen embed-URL, uansett publiseringsstatus under. Listes ikke opp noe sted - kun de med lenken kan bruke den. Samtaler lagres aldri.
+						</div>
+						{#if chatState.chat.config.allowAnonymousEmbed && publicEmbedUrl}
+							<div class="subsection-label">Embed-tilgang</div>
+							<div class="config-item">
+								<label for="public-embed-widget-snippet">Widget-kode (anbefalt)</label>
+								<div class="share-row">
+									<input id="public-embed-widget-snippet" type="text" readonly value={publicWidgetSnippet} />
+									<button class="icon-button" onclick={() => navigator.clipboard.writeText(publicWidgetSnippet)} title="Kopier widget-kode">
+										<span class="material-symbols-outlined">content_copy</span>
+									</button>
+								</div>
+								<div class="share-description">Lim inn på en ekstern side - gir en ferdig styled, flytende chat-boble nederst til høyre.</div>
+							</div>
+							<div class="config-item">
+								<label for="public-embed-url">Offentlig embed-URL (avansert)</label>
+								<div class="share-row">
+									<input id="public-embed-url" type="text" readonly value={publicEmbedUrl} />
+									<button class="icon-button" onclick={() => navigator.clipboard.writeText(publicEmbedUrl)} title="Kopier offentlig embed-URL">
+										<span class="material-symbols-outlined">content_copy</span>
+									</button>
+								</div>
+								<div class="share-description">For manuell &lt;iframe src="..."&gt;-embedding uten widget-boblen (egen styling/plassering).</div>
+							</div>
+
+							<div class="subsection-label">Guardrails (A/B-test)</div>
+							<div class="config-item">
+								<label class="toggle-label">
+									<span>Scope-sjekk før svar</span>
+									<span class="toggle">
+										<input type="checkbox" bind:checked={chatState.chat.config.scopeGuardEnabled} />
+										<span class="toggle-track"></span>
+									</span>
+								</label>
+								<div class="share-description">
+									Av (standard): spørsmål kategoriseres kun til statistikk i etterkant, akkurat som innlogget chat - aldri noe som blokkeres.
+									På: hvert spørsmål vurderes FØR svar, mot beskrivelsen over - spørsmål tydelig utenfor det blir avvist med en standardmelding i stedet for å sendes til modellen. Eksperimentell, sammenlignes mot av.
+								</div>
+							</div>
+							<div class="config-item">
+								<label class="toggle-label">
+									<span>Avvis ved tomt datakilde-treff</span>
+									<span class="toggle">
+										<input type="checkbox" bind:checked={chatState.chat.config.emptyRagGuardEnabled} />
+										<span class="toggle-track"></span>
+									</span>
+								</label>
+								<div class="share-description">
+									Uavhengig av scope-sjekken over - kan skrus av/på hver for seg for å teste kombinasjoner. Kun relevant når assistenten har datakilder: av (standard) svarer modellen fra egen kunnskap selv om søket ikke traff noe relevant. På: avvises med samme standardmelding som scope-sjekken, i stedet for å risikere et ubegrunnet svar.
+								</div>
+							</div>
+
+							<div class="subsection-label">Rate limiting</div>
+							<div class="config-item">
+								<label for="rate-limit-per-ip-minute">Meldinger per besøkende per minutt</label>
+								<input id="rate-limit-per-ip-minute" type="number" min="1" placeholder="La stå tom for systemets standardgrense" bind:value={chatState.chat.config.rateLimitPerIpPerMinute} />
+							</div>
+							<div class="config-item">
+								<label for="rate-limit-per-ip-day">Meldinger per besøkende per dag</label>
+								<input id="rate-limit-per-ip-day" type="number" min="1" placeholder="La stå tom for systemets standardgrense" bind:value={chatState.chat.config.rateLimitPerIpPerDay} />
+							</div>
+							<div class="share-description">
+								De to grensene over er alltid aktive for anonym embedding, som vern mot kostnad/misbruk siden alle med lenken kan bruke den uten innlogging. La dem stå tomme for å bruke systemets standard.
+							</div>
+							<div class="config-item">
+								<label for="rate-limit-per-bot">Felles tak for denne assistenten per dag (valgfritt)</label>
+								<input id="rate-limit-per-bot" type="number" min="1" placeholder="Ingen (standard - se beskrivelse)" bind:value={chatState.chat.config.rateLimitPerBotPerDay} />
+							</div>
+							<div class="share-description">
+								Av som standard, med vilje - et felles tak alle besøkende deler på er selv et enkelt mål å tømme (én pågående besøkende kan låse ute alle andre resten av dagen). Grensene per besøkende over er det som faktisk beskytter mot det. Sett et tall her kun hvis denne spesifikke assistenten trenger et hardt kostnadstak uavhengig av om trafikken er reell.
+							</div>
+						{/if}
+					</div>
+				{/if}
+
+				<!-- Publish options -->
+				{#if canPublishChatConfig(chatState.user, chatState.APP_CONFIG.APP_ROLES)}
+					<div class="config-section">
+						<div class="config-item">
+							<label for="publish-status">Publiseringsstatus</label>
+							<select id="publish-status" bind:value={chatState.chat.config.type}>
+								<option value="private">Privat</option>
+								<option value="published">Publisert</option>
+							</select>
+						</div>
+						{#if chatState.chat.config.type === "published"}
+							<div class="config-item">
+								<label for="access-groups">Tilgang</label>
+								<select multiple id="access-groups" bind:value={chatState.chat.config.accessGroups}>
+									<option value="all">Alle</option>
+									<option value="employee">Ansatte</option>
+									<option value="edu_employee">Skole-ansatte</option>
+									<option value="student">Elever og skole-ansatte</option>
+								</select>
+							</div>
+						{/if}
+					</div>
+				{/if}
+
+				<!-- Config type selection -->
+				{#if userCanEditPredefinedConfig}
+					<div class="config-section">
+						<div class="config-item radio-group">
+							<label class="radio-label">
+								<input type="radio" name="configType" value="manual" onchange={onConfigTypeChange} checked={!chatState.chat.config.vendorAgent} />
+								Manuell konfigurasjon
+							</label>
+							<label class="radio-label">
+								<input type="radio" name="configType" value="predefined" onchange={onConfigTypeChange} checked={Boolean(chatState.chat.config.vendorAgent)} />
+								Leverandør-konfigurasjon
+							</label>
+						</div>
+					</div>
+				{/if}
+
+				<!-- Model / vendor-agent -->
+				<div class="config-section">
+					{#if !chatState.chat.config.vendorAgent}
+						<ProfilePicker bind:config={chatState.chat.config} appConfig={chatState.APP_CONFIG} user={chatState.user} />
+					{:else}
+						<div class="config-item">
+							<label for="vendor">KI-leverandør</label>
+							<select id="vendor" bind:value={chatState.chat.config.vendorId}>
+								{#each Object.entries(chatState.APP_CONFIG.VENDORS).filter(([_k, v]) => v.ENABLED) as [id, vendor]}
+									<option value={id}>{vendor.NAME}</option>
+								{/each}
+							</select>
+						</div>
+					{/if}
+					{#if userCanEditPredefinedConfig && chatState.chat.config.vendorAgent}
+						<div class="config-item">
+							<label for="vendor-project">Prosjekt</label>
+							<select id="vendor-project" bind:value={chatState.chat.config.project}>
+								{#each getAvailableProjects(chatState.chat.config.vendorId) as projectId}
+									<option value={projectId}>{projectId}</option>
+								{/each}
 							</select>
 						</div>
 					{/if}
 				</div>
-			{/if}
 
-			<!-- Config type selection -->
-			{#if userCanEditPredefinedConfig}
-				<div class="config-section">
-					<div class="config-item radio-group">
-						<label class="radio-label">
-							<input type="radio" name="configType" value="manual" onchange={onConfigTypeChange} checked={!chatState.chat.config.vendorAgent} />
-							Manuell konfigurasjon
-						</label>
-						<label class="radio-label">
-							<input type="radio" name="configType" value="predefined" onchange={onConfigTypeChange} checked={Boolean(chatState.chat.config.vendorAgent)} />
-							Leverandør-konfigurasjon
-						</label>
-					</div>
-				</div>
-			{/if}
-
-			<!-- Model / vendor-agent -->
-			<div class="config-section">
+				<!-- Instructions (only for manual config) -->
 				{#if !chatState.chat.config.vendorAgent}
-					<VendorModelSelector bind:vendorId={chatState.chat.config.vendorId} bind:model={chatState.chat.config.model as string} appConfig={chatState.APP_CONFIG} />
-				{:else}
-					<div class="config-item">
-						<label for="vendor">KI-leverandør</label>
-						<select id="vendor" bind:value={chatState.chat.config.vendorId}>
-							{#each Object.entries(chatState.APP_CONFIG.VENDORS).filter(([_k, v]) => v.ENABLED) as [id, vendor]}
-								<option value={id}>{vendor.NAME}</option>
-							{/each}
-						</select>
+					<div class="config-section">
+						<div class="config-item">
+							<label for="instructions">Instruksjoner til modellen</label>
+							<GrowingTextArea id="instructions" style="textarea" initialRows={1} placeholder="Skriv instruksjoner til modellen her..." bind:value={chatState.chat.config.instructions} />
+						</div>
 					</div>
 				{/if}
-				{#if userCanEditPredefinedConfig}
-					<div class="config-item">
-						<label for="vendor-project">Prosjekt</label>
-						<select id="vendor-project" bind:value={chatState.chat.config.project}>
-							{#each getAvailableProjects(chatState.chat.config.vendorId) as projectId}
-								<option value={projectId}>{projectId}</option>
+
+				<!-- Data sources -->
+				{#if userCanUseRagservice || userCanUseMcpSharepoint || userCanUseWebsiteDataSource}
+					<div class="config-section">
+						<div class="config-item">
+							<label>Datakilder</label>
+							{#each chatState.chat.config.dataSources ?? [] as source}
+								<div class="source-row">
+									<span class="source-name">
+										{#if source.type === "mcp"}
+											<span class="material-symbols-outlined source-type-icon" title="MCP">cable</span>{availableMcpSources.find((s) => s._id === source.sourceId)?.name ?? source.sourceId}
+										{:else if source.type === "website"}
+											<span class="material-symbols-outlined source-type-icon" title="Nettside">public</span>{availableWebsiteSources.find((s) => s._id === source.id)?.name ?? source.id}
+										{:else}
+											<span class="material-symbols-outlined source-type-icon" title="Dokumentsøk">database</span>{availableStores.find((s) => s.storeId === source.id)?.name ?? source.id}
+										{/if}
+									</span>
+									<button class="remove-source" onclick={() => removeDataSource(source)}>×</button>
+								</div>
 							{/each}
-						</select>
+							<select onchange={(e) => { addDataSource(e.currentTarget.value); e.currentTarget.value = "" }}>
+								<option value="">Legg til datakilde...</option>
+								{#if availableStores.length > 0}
+									<optgroup label="Dokumentsøk">
+										{#each availableStores.filter((s) => !(chatState.chat.config.dataSources ?? []).some((d) => d.type === "ragservice" && d.id === s.storeId)) as store}
+											<option value={store.storeId}>{store.name}</option>
+										{/each}
+									</optgroup>
+								{/if}
+								{#if !chatState.chat.config.vendorAgent}
+									{#if availableWebsiteSources.length > 0}
+										<optgroup label="Websites">
+											{#each availableWebsiteSources.filter((s) => !(chatState.chat.config.dataSources ?? []).some((d) => d.type === "website" && d.id === s._id)) as websiteSource}
+												<option value={`${WEBSITE_OPTION_PREFIX}${websiteSource._id}`}>{websiteSource.name}</option>
+											{/each}
+										</optgroup>
+									{/if}
+									{#if availableMcpSources.length > 0}
+										<optgroup label="MCP">
+											{#each availableMcpSources.filter((s) => !(chatState.chat.config.dataSources ?? []).some((d) => d.type === "mcp" && d.sourceId === s._id)) as mcpSource}
+												<option value={`${MCP_OPTION_PREFIX}${mcpSource._id}`}>{mcpSource.name}</option>
+											{/each}
+										</optgroup>
+									{/if}
+								{/if}
+							</select>
+						</div>
 					</div>
 				{/if}
-			</div>
 
-			<!-- Instructions (only for manual config) -->
-			{#if !chatState.chat.config.vendorAgent}
-				<div class="config-section">
-					<div class="config-item">
-						<label for="instructions">Instruksjoner til modellen</label>
-						<GrowingTextArea id="instructions" style="textarea" initialRows={1} placeholder="Skriv instruksjoner til modellen her..." bind:value={chatState.chat.config.instructions} />
+				<!-- Vendor agent (only for predefined config) -->
+				{#if chatState.chat.config.vendorAgent}
+					<div class="config-section">
+						<div class="config-item">
+							<label for="vendorAgentId">Assistent-id</label>
+							<input id="vendorAgentId" placeholder="agent/prompt-id" type="text" bind:value={chatState.chat.config.vendorAgent.id} />
+						</div>
 					</div>
-				</div>
-			{/if}
-
-			<!-- Data sources -->
-			{#if userCanUseRagservice}
+				{/if}
+			{:else if activeTab === "stats"}
+				<!-- Categories for write-time question statistics -->
 				<div class="config-section">
 					<div class="config-item">
-						<label>Datakilder</label>
-						{#each chatState.chat.config.dataSources ?? [] as source}
+						<label for="new-category">Kategorier (for statistikk)</label>
+						{#each chatState.chat.config.categories ?? [] as category}
 							<div class="source-row">
-								<span>{availableStores.find((s) => s.storeId === source.id)?.name ?? source.id}</span>
-								<button class="remove-source" onclick={() => removeDataSource(source.id)}>×</button>
+								<span>{category}</span>
+								<button class="remove-source" onclick={() => removeCategory(category)}>×</button>
 							</div>
 						{/each}
-						<select onchange={(e) => { addDataSource(e.currentTarget.value); e.currentTarget.value = "" }}>
-							<option value="">Legg til datakilde...</option>
-							{#each availableStores.filter((s) => !(chatState.chat.config.dataSources ?? []).some((d) => d.id === s.storeId)) as store}
-								<option value={store.storeId}>{store.name}</option>
-							{/each}
-						</select>
+						<div class="share-row">
+							<input
+								id="new-category"
+								type="text"
+								placeholder="Legg til kategori..."
+								bind:value={newCategoryInput}
+								onkeydown={(e) => { if (e.key === "Enter") { e.preventDefault(); addCategory() } }}
+							/>
+							<button onclick={addCategory}>Legg til</button>
+						</div>
+						<div class="share-description">
+							Hvert spørsmål brukere stiller assistenten kategoriseres automatisk inn i en av disse (eller «Ukategorisert»), og telles anonymt - ingen samtaleinnhold eller brukeridentitet lagres.
+						</div>
 					</div>
 				</div>
-			{/if}
 
-			<!-- Vendor agent (only for predefined config) -->
-			{#if chatState.chat.config.vendorAgent}
-				<div class="config-section">
-					<div class="config-item">
-						<label for="vendorAgentId">Assistent-id</label>
-						<input id="vendorAgentId" placeholder="agent/prompt-id" type="text" bind:value={chatState.chat.config.vendorAgent.id} />
-					</div>
-				</div>
+				<!-- Only meaningful once the bot is saved and has categories defined -->
+				{#if chatState.chat.config._id && (chatState.chat.config.categories?.length ?? 0) > 0}
+					<ChatConfigStats chatConfigId={chatState.chat.config._id} categories={chatState.chat.config.categories ?? []} />
+				{/if}
 			{/if}
 		</div>
 
@@ -298,6 +670,31 @@
 		width: 100%;
 		box-sizing: border-box;
 		padding: 0 0.5rem;
+	}
+	.config-tabs {
+		display: flex;
+		gap: 0.25rem;
+		padding: 0 0.5rem;
+		border-bottom: 2px solid var(--color-primary-20);
+	}
+	.config-tab-button {
+		border: none;
+		background: none;
+		height: auto;
+		padding: 0.5rem 0.875rem;
+		font-size: 0.9rem;
+		color: var(--color-primary-80);
+		border-radius: 6px 6px 0 0;
+	}
+	.config-tab-button:hover {
+		background-color: var(--color-primary-20);
+	}
+	.config-tab-button:disabled {
+		background-color: var(--color-primary-10);
+		color: var(--color-primary);
+		font-weight: 600;
+		cursor: default;
+		box-shadow: inset 0 -2px 0 var(--color-primary);
 	}
 	.config-section, .config-actions {
 		display: flex;
@@ -404,12 +801,51 @@
 		color: #888;
 		margin-top: 0.25rem;
 	}
+	.advanced-toggle {
+		display: flex;
+		align-items: center;
+		gap: 0.25rem;
+		background: none;
+		border: none;
+		padding: 0;
+		color: var(--color-primary);
+		font: inherit;
+		font-size: 0.9rem;
+		cursor: pointer;
+	}
+	.advanced-toggle:hover {
+		text-decoration: underline;
+	}
+	.subsection-label {
+		/* Forces a line break in the wrapping .config-section flex row, same way a long
+		   .share-description naturally wraps onto its own line - but this text is short, so it
+		   needs an explicit full-width flex-basis to get the same effect. */
+		flex-basis: 100%;
+		margin-top: 0.75rem;
+		padding-top: 0.75rem;
+		border-top: 1px solid var(--color-primary-30);
+		font-size: 0.72rem;
+		font-weight: 600;
+		letter-spacing: 0.04em;
+		text-transform: uppercase;
+		color: var(--color-primary);
+		opacity: 0.75;
+	}
 	.source-row {
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
 		padding: 0.25rem 0.25rem 0.25rem 0;
 		font-size: small;
+	}
+	.source-name {
+		display: flex;
+		align-items: center;
+		gap: 0.35rem;
+	}
+	.source-type-icon {
+		font-size: 1rem;
+		color: var(--color-primary-70);
 	}
 	button.remove-source {
 		background: none;
@@ -428,6 +864,19 @@
 		font-size: small;
 		display: inline-block;
 		padding-bottom: 0.5rem;
+	}
+	.field-group-label {
+		color: var(--color-primary);
+		font-size: small;
+		display: inline-block;
+		padding-bottom: 0.5rem;
+		flex-basis: 100%;
+	}
+	.toggle-group {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.5rem 1.5rem;
+		margin-bottom: 0.5rem;
 	}
 	textarea.name-input {
 		font: inherit;

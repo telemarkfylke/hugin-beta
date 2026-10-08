@@ -1,4 +1,8 @@
 <script lang="ts">
+	import { page } from "$app/state"
+	import { getModelDisplay, getPinnedModelLabel } from "$lib/model-profiles"
+	import type { AppConfig } from "$lib/types/app-config"
+	import type { AuthenticatedPrincipal } from "$lib/types/authentication"
 	import type { ChatConfig } from "$lib/types/chat"
 
 	type Props = {
@@ -6,6 +10,10 @@
 	}
 
 	let { agent }: Props = $props()
+
+	// Layout data (see +layout.server.ts) - every page has it
+	const appConfig = $derived(page.data.APP_CONFIG as AppConfig)
+	const isAdmin = $derived((page.data.authenticatedUser as AuthenticatedPrincipal)?.roles?.includes(appConfig.APP_ROLES.ADMIN) ?? false)
 
 	// Dato på pent format
 	const formatDate = (dateString: string) => {
@@ -15,15 +23,6 @@
 			month: "short",
 			year: "numeric"
 		})
-	}
-
-	const getVendorDisplayName = (vendorId: string) => {
-		const vendorNames: Record<string, string> = {
-			MISTRAL: "Mistral AI",
-			OPENAI: "OpenAI",
-			OLLAMA: "Ollama"
-		}
-		return vendorNames[vendorId] || vendorId
 	}
 </script>
 
@@ -49,15 +48,17 @@
 		{/if}
 
 		<div class="agent-meta">
-			<div class="meta-item">
-				<span class="material-symbols-outlined">smart_toy</span>
-				<span>{getVendorDisplayName(agent.vendorId)}</span>
-			</div>
-			{#if agent.model}
+			{#if !agent.vendorAgent}
 				<div class="meta-item">
-					<span class="material-symbols-outlined">memory</span>
-					<span>{agent.model}</span>
+					<span class="material-symbols-outlined">{getModelDisplay(agent, appConfig).icon}</span>
+					<span>{getModelDisplay(agent, appConfig).label}</span>
 				</div>
+				{#if agent.pinned && isAdmin}
+					<div class="meta-item" title="Låst til modell">
+						<span class="material-symbols-outlined">push_pin</span>
+						<span>{getPinnedModelLabel(agent.pinned, appConfig)}</span>
+					</div>
+				{/if}
 			{/if}
 			{#if agent.vendorAgent}
 				<div class="meta-item">

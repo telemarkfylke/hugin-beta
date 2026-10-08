@@ -5,7 +5,7 @@
 	import favicon32 from "$lib/assets/favicon-32x32.png"
 	import "../style.css" // Add global css (and make it hot reload)
 	import "../lib/axe.js"
-	import { canUseTranscription, isStudentOnly } from "$lib/authorization"
+	import { canUseCanvas, canUseRagservice, canUseTranscription } from "$lib/authorization"
 	import Menu from "$lib/components/Menu.svelte"
 	import SpotlightHost from "$lib/components/SpotlightHost.svelte"
 	import type { LayoutProps } from "./$types.js"
@@ -33,26 +33,35 @@
 	</style>
 </svelte:head>
 
-<main>
-	<Menu
-		authenticatedUser={data.authenticatedUser}
-		appName={data.APP_CONFIG.NAME}
-		isEmployee={data.authenticatedUser.roles.includes(data.APP_CONFIG.APP_ROLES.EMPLOYEE)}
-		canUseTranscription={canUseTranscription(data.authenticatedUser, data.APP_CONFIG.APP_ROLES)}
-		canvasEnabled={data.APP_CONFIG.CANVAS_ENABLED}
-		isAdmin={data.authenticatedUser.roles.includes(data.APP_CONFIG.APP_ROLES.ADMIN)}
-		isStudentOnly={isStudentOnly(data.authenticatedUser, data.APP_CONFIG.APP_ROLES)}
-	/>
-	<div class="page-content">
-		{#if children}
-			{@render children()}
-		{:else}
-			<p>fallback content</p>
-		{/if}
-	</div>
-</main>
+{#if data.isEmbedRoute}
+	{#if children}
+		{@render children()}
+	{:else}
+		<p>fallback content</p>
+	{/if}
+{:else}
+	<main>
+		<Menu
+			authenticatedUser={data.authenticatedUser}
+			appName={data.APP_CONFIG.NAME}
+			canUseTranscription={canUseTranscription(data.authenticatedUser, data.APP_CONFIG.APP_ROLES)}
+			canUseCanvas={data.APP_CONFIG.CANVAS_ENABLED && canUseCanvas(data.authenticatedUser, data.APP_CONFIG.APP_ROLES)}
+			canUseDatasources={canUseRagservice(data.authenticatedUser, data.APP_CONFIG.APP_ROLES)}
+			canPreviewRoles={data.authenticatedUser.roles.includes(data.APP_CONFIG.APP_ROLES.QA) || data.authenticatedUser.rolePreview !== undefined}
+		/>
+		<div class="page-content">
+			{#if children}
+				{@render children()}
+			{:else}
+				<p>fallback content</p>
+			{/if}
+		</div>
+	</main>
 
-<SpotlightHost authenticatedUser={data.authenticatedUser} appRoles={data.APP_CONFIG.APP_ROLES} />
+	<!-- Feature-announcement overlay - never on embed routes, that's someone else's page/an anonymous
+	     visitor, not a Hugin user we'd be onboarding. -->
+	<SpotlightHost authenticatedUser={data.authenticatedUser} appRoles={data.APP_CONFIG.APP_ROLES} />
+{/if}
 
 <style>
 	main {

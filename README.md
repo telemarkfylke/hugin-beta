@@ -14,12 +14,13 @@ Hugin Beta is an internal AI-agent web application designed to provide a democra
 ### Key Features
 
 - **Multi-Provider Support** - Unified interface for OpenAI, Mistral AI, Ollama, and LiteLLM
+- **Model Profiles** - Users pick a profile ("Rask", "Grundig", "Europeisk", "Lokal") instead of a vendor/model/project; all models, profiles and defaults live in one config file
 - **Real-Time Streaming** - Server-Sent Events (SSE) for incremental AI responses
 - **Enterprise Authentication** - Microsoft Entra ID integration with role-based and group-based access control
 - **Multi-Modal Input** - Support for text, images, and document uploads
-- **Canvas** - AI-assisted document editor with web search, manual editing, Mermaid diagram generation, and export to text and Word
+- **Canvas** - AI-assisted document editor with web search, manual editing, AI-generated Excalidraw diagrams, and export to text and Word
 - **Transcription (Tale-til-notat)** - Audio upload and transcription via an internal service, with group-gated sensitive use cases
-- **Datakilder (RAG)** - Retrieval-augmented data sources, injected into agent instructions via an on-behalf-of proxy *(actively under development)*
+- **Datakilder** - Three kinds of data sources an agent can use: RAG document libraries (retrieval, injected into `instructions`), SharePoint MCP sources (scoped folder browsing/reading via tool-calling), and Website sources (scoped page fetching via tool-calling) - each with its own tab, private-by-default ownership, and an explicit "make public" toggle to share with other users
 - **Conversation Persistence** - Optional history with auto-generated titles, incognito mode, and at-rest encryption
 - **Agent Management** - Create, publish, and share reusable chat configurations ("agents")
 - **Modern UI** - Svelte 5 Runes for reactive state management with markdown and LaTeX rendering
@@ -35,13 +36,15 @@ Hugin Beta is an internal AI-agent web application designed to provide a democra
   - [Streaming Architecture](#streaming-architecture)
   - [Authorization](#authorization)
 - [Features](#features)
+  - [Model Profiles](#model-profiles)
   - [Canvas](#canvas)
   - [Transcription (Tale-til-notat)](#transcription-tale-til-notat)
   - [Datakilder (RAG)](#datakilder-rag)
+  - [SharePoint MCP Integration](#sharepoint-mcp-integration)
+  - [Website Data Sources](#website-data-sources)
   - [Conversation History & Encryption](#conversation-history--encryption)
   - [Agent Management](#agent-management)
   - [Feature Spotlight](#feature-spotlight)
-  - [Analytics](#analytics)
 - [Getting Started](#getting-started)
   - [Prerequisites](#prerequisites)
   - [Installation](#installation)
@@ -108,7 +111,7 @@ Four vendors are implemented today: OpenAI, Mistral AI, Ollama, and LiteLLM (`sr
 | `{vendor}-mapping.ts` | Converts between internal types and vendor SDK types |
 | `{vendor}-stream.ts` | Handles SSE streaming and event normalization |
 
-Vendors are registered in `src/lib/server/ai-vendors.ts` and enabled/configured per-vendor via `APP_CONFIG.VENDORS` (`src/lib/server/app-config/app-config.ts`). **`vendorId` values are uppercase** (`"OPENAI"`, `"MISTRAL"`, `"OLLAMA"`, `"LITELLM"`), matching the `VENDORS` keys in `APP_CONFIG`.
+Vendors are registered in `src/lib/server/ai-vendors.ts` and enabled/configured per-vendor via `APP_CONFIG.VENDORS` (`src/lib/server/app-config/app-config.ts`). Each vendor's model list is derived from the model catalogue - see [Model Profiles](#model-profiles). **`vendorId` values are uppercase** (`"OPENAI"`, `"MISTRAL"`, `"OLLAMA"`, `"LITELLM"`), matching the `VENDORS` keys in `APP_CONFIG`.
 
 **Data Flow:**
 ```
@@ -159,17 +162,64 @@ All access-control decisions go through named functions in `src/lib/authorizatio
 | `canEditChatConfig` | new config (`_id === ""`), `ADMIN`, `AGENT_MAINTAINER` on a published config, or the private config's own creator |
 | `canUpdateChatConfig` | same as above, plus validates the existing/incoming config `_id`s match before checking |
 | `canPromptConfig` | `ADMIN`; a `shared` config; a private config owned by the user; or a published config matching the user's role/group via `accessGroups` (`"all"`, `"employee"`, `"edu_employee"`, `"student"`, or an explicit Entra group id) |
-| `canUseCanvas` | `EMPLOYEE` or `ADMIN` |
+| `canUseCanvas` | `EMPLOYEE`, `EDU_EMPLOYEE`, `STUDENT` or `ADMIN` (and `CANVAS_ENABLED`) |
 | `canUseRagservice` | `EMPLOYEE` or `ADMIN` |
+| `canUseTranscription` | `EMPLOYEE`, `EDU_EMPLOYEE` or `ADMIN` - only gates the menu link today, see [Transcription](#transcription-tale-til-notat) |
+| `canUseMcpSharepoint` | `EMPLOYEE` or `ADMIN` - can use the MCP feature at all (see one below for per-source ownership) |
+| `canUseWebsiteDataSource` | anyone authenticated, students included - Website sources touch no live external system or org-wide search, so there's no role gate beyond being logged in (see one below for per-source ownership) |
+| `canViewMcpSource` / `canViewWebsiteSource` | `ADMIN`; the source's own `type === "published"`; or the source's creator |
+| `canEditMcpSource` / `canEditWebsiteSource` | `ADMIN`, or the source's creator - regardless of `type` (a published source is still owner/admin-only to edit or delete) |
 | `isStudentOnly` | `STUDENT` is the user's *only* role (a user who is both `STUDENT` and `EDU_EMPLOYEE` does not count) |
-| `canUseHistory` | anyone except a student-only user — students are always forced into incognito, no history is ever stored |
-| `canSeeSpotlight` | audience gate for [Feature Spotlight](#feature-spotlight) announcements; uses the same `accessGroups` semantics as `canPromptConfig` |
+| `canUseHistory` | everyone — the former student-only restriction is commented out in `authorization.ts` and can be re-enabled with a one-line change; when false, incognito is forced and history hidden |
+| `canSeeSpotlight` | audience gate for [Feature Spotlight](#feature-spotlight) announcements; uses the same `accessGroups` semantics as `canPromptConfig`, except `"student"` means the `STUDENT` role only (not `EDU_EMPLOYEE`) |
 
-Regular users can define their own chat configs and test them against `/api/chat`, but cannot create configs pointing at predefined agent/prompt IDs configured in a vendor — those are only usable via a predefined chat config in the database, created by a user with `AGENT_MAINTAINER` or `ADMIN` permissions. Transcription access is currently gated separately from this table — see [Transcription](#transcription-tale-til-notat).
+Regular users can define their own chat configs and test them against `/api/chat`, but cannot create configs pointing at predefined agent/prompt IDs configured in a vendor — those are only usable via a predefined chat config in the database, created by a user with `AGENT_MAINTAINER` or `ADMIN` permissions.
 
 ---
 
 ## Features
+
+### Model Profiles
+
+Assistants and the default chat choose a **model profile** instead of a vendor, model and project. The profile list in the assistant editor shows a short description and badges derived from the model (files, images, web search, data location). Profile and badge icons are [Material Symbols](https://fonts.google.com/icons) names, not emoji - flag emoji like 🇪🇺 don't render on Windows.
+
+| Profile | Meaning | Model (today) |
+|---|---|---|
+| Rask | Quick answers, simple tasks | OpenAI `gpt-6-luna` |
+| Grundig | Analysis, reasoning, long documents | OpenAI `gpt-6-sol` |
+| Europeisk | Data processed within the EU | Mistral `mistral-large-latest` |
+| Lokal | Data never leaves our own servers (employees only) | LiteLLM `norallm/normistral-11b-thinking` |
+
+**One file to maintain:** `src/lib/server/models/models.config.ts` holds everything:
+
+- `MODELS`: the catalogue (vendor, provider model id, file preset, capabilities, `status: "retired"`, `internal`)
+- `PROFILES`: what users see, and which model each profile uses
+- `DEFAULTS`: the profiles for the default chat, new assistants and Canvas, plus the internal utility model
+- `LEGACY`: maps model ids stored on assistants created before profiles to a profile
+
+**To add a model**, add one line to `MODELS`. **To upgrade a profile**, change its `model`; every assistant on that profile follows on the next deploy. **To retire a model**, set `status: "retired"` and map its provider id in `LEGACY`. A typo is a type error, and `assertModelConfig` stops startup on an inconsistent config.
+
+**How it works:**
+
+- The server always works out the concrete `vendorId`/`model`/`project` from the profile (`src/lib/server/models/resolve.ts`, bound in `model-registry.ts`). It does this in a store decorator (`resolving-chat-config-store.ts`), so every stored config is resolved, and again in `/api/chat`. Values the client sends are never used as-is.
+- **Admin pins:** admins can lock an assistant to a specific model and API-key project under "Avansert". Non-admins can't set, change or remove a pin (403). Old assistants that were saved on their own project (e.g. a department's OpenAI key) automatically become a pin on that project, so they keep using their key. That automatic pin is marked `legacy`: the assistant's editors may clear it by choosing a profile, which moves it to the default key.
+- **Role limits:** a profile can be limited to certain roles (Lokal: employees). This decides who may *choose* the profile when saving. Who may *use* an assistant is still decided by its `accessGroups`.
+- **When a vendor is missing:** a profile whose vendor has no API key is hidden. Assistants on it are served by a fallback profile, except profiles with a data location (Europeisk, Lokal). Those fail closed: chat answers 503 instead of sending data to another vendor.
+- **Capabilities:** the web search button and allowed file types follow the model (`capabilities`, file presets in `supported-mime-types.ts`). OpenAI and Mistral both accept PDF, Office, text and code files.
+
+Open work and rollout checks: see `TODO-model-profiles.md`.
+
+**Relevant files:**
+
+| File | Purpose |
+|------|---------|
+| `src/lib/server/models/models.config.ts` | Models, profiles, defaults, legacy map (the one file to edit) |
+| `src/lib/server/models/resolve.ts` | Pure resolution: pin → profile → legacy → fallback |
+| `src/lib/server/models/model-registry.ts` | Binds resolution to the real config (`resolveConfig`, `getDefaultModel`) |
+| `src/lib/server/models/resolving-chat-config-store.ts` | Resolves every config read from or written to the store |
+| `src/lib/validation/parse-chat-config.ts` | Save/use validation: admin-only pins, role-limited profiles |
+| `src/lib/model-profiles.ts` | Client helpers: badges, selectable profiles, web search, display names |
+| `src/lib/components/ProfilePicker.svelte` | Profile list + admin "Avansert" |
 
 ### Canvas
 
@@ -188,8 +238,12 @@ Canvas is an AI-assisted document editor available at `/canvas/document`. It let
 - Toggle between rendered preview and raw markdown editing
 - Web search toggle — enables live internet sourcing, with citations appended to the document
 - Export to `.txt` or `.docx` (with proper heading, bold, italic, bullet, and horizontal rule formatting)
-- Mermaid diagram generation and editing via a separate endpoint (`POST /api/canvas/mermaid`)
-- Hardcoded to OpenAI `gpt-5.6-terra` — no model selection needed
+- **Diagram** (`/canvas/diagram`): the model writes Mermaid (`POST /api/canvas/mermaid`), and the browser converts it with `@excalidraw/mermaid-to-excalidraw` into an editable [Excalidraw](https://excalidraw.com) drawing.
+  - Flowchart, sequence, class, state and ER diagrams become shapes you can move and edit; other types become a single image. The prompt steers the model toward the editable types.
+  - "Håndtegnet" / "Ren" style toggle (roughness + font, remembered per browser), "Rediger kode" to edit the Mermaid and redraw, and export as PNG or `.excalidraw`.
+  - A new prompt or "Oppdater tegning" redraws from the code, so manual edits in the drawing are replaced.
+  - Excalidraw is a React component, mounted from Svelte in `src/lib/components/Excalidraw/ExcalidrawCanvas.svelte` and lazy-loaded only on this page. Its fonts are served by Hugin itself from `static/excalidraw-assets/` (copied from `node_modules` by `scripts/copy-excalidraw-assets.mjs` on `predev`/`prebuild`, gitignored).
+- Model comes from `DEFAULTS.canvas` in `models.config.ts` (currently the "Grundig" profile, OpenAI `gpt-6-sol`) — no model selection in the UI
 
 **Access control:**
 
@@ -220,7 +274,7 @@ Audio-to-text transcription via an internal service ("tale-til-notat"), availabl
 3. The external service calls back `POST /api/transcription/callback` (secret-gated via `TRANSCRIPTION_CALLBACK_SECRET`) when done
 4. The finished transcription can be downloaded as a `.docx`
 
-**Access control:** "Red" (sensitive) use cases are gated by Entra ID group membership — `TRANSCRIPTION_GROUP_N_ID`/`TRANSCRIPTION_GROUP_N_LABEL` env vars (dynamically scanned, `N = 1, 2, 3, …`) define the available groups, checked against the user's Entra groups.
+**Access control:** The menu link is shown to `EMPLOYEE`, `EDU_EMPLOYEE` and `ADMIN` (`canUseTranscription`). The page and API routes don't check roles yet. "Red" (sensitive) use cases are gated by Entra ID group membership — `TRANSCRIPTION_GROUP_N_ID`/`TRANSCRIPTION_GROUP_N_LABEL` env vars (dynamically scanned, `N = 1, 2, 3, …`) define the available groups, checked against the user's Entra groups.
 
 **Relevant files:**
 
@@ -239,9 +293,13 @@ Audio-to-text transcription via an internal service ("tale-til-notat"), availabl
 
 ### Datakilder (RAG)
 
-*Actively under development.* Retrieval-augmented data sources, available at `/ragservice`. Lets `EMPLOYEE`/`ADMIN` users manage data stores and have their retrieval results injected into an agent's `instructions` at prompt time.
+*Actively under development.* The "Datakilder" area at `/datasources` has three tabs, one per kind of data source an agent can be given: **Dokumentsøk** (RAG, `/datasources/ragservice` - this section), **MCP** (`/datasources/mcp` - see [SharePoint MCP Integration](#sharepoint-mcp-integration)), and **Websites** (`/datasources/web` - see [Website Data Sources](#website-data-sources)). `/ragservice` (the old, pre-tabs URL) redirects to `/datasources/ragservice` for old bookmarks/links.
 
-Requests are proxied to an external ragservice through an on-behalf-of (OBO) token exchange — Hugin's own Entra app registration (`ENTRA_TENANT_ID`, `ENTRA_CLIENT_ID`, `ENTRA_CLIENT_SECRET`) exchanges the user's token for one scoped to the ragservice, rather than the user talking to it directly.
+The three tabs don't share one audience: Dokumentsøk and MCP are `EMPLOYEE`/`ADMIN`-only, but Websites is open to everyone, students included (see each tab's own Access control note below). The "Datakilder" menu link and the bare `/datasources` index route reflect this - the menu link is always shown, and the index route redirects to Dokumentsøk for employees/admins or straight to Websites for anyone without access to that tab, rather than bouncing them off an access-denied page.
+
+This section covers Dokumentsøk: lets `EMPLOYEE`/`ADMIN` users manage RAG data stores and have their retrieval results injected into an agent's `instructions` at prompt time.
+
+Requests are proxied to an external ragservice through an on-behalf-of (OBO) token exchange — Hugin's own Entra app registration (`ENTRA_TENANT_ID`, `ENTRA_CLIENT_ID`, `ENTRA_CLIENT_SECRET`) exchanges the user's token for one scoped to the ragservice, rather than the user talking to it directly. RAG stores/access are entirely managed by that external ragservice - unlike the MCP and Website sources below, there is no separate Hugin-native ownership/visibility model for them.
 
 **Access control:** Gated by `canUseRagservice` (`EMPLOYEE` or `ADMIN`).
 
@@ -249,7 +307,8 @@ Requests are proxied to an external ragservice through an on-behalf-of (OBO) tok
 
 | File | Purpose |
 |------|---------|
-| `src/routes/ragservice/+page.svelte` | UI — data store management |
+| `src/routes/datasources/+layout.svelte` | Shared tab strip (Dokumentsøk/MCP/Websites) |
+| `src/routes/datasources/ragservice/+page.svelte` | UI — data store management |
 | `src/routes/api/obo/rag/[...path]/+server.ts` | OBO token exchange + proxy to the external ragservice |
 | `src/lib/ragservice/components/` | Data store, chunk, file upload, access, and settings components |
 | `src/lib/ragservice/adapters/ragserviceApi.ts` | Client for the external ragservice API |
@@ -257,11 +316,102 @@ Requests are proxied to an external ragservice through an on-behalf-of (OBO) tok
 
 ---
 
+### SharePoint MCP Integration
+
+Read-only, **scoped** access to SharePoint via a [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server, managed at `/datasources/mcp` as named **MCP-kilder** (`McpSource`) and selectable (one or more per assistant) in the same Datakilder picker used for RAG libraries. Modeled as a discriminated union on `server` - `"sharepoint"` is the only option today, but the type/UI already have room for a second MCP server later without a redesign.
+
+Each source has:
+- **Folders** - a list of `{ value, matchType: "exact" | "prefix" }` entries (an empty-value prefix means the whole SharePoint area - a deliberate, explicitly-labelled checkbox in the form, never an accidental side effect of leaving a field blank). Picked via a built-in folder browser (calls the real server live) or typed by hand. Governs the document-library tools (`List_SharePoint_Folders`, `Get_SharePoint_Tree`, `List_SharePoint_Documents`, `Get_Document_Content`, `Get_File_Metadata`).
+- **Lister** - a plain list of SharePoint list display names (e.g. `"Programmer"`), matched case-insensitively - no prefix/hierarchy concept, since SharePoint Lists (tabular/columned data - a wholly separate content type from document library folders/files) don't nest. Governs `Get_SharePoint_List_Items`. Picked via a built-in list browser (calls `List_SharePoint_Lists` live, admin-only - see below) or typed by hand.
+- **Fritekst-søk** (`Search_SharePoint`) - off by default. This is org-wide full-text search with no folder scoping possible at all, so enabling it bypasses the folder list entirely; whether to offer it is an open question pending input from the MCP server's own owner.
+
+**Scoping is enforced entirely on Hugin's side**, not the MCP server's (which has no scoping concept of its own - see `hugin-integration.md`). `src/lib/server/mcp/scoped-sharepoint-client.ts` wraps the real MCP client with an **allow-list** (not a block-list) of reviewed tool names: the five folder-scoped tools are validated against the folder list on every call (checking whichever of `parent_folder`/`folder_name` the tool actually uses, with boundary-safe prefix matching - a prefix `"Budsjett"` never matches a sibling folder like `"Budsjett 2"`); `Get_SharePoint_List_Items` is validated on every call against the `lists` allow-list (case-insensitive exact match on `list_name`, gated on the source having at least one configured list); `Search_SharePoint` is gated by the toggle above; `Download_Document` and `List_SharePoint_Lists` are never exposed to the model at all, regardless of scope. `List_SharePoint_Lists` in particular takes **no arguments whatsoever** (verified live, see `tmp/tools.json`) - it's site-wide, unscopable discovery, so exposing it to the model would leak every list's name on the site, not just the scoped ones; it's only ever called server-side, by the admin-only `sharepoint/lists` route backing the list picker in the source form (same trust level as the folder browser - an admin configuring a source already has to see everything to choose from). A rejected call names the actual allowed folders/lists back to the model, and a system-prompt nudge (`agentic-tool-guidance.ts`) tells it to use tools proactively and never guess names - both added after live testing showed a model would otherwise guess a plausible-sounding path instead of listing first.
+
+**Ownership & visibility:** private by default (only the creator, or an admin, can see/select/edit/delete it) with an explicit "gjør offentlig" checkbox to share a source with every other user - mirrors `ChatConfig`'s own private/published + owner model (see `canViewMcpSource`/`canEditMcpSource`). Deliberately stricter than the pre-ownership version of this feature, added after every source was found to be visible to *and* editable/deletable by every employee on a shared (not just single-developer) deployment.
+
+**Combines with Website sources in one shared agentic loop** (`combined-tool-client.ts`) - an assistant can have SharePoint MCP and Website sources (and RAG) all active at once; RAG retrieval still runs first and injects matched context into `instructions`, then the combined MCP+Website tool set is offered to the model in the same turn.
+
+**Access control:** Gated by `canUseMcpSharepoint` (`EMPLOYEE` or `ADMIN`) - configuring sources, selecting them on an assistant, and actually using them in a chat all share this one gate.
+
+**Key behaviours:**
+
+- Read-only — the MCP server exposes SharePoint data retrieval tools only; no write operations.
+- Manual-config assistants only — assistants that reference a predefined vendor agent config reject an `mcp` data source with HTTP 400.
+- Supported vendors: OpenAI, Mistral, LiteLLM. Ollama is not supported.
+- Service-identity auth (client credentials flow) — the application authenticates to the one shared MCP server using its own Entra ID service principal; no delegated per-user token is used, so a user can read whatever a selected source's scope allows regardless of their own personal SharePoint permissions.
+- Access is gated by the existing assistant `accessGroups` RBAC: a user can only reach an MCP-enabled assistant if they are a member of one of the groups listed in that assistant's `accessGroups`.
+- **Not available on the anonymous public embed route** (`/public/embed/api/chat`): that route strips `mcp` tools before the chat is dispatched, regardless of what an assistant's data sources include. This is deliberate — unlike RAG libraries (curated, presumed vetted for public-safe content when a maintainer opts an assistant into anonymous embedding), the MCP server is a live connection to internal SharePoint content, and the `accessGroups` RBAC that scopes MCP exposure elsewhere doesn't apply to anonymous visitors.
+
+**Environment variables** (add to `.env` / Azure Application Settings) - one shared connection, not per-source:
+
+```bash
+MCP_SHAREPOINT_ENABLED="true"                  # Set to "true" to activate
+MCP_SHAREPOINT_URL="https://..."               # MCP server base URL
+MCP_SHAREPOINT_CLIENT_ID=""                    # App registration client ID
+MCP_SHAREPOINT_CLIENT_SECRET=""               # App registration client secret
+MCP_SHAREPOINT_TENANT_ID=""                   # Entra tenant ID
+MCP_SHAREPOINT_SCOPE="api://.../.default"     # OAuth scope for the MCP server
+```
+
+When `MCP_SHAREPOINT_ENABLED` is absent or not `"true"`, the real SharePoint connection never gets attempted, and any chat that needs it degrades gracefully to a "not available" message. This is purely a server-side connection concern: already-created MCP sources still appear and remain selectable in the Datakilder picker either way - whether the connection behind them actually works is only checked when a chat using one is sent, not when picking a source for an assistant.
+
+**Server-side setup** (app-role grant `SharePoint.MCP.Read`, secret rotation before Dec 2026): see [`hugin-integration.md`](hugin-integration.md) - note that document has been found to disagree with the real server on several points (parameter names, tool count, an invented parameter); where they conflict, trust the live-verified behaviour described above.
+
+**Relevant files:**
+
+| File | Purpose |
+|------|---------|
+| `src/routes/datasources/mcp/+page.svelte` | UI — MCP source management (`McpSourceList`/`McpSourceForm`) |
+| `src/lib/mcp-sources/components/McpFolderBrowser.svelte` | Live folder browser backing the form |
+| `src/lib/mcp-sources/components/McpListBrowser.svelte` | Live SharePoint list-name browser backing the form |
+| `src/lib/mcp-sources/server/adapters/` | `IMcpSourceStore` + Mongo/mock adapters (own-folder convention, see `CLAUDE.md`) |
+| `src/routes/api/mcp-sources/` | CRUD for sources + admin-only `sharepoint/browse` folder listing and `sharepoint/lists` list-name listing |
+| `src/lib/server/mcp/scoped-sharepoint-client.ts` | Folder/list/tool allow-list enforcement |
+| `src/lib/server/mcp/parse-tool-result-items.ts` | Shared defensive JSON-parsing for tool results with an uncertain/varying wrapping shape |
+| `src/lib/server/mcp/parse-sharepoint-folder-list.ts` / `parse-sharepoint-list-names.ts` | Parse `List_SharePoint_Folders`/`List_SharePoint_Lists` results into the admin browsers' picker data |
+| `src/lib/server/mcp/build-mcp-tool-clients.ts` | Resolves an assistant's selected sources into one scoped client |
+| `src/lib/server/mcp/agentic-tool-guidance.ts` | System-prompt nudge appended when any agentic tool source is active |
+| `src/lib/server/mcp/combined-tool-client.ts` | Merges MCP + Website tool clients into one for the same chat turn |
+| `src/lib/server/mcp/mcp-config.ts` / `mcp-token.ts` / `mcp-client.ts` | Env vars, cached client-credentials token, connected MCP client singleton |
+| `src/lib/server/mcp/mcp-tools.ts` | Neutral tool type + per-provider adapters |
+| `src/lib/server/mcp/agentic-loop.ts` | Driver-agnostic agentic tool-calling loop |
+| `src/lib/server/mcp/run-agentic-chat.ts` | Shared agentic chat entry point with graceful degradation (MCP and Website both use this) |
+| `src/lib/server/mcp/drivers/` | Per-vendor tool drivers (OpenAI Responses, Mistral conversations, LiteLLM chat-completions) |
+| `src/lib/authorization.ts` | `canUseMcpSharepoint`, `canViewMcpSource`, `canEditMcpSource` |
+| `src/lib/validation/parse-chat-config.ts` | Rejects `mcp`/website data sources on predefined vendor-agent configs |
+| `src/routes/public/embed/api/chat/+server.ts` | Strips `mcp` tools before dispatch on the anonymous embed route |
+
+---
+
+### Website Data Sources
+
+Scoped access to specific web pages, managed at `/datasources/web` as named **Website-kilder** (`WebsiteSource`) and selectable (one or more per assistant) in the Datakilder picker. Unlike RAG, this is **not vectorized/indexed content** - it's a tool-calling capability (`browse_website`), similar in spirit to the built-in `web_search` tool but restricted to only the URLs/domains a source configures, and 100% Hugin-native (no external service, no env vars).
+
+Each source has **entries** - a list of `{ value: URL, matchType: "exact" | "prefix" }`: `"exact"` allows only that one page; `"prefix"` allows a whole path/section (e.g. `https://example.no/buss/`) or, with a bare origin, an entire domain.
+
+When called, the server fetches the page, converts it to plain text (`html-to-text`), and appends any same-scope links found on the page to the result - so a model working within a `"prefix"` source can navigate deeper (e.g. from a section front page into its sub-pages) across successive tool calls, one page at a time, never leaving the configured scope.
+
+**Ownership & visibility, and combining with MCP/RAG**: identical model to SharePoint MCP sources above - private by default with an explicit "gjør offentlig" toggle (`canViewWebsiteSource`/`canEditWebsiteSource`), and Website + MCP (+ RAG) sources on the same assistant all become available in one shared agentic loop turn.
+
+**Access control:** Gated by `canUseWebsiteDataSource` - unlike Dokumentsøk/MCP, this is open to *every* authenticated user, students included. Website sources touch no live external system and grant no org-wide search/document access - they're just admin-curated URLs a bot may fetch - so there's no role restriction beyond being logged in; the ownership/visibility model above (private-by-default + "gjør offentlig") still governs who can create, edit or delete a given source.
+
+**Relevant files:**
+
+| File | Purpose |
+|------|---------|
+| `src/routes/datasources/web/+page.svelte` | UI — Website source management (`WebsiteSourceList`/`WebsiteSourceForm`) |
+| `src/lib/website-sources/server/adapters/` | `IWebsiteSourceStore` + Mongo/mock adapters |
+| `src/routes/api/website-sources/` | CRUD for sources |
+| `src/lib/server/website-tools/website-tool-client.ts` | The `browse_website` tool: fetch, HTML→text, scope-filtered link discovery |
+| `src/lib/authorization.ts` | `canUseWebsiteDataSource`, `canViewWebsiteSource`, `canEditWebsiteSource` |
+
+---
+
 ### Conversation History & Encryption
 
 Conversations can be persisted so users can revisit earlier chats, with an auto-generated title and optional at-rest encryption for message content and titles/summaries.
 
-- **History** — `canUseHistory` gates this: everyone except a student-only user (see [Authorization](#authorization)) — student conversations are never stored, forcing incognito mode everywhere, client and server.
+- **History** — `canUseHistory` gates this (see [Authorization](#authorization)): currently everyone, students included, with the same defaults as employees. When it returns false, incognito is forced everywhere, client and server.
 - **Incognito** — any chat can opt out of persistence per-request (`store: false`), regardless of role.
 - **Encryption** — optional; if `CONVERSATION_ENCRYPTION_KEYS`/`CONVERSATION_ENCRYPTION_ACTIVE_KEY` are unset, messages/titles/summaries are stored in plaintext. When set, encryption is keyed by a free-form "key version" string so keys can be rotated per environment.
 
@@ -340,7 +490,7 @@ This is rendered through its own small `markdown-it` instance (`src/lib/formatti
 
 `.spotlight-pill` is deliberately styled *unlike* a real button (no pointer cursor, no hover state, a subtle background instead of the transparent-hover-highlight look real buttons have) — it's a reference chip saying "this is what to look for," not a clickable mimic that could confuse users into clicking it. `text` is standard Markdown throughout — this inline HTML isn't a separate mechanism layered on top, it's CommonMark's normal inline-HTML passthrough, just correctly left enabled.
 
-**Restricting the audience:** not every announcement applies to every user (e.g. a conversation-history announcement is meaningless for student-only accounts, who never get history stored — see `isStudentOnly` in `src/lib/authorization.ts`). There's no dedicated prop for this — reuse the existing `active` gate with `canSeeSpotlight`, which shares the exact same `accessGroups` semantics as `ChatConfig.accessGroups`/`canPromptConfig`, so an announcement's audience is declared the same way an agent's audience is:
+**Restricting the audience:** not every announcement applies to every user (e.g. an announcement only relevant to employees shouldn't be shown to student-only accounts — see `isStudentOnly` in `src/lib/authorization.ts`). There's no dedicated prop for this — reuse the existing `active` gate with `canSeeSpotlight`, which shares the exact same `accessGroups` semantics as `ChatConfig.accessGroups`/`canPromptConfig`, so an announcement's audience is declared the same way an agent's audience is:
 
 ```svelte
 <script lang="ts">
@@ -356,7 +506,7 @@ This is rendered through its own small `markdown-it` instance (`src/lib/formatti
 />
 ```
 
-`canSeeSpotlight` always returns `true` for `ADMIN`, matching `canPromptConfig`'s convention.
+`canSeeSpotlight` always returns `true` for `ADMIN`, matching `canPromptConfig`'s convention. Unlike `canPromptConfig`, `"student"` matches only the `STUDENT` role, so a student announcement is not shown to `EDU_EMPLOYEE` users.
 
 **Dismissal behavior:**
 
@@ -375,6 +525,7 @@ This is rendered through its own small `markdown-it` instance (`src/lib/formatti
 | `active` | `boolean` | `true` | One-way gate — set to `false` to keep it hidden regardless of dismissal state. |
 | `backdrop` | `boolean` | `false` | Adds a subtle darken + blur behind the box. Off by default since most spotlights are non-blocking toasts; turn on for a more attention-grabbing splash (e.g. `placement="center"`/`"top-center"`). Purely visual — the backdrop doesn't dismiss the box on click, matching the checkbox/close-button-only dismissal model. |
 | `placement` | `"center" \| "top-center" \| "top-right" \| "bottom-right" \| "bottom-center" \| "bottom-left" \| "top-left"` | `"top-center"` | Fixed screen position. |
+| `width` | `string` | `"20rem"` | Any CSS length (e.g. `"32rem"`) for spotlights with long copy. Always capped at `calc(100vw - 2rem)` so it never overflows on narrow screens. |
 | `onDismiss` | `() => void` | `undefined` | Called whenever the box is closed, whether or not "don't show again" was checked. |
 
 **Not supported:** pinning the box next to a specific element, and multi-step guided tours — only fixed screen-corner placement. An earlier `anchor`/`anchorSide`/`anchorOffset` implementation was removed: it required `bind:this` wiring at every call site (tightly coupling the announcement to whatever element it pointed at) and still didn't handle auto-flipping near a viewport edge or an arrow pointing at the anchor. If element-pointing or guided tours become a real need, a proper library (e.g. `@floating-ui/dom` for positioning, or a dedicated tour library) is a better foundation than reviving this DIY version — see git history for reference if useful.
@@ -407,33 +558,6 @@ As before, give an entry a new unique `id` whenever its copy changes, or users w
 
 ---
 
-### Analytics
-
-Pageviews are tracked with [Plausible](https://plausible.io) — cookieless, no cross-site tracking, no personal data in the payload.
-
-The snippet lives in `src/app.html` behind a `%plausible%` placeholder, which `src/hooks.server.ts` fills in via `transformPageChunk` — with the snippet when `PLAUSIBLE_SCRIPT_URL` is set, and with nothing when it isn't. The variable is deliberately set **on the prod app only**: test/beta and prod run the same build from the same repo, so a hardcoded snippet would file betatester traffic under the prod site's numbers.
-
-The URL Plausible hands you already has the site id baked into the filename (`.../js/pa-<id>.js`), so there is no `data-domain` attribute to keep in sync:
-
-```bash
-PLAUSIBLE_SCRIPT_URL="https://plausible.io/js/pa-<site-id>.js"
-```
-
-Because it is read through `$env/dynamic/private`, flipping it needs an app-setting change and a restart — not a rebuild.
-
-Keeping it in `app.html` rather than `<svelte:head>` matters here: `app.html` is the shell SvelteKit returns on every response, so the script is plain parser-inserted HTML even on `/` and `/agents/[agentId]`, which set `ssr = false`. Scripts in `<svelte:head>` are also subject to [known client-side-navigation quirks](https://github.com/sveltejs/kit/discussions/11940) that the shell sidesteps entirely.
-
-Paths are reported as-is, which means `/agents/<agentId>` shows up per assistant. Agent ids are config ids rather than personal data, and the per-assistant breakdown is the useful part.
-
-**Relevant files:**
-
-| File | Purpose |
-|------|---------|
-| `src/app.html` | Holds the `%plausible%` placeholder |
-| `src/hooks.server.ts` | Replaces the placeholder with Plausible's snippet when the env var is set |
-
----
-
 ## Getting Started
 
 ### Prerequisites
@@ -461,7 +585,10 @@ Create a `.env` file in the project root:
 # AI Provider API Keys (at least one required)
 MISTRAL_API_KEY_PROJECT_DEFAULT="your-mistral-api-key"
 OPENAI_API_KEY_PROJECT_DEFAULT="your-openai-api-key"
+# Extra API-key projects: MISTRAL_API_KEY_PROJECT_<NAME> / OPENAI_API_KEY_PROJECT_<NAME> (used by admin pins)
 # OLLAMA_HOST / LITELLM_BASE_URL enable the Ollama / LiteLLM vendors if set
+# LITELLM_BASE_URL="..."          # Required for the "Lokal" profile
+# LITELLM_API_KEY="..."
 
 # Mock Database Configuration
 MOCK_DB="true"                    # Use in-memory database (required for local dev)
@@ -490,13 +617,11 @@ APP_ROLE_STUDENT="Student"
 APP_ROLE_ADMIN="Admin"
 APP_ROLE_AGENT_MAINTAINER="AgentMaintainer"
 APP_ROLE_EDU_EMPLOYEE="eduemployee" # optional - defaults to "eduemployee" if unset
+APP_ROLE_QA="QA"              # optional - defaults to "QA" if unset; grants "Opplev Hugin som" - assign in test environments only
 
 # Feature flags
 CANVAS_ENABLED="true"             # Enable the Canvas document editor
 DEFAULT_AGENT_ID=""                # Agent loaded by default on the home page
-
-# Analytics - set on the prod app only (see the Analytics section)
-PLAUSIBLE_SCRIPT_URL=""            # Plausible script URL; unset = no analytics
 
 # Transcription (Tale-til-notat) - see the Transcription feature section
 TALE_TIL_NOTAT_URL="http://<ki-server>:<port>"
@@ -514,6 +639,9 @@ RAGSERVICE_TOKEN=""                # For local testing only - paste a token here
 ENTRA_TENANT_ID=""
 ENTRA_CLIENT_ID=""
 ENTRA_CLIENT_SECRET=""
+
+# Website data sources need no env vars at all - 100% Hugin-native, no external service.
+# SharePoint MCP env vars are documented in the SharePoint MCP Integration section above.
 ```
 
 > **`BODY_SIZE_LIMIT` gotcha:** `APP_CONFIG.BODY_SIZE_LIMIT_BYTES` only honours values ending in `M` (e.g. `"512M"`) — a raw byte count like `"536870912"` silently falls back to a 10 MB default. `adapter-node` reads the raw env var separately for its own request limit, so the two can disagree if you set a raw byte count.
@@ -558,13 +686,17 @@ src/
 │   │   ├── ollama/              # Ollama implementation
 │   │   ├── litellm/             # LiteLLM implementation
 │   │   ├── ragservice/          # RAG on-behalf-of token exchange
+│   │   ├── mcp/                 # SharePoint MCP: connection, scoping, shared agentic loop
+│   │   ├── website-tools/       # Website source browse_website tool (fetch, HTML→text, links)
 │   │   ├── transcription/       # Transcription job store + external service client
 │   │   ├── auth/                # Authentication handlers
 │   │   ├── middleware/          # HTTP middleware
 │   │   ├── app-config/          # APP_CONFIG - vendors, models, roles, feature flags
-│   │   └── db/                  # Database abstraction
+│   │   └── db/                  # Database abstraction (IChatConfigStore only - see CLAUDE.md)
 │   ├── conversationstore/         # Conversation persistence + at-rest encryption
-│   ├── ragservice/                # Datakilder UI components + API adapter (client-side)
+│   ├── ragservice/                # Dokumentsøk UI components + API adapter (client-side)
+│   ├── mcp-sources/                # MCP source UI + own server/adapters/ (per-feature store, see CLAUDE.md)
+│   ├── website-sources/            # Website source UI + own server/adapters/
 │   ├── components/                # Svelte components
 │   │   └── Chat/                 # Chat UI components
 │   ├── authorization.ts           # Access-control functions (see Authorization section)
@@ -575,14 +707,17 @@ src/
 │   ├── +page.svelte             # Home page
 │   ├── api/
 │   │   ├── chat/+server.ts      # Chat streaming endpoint
-│   │   ├── canvas/+server.ts    # Canvas streaming endpoint (+ mermaid/+server.ts)
+│   │   ├── canvas/+server.ts    # Canvas streaming endpoint (+ mermaid/+server.ts for diagrams)
 │   │   ├── chatconfigs/         # Config CRUD endpoints
 │   │   ├── conversations/       # Conversation history endpoints
 │   │   ├── transcription/       # Transcription job + upload/download endpoints
+│   │   ├── mcp-sources/         # MCP source CRUD + admin folder-browse proxy
+│   │   ├── website-sources/     # Website source CRUD
 │   │   └── obo/rag/             # On-behalf-of proxy to the external ragservice
 │   ├── canvas/                  # Canvas document editor
 │   ├── transcription/           # Tale-til-notat UI
-│   ├── ragservice/              # Datakilder UI
+│   ├── datasources/              # Datakilder tab shell (ragservice/mcp/web sub-routes)
+│   ├── ragservice/               # Thin redirect to /datasources/ragservice (old bookmarks)
 │   ├── agents/                  # Agent management pages
 │   └── admin/                   # Admin pages
 └── app.d.ts                     # Global type definitions
@@ -640,15 +775,15 @@ Emits `response.output_text.delta` events with the updated document, and `respon
 
 ### POST `/api/canvas/mermaid`
 
-Generate or edit a Mermaid diagram from a prompt. Same access control and streaming response shape as `/api/canvas`; hardcoded to OpenAI `gpt-5.6-terra`.
+Generate or edit the Mermaid source behind a diagram from a prompt (the Diagram page turns it into an Excalidraw drawing). Same access control and streaming response shape as `/api/canvas`; uses the canvas model from `DEFAULTS.canvas` in `models.config.ts`.
 
 ### GET / POST `/api/chatconfigs`
 
-List, or create, chat configurations.
+List, or create, chat configurations. A new manual config must carry a `profile` (or an admin `pinned`). Choosing a role-limited profile you don't have gets 403, and so does setting a pin as a non-admin. Returned configs are always resolved (concrete `vendorId`/`model`/`project`).
 
 ### PUT `/api/chatconfigs/[_id]`
 
-Update an existing chat configuration.
+Update an existing chat configuration. Role and pin checks only apply to values that changed. An unchanged profile or pin is always accepted, and only an admin can set, change or remove a pin (403 otherwise).
 
 ### DELETE `/api/chatconfigs/[_id]`
 
@@ -686,6 +821,18 @@ Proxies large audio/video uploads to the internal Copyparty file server.
 
 On-behalf-of token exchange, then proxies the request to the external ragservice. Gated by `canUseRagservice`. See [Datakilder](#datakilder-rag).
 
+### `/api/mcp-sources`, `/api/mcp-sources/[_id]`
+
+CRUD for MCP sources. GET/POST gated by `canUseMcpSharepoint`; list is filtered to the caller's own sources + everyone's published ones (`canViewMcpSource`, admin sees all); PUT/DELETE additionally require `canEditMcpSource` (owner or admin). See [SharePoint MCP Integration](#sharepoint-mcp-integration).
+
+### `/api/mcp-sources/sharepoint/browse`
+
+Admin-only, read-only proxy to `List_SharePoint_Folders` on the real MCP server, backing the folder-browser UI in the source form. Same gate as using MCP at all (`canUseMcpSharepoint`) - not stricter, since the underlying service credential already has that reach either way.
+
+### `/api/website-sources`, `/api/website-sources/[_id]`
+
+CRUD for Website sources - same shape as `/api/mcp-sources` above, gated by `canUseWebsiteDataSource`/`canViewWebsiteSource`/`canEditWebsiteSource`. Unlike `/api/mcp-sources`, `canUseWebsiteDataSource` is open to every authenticated user, not just `EMPLOYEE`/`ADMIN`. See [Website Data Sources](#website-data-sources).
+
 ---
 
 ## Type System
@@ -699,6 +846,8 @@ type ChatConfig = {
   name: string
   vendorId: "OPENAI" | "MISTRAL" | "OLLAMA" | "LITELLM"
   model?: string
+  profile?: string                             // model profile id - see Model Profiles
+  pinned?: { model: string; project: string }  // admin-only pin (catalogue key + API-key project)
   // ...
 }
 
@@ -718,7 +867,7 @@ Everywhere else, validation is hand-written parse functions in `src/lib/validati
 
 | Type | Description | Location |
 |------|-------------|----------|
-| `ChatConfig` | Chat configuration (vendor, model, instructions) | [chat.ts](src/lib/types/chat.ts) |
+| `ChatConfig` | Chat configuration (profile/pin, resolved vendor + model, instructions) | [chat.ts](src/lib/types/chat.ts) |
 | `ChatRequest` | Request payload with config and inputs | [chat.ts](src/lib/types/chat.ts) |
 | `ChatResponseObject` | Complete response with outputs and usage | [chat.ts](src/lib/types/chat.ts) |
 | `ChatInputMessage` | User/system input message | [chat-item.ts](src/lib/types/chat-item.ts) |
@@ -793,9 +942,6 @@ APP_ROLE_AGENT_MAINTAINER="AgentMaintainer"
 
 # Feature flags
 CANVAS_ENABLED="true"
-
-# Analytics (prod app only)
-PLAUSIBLE_SCRIPT_URL="https://plausible.io/js/pa-<site-id>.js"
 ```
 
 ### Azure Deployment
@@ -819,7 +965,7 @@ PLAUSIBLE_SCRIPT_URL="https://plausible.io/js/pa-<site-id>.js"
 | Linting | Biome |
 | Testing | Vitest |
 | Markdown | markdown-it, highlight.js, KaTeX |
-| Documents | `docx` (Canvas/Transcription export), `mermaid` (diagram generation), `pdf-lib` |
+| Documents | `docx` (Canvas/Transcription export), `@excalidraw/excalidraw` + `@excalidraw/mermaid-to-excalidraw` (diagrams, with React 18), `pdf-lib` |
 | Logging | `@vestfoldfylke/loglady` (structured logging) |
 
 ---

@@ -12,19 +12,25 @@ import type { IConversationStore } from "./interface"
 // not-yet-implemented summarization job) and so can end up encrypted under different key
 // versions after a rotation - each gets its own *KeyVersion field, unlike the message pair below
 // where userInput/response are always written together and can safely share one version field.
+// *AadVersion: see buildAad below - same per-field independence as *KeyVersion.
 export type DbConversation = NewConversation & {
 	_id: ObjectId
 	titleKeyVersion?: string
+	titleAadVersion?: number
 	summaryKeyVersion?: string
+	summaryAadVersion?: number
 }
 
 // userInput/response hold the plaintext object when the message predates encryption (or was
 // written while encryption wasn't configured), or a base64 ciphertext string when encrypted.
 // encryptionKeyVersion present <=> encrypted; absent <=> plaintext. See message-encryption.ts.
+// aadVersion present <=> encrypted with owner/conversation binding (see buildAad); absent on
+// ciphertext written before that existed.
 export type NewDbConversationMessagePair = Omit<NewConversationMessagePair, "userInput" | "response"> & {
 	userInput: ChatInputItem | string
 	response: ChatResponseObject | string
 	encryptionKeyVersion?: string
+	aadVersion?: number
 }
 export type DbConversationMessagePair = NewDbConversationMessagePair & { _id: ObjectId }
 
@@ -67,33 +73,55 @@ const buildDecryptionFailureResponse = (id: string): ChatResponseObject => ({
 	usage: { inputTokens: 0, outputTokens: 0, totalTokens: 0 }
 })
 
+// AAD (GCM additional authenticated data, see encryptValue) binds every ciphertext to the owner +
+// conversation + field it was written for. The binding is built from the document's own stored
+// owner/conversationId at read time - so if someone with DB write access (but no key) rewrites
+// `owner` to themselves, or copies a ciphertext into another conversation, decryption fails
+// instead of the app happily decrypting it for the new "owner". Including the field name also
+// stops swapping e.g. title <-> summary or userInput <-> response.
+// Versioned so the format can change later: the version is stored next to the ciphertext, and
+// stripping it doesn't help an attacker - ciphertext written with AAD won't decrypt without it.
+// Data written before AAD existed has no version field and is still decrypted without AAD; it only
+// gets the binding once re-encrypted (see memory "hugin-conversation-maintenance-jobs").
+const AAD_VERSION = 1
+
+const buildAad = (aadVersion: number, owner: string, conversationId: string, field: string): string => {
+	if (aadVersion !== 1) {
+		throw new Error(`Unknown AAD version ${aadVersion}`)
+	}
+	return `hugin-conversation:v1:${owner}:${conversationId}:${field}`
+}
+
 const toDbMessagePair = (messagePair: NewConversationMessagePair): NewDbConversationMessagePair => {
 	if (!isEncryptionConfigured()) {
 		return messagePair
 	}
-	const encryptedUserInput = encryptValue(messagePair.userInput)
-	const encryptedResponse = encryptValue(messagePair.response)
+	const { owner, conversationId } = messagePair
+	const encryptedUserInput = encryptValue(messagePair.userInput, buildAad(AAD_VERSION, owner, conversationId, "userInput"))
+	const encryptedResponse = encryptValue(messagePair.response, buildAad(AAD_VERSION, owner, conversationId, "response"))
 	return {
 		...messagePair,
 		userInput: encryptedUserInput.data,
 		response: encryptedResponse.data,
 		// Both fields are always encrypted under the same (currently active) key version.
-		encryptionKeyVersion: encryptedUserInput.encryptionKeyVersion
+		encryptionKeyVersion: encryptedUserInput.encryptionKeyVersion,
+		aadVersion: AAD_VERSION
 	}
 }
 
 const fromDbMessagePair = (doc: DbConversationMessagePair): ConversationMessagePair => {
-	const { _id, encryptionKeyVersion, userInput, response, ...rest } = doc
+	const { _id, encryptionKeyVersion, aadVersion, userInput, response, ...rest } = doc
 	const id = _id.toString()
 	if (encryptionKeyVersion === undefined) {
 		return { ...rest, id, userInput: userInput as ChatInputItem, response: response as ChatResponseObject }
 	}
 	try {
+		const aadFor = (field: string) => (aadVersion === undefined ? undefined : buildAad(aadVersion, rest.owner, rest.conversationId, field))
 		return {
 			...rest,
 			id,
-			userInput: decryptValue<ChatInputItem>(userInput as string, encryptionKeyVersion),
-			response: decryptValue<ChatResponseObject>(response as string, encryptionKeyVersion)
+			userInput: decryptValue<ChatInputItem>(userInput as string, encryptionKeyVersion, aadFor("userInput")),
+			response: decryptValue<ChatResponseObject>(response as string, encryptionKeyVersion, aadFor("response"))
 		}
 	} catch (error) {
 		logger.errorException(error, `Failed to decrypt conversation message ${id} (key version "${encryptionKeyVersion}") - showing a placeholder instead of failing the whole request`)
@@ -108,47 +136,53 @@ const fromDbMessagePair = (doc: DbConversationMessagePair): ConversationMessageP
  * `string | undefined` - needed under `exactOptionalPropertyTypes` so callers never have to
  * explicitly assign `undefined` into an optional DbConversation field.
  */
-const encryptOptionalField = <T extends string | undefined>(value: T): { value: T; keyVersion: string | undefined } => {
+const encryptOptionalField = <T extends string | undefined>(value: T, aad: string): { value: T; keyVersion: string | undefined } => {
 	if (value === undefined || !isEncryptionConfigured()) {
 		return { value, keyVersion: undefined }
 	}
-	const encrypted = encryptValue(value)
+	const encrypted = encryptValue(value, aad)
 	return { value: encrypted.data as T, keyVersion: encrypted.encryptionKeyVersion }
 }
 
 /**
  * keyVersion undefined <=> value is already plaintext (or absent) - nothing to decrypt.
+ * getAad returning undefined <=> legacy ciphertext written before AAD binding (see buildAad) - a
+ * thunk so an unknown AAD version throws inside the try below, like any other decrypt failure.
  * A decrypt failure falls back to the placeholder (see comment above DECRYPTION_FAILURE_PLACEHOLDER)
  * instead of throwing, so one conversation with an unreadable title can't break the whole list.
  */
-const decryptOptionalField = (value: string | undefined, keyVersion: string | undefined, context: string): string | undefined => {
+const decryptOptionalField = (value: string | undefined, keyVersion: string | undefined, getAad: () => string | undefined, context: string): string | undefined => {
 	if (value === undefined || keyVersion === undefined) {
 		return value
 	}
 	try {
-		return decryptValue<string>(value, keyVersion)
+		return decryptValue<string>(value, keyVersion, getAad())
 	} catch (error) {
 		logger.errorException(error, `Failed to decrypt ${context} (key version "${keyVersion}") - showing a placeholder instead of failing the whole request`)
 		return DECRYPTION_FAILURE_PLACEHOLDER
 	}
 }
 
-const toDbConversation = (conversation: NewConversation): Omit<DbConversation, "_id"> => {
-	const title = encryptOptionalField(conversation.title)
-	const summary = encryptOptionalField(conversation.summary)
+// conversationId is a separate param since a NewConversation has no id yet - createConversation
+// generates the ObjectId up front so title/summary can be bound to it before the insert.
+const toDbConversation = (conversation: NewConversation, conversationId: string): Omit<DbConversation, "_id"> => {
+	const title = encryptOptionalField(conversation.title, buildAad(AAD_VERSION, conversation.owner, conversationId, "title"))
+	const summary = encryptOptionalField(conversation.summary, buildAad(AAD_VERSION, conversation.owner, conversationId, "summary"))
 	return {
 		...conversation,
 		// Spread conditionally rather than assigning `title: title.value` directly - under
 		// exactOptionalPropertyTypes an optional field must be omitted, not set to `undefined`.
-		...(title.value !== undefined && { title: title.value, ...(title.keyVersion !== undefined && { titleKeyVersion: title.keyVersion }) }),
-		...(summary.value !== undefined && { summary: summary.value, ...(summary.keyVersion !== undefined && { summaryKeyVersion: summary.keyVersion }) })
+		...(title.value !== undefined && { title: title.value, ...(title.keyVersion !== undefined && { titleKeyVersion: title.keyVersion, titleAadVersion: AAD_VERSION }) }),
+		...(summary.value !== undefined && { summary: summary.value, ...(summary.keyVersion !== undefined && { summaryKeyVersion: summary.keyVersion, summaryAadVersion: AAD_VERSION }) })
 	}
 }
 
 const fromDbConversation = (doc: DbConversation): Conversation => {
-	const { _id, titleKeyVersion, summaryKeyVersion, ...rest } = doc
-	const title = decryptOptionalField(rest.title, titleKeyVersion, `conversation ${_id} title`)
-	const summary = decryptOptionalField(rest.summary, summaryKeyVersion, `conversation ${_id} summary`)
+	const { _id, titleKeyVersion, titleAadVersion, summaryKeyVersion, summaryAadVersion, ...rest } = doc
+	const conversationId = _id.toString()
+	const aadFor = (aadVersion: number | undefined, field: string) => () => (aadVersion === undefined ? undefined : buildAad(aadVersion, rest.owner, conversationId, field))
+	const title = decryptOptionalField(rest.title, titleKeyVersion, aadFor(titleAadVersion, "title"), `conversation ${_id} title`)
+	const summary = decryptOptionalField(rest.summary, summaryKeyVersion, aadFor(summaryAadVersion, "summary"), `conversation ${_id} summary`)
 	return {
 		...rest,
 		id: _id.toString(),
@@ -207,17 +241,19 @@ export class MongoConversationStore implements IConversationStore {
 	async createConversation(conversation: NewConversation, principal: AuthenticatedPrincipal): Promise<Conversation> {
 		conversation.owner = principal.userId
 		const db = await this.getDb()
-		const collection: Collection<Omit<DbConversation, "_id">> = db.collection(this.conversationCollectionName)
-		const result = await collection.insertOne(toDbConversation(conversation))
+		const collection: Collection<DbConversation> = db.collection(this.conversationCollectionName)
+		// _id generated here rather than by Mongo so title/summary can be AAD-bound to it (see buildAad).
+		const _id = new ObjectId()
+		await collection.insertOne({ ...toDbConversation(conversation, _id.toString()), _id })
 		// Returned to the caller in plaintext - built from the original (never-encrypted) param, not the inserted doc.
-		return { ...conversation, id: result.insertedId.toString() }
+		return { ...conversation, id: _id.toString() }
 	}
 
 	async replaceConversation(conversationId: string, conversation: Conversation, principal: AuthenticatedPrincipal): Promise<Conversation> {
 		conversation.owner = principal.userId
 		const db = await this.getDb()
 		const collection: Collection<Omit<DbConversation, "_id">> = db.collection(this.conversationCollectionName)
-		await collection.replaceOne({ _id: new ObjectId(conversationId) }, toDbConversation(conversation))
+		await collection.replaceOne({ _id: new ObjectId(conversationId) }, toDbConversation(conversation, conversationId))
 		return { ...conversation, id: conversationId, owner: principal.userId }
 	}
 
@@ -230,14 +266,15 @@ export class MongoConversationStore implements IConversationStore {
 	async updateConversationTitle(conversationId: string, title: string, principal: AuthenticatedPrincipal): Promise<void> {
 		const db = await this.getDb()
 		const collection: Collection<DbConversation> = db.collection(this.conversationCollectionName)
-		const encryptedTitle = encryptOptionalField(title)
+		// Bound to principal.userId - safe because the filter below only matches a doc it owns.
+		const encryptedTitle = encryptOptionalField(title, buildAad(AAD_VERSION, principal.userId, conversationId, "title"))
 		const filter: Filter<DbConversation> = { _id: new ObjectId(conversationId), owner: principal.userId }
 		if (encryptedTitle.keyVersion === undefined) {
-			// Encryption isn't configured - $unset titleKeyVersion so a stale version from before
-			// encryption was turned off doesn't make a later read try to decrypt this plaintext title.
-			await collection.updateOne(filter, { $set: { title: encryptedTitle.value }, $unset: { titleKeyVersion: "" }, $currentDate: { updatedAt: true } })
+			// Encryption isn't configured - $unset titleKeyVersion/titleAadVersion so stale versions from
+			// before encryption was turned off don't make a later read try to decrypt this plaintext title.
+			await collection.updateOne(filter, { $set: { title: encryptedTitle.value }, $unset: { titleKeyVersion: "", titleAadVersion: "" }, $currentDate: { updatedAt: true } })
 		} else {
-			await collection.updateOne(filter, { $set: { title: encryptedTitle.value, titleKeyVersion: encryptedTitle.keyVersion }, $currentDate: { updatedAt: true } })
+			await collection.updateOne(filter, { $set: { title: encryptedTitle.value, titleKeyVersion: encryptedTitle.keyVersion, titleAadVersion: AAD_VERSION }, $currentDate: { updatedAt: true } })
 		}
 	}
 

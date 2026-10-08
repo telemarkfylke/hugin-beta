@@ -56,6 +56,18 @@ export const applyChatSseEventToResponseObject = (chatResponseObject: ChatRespon
 		}
 		case "response.searching": {
 			chatResponseObject.status = "searching"
+			// A genuine web_search turn, not an MCP tool call - clear any detail left over from an
+			// earlier tool_call in this same turn so its text never shows for the wrong kind of search.
+			chatResponseObject.searchingDetail = undefined
+			break
+		}
+		case "response.tool_call": {
+			chatResponseObject.status = "searching"
+			chatResponseObject.searchingDetail = event.data.detail
+			break
+		}
+		case "response.tool_result": {
+			chatResponseObject.status = "in_progress"
 			break
 		}
 		case "response.done": {

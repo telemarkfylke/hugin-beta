@@ -105,8 +105,14 @@ const getConfig = (): EncryptionConfig | null => {
 
 export const isEncryptionConfigured = (): boolean => getConfig() !== null
 
-/** JSON-serializes `value` and encrypts it with the active key version. */
-export const encryptValue = (value: unknown): EncryptedValue => {
+/**
+ * JSON-serializes `value` and encrypts it with the active key version.
+ * `aad` (GCM additional authenticated data) binds the ciphertext to its context - e.g. owner +
+ * conversationId - without being stored inside it: decryption only succeeds when the exact same
+ * `aad` is supplied again. That way a ciphertext copied to another document/owner in the DB fails
+ * to decrypt instead of being shown to whoever now "owns" it. Omitted = no binding (legacy format).
+ */
+export const encryptValue = (value: unknown, aad?: string): EncryptedValue => {
 	const activeConfig = getConfig()
 	if (!activeConfig) {
 		throw new Error("Cannot encrypt: encryption is not configured")
@@ -115,6 +121,9 @@ export const encryptValue = (value: unknown): EncryptedValue => {
 
 	const iv = randomBytes(IV_LENGTH_BYTES)
 	const cipher = createCipheriv(ALGORITHM, key, iv)
+	if (aad !== undefined) {
+		cipher.setAAD(Buffer.from(aad, "utf8"))
+	}
 	const ciphertext = Buffer.concat([cipher.update(JSON.stringify(value), "utf8"), cipher.final()])
 	const authTag = cipher.getAuthTag()
 
@@ -124,8 +133,11 @@ export const encryptValue = (value: unknown): EncryptedValue => {
 	}
 }
 
-/** Decrypts `data` using `encryptionKeyVersion` (which may be older than the currently active version) and JSON-parses the result. */
-export const decryptValue = <T>(data: string, encryptionKeyVersion: string): T => {
+/**
+ * Decrypts `data` using `encryptionKeyVersion` (which may be older than the currently active version) and JSON-parses the result.
+ * `aad` must match what encryptValue got exactly (or both omitted) - otherwise the auth tag check throws.
+ */
+export const decryptValue = <T>(data: string, encryptionKeyVersion: string, aad?: string): T => {
 	const activeConfig = getConfig()
 	if (!activeConfig) {
 		throw new Error("Cannot decrypt: encryption is not configured")
@@ -143,6 +155,9 @@ export const decryptValue = <T>(data: string, encryptionKeyVersion: string): T =
 	const ciphertext = raw.subarray(IV_LENGTH_BYTES + AUTH_TAG_LENGTH_BYTES)
 
 	const decipher = createDecipheriv(ALGORITHM, key, iv)
+	if (aad !== undefined) {
+		decipher.setAAD(Buffer.from(aad, "utf8"))
+	}
 	decipher.setAuthTag(authTag)
 	const plaintext = Buffer.concat([decipher.update(ciphertext), decipher.final()]).toString("utf8")
 	return JSON.parse(plaintext) as T

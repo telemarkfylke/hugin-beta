@@ -45,7 +45,7 @@ const createConversationFromHistory: ApiNextFunction = async ({ requestEvent, us
 	if (!requestEvent) {
 		throw new HTTPError(400, "No request event")
 	}
-	// Students' conversations must never be persisted - same rule as the normal chat save path.
+	// Users without history must never have conversations persisted - same rule as the normal chat save path.
 	if (!canUseHistory(user, APP_CONFIG.APP_ROLES)) {
 		throw new HTTPError(403, "Not authorized to store conversation history")
 	}

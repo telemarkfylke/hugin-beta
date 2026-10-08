@@ -4,25 +4,20 @@
 	import { onNavigate } from "$app/navigation"
 	import { page } from "$app/state"
 	import favicon16 from "$lib/assets/favicon-16x16.png"
+	import { ROLE_PREVIEW_LABELS, ROLE_PREVIEW_ROLES, type RolePreviewRole, setRolePreview } from "$lib/role-preview"
 	import type { AuthenticatedPrincipal } from "$lib/types/authentication"
 	import type { ChatConfig } from "$lib/types/chat"
+	import RolePreviewBanner from "./RolePreviewBanner.svelte"
 
 	type Props = {
 		authenticatedUser: AuthenticatedPrincipal
 		appName: string
-		isEmployee: boolean
 		canUseTranscription: boolean
-		canvasEnabled: boolean
-		isAdmin: boolean
-		isStudentOnly: boolean
+		canUseCanvas: boolean
+		canUseDatasources: boolean
+		canPreviewRoles: boolean
 	}
-	let { authenticatedUser, appName, isEmployee, canUseTranscription, canvasEnabled, isAdmin, isStudentOnly }: Props = $props()
-
-	// Temporary feature flag for the Datakilder menu link's audience - flip to false to restrict it
-	// back to admin-only before a prod deploy. A plain hardcoded constant on purpose: this is a
-	// short-lived, manually-flipped toggle, not worth wiring a real env var through Terraform's
-	// lifecycle exclusions for. Remove this once the feature is ready for its real audience for good.
-	const DATASOURCES_MENU_OPEN_TO_ALL = false
+	let { authenticatedUser, appName, canUseTranscription, canUseCanvas, canUseDatasources, canPreviewRoles }: Props = $props()
 
 	let menuOpen = $state(true)
 	let menuAgents: { isLoading: boolean; agents: ChatConfig[]; error: string | null } = $state({ isLoading: false, agents: [], error: null })
@@ -96,25 +91,38 @@
 		menuOpen = !menuOpen
 	}
 
-	const STORAGE_KEY = "hugin_skip_new_chat_confirm"
-
 	let showUserSettings = $state(false)
-	let settingSkipNewChatConfirm = $state(false)
+	// "" = no preview (see yourself with your real roles)
+	let settingRolePreview: RolePreviewRole | "" = $state("")
 
 	const openUserSettings = () => {
-		settingSkipNewChatConfirm = localStorage.getItem(STORAGE_KEY) === "true"
+		settingRolePreview = authenticatedUser.rolePreview ?? ""
 		showUserSettings = true
 	}
 
-	const saveUserSettings = () => {
-		localStorage.setItem(STORAGE_KEY, settingSkipNewChatConfirm ? "true" : "false")
+	const saveUserSettings = async () => {
 		showUserSettings = false
+		if (canPreviewRoles && settingRolePreview !== (authenticatedUser.rolePreview ?? "")) {
+			try {
+				await setRolePreview(settingRolePreview || null)
+			} catch (error) {
+				console.error("Error setting role preview:", error)
+				alert("Kunne ikke bytte rolle")
+			}
+		}
 	}
 </script>
 
 {#if !menuOpen}
 	<div class="open-menu-container" transition:fade={{ duration: 100, delay: 100 }}>
-		<button class="icon-button" onclick={toggleMenu} title="Åpne meny">
+		<!-- With the menu closed the RolePreviewBanner isn't visible - mark the open button instead, so a
+		     preview never goes unnoticed. -->
+		<button
+			class="icon-button"
+			class:role-preview-active={authenticatedUser.rolePreview}
+			onclick={toggleMenu}
+			title={authenticatedUser.rolePreview ? `Åpne meny (du ser Hugin som ${ROLE_PREVIEW_LABELS[authenticatedUser.rolePreview]})` : "Åpne meny"}
+		>
 			<span class="material-symbols-rounded">left_panel_open</span>
 		</button>
 	</div>
@@ -188,23 +196,29 @@
 				{/if}
 			</div>
 			<!-- Hugin-only services. Hidden unless APP_NAME="Hugin" (defaults to "Mugin"); set it in your .env for local dev. -->
-			{#if appName === "Hugin" && (isEmployee || isAdmin)}
+			{#if appName === "Hugin" && (canUseTranscription || canUseCanvas || canUseDatasources)}
 				<div class="menu-section">
 					<div class="menu-section-title">Andre tjenester</div>
 					<div class="menu-items">
 						{#if canUseTranscription}
 							<a class="menu-item" class:active={page.url.pathname === "/transcription"} href="/transcription">Tale-til-notat</a>
 						{/if}
-						{#if canvasEnabled}
+						{#if canUseCanvas}
 							<a class="menu-item" class:active={page.url.pathname.startsWith("/canvas")} href="/canvas/document">Kladdeboka</a>
 						{/if}
-						{#if DATASOURCES_MENU_OPEN_TO_ALL ? !isStudentOnly : isAdmin}
-							<a class="menu-item" class:active={page.url.pathname === "/ragservice"} href="/ragservice">Datakilder</a>
+						<!-- Every /datasources tab is employee-or-admin now (Websites is admin-only, see
+						     canManageWebsiteSources), so students/edu_employee-only have no tab to land on.
+						     Each tab still enforces its own check server-side regardless of this link. -->
+						{#if canUseDatasources}
+							<a class="menu-item" class:active={page.url.pathname.startsWith("/datasources")} href="/datasources">Datakilder</a>
 						{/if}
 					</div>
 				</div>
 			{/if}
 		</div>
+		{#if authenticatedUser.rolePreview}
+			<RolePreviewBanner role={authenticatedUser.rolePreview} />
+		{/if}
 		<div class="menu-footer">
 			<button class="icon-button logged-in-user" onclick={openUserSettings} title="Brukerinnstillinger">
 				<span class="material-symbols-outlined">account_circle</span>
@@ -219,13 +233,20 @@
 	<div class="settings-backdrop" onclick={() => showUserSettings = false}>
 		<div class="settings-modal" onclick={(e) => e.stopPropagation()}>
 			<div class="settings-hero">
-				<p class="settings-tagline">Ikke mye her ennå…</p>
+				<p class="settings-tagline">Flere brukerinstillinger kommer</p>
 			</div>
 			<div class="settings-options">
-				<label class="settings-toggle">
-					<input type="checkbox" bind:checked={settingSkipNewChatConfirm} />
-					<span>Ikke vis advarsel ved ny samtale</span>
-				</label>
+				{#if canPreviewRoles}
+					<label class="settings-select">
+						<span>Opplev Hugin som</span>
+						<select bind:value={settingRolePreview}>
+							<option value="">Meg selv</option>
+							{#each ROLE_PREVIEW_ROLES as role}
+								<option value={role}>{ROLE_PREVIEW_LABELS[role]}</option>
+							{/each}
+						</select>
+					</label>
+				{/if}
 			</div>
 			<div class="settings-actions">
 				<button onclick={() => showUserSettings = false}>Avbryt</button>
@@ -252,6 +273,10 @@
 	.open-menu-container {
 		position: fixed;
 		z-index: 100;
+	}
+	.role-preview-active {
+		background-color: var(--color-primary);
+		color: white;
 	}
 	.menu-header {
 		justify-content: space-between;
@@ -371,17 +396,13 @@
 		flex-direction: column;
 		gap: 0.75rem;
 	}
-	.settings-toggle {
+	.settings-select {
 		display: flex;
-		align-items: center;
-		gap: 0.6rem;
+		flex-direction: column;
+		gap: 0.3rem;
 		font-size: 0.9rem;
-		cursor: pointer;
 		color: inherit;
 		padding-bottom: 0;
-	}
-	.settings-toggle input {
-		width: auto;
 	}
 	.settings-actions {
 		display: flex;

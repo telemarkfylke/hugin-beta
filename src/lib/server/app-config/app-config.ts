@@ -1,11 +1,63 @@
+import { logger } from "@vestfoldfylke/loglady"
 import { env } from "$env/dynamic/private"
+import { assertModelConfig } from "$lib/server/models/assert-model-config"
+import { deriveVendorModels } from "$lib/server/models/derive-vendors"
+import { MODEL_CONFIG } from "$lib/server/models/models.config"
+import { buildClientProfiles, type ModelContext, resolveDefaultProfileId } from "$lib/server/models/resolve"
 import type { AppConfig } from "$lib/types/app-config"
-import {
-	MISTRAL_DEFAULT_SUPPORTED_MESSAGE_FILE_MIME_TYPES,
-	MISTRAL_DEFAULT_SUPPORTED_MESSAGE_IMAGE_MIME_TYPES,
-	OPEN_AI_DEFAULT_SUPPORTED_MESSAGE_FILE_MIME_TYPES,
-	OPEN_AI_DEFAULT_SUPPORTED_MESSAGE_IMAGE_MIME_TYPES
-} from "./supported-mime-types"
+
+assertModelConfig(MODEL_CONFIG)
+
+const VENDORS: AppConfig["VENDORS"] = {
+	MISTRAL: {
+		NAME: "Mistral",
+		ENABLED: Boolean(env.MISTRAL_API_KEY_PROJECT_DEFAULT),
+		PROJECTS: Object.keys(env)
+			.filter((key) => key.startsWith("MISTRAL_API_KEY_PROJECT"))
+			.map((key) => key.replace("MISTRAL_API_KEY_PROJECT_", "")),
+		MODELS: deriveVendorModels(MODEL_CONFIG, "MISTRAL")
+	},
+	OPENAI: {
+		NAME: "OpenAI",
+		ENABLED: Boolean(env.OPENAI_API_KEY_PROJECT_DEFAULT),
+		PROJECTS: Object.keys(env)
+			.filter((key) => key.startsWith("OPENAI_API_KEY_PROJECT"))
+			.map((key) => key.replace("OPENAI_API_KEY_PROJECT_", "")),
+		MODELS: deriveVendorModels(MODEL_CONFIG, "OPENAI")
+	},
+	OLLAMA: {
+		NAME: "Ollama",
+		ENABLED: Boolean(env.OLLAMA_HOST),
+		PROJECTS: ["DEFAULT"],
+		MODELS: deriveVendorModels(MODEL_CONFIG, "OLLAMA")
+	},
+	LITELLM: {
+		NAME: "Telemark fylkeskommune",
+		ENABLED: Boolean(env.LITELLM_BASE_URL),
+		PROJECTS: ["DEFAULT"],
+		MODELS: deriveVendorModels(MODEL_CONFIG, "LITELLM")
+	}
+}
+
+export const MODEL_CONTEXT: ModelContext = {
+	modelConfig: MODEL_CONFIG,
+	// Stored configs from early versions can carry lowercase/unknown vendor ids - never index VENDORS blindly
+	isVendorEnabled: (vendorId) => Object.hasOwn(VENDORS, vendorId) && VENDORS[vendorId].ENABLED,
+	vendorProjects: (vendorId) => (Object.hasOwn(VENDORS, vendorId) ? VENDORS[vendorId].PROJECTS : [])
+}
+
+for (const profile of MODEL_CONFIG.PROFILES) {
+	const model = MODEL_CONFIG.MODELS[profile.model]
+	if (model && !VENDORS[model.vendor].ENABLED) {
+		logger.warn("Model profile {profileId} is hidden: vendor {vendorId} is not enabled", profile.id, model.vendor)
+	}
+}
+
+const DEFAULT_CHAT_PROFILE_ID = resolveDefaultProfileId("chat", MODEL_CONTEXT)
+const DEFAULT_ASSISTANT_PROFILE_ID = resolveDefaultProfileId("assistant", MODEL_CONTEXT)
+if (!DEFAULT_CHAT_PROFILE_ID || !DEFAULT_ASSISTANT_PROFILE_ID) {
+	logger.error("No usable model profile - every profile's vendor is disabled. Check models.config.ts and vendor API keys")
+}
 
 export const APP_CONFIG: AppConfig = {
 	NAME: env.APP_NAME || "Mugin",
@@ -15,10 +67,10 @@ export const APP_CONFIG: AppConfig = {
 		AGENT_MAINTAINER: env.APP_ROLE_AGENT_MAINTAINER as string,
 		EMPLOYEE: env.APP_ROLE_EMPLOYEE as string,
 		STUDENT: env.APP_ROLE_STUDENT as string,
-		EDU_EMPLOYEE: env.APP_ROLE_EDU_EMPLOYEE || "eduemployee"
+		EDU_EMPLOYEE: env.APP_ROLE_EDU_EMPLOYEE || "eduemployee",
+		QA: env.APP_ROLE_QA || "QA"
 	},
 	CONVERSATION_EXPORT_DISABLED: env.CONVERSATION_EXPORT_DISABLED === "true",
-	NEW_CHAT_CONFIRM_DISABLED: env.NEW_CHAT_CONFIRM_DISABLED === "true",
 	CANVAS_ENABLED: env.CANVAS_ENABLED === "true",
 	TRANSCRIPTION_GREEN_GROUP_ID: env.TRANSCRIPTION_GREEN_ID,
 	TRANSCRIPTION_GROUPS: (() => {
@@ -33,126 +85,7 @@ export const APP_CONFIG: AppConfig = {
 		}
 		return groups
 	})(),
-	VENDORS: {
-		MISTRAL: {
-			NAME: "Mistral",
-			ENABLED: Boolean(env.MISTRAL_API_KEY_PROJECT_DEFAULT),
-			PROJECTS: Object.keys(env)
-				.filter((key) => key.startsWith("MISTRAL_API_KEY_PROJECT"))
-				.map((key) => key.replace("MISTRAL_API_KEY_PROJECT_", "")),
-			MODELS: [
-				{
-					ID: "mistral-medium-latest",
-					SUPPORTED_MESSAGE_FILE_MIME_TYPES: {
-						FILE: MISTRAL_DEFAULT_SUPPORTED_MESSAGE_FILE_MIME_TYPES,
-						IMAGE: MISTRAL_DEFAULT_SUPPORTED_MESSAGE_IMAGE_MIME_TYPES
-					}
-				},
-				{
-					ID: "mistral-large-latest",
-					SUPPORTED_MESSAGE_FILE_MIME_TYPES: {
-						FILE: MISTRAL_DEFAULT_SUPPORTED_MESSAGE_FILE_MIME_TYPES,
-						IMAGE: MISTRAL_DEFAULT_SUPPORTED_MESSAGE_IMAGE_MIME_TYPES
-					}
-				}
-			]
-		},
-		OPENAI: {
-			NAME: "OpenAI",
-			ENABLED: Boolean(env.OPENAI_API_KEY_PROJECT_DEFAULT),
-			PROJECTS: Object.keys(env)
-				.filter((key) => key.startsWith("OPENAI_API_KEY_PROJECT"))
-				.map((key) => key.replace("OPENAI_API_KEY_PROJECT_", "")),
-			MODELS: [
-				{
-					ID: "gpt-4o",
-					SUPPORTED_MESSAGE_FILE_MIME_TYPES: {
-						FILE: OPEN_AI_DEFAULT_SUPPORTED_MESSAGE_FILE_MIME_TYPES,
-						IMAGE: OPEN_AI_DEFAULT_SUPPORTED_MESSAGE_IMAGE_MIME_TYPES
-					}
-				},
-				{
-					ID: "gpt-4",
-					SUPPORTED_MESSAGE_FILE_MIME_TYPES: {
-						FILE: OPEN_AI_DEFAULT_SUPPORTED_MESSAGE_FILE_MIME_TYPES,
-						IMAGE: OPEN_AI_DEFAULT_SUPPORTED_MESSAGE_IMAGE_MIME_TYPES
-					}
-				},
-				{
-					ID: "gpt-4.1",
-					SUPPORTED_MESSAGE_FILE_MIME_TYPES: {
-						FILE: OPEN_AI_DEFAULT_SUPPORTED_MESSAGE_FILE_MIME_TYPES,
-						IMAGE: OPEN_AI_DEFAULT_SUPPORTED_MESSAGE_IMAGE_MIME_TYPES
-					}
-				},
-				{
-					ID: "gpt-5.2",
-					SUPPORTED_MESSAGE_FILE_MIME_TYPES: {
-						FILE: OPEN_AI_DEFAULT_SUPPORTED_MESSAGE_FILE_MIME_TYPES,
-						IMAGE: OPEN_AI_DEFAULT_SUPPORTED_MESSAGE_IMAGE_MIME_TYPES
-					}
-				},
-				{
-					ID: "gpt-5.4",
-					SUPPORTED_MESSAGE_FILE_MIME_TYPES: {
-						FILE: OPEN_AI_DEFAULT_SUPPORTED_MESSAGE_FILE_MIME_TYPES,
-						IMAGE: OPEN_AI_DEFAULT_SUPPORTED_MESSAGE_IMAGE_MIME_TYPES
-					}
-				},
-				{
-					ID: "gpt-5.5",
-					SUPPORTED_MESSAGE_FILE_MIME_TYPES: {
-						FILE: OPEN_AI_DEFAULT_SUPPORTED_MESSAGE_FILE_MIME_TYPES,
-						IMAGE: OPEN_AI_DEFAULT_SUPPORTED_MESSAGE_IMAGE_MIME_TYPES
-					}
-				},
-				{
-					ID: "gpt-5.6-terra",
-					SUPPORTED_MESSAGE_FILE_MIME_TYPES: {
-						FILE: OPEN_AI_DEFAULT_SUPPORTED_MESSAGE_FILE_MIME_TYPES,
-						IMAGE: OPEN_AI_DEFAULT_SUPPORTED_MESSAGE_IMAGE_MIME_TYPES
-					}
-				},
-				{
-					ID: "gpt-5.6-luna",
-					SUPPORTED_MESSAGE_FILE_MIME_TYPES: {
-						FILE: OPEN_AI_DEFAULT_SUPPORTED_MESSAGE_FILE_MIME_TYPES,
-						IMAGE: OPEN_AI_DEFAULT_SUPPORTED_MESSAGE_IMAGE_MIME_TYPES
-					}
-				}
-			]
-		},
-		OLLAMA: {
-			NAME: "Ollama",
-			ENABLED: Boolean(env.OLLAMA_HOST),
-			PROJECTS: ["DEFAULT"],
-			MODELS: [
-				{
-					ID: "llama3:8b",
-					SUPPORTED_MESSAGE_FILE_MIME_TYPES: {
-						FILE: [],
-						IMAGE: []
-					}
-				},
-				{
-					ID: "LTG/normistral-11b-thinking:latest",
-					SUPPORTED_MESSAGE_FILE_MIME_TYPES: {
-						FILE: [],
-						IMAGE: []
-					}
-				}
-			]
-		},
-		LITELLM: {
-			NAME: "Telemark fylkeskommune",
-			ENABLED: Boolean(env.LITELLM_BASE_URL),
-			PROJECTS: ["DEFAULT"],
-			MODELS: [
-				{
-					ID: "norallm/normistral-11b-thinking",
-					SUPPORTED_MESSAGE_FILE_MIME_TYPES: { FILE: [], IMAGE: [] }
-				}
-			]
-		}
-	}
+	VENDORS,
+	MODEL_PROFILES: buildClientProfiles(MODEL_CONTEXT),
+	DEFAULT_PROFILE_IDS: { CHAT: DEFAULT_CHAT_PROFILE_ID ?? "", ASSISTANT: DEFAULT_ASSISTANT_PROFILE_ID ?? "" }
 }

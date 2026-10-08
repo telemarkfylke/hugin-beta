@@ -30,8 +30,7 @@
 		store = await api.getStore(storeId, true)
 		if (store) {
 			const access = store._embedded.access
-			if (access.search) activeTab = "search"
-			else if (access.upload) activeTab = "files"
+			if (access.upload) activeTab = "files"
 			else if (access.admin) activeTab = "access"
 			else activeTab = "view"
 		}
@@ -85,6 +84,10 @@
 		></DataStoreCreate>
 	{:else}
 		<div class="store-header">
+			<button onclick={() => (createNew = true)}>
+				<span class="material-symbols-outlined">add</span>Lag nytt bibliotek
+			</button>
+
 			{#if stores.length > 0}
 				<select bind:value={selectedStoreId}>
 					{#each stores as s}
@@ -92,9 +95,7 @@
 					{/each}
 				</select>
 			{/if}
-			<button onclick={() => (createNew = true)}>
-				<span class="material-symbols-outlined">add</span>Lag nytt bibliotek
-			</button>
+
 
 			{#if store}
 				<button
@@ -138,15 +139,6 @@
 			</div>
 
 			<div class="rag-tabs">
-				{#if store._embedded.access.search}
-					<button
-						class="rag-tab-button"
-						disabled={activeTab === "search"}
-						onclick={() => {
-							activeTab = "search";
-						}}>Søk</button
-					>
-				{/if}
 				{#if store._embedded.access.upload}
 					<button
 						class="rag-tab-button"
@@ -178,6 +170,15 @@
 						onclick={() => {
 							activeTab = "settings";
 						}}>Innstillinger</button
+					>
+				{/if}
+				{#if store._embedded.access.search}
+					<button
+						class="rag-tab-button"
+						disabled={activeTab === "search"}
+						onclick={() => {
+							activeTab = "search";
+						}}>Finjustering</button
 					>
 				{/if}
 			</div>

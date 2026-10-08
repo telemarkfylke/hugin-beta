@@ -9,14 +9,19 @@ export type VendorAgent = {
 	id: string
 }
 
-export type ChatTool = {
-	type: "web_search" | "datasource"
-}
+// "mcp"'s only job is "MCP tool-calling is active for this bot" - which specific source(s) are in
+// play comes from DataSource below (sourceId), so no extra data belongs on the tool itself.
+export type ChatTool = { type: "web_search" } | { type: "datasource" } | { type: "mcp" }
 
-export type DataSource = {
-	type: "ragservice"
-	id: string
-}
+// "website" reuses the same generic "datasource" ChatTool flag as "ragservice" (see
+// ChatState.svelte's activeTools composition and chat/+server.ts's datasourceToolActive) - both
+// are just entries in dataSources, unlike "mcp" which gets its own ChatTool because it currently
+// runs through a wholly separate (agentic tool-calling) code path.
+// "mcp"'s sourceId references a McpSource (see mcp-source.ts) - deliberately no `server` field
+// here even though McpSource itself is a discriminated union on `server`: the source, looked up
+// by id, already knows which server it targets, and duplicating that here would just open the
+// door to the two disagreeing.
+export type DataSource = { type: "ragservice"; id: string } | { type: "mcp"; sourceId: string } | { type: "website"; id: string }
 
 export type RoleAccessGroups = "all" | "employee" | "edu_employee" | "student"
 export type EntraAccessGroup = {
@@ -32,12 +37,64 @@ export type ChatConfig = {
 	project: string
 	vendorAgent?: VendorAgent | undefined
 	model?: string | undefined
+	// Model profile id (see $lib/server/models/models.config.ts). vendorId/project/model are always
+	// overwritten from it on the server - see $lib/server/models/resolve.ts.
+	profile?: string | undefined
+	// Admin-only escape hatch: model = catalogue key, not provider ID. Wins over profile while its model isn't retired.
+	// legacy: set by the server for a pre-profile assistant on its own project (never trusted from a client);
+	// the assistant's editors may clear it, unlike an admin pin
+	pinned?: { model: string; project: string; legacy?: boolean | undefined } | undefined
 	instructions?: string | undefined
 	conversationId?: string | undefined
 	tools?: ChatTool[] | undefined | null
 	dataSources?: DataSource[] | undefined | null
 	type: "published" | "private"
 	shared?: boolean | undefined
+	// Independent of type/shared - lets an anonymous visitor use this config via /public/embed/**,
+	// with no login and no listing anywhere. See $lib/authorization.canSetAnonymousEmbed (admin-only).
+	allowAnonymousEmbed?: boolean | undefined
+	// Author-defined categories for write-time question statistics (see $lib/statsstore/types). Empty/unset
+	// means the feature is off for this bot - no categorization call is made per question. Every
+	// incoming user question is classified into exactly one of these (or "Ukategorisert" as a fallback
+	// when none fit), never shown to the end user, purely for aggregate stats - never per-person.
+	categories?: string[] | undefined | null
+	// Embed widget presentation (see EmbedChat.svelte) - used by /embed/agents/[agentId] and
+	// /public/embed/agents/[agentId]. Absent/empty falls back to generated defaults there.
+	avatarUrl?: string | undefined
+	welcomeMessage?: string | undefined
+	suggestedQuestions?: string[] | undefined | null
+	// Show the corresponding ChatInput button in the embed widget specifically (EmbedChat passes
+	// the inverse into ChatInput's hideAttachment/hideWebSearch props) - the normal /agents/[agentId]
+	// chat UI never reads these, so toggling one off for embedded visitors never affects the bot's
+	// own editors testing it there. undefined/true: button shows as before (subject to its existing
+	// capability check). Only an explicit false hides it.
+	showAttachmentButton?: boolean | undefined
+	showWebSearchButton?: boolean | undefined
+	// A/B flag, public embed route only (see embed/api/chat/+server.ts) - never read by supahChat.
+	// true: pre-classifies each question (category + scope, one utility-model call - see
+	// classifyQuestion) BEFORE answering, and refuses out-of-scope questions instead of forwarding
+	// them to the vendor. false/unset (default): behaves exactly like supahChat always has - fire-
+	// and-forget post-hoc category stats only (recordQuestionCategoryStat), no scope check, nothing
+	// ever blocked. Meant to be flipped per bot to compare guardrails-on vs guardrails-off in
+	// practice, not as a permanent per-bot setting.
+	scopeGuardEnabled?: boolean | undefined
+	// A/B flag, public embed route only, independent of scopeGuardEnabled above (separate switches
+	// so combinations of the two can be compared, not just "guardrails" as one bundle). true: when
+	// this bot has RAG datasources configured and a search returns zero relevant chunks, refuse
+	// instead of forwarding the question to the vendor with no grounding - see the empty-RAG-result
+	// guard in embed/api/chat/+server.ts. false/unset (default): unchanged - the vendor answers from
+	// its own general knowledge whenever nothing relevant was found. No-op for a bot with no RAG
+	// datasources at all (nothing to have "zero results" from).
+	emptyRagGuardEnabled?: boolean | undefined
+	// Public embed route only - per-bot overrides for the rate limits in embed/api/chat/+server.ts
+	// (its own module comment has the full reasoning). undefined = use the deployment-wide default
+	// (or, for rateLimitPerBotPerDay specifically, no shared cap at all - see that file). A number
+	// overrides it for this bot. No separate "disabled" state for the two per-IP limits - a bot that
+	// genuinely needs no limit just gets a very high number here, same knob as tuning it.
+	rateLimitPerIpPerMinute?: number | undefined
+	rateLimitPerIpPerDay?: number | undefined
+	// Opt-IN only - see embed/api/chat/+server.ts for why there's no shared per-bot cap by default.
+	rateLimitPerBotPerDay?: number | undefined
 	accessGroups: (RoleAccessGroups | EntraAccessGroup)[]
 	created: {
 		at: string
@@ -81,6 +138,10 @@ export type ChatResponseObject = {
 	createdAt: string
 	outputs: ChatOutputItem[]
 	status: "completed" | "failed" | "in_progress" | "cancelled" | "queued" | "incomplete" | "searching"
+	// Human-readable detail shown alongside status "searching" for an MCP/website tool call in
+	// flight (e.g. "Ser gjennom mappen «FLG-Referat»") - see describe-tool-call.ts. Undefined for a
+	// genuine web_search "searching" state, which keeps its own generic message.
+	searchingDetail?: string | undefined
 	usage: ChatResponseUsage
 }
 
@@ -125,15 +186,35 @@ export const ChatConfigSchema = schemaForType<ChatConfig>()(
 		project: z.string(),
 		vendorAgent: z.object({ id: z.string() }).optional(),
 		model: z.string().optional(),
+		profile: z.string().optional(),
+		pinned: z.object({ model: z.string(), project: z.string(), legacy: z.boolean().optional() }).optional(),
 		tools: z
-			.array(z.object({ type: z.enum(["web_search", "datasource"]) }))
+			.array(z.discriminatedUnion("type", [z.object({ type: z.literal("web_search") }), z.object({ type: z.literal("datasource") }), z.object({ type: z.literal("mcp") })]))
 			.nullable()
 			.optional(),
 		dataSources: z
-			.array(z.object({ type: z.enum(["ragservice"]), id: z.string() }))
+			.array(
+				z.discriminatedUnion("type", [
+					z.object({ type: z.literal("ragservice"), id: z.string() }),
+					z.object({ type: z.literal("mcp"), sourceId: z.string() }),
+					z.object({ type: z.literal("website"), id: z.string() })
+				])
+			)
 			.nullable()
-			.optional(), // Update as per ChatTool for now
+			.optional(),
 		shared: z.boolean().optional(),
+		allowAnonymousEmbed: z.boolean().optional(),
+		categories: z.array(z.string()).nullable().optional(),
+		avatarUrl: z.string().optional(),
+		welcomeMessage: z.string().optional(),
+		suggestedQuestions: z.array(z.string()).nullable().optional(),
+		showAttachmentButton: z.boolean().optional(),
+		showWebSearchButton: z.boolean().optional(),
+		scopeGuardEnabled: z.boolean().optional(),
+		emptyRagGuardEnabled: z.boolean().optional(),
+		rateLimitPerIpPerMinute: z.number().optional(),
+		rateLimitPerIpPerDay: z.number().optional(),
+		rateLimitPerBotPerDay: z.number().optional(),
 		instructions: z.string().optional(),
 		conversationId: z.string().optional(),
 		type: z.enum(["published", "private"]), // Update as per ChatConfig for now

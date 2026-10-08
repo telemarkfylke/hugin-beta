@@ -1,23 +1,38 @@
 import { json, type RequestHandler } from "@sveltejs/kit"
 import { logger } from "@vestfoldfylke/loglady"
-import { canPromptConfig, canUseHistory } from "$lib/authorization"
+import { canPromptConfig, canUseHistory, canUseMcpSharepoint, canUseWebsiteDataSource, canViewMcpSource, canViewWebsiteSource } from "$lib/authorization"
 import { chatHistoryToInputItems } from "$lib/chat-history"
 import { applyChatSseEventToResponseObject } from "$lib/chat-response-builder"
 import type { ConversationManager } from "$lib/conversationstore/server/conv_manager"
 import { getConversationManager } from "$lib/conversationstore/server/get-conversation-manager"
+import { loadSavedConfigSourceGrant } from "$lib/server/agents/saved-config-source-grant"
 import { getVendor } from "$lib/server/ai-vendors"
 import { APP_CONFIG } from "$lib/server/app-config/app-config"
 import { MS_AUTH_TOKEN_HEADER } from "$lib/server/auth/auth-constants"
+import { recordQuestionCategoryStat } from "$lib/server/categorize-question"
+import { getMcpSourceStore, getWebsiteSourceStore } from "$lib/server/db/get-db"
+import { appendAgenticToolGuidance } from "$lib/server/mcp/agentic-tool-guidance"
+import { buildMcpToolClients } from "$lib/server/mcp/build-mcp-tool-clients"
+import { createCombinedToolClient } from "$lib/server/mcp/combined-tool-client"
+import type { McpClient } from "$lib/server/mcp/mcp-client"
+import { runAgenticToolChatOrDegrade } from "$lib/server/mcp/run-agentic-chat"
+import { configHasMcpTool, mcpUnavailableStream } from "$lib/server/mcp/run-mcp-chat"
 import { HTTPError } from "$lib/server/middleware/http-error"
 import { apiRequestMiddleware } from "$lib/server/middleware/http-request"
+import { isModelAvailable, MODEL_UNAVAILABLE_MESSAGE, resolveConfig } from "$lib/server/models/model-registry"
+import { appendRagContextToInstructions } from "$lib/server/ragservice/format-rag-context"
 import { rewriteRagQuery } from "$lib/server/ragservice/rag-query-rewrite"
 import { searchRagStores } from "$lib/server/ragservice/rag-search"
+import { createWebsiteToolClient } from "$lib/server/website-tools/website-tool-client"
 import { createSse, parseSse, responseStream } from "$lib/streaming"
+import type { IAIVendor } from "$lib/types/AIVendor"
 import type { AuthenticatedPrincipal } from "$lib/types/authentication"
 import type { ChatConfig, ChatRequest, ChatResponseObject } from "$lib/types/chat"
 import type { ChatInputMessage } from "$lib/types/chat-item"
 import type { InputText } from "$lib/types/chat-item-content"
+import type { McpSource } from "$lib/types/mcp-source"
 import type { ApiNextFunction } from "$lib/types/middleware/http-request"
+import type { WebsiteSource, WebsiteSourceEntry } from "$lib/types/website-source"
 import { validateFileInputs } from "$lib/validation/file-input"
 import { parseChatConfig } from "$lib/validation/parse-chat-config"
 
@@ -27,7 +42,8 @@ const parseChatRequest = (body: unknown): ChatRequest => {
 	}
 	const incomingChatRequest: ChatRequest = body as ChatRequest
 
-	const config = parseChatConfig(incomingChatRequest.config, APP_CONFIG)
+	// Client-sent vendorId/model/project are never trusted - resolution overwrites them from profile/pin
+	const config = resolveConfig(parseChatConfig(incomingChatRequest.config, APP_CONFIG, { mode: "use" }))
 
 	if (!Array.isArray(incomingChatRequest.inputs) || incomingChatRequest.inputs.length === 0) {
 		throw new HTTPError(400, "inputs must be a non-empty array")
@@ -68,8 +84,8 @@ const supahChat: ApiNextFunction = async ({ requestEvent, user }) => {
 
 	const chatRequest = parseChatRequest(body)
 
-	// Students' conversations must never be persisted - enforce server-side regardless of
-	// what the client sent, since the incognito toggle is only hidden/disabled client-side.
+	// Users without history must never have conversations persisted - enforce server-side regardless
+	// of what the client sent, since the incognito toggle is only hidden/disabled client-side.
 	if (!canUseHistory(user, APP_CONFIG.APP_ROLES)) {
 		chatRequest.store = false
 	}
@@ -78,7 +94,31 @@ const supahChat: ApiNextFunction = async ({ requestEvent, user }) => {
 		throw new HTTPError(403, "Not authorized to use this chat configuration")
 	}
 
+	// Fail closed: resolution keeps a dataLocation profile on its own (disabled) vendor rather than
+	// sending the data elsewhere
+	if (!isModelAvailable(chatRequest.config)) {
+		throw new HTTPError(503, MODEL_UNAVAILABLE_MESSAGE)
+	}
+
 	const userInputMessage = [...chatRequest.inputs].reverse().find((i): i is ChatInputMessage => i.type === "message.input" && i.role === "user")
+
+	const queryText =
+		userInputMessage?.content
+			.filter((c): c is InputText => c.type === "input_text")
+			.map((c) => c.text)
+			.join(" ")
+			.trim() ?? ""
+
+	// Write-time, anonymous question-category statistics (see $lib/statsstore/types) - deliberately
+	// independent of chatRequest.store/incognito below, since that's often forced off (canUseHistory
+	// above) and is the whole reason this can't just be derived from stored conversation history
+	// afterwards. Fire-and-forget: must never block or slow down the actual chat response, and a
+	// failure here is only logged, never surfaced to the user.
+	if (chatRequest.config.categories?.length && queryText) {
+		recordQuestionCategoryStat(chatRequest.config._id, queryText, chatRequest.config.categories).catch((error) => {
+			logger.errorException(error, "Failed to record question category stat")
+		})
+	}
 
 	// Resolve/prepend history before the RAG step below, so query rewriting has the full
 	// conversation to resolve pronouns/references against - not just the newest message.
@@ -93,15 +133,55 @@ const supahChat: ApiNextFunction = async ({ requestEvent, user }) => {
 
 	const datasourceToolActive = chatRequest.config.tools?.some((t) => t.type === "datasource") ?? false
 	const ragStoreIds = datasourceToolActive ? (chatRequest.config.dataSources?.filter((s) => s.type === "ragservice").map((s) => s.id) ?? []) : []
+	const websiteSourceIds = datasourceToolActive ? (chatRequest.config.dataSources?.filter((s) => s.type === "website").map((s) => s.id) ?? []) : []
+	// Read before stripping tools below - RAG search (if active) still runs first and mutates
+	// chatRequest.config.instructions either way, so the MCP/website loop (if also active) sees the
+	// RAG-augmented instructions.
+	const mcpSharepointActive = configHasMcpTool(chatRequest.config)
+
+	if (mcpSharepointActive && !canUseMcpSharepoint(user, APP_CONFIG.APP_ROLES)) {
+		throw new HTTPError(403, "Not authorized to use SharePoint MCP")
+	}
+
+	if (websiteSourceIds.length > 0 && !canUseWebsiteDataSource(user, APP_CONFIG.APP_ROLES)) {
+		throw new HTTPError(403, "Not authorized to use website data sources")
+	}
+
+	// Flatten every selected website source's entries into one combined allow-list - a bot can
+	// have several website sources active at once, so the browse_website tool built from this
+	// covers all of them together.
+	// mcpSharepointActive is its own ChatTool flag (independent of datasourceToolActive, unlike
+	// ragservice/website) - resolve which McpSource(s) were actually selected only when it's on.
+	const mcpSourceIds = mcpSharepointActive ? (chatRequest.config.dataSources?.filter((s) => s.type === "mcp").map((s) => s.sourceId) ?? []) : []
+
+	// The source ids come from the client-sent config, so each one must be authorized server-side:
+	// either the user may see the source themselves, or the SAVED version of this assistant (which the
+	// user may prompt) references it - e.g. a published assistant built on its creator's private source.
+	const isGrantedBySavedConfig = websiteSourceIds.length > 0 || mcpSourceIds.length > 0 ? await loadSavedConfigSourceGrant(chatRequest.config._id, user) : () => false
+
+	let websiteEntries: WebsiteSourceEntry[] = []
+	let deniedSourceCount = 0
+	if (websiteSourceIds.length > 0) {
+		const websiteSourceStore = getWebsiteSourceStore()
+		const resolved = await Promise.all(websiteSourceIds.map((id) => websiteSourceStore.getWebsiteSource(id).catch(() => null)))
+		const sources = resolved.filter((source): source is WebsiteSource => source !== null && (canViewWebsiteSource(source, user, APP_CONFIG.APP_ROLES) || isGrantedBySavedConfig("website", source._id)))
+		deniedSourceCount += resolved.filter((source) => source !== null).length - sources.length
+		websiteEntries = sources.flatMap((source) => source.entries)
+	}
+	const websiteToolActive = websiteEntries.length > 0
+
+	let mcpSources: McpSource[] = []
+	if (mcpSourceIds.length > 0) {
+		const mcpSourceStore = getMcpSourceStore()
+		const resolved = await Promise.all(mcpSourceIds.map((id) => mcpSourceStore.getMcpSource(id).catch(() => null)))
+		mcpSources = resolved.filter((source): source is McpSource => source !== null && (canViewMcpSource(source, user, APP_CONFIG.APP_ROLES) || isGrantedBySavedConfig("mcp", source._id)))
+		deniedSourceCount += resolved.filter((source) => source !== null).length - mcpSources.length
+	}
+	if (deniedSourceCount > 0) {
+		logger.warn("Ignored {count} data source(s) on config {configId} that {userId} may not use", deniedSourceCount, chatRequest.config._id, user.userId)
+	}
 
 	if (ragStoreIds.length > 0) {
-		const queryText =
-			userInputMessage?.content
-				.filter((c): c is InputText => c.type === "input_text")
-				.map((c) => c.text)
-				.join(" ")
-				.trim() ?? ""
-
 		if (queryText) {
 			const graphToken = requestEvent.request.headers.get(MS_AUTH_TOKEN_HEADER)
 			const rewrittenQuery = await rewriteRagQuery({ chatRequest, queryText, ragStoreIds, user, graphToken })
@@ -117,22 +197,18 @@ const supahChat: ApiNextFunction = async ({ requestEvent, user }) => {
 			}
 
 			if (matches.length > 0) {
-				// Prefix each chunk with the file it came from, so the model can attribute answers
-				// back to a specific source (e.g. "hva sier Clara.pdf om xxx") instead of treating
-				// the whole context blob as one undifferentiated source.
-				const contextText = matches.map((m) => (m.fileName ? `### Fil: ${m.fileName}\n\n${m.text}` : m.text)).join("\n\n---\n\n")
-				chatRequest.config.instructions = `${chatRequest.config.instructions ?? ""}\n\n#Relevant kontekst fra datakilder:\n\n${contextText}`
+				chatRequest.config.instructions = appendRagContextToInstructions(chatRequest.config.instructions, matches)
 			}
 		}
 	}
 
 	// Strip internal Hugin tools that vendors don't know about
-	chatRequest.config.tools = chatRequest.config.tools?.filter((t) => t.type !== "datasource")
+	chatRequest.config.tools = chatRequest.config.tools?.filter((t) => t.type !== "datasource" && t.type !== "mcp")
 
 	const vendor = getVendor(chatRequest.config.vendorId)
 
 	if (chatRequest.stream) {
-		const stream = await vendor.createChatResponseStream(chatRequest)
+		const stream = await buildToolCallingStream(chatRequest, vendor, mcpSources, websiteToolActive ? websiteEntries : [])
 
 		if (huginConversationId && userInputMessage) {
 			const [clientBranch, captureBranch] = stream.tee()
@@ -174,6 +250,38 @@ const supahChat: ApiNextFunction = async ({ requestEvent, user }) => {
 		isAuthorized: true,
 		response: json(response)
 	}
+}
+
+// Builds one combined tool-calling stream out of every active tool-calling data source (MCP,
+// website, or both at once - see combined-tool-client.ts), or falls back to a plain vendor stream
+// when neither is active. Replaces the earlier "MCP wins if both are active" v1 limitation - a
+// bot can now genuinely use SharePoint and website browsing tools in the same conversation.
+const buildToolCallingStream = async (chatRequest: ChatRequest, vendor: IAIVendor, mcpSources: McpSource[], websiteEntries: WebsiteSourceEntry[]): Promise<ReadableStream<Uint8Array>> => {
+	const toolClients: McpClient[] = []
+	let mcpUnavailable = false
+
+	if (mcpSources.length > 0) {
+		const { clients, unavailable } = await buildMcpToolClients(mcpSources)
+		toolClients.push(...clients)
+		if (unavailable) mcpUnavailable = true
+	}
+	if (websiteEntries.length > 0) {
+		toolClients.push(createWebsiteToolClient(websiteEntries))
+	}
+
+	// The bot explicitly selected a SharePoint source but the real server is unreachable/
+	// unconfigured - same strict behaviour as before this refactor: show the unavailable message
+	// rather than silently answering without the SharePoint tools the bot was set up to have.
+	if (mcpUnavailable) {
+		return mcpUnavailableStream()
+	}
+	if (toolClients.length === 0) {
+		return vendor.createChatResponseStream(chatRequest)
+	}
+	// Nudges the model to actually use the tools proactively - see agentic-tool-guidance.ts for why
+	// this is needed at all (unlike RAG, nothing here runs the lookup for the model automatically).
+	chatRequest.config.instructions = appendAgenticToolGuidance(chatRequest.config.instructions)
+	return runAgenticToolChatOrDegrade(chatRequest, createCombinedToolClient(toolClients))
 }
 
 // Prepends one already-encoded SSE chunk to a stream, without buffering the rest of it.
@@ -222,6 +330,12 @@ const captureAndPersistStream = async (
 		const { value, done } = await reader.read()
 		const text = decoder.decode(value, { stream: true })
 		for (const event of parseSse(text)) {
+			if (event.event === "response.tool_call") {
+				// Shared agentic-loop event, emitted by both the MCP and website tool-calling paths.
+				logger.info("[chat] Agentic tool call: {toolName}", event.data.toolName)
+			} else if (event.event === "response.tool_result") {
+				logger.info("[chat] Agentic tool result: {toolName} ({status})", event.data.toolName, event.data.status)
+			}
 			applyChatSseEventToResponseObject(chatResponseObject, event)
 		}
 		if (done) break
