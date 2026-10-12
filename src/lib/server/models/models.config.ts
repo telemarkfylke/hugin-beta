@@ -36,7 +36,7 @@ type ProfileId = "rask" | "grundig" | "europeisk" | "lokal"
 
 const PROFILES: (Profile & { id: ProfileId; model: ModelKey })[] = [
 	{ id: "rask", label: "Rask", icon: "bolt", description: "Raske svar på enkle oppgaver", model: "gpt-6-luna" },
-	{ id: "grundig", label: "Grundig", icon: "psychology", description: "Analyse, resonnering og lange dokumenter", model: "gpt-6-sol" },
+	{ id: "grundig", label: "Grundig", icon: "psychology", description: "Analyse, resonnering og lange dokumenter", model: "gpt-6-luna" },
 	{ id: "europeisk", label: "Europeisk", icon: "shield", description: "Data behandles innenfor EU", model: "mistral-large", dataLocation: "EU" },
 	{
 		id: "lokal",
