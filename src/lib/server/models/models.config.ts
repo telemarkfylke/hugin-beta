@@ -71,6 +71,8 @@ const LEGACY: Record<string, ProfileId> = {
 	"gpt-5.5": "grundig",
 	// Grundig's previous model - no profile uses it directly any more
 	"gpt-5.6-terra": "grundig",
+	// MIDLERTIDIG - grundig kjører på gpt-6-luna fordi gpt-6-sol er for dyr. Fjern linja når grundig settes tilbake til gpt-6-sol
+	"gpt-6-sol": "grundig",
 	// Rask's previous model - no profile uses it directly any more
 	"gpt-5.6-luna": "rask",
 	"mistral-medium-latest": "europeisk",
