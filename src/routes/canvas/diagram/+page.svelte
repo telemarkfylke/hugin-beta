@@ -33,8 +33,11 @@
 		}
 	})
 
-	const loadExcalidraw = () => import("@excalidraw/excalidraw")
-	const loadConverter = () => import("@excalidraw/mermaid-to-excalidraw")
+	// Browser-only. The SSR guard lets the server build drop these imports entirely - Excalidraw is a
+	// devDependency (bundled for the client only), so the server must never try to bundle or load it.
+	const browserOnly = () => Promise.reject(new Error("Excalidraw is browser-only"))
+	const loadExcalidraw = () => (import.meta.env.SSR ? browserOnly() : import("@excalidraw/excalidraw"))
+	const loadConverter = () => (import.meta.env.SSR ? browserOnly() : import("@excalidraw/mermaid-to-excalidraw"))
 
 	// New shapes the user draws follow the chosen style too
 	const applyStyleToAppState = (target: ExcalidrawImperativeAPI) => {
