@@ -2,7 +2,7 @@
 #
 # Only what the server needs at runtime is deployed: build/, production node_modules, package.json
 # and the PPTX template - not the whole repository. Client-only libraries (Excalidraw, React,
-# reveal.js, docx, pdf-lib, jwt-decode) are devDependencies, bundled into build/client by Vite.
+# reveal.js, docx, pdf-lib) are devDependencies, bundled into build/client by Vite.
 #
 # App settings this workflow expects on the Web App (set outside the repo):
 #   SCM_DO_BUILD_DURING_DEPLOYMENT=false  never npm install/build on the server (the old functions-action forced this per deploy)

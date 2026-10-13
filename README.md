@@ -951,7 +951,7 @@ CANVAS_ENABLED="true"
 3. Set environment variables in Application Settings
 4. Deploy with GitHub Actions (`.github/workflows/publish-beta.yml`)
 
-The beta workflow deploys only what the server runs: `build/`, production `node_modules`, `package.json` and the PPTX template - not the repository. Client-only libraries (Excalidraw, React, reveal.js, docx, pdf-lib, jwt-decode) are `devDependencies`; Vite bundles them into `build/client`. Keep new browser-only libraries in `devDependencies` too, and guard dynamic imports of them with `import.meta.env.SSR` so the server build doesn't pull them in.
+The beta workflow deploys only what the server runs: `build/`, production `node_modules`, `package.json` and the PPTX template - not the repository. Client-only libraries (Excalidraw, React, reveal.js, docx, pdf-lib) are `devDependencies`; Vite bundles them into `build/client`. Keep new browser-only libraries in `devDependencies` too, and guard dynamic imports of them with `import.meta.env.SSR` so the server build doesn't pull them in.
 
 The Web App needs these settings for that package:
 
