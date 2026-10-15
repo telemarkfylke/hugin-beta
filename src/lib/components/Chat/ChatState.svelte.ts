@@ -1,6 +1,6 @@
 import { goto } from "$app/navigation"
 import { canUseHistory } from "$lib/authorization"
-import { chatHistoryToInputItems } from "$lib/chat-history"
+import { ATTACHMENT_STRIP_MODE, attachmentId, type ConversationAttachment, chatHistoryToInputItems, listConversationAttachments, MAX_ARMED_ATTACHMENTS } from "$lib/chat-history"
 import { getModelDisplayName, supportsWebSearch } from "$lib/model-profiles"
 import type { AppConfig } from "$lib/types/app-config"
 import type { AuthenticatedPrincipal } from "$lib/types/authentication"
@@ -156,6 +156,11 @@ export class ChatState {
 	// Set by loadChat when the conversation being opened last belonged to a different agent than
 	// the one we're currently on - the UI must show a choice before we touch this.chat.
 	public pendingConversationLoad: PendingConversationLoad | null = $state(null)
+	// Every distinct attachment in the current conversation, and the ids of those armed to be sent
+	// along with the next message (see stripUnarmedAttachments). Arming lives only here in memory:
+	// a freshly uploaded file starts armed, a loaded/imported conversation starts with nothing armed.
+	public attachments: ConversationAttachment[] = $state([])
+	public armedAttachmentIds: string[] = $state([])
 
 	constructor(chat: Chat, user: AuthenticatedPrincipal, appConfig: AppConfig, options?: ChatStateOptions) {
 		this.user = user
@@ -188,6 +193,37 @@ export class ChatState {
 		// Same default-on-if-available rule as web search - if an agent has a datasource configured,
 		// it's presumably configured for a reason, so it starts active rather than needing a click.
 		this.datasourceEnabled = this.lockedTools ? this.lockedTools.datasource : (chat.config.dataSources?.length ?? 0) > 0
+		this.resetAttachments()
+	}
+
+	private resetAttachments = (): void => {
+		this.armedAttachmentIds = []
+		this.refreshAttachments()
+	}
+
+	private refreshAttachments = (): void => {
+		if (ATTACHMENT_STRIP_MODE !== "armed") {
+			return
+		}
+		const history = this.chat.history
+		listConversationAttachments(chatHistoryToInputItems(history))
+			.then((attachments) => {
+				// A newer history replaced this one while hashing - its own refresh wins
+				if (this.chat.history === history) {
+					this.attachments = attachments
+				}
+			})
+			.catch((error) => {
+				console.error("Error listing conversation attachments:", error)
+			})
+	}
+
+	public toggleAttachment = (id: string): void => {
+		if (this.armedAttachmentIds.includes(id)) {
+			this.armedAttachmentIds = this.armedAttachmentIds.filter((armedId) => armedId !== id)
+		} else if (this.armedAttachmentIds.length < MAX_ARMED_ATTACHMENTS) {
+			this.armedAttachmentIds = [...this.armedAttachmentIds, id]
+		}
 	}
 
 	// Fire-and-forget - the endpoint is idempotent (no-ops if a title already exists), so callers
@@ -224,6 +260,7 @@ export class ChatState {
 		this.chat._id = ""
 		this.chat.createdAt = new Date().toISOString()
 		this.chat.updatedAt = new Date().toISOString()
+		this.resetAttachments()
 	}
 
 	// An imported .kráa file must never silently become a continuation of whatever real, stored
@@ -237,6 +274,7 @@ export class ChatState {
 		this.chat._id = ""
 		this.chat.createdAt = new Date().toISOString()
 		this.chat.updatedAt = new Date().toISOString()
+		this.resetAttachments()
 	}
 
 	public toggleStoreChat = (): void => {
@@ -413,6 +451,13 @@ export class ChatState {
 			this.isCreatingConversation = true
 		}
 
+		// The new message's own files count first towards MAX_ARMED_ATTACHMENTS; if that's exceeded the
+		// earliest-armed earlier files are disarmed. The new files stay armed for the turns after this one.
+		const newAttachmentIds = await Promise.all(userMessage.content.filter((c) => c.type !== "input_text").map(attachmentId))
+		const earlierRoom = Math.max(0, MAX_ARMED_ATTACHMENTS - newAttachmentIds.length)
+		const earlierArmed = this.armedAttachmentIds.filter((id) => !newAttachmentIds.includes(id))
+		const armedForThisTurn = earlierRoom === 0 ? [] : earlierArmed.slice(-earlierRoom)
+
 		const chatRequest: ChatRequest = {
 			config: {
 				...this.chat.config,
@@ -423,10 +468,15 @@ export class ChatState {
 			inputs: effectiveStoreChat ? [userMessage] : [...chatInput, userMessage],
 			stream: this.streamResponse,
 			store: effectiveStoreChat,
-			huginConversationId: effectiveStoreChat ? this.chat._id || undefined : undefined
+			huginConversationId: effectiveStoreChat ? this.chat._id || undefined : undefined,
+			armedAttachments: armedForThisTurn
 		}
 
 		this.chat.history.push(userMessage)
+		if (newAttachmentIds.length > 0) {
+			this.armedAttachmentIds = [...armedForThisTurn, ...newAttachmentIds].slice(-MAX_ARMED_ATTACHMENTS)
+			this.refreshAttachments()
+		}
 
 		const tempChatResponseObject: ChatResponseObject = {
 			id: `temp_id_${Date.now()}`,

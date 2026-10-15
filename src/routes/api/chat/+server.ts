@@ -1,7 +1,7 @@
 import { json, type RequestHandler } from "@sveltejs/kit"
 import { logger } from "@vestfoldfylke/loglady"
 import { canPromptConfig, canUseHistory, canUseMcpSharepoint, canUseWebsiteDataSource, canViewMcpSource, canViewWebsiteSource } from "$lib/authorization"
-import { chatHistoryToInputItems, stripAttachmentsExceptLatest } from "$lib/chat-history"
+import { chatHistoryToInputItems, stripUnarmedAttachments } from "$lib/chat-history"
 import { applyChatSseEventToResponseObject } from "$lib/chat-response-builder"
 import type { ConversationManager } from "$lib/conversationstore/server/conv_manager"
 import { getConversationManager } from "$lib/conversationstore/server/get-conversation-manager"
@@ -48,13 +48,16 @@ const parseChatRequest = (body: unknown): ChatRequest => {
 	if (!Array.isArray(incomingChatRequest.inputs) || incomingChatRequest.inputs.length === 0) {
 		throw new HTTPError(400, "inputs must be a non-empty array")
 	}
+	// Only ever selects among attachments already in the history - the cap itself is enforced in stripUnarmedAttachments
+	const armedAttachments = Array.isArray(incomingChatRequest.armedAttachments) ? incomingChatRequest.armedAttachments.filter((id): id is string => typeof id === "string") : []
 	if (config.vendorAgent) {
 		return {
 			config,
 			inputs: incomingChatRequest.inputs,
 			stream: Boolean(incomingChatRequest.stream),
 			store: Boolean(incomingChatRequest.store),
-			huginConversationId: incomingChatRequest.huginConversationId
+			huginConversationId: incomingChatRequest.huginConversationId,
+			armedAttachments
 		}
 	}
 
@@ -63,7 +66,8 @@ const parseChatRequest = (body: unknown): ChatRequest => {
 		inputs: incomingChatRequest.inputs,
 		stream: Boolean(incomingChatRequest.stream),
 		store: Boolean(incomingChatRequest.store),
-		huginConversationId: incomingChatRequest.huginConversationId
+		huginConversationId: incomingChatRequest.huginConversationId,
+		armedAttachments
 	}
 
 	validateFileInputs(manualChatRequest, APP_CONFIG)
@@ -131,7 +135,7 @@ const supahChat: ApiNextFunction = async ({ requestEvent, user }) => {
 		chatRequest.inputs = [...chatHistoryToInputItems(priorHistory), ...chatRequest.inputs]
 	}
 	// After the history prepend, so it covers both stored history and the incognito client-sent one
-	chatRequest.inputs = stripAttachmentsExceptLatest(chatRequest.inputs)
+	chatRequest.inputs = await stripUnarmedAttachments(chatRequest.inputs, chatRequest.armedAttachments)
 
 	const datasourceToolActive = chatRequest.config.tools?.some((t) => t.type === "datasource") ?? false
 	const ragStoreIds = datasourceToolActive ? (chatRequest.config.dataSources?.filter((s) => s.type === "ragservice").map((s) => s.id) ?? []) : []

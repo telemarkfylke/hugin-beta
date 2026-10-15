@@ -1,8 +1,10 @@
 <script lang="ts">
+	import { ATTACHMENT_STRIP_MODE } from "$lib/chat-history"
 	import { supportsWebSearch } from "$lib/model-profiles"
 	import FileDropZone from "../FileDropZone.svelte"
 	import TypingDots from "../TypingDots.svelte"
 	import type { ChatState } from "./ChatState.svelte"
+	import ConversationAttachments from "./ConversationAttachments.svelte"
 	import FilePreview from "./FilePreview.svelte"
 
 	type Props = {
@@ -174,6 +176,10 @@
 
 <div class="chat-input-container">
 	<FileDropZone onFilesDropped={handleFilesDropped} />
+
+	{#if ATTACHMENT_STRIP_MODE === "armed" && chatState.attachments.length > 0}
+		<ConversationAttachments {chatState} />
+	{/if}
 
 	<!-- Main input wrapper -->
 	<div class="input-wrapper">
