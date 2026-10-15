@@ -100,3 +100,41 @@
 ]
 
   
+// Meldingspar tidspunkt : 
+[
+  { $group: {
+      _id: { $hour: { date: { $toDate: "$_id" }, timezone: "Europe/Oslo" } },
+      meldinger: { $sum: 1 }
+  }},
+  { $sort: { _id: 1 } },
+  { $group: { _id: null, items: { $push: { k: { $toString: "$_id" }, v: "$meldinger" } } } },
+  { $replaceRoot: { newRoot: { $arrayToObject: "$items" } } }
+  
+]
+
+
+// Helg og ellers:
+[
+  { $match: { $expr: { $gte: [
+    { $toDate: "$_id" },
+    { $dateSubtract: { startDate: "$$NOW", unit: "day", amount: 7 } }
+] } } },
+  { $project: { t: { $toDate: "$_id" } } },
+  { $project: {
+      dag:  { $isoDayOfWeek: { date: "$t", timezone: "Europe/Oslo" } },   // 1 = mandag … 7 = søndag
+      time: { $hour:         { date: "$t", timezone: "Europe/Oslo" } }
+  }},
+  { $group: {
+      _id: { $switch: {
+        branches: [
+          { case: { $gte: ["$dag", 6] }, then: "helg" },
+          { case: { $and: [ { $gte: ["$time", 7] }, { $lt: ["$time", 17] } ] }, then: "hverdag 07-17" },
+          { case: { $and: [ { $gte: ["$time", 17] }, { $lte: ["$time", 23] } ] }, then: "kveld 17-23" }
+        ],
+        default: "hverdag natt"
+      }},
+      meldinger: { $sum: 1 }
+  }},
+  { $group: { _id: null, items: { $push: { k: "$_id", v: "$meldinger" } } } },
+  { $replaceRoot: { newRoot: { $arrayToObject: "$items" } } }
+]

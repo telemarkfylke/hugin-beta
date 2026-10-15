@@ -1,7 +1,7 @@
 import { json, type RequestHandler } from "@sveltejs/kit"
 import { logger } from "@vestfoldfylke/loglady"
 import { canPromptConfig, canUseHistory, canUseMcpSharepoint, canUseWebsiteDataSource, canViewMcpSource, canViewWebsiteSource } from "$lib/authorization"
-import { chatHistoryToInputItems } from "$lib/chat-history"
+import { chatHistoryToInputItems, stripAttachmentsExceptLatest } from "$lib/chat-history"
 import { applyChatSseEventToResponseObject } from "$lib/chat-response-builder"
 import type { ConversationManager } from "$lib/conversationstore/server/conv_manager"
 import { getConversationManager } from "$lib/conversationstore/server/get-conversation-manager"
@@ -130,6 +130,8 @@ const supahChat: ApiNextFunction = async ({ requestEvent, user }) => {
 		const priorHistory = await conversationManager.getChatHistoryFromDb(huginConversationId, user)
 		chatRequest.inputs = [...chatHistoryToInputItems(priorHistory), ...chatRequest.inputs]
 	}
+	// After the history prepend, so it covers both stored history and the incognito client-sent one
+	chatRequest.inputs = stripAttachmentsExceptLatest(chatRequest.inputs)
 
 	const datasourceToolActive = chatRequest.config.tools?.some((t) => t.type === "datasource") ?? false
 	const ragStoreIds = datasourceToolActive ? (chatRequest.config.dataSources?.filter((s) => s.type === "ragservice").map((s) => s.id) ?? []) : []

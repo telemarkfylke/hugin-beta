@@ -3,6 +3,7 @@ import { logger } from "@vestfoldfylke/loglady"
 import z from "zod"
 import { env } from "$env/dynamic/private"
 import { ANONYMOUS_PRINCIPAL } from "$lib/anonymous-principal"
+import { stripAttachmentsExceptLatest } from "$lib/chat-history"
 import { getVendor } from "$lib/server/ai-vendors"
 import { APP_CONFIG } from "$lib/server/app-config/app-config"
 import { classifyQuestion, recordQuestionCategoryStat } from "$lib/server/categorize-question"
@@ -169,7 +170,7 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 	// This route returns its errors rather than throwing HTTPError (no middleware here to convert them)
 	let inputs: ChatInputItem[]
 	try {
-		inputs = parseEmbedInputs(parsed.data.inputs, dbConfig, APP_CONFIG)
+		inputs = stripAttachmentsExceptLatest(parseEmbedInputs(parsed.data.inputs, dbConfig, APP_CONFIG))
 	} catch (error) {
 		if (error instanceof HTTPError) {
 			return json({ message: error.message }, { status: error.status })
