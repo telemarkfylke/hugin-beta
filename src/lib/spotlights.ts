@@ -55,7 +55,9 @@ export const SPOTLIGHTS: SpotlightDefinition[] = [
 
 		<span class="spotlight-pill"><span class="material-symbols-rounded">bolt</span>Rask</span> - Raske svar på enkle oppgaver
 		<span class="spotlight-pill"><span class="material-symbols-rounded">psychology</span>Grundig</span> - Analyse, resonnering og lange dokumenter
-		<span class="spotlight-pill"><span class="material-symbols-rounded">shield</span>Europeisk</span> - Data behandles innenfor EU`,
+		<span class="spotlight-pill"><span class="material-symbols-rounded">shield</span>Europeisk</span> - Data behandles innenfor EU
+
+		Velg modell under <span class="spotlight-pill">Innstillinger</span> når du lager din egen assistent.`,
 		placement: "top-center",
 		backdrop: true,
 		accessGroups: ["employee", "edu_employee"]
