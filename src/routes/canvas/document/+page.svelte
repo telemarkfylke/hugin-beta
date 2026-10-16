@@ -141,8 +141,20 @@
 				paragraphs.push(new Paragraph({ children: parseInline(line) }))
 			}
 		}
+		const doc = new Document({ 
+			styles: {
+				default: {
+					document:{
+						run: {
+							font: "Calribi",
+							size: 18,
+						},
+					},
+				},
+			},
+			sections: [{ children: paragraphs }],
 
-		const doc = new Document({ sections: [{ children: paragraphs }] })
+		});
 		const blob = await Packer.toBlob(doc)
 		const url = URL.createObjectURL(blob)
 		const a = document.createElement("a")
