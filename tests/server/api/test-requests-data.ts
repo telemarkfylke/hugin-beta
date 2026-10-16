@@ -54,7 +54,16 @@ const testAdmin = createTestUserMSHeader({
 	groups: ["some-admin-group"]
 })
 
+const testStudent = createTestUserMSHeader({
+	oid: "student-oid-9012",
+	name: "Student User",
+	username: "student.user@example.com",
+	roles: [env.APP_ROLE_STUDENT].filter((r): r is string => r !== undefined),
+	groups: []
+})
+
 export const TEST_USER_MS_HEADERS = {
 	employee: testEmployee,
-	admin: testAdmin
+	admin: testAdmin,
+	student: testStudent
 }

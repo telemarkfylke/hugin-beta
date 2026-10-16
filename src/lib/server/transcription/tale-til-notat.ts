@@ -1,3 +1,4 @@
+import { logger } from "@vestfoldfylke/loglady"
 import { env } from "$env/dynamic/private"
 import { HTTPError } from "$lib/server/middleware/http-error"
 
@@ -25,17 +26,20 @@ export const triggerTranscription = async ({ userId, audioUrl, callbackUrl }: Tr
 	form.append("upn", userId)
 	form.append("language", "no")
 
+	// Upstream details go to the log only - the user gets a generic message.
 	let res: Response
 	try {
 		res = await fetch(`${taleUrl}/transcribe`, { method: "POST", body: form })
 	} catch (err) {
-		throw new HTTPError(502, `Kunne ikke nå tale-til-notat: ${(err as Error).message}`)
+		logger.errorException(err, "[Transcription] - Could not reach tale-til-notat")
+		throw new HTTPError(502, "Kunne ikke nå transkripsjonstjenesten")
 	}
 
 	if (!res.ok) {
 		const body = (await res.json().catch(() => ({}))) as Record<string, unknown>
-		const detail = (body.detail as string) || (body.message as string) || `HTTP ${res.status}`
-		throw new HTTPError(502, `tale-til-notat avviste jobben: ${detail}`)
+		const detail = (body.detail as string) || (body.message as string) || ""
+		logger.warn("[Transcription] - tale-til-notat rejected job with status {status}: {detail}", res.status, JSON.stringify(detail))
+		throw new HTTPError(502, `Transkripsjonstjenesten avviste jobben (HTTP ${res.status})`)
 	}
 
 	const data = (await res.json()) as { job_id: string }
