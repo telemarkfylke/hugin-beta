@@ -162,6 +162,8 @@
 				},
 				sections: [{ children: paragraphs }],
 			});
+		} else if (!doc) {
+			alert("Feil med logikken")
 		}
 		const blob = await Packer.toBlob(doc)
 		const url = URL.createObjectURL(blob)
