@@ -128,7 +128,7 @@
 			if (/^---+$/.test(line.trim())) {
 				paragraphs.push(new Paragraph({ border: { bottom: { style: "single", size: 6, color: "999999", space: 1 } } }))
 			} else if (line.startsWith("# ")) {
-				paragraphs.push(new Paragraph({ heading: "Heading1", children: parseInline(line.slice(2)) }))
+				paragraphs.push(new Paragraph({ heading: "Title", children: parseInline(line.slice(2)) }))
 			} else if (line.startsWith("## ")) {
 				paragraphs.push(new Paragraph({ heading: "Heading2", children: parseInline(line.slice(3)) }))
 			} else if (line.startsWith("### ")) {
@@ -146,8 +146,8 @@
 				default: {
 					document:{
 						run: {
-							font: "Calribi",
-							size: 18,
+							font: "Calribi",	
+							color: "000000",
 						},
 					},
 				},
