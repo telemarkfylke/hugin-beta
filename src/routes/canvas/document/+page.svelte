@@ -14,6 +14,7 @@
 	let webSearchEnabled = $state(false)
 	let documentEditor: HTMLTextAreaElement | undefined = $state()
 	let canvasBody: HTMLDivElement | undefined = $state()
+	let tfkMal = $state(false)
 
 	$effect(() => {
 		if (isEditing && documentEditor) {
@@ -141,20 +142,27 @@
 				paragraphs.push(new Paragraph({ children: parseInline(line) }))
 			}
 		}
-		const doc = new Document({ 
-			styles: {
-				default: {
-					document:{
-						run: {
-							font: "Calribi",	
-							color: "000000",
-						},
-					},
-				},
-			},
+		let doc = new Document({ 
 			sections: [{ children: paragraphs }],
 
 		});
+
+		if (tfkMal === true) {
+			alert("Du bruker TFk sin mal!")
+			doc = new Document({ 
+				styles: {
+					default: {
+						document:{
+							run: {
+								font: "Calribi",	
+								color: "000000",
+							},
+						},
+					},
+				},
+				sections: [{ children: paragraphs }],
+			});
+		}
 		const blob = await Packer.toBlob(doc)
 		const url = URL.createObjectURL(blob)
 		const a = document.createElement("a")
@@ -187,6 +195,8 @@
 					<span class="material-symbols-outlined">download</span>
 					Tekst
 				</button>
+				<label for="">TFk-mal</label>
+				<input type="checkbox" bind:checked={tfkMal} />
 				<button onclick={downloadDocx} disabled={!docContent} title="Last ned som Word-dokument">
 					<span class="material-symbols-outlined">download</span>
 					Word
