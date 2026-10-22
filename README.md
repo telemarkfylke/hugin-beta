@@ -610,6 +610,7 @@ MOCK_AUTH_ROLES="Employee,Admin"  # Comma-separated role values
 MOCK_AUTH_GROUPS="group-id-123"   # Comma-separated group IDs
 MOCK_AUTH_FORCE_401="false"       # Simulate an unauthenticated request (local testing only)
 MOCK_AUTH_FORCE_403="false"       # Simulate an unauthorized request (local testing only)
+BLOCKED_USERS=""                  # Comma-separated Entra object ids and/or UPNs locked out of the app (403)
 
 # Application Roles
 APP_ROLE_EMPLOYEE="Employee"
