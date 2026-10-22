@@ -2,7 +2,9 @@
 
 import { logger } from "@vestfoldfylke/loglady"
 import type { AuthenticatedPrincipal, MSPrincipalClaims } from "$lib/types/authentication"
+import { HTTPError } from "../middleware/http-error"
 import { MS_AUTH_PRINCIPAL_CLAIMS_HEADER, MS_PRINCIPAL_CLAIM_TYPS } from "./auth-constants"
+import { isUserBlocked } from "./blocked-users"
 import { injectMockAuthenticatedUserHeaders, MOCK_AUTH } from "./mock-authenticated-user"
 import { applyRolePreview } from "./role-preview"
 
@@ -58,6 +60,9 @@ export const getRealAuthenticatedPrincipal = (headers: Headers): AuthenticatedPr
 		throw new Error("User ID claim is missing in principal claims")
 	}
 	const preferredUserName = principalClaims.claims.find((claim) => claim.typ === "preferred_username")?.val || "unknown"
+	if (isUserBlocked(userId, preferredUserName)) {
+		throw new HTTPError(403, `User ${userId} (${preferredUserName}) is blocked via BLOCKED_USERS`)
+	}
 	const name = principalClaims.claims.find((claim) => claim.typ === "name")?.val
 	if (!name) {
 		throw new Error("Name claim is missing in principal claims")
