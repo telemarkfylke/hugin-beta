@@ -610,6 +610,7 @@ MOCK_AUTH_ROLES="Employee,Admin"  # Comma-separated role values
 MOCK_AUTH_GROUPS="group-id-123"   # Comma-separated group IDs
 MOCK_AUTH_FORCE_401="false"       # Simulate an unauthenticated request (local testing only)
 MOCK_AUTH_FORCE_403="false"       # Simulate an unauthorized request (local testing only)
+MAINTENANCE="false"               # "true" = every route returns 503 and shows only static/public/vedlikehold.avif (restart picks it up, no deploy)
 
 # Application Roles
 APP_ROLE_EMPLOYEE="Employee"
