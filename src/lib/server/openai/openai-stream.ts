@@ -2,12 +2,15 @@ import type { ResponseStreamEvent } from "openai/resources/responses/responses"
 import type { Stream } from "openai/streaming"
 import { createSse } from "$lib/streaming.js"
 import type { IAIVendorStreamHandler } from "$lib/types/AIVendor"
+import { OUTPUT_LIMIT_NOTICE, usageFromOpenAIResponse, wasCutOffByOutputLimit } from "./openai-mapping"
 
 export const handleOpenAIResponseStream: IAIVendorStreamHandler<Stream<ResponseStreamEvent>> = (_chatRequest, openAIStream) => {
 	return new ReadableStream({
 		async start(controller) {
 			// Enqueue config event with data
 			// controller.enqueue(createSse({ event: "response.config", data: chatRequest.config })) hva er denne til?
+			// So a cut-off notice lands at the end of the answer itself, not as a separate message
+			let lastTextItemId: string | undefined
 			for await (const chunk of openAIStream) {
 				switch (chunk.type) {
 					case "response.created":
@@ -15,15 +18,15 @@ export const handleOpenAIResponseStream: IAIVendorStreamHandler<Stream<ResponseS
 						controller.enqueue(createSse({ event: "response.started", data: { responseId: chunk.response.id } }))
 						break
 					case "response.output_text.delta":
+						lastTextItemId = chunk.item_id
 						controller.enqueue(createSse({ event: "response.output_text.delta", data: { itemId: chunk.item_id, content: chunk.delta } }))
 						break
 					case "response.completed":
-						controller.enqueue(
-							createSse({
-								event: "response.done",
-								data: { usage: { inputTokens: chunk.response.usage?.input_tokens || 0, outputTokens: chunk.response.usage?.output_tokens || 0, totalTokens: chunk.response.usage?.total_tokens || 0 } }
-							})
-						)
+					case "response.incomplete":
+						if (chunk.type === "response.incomplete" && wasCutOffByOutputLimit(chunk.response)) {
+							controller.enqueue(createSse({ event: "response.output_text.delta", data: { itemId: lastTextItemId ?? `cut_off_${chunk.response.id}`, content: OUTPUT_LIMIT_NOTICE } }))
+						}
+						controller.enqueue(createSse({ event: "response.done", data: { usage: usageFromOpenAIResponse(chunk.response) } }))
 						break
 					case "response.failed":
 						controller.enqueue(createSse({ event: "response.error", data: { code: chunk.response.error?.code || "unknown", message: chunk.response.error?.message || "Unknown error" } }))

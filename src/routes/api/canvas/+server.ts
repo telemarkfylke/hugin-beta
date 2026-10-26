@@ -9,7 +9,7 @@ import { getDefaultModel } from "$lib/server/models/model-registry"
 import { responseStream } from "$lib/streaming"
 import type { ApiNextFunction } from "$lib/types/middleware/http-request"
 import { estimateInputUsage } from "$lib/usagebudget/server/cost"
-import { assertWithinUsageBudget, meterUsageStream } from "$lib/usagebudget/server/usage-budget"
+import { acquireCallSlot, assertWithinUsageBudget, meterUsageStream } from "$lib/usagebudget/server/usage-budget"
 import { parseCanvasRequest } from "$lib/validation/parse-canvas-request"
 
 const CANVAS_SYSTEM_PROMPT = `You are a document editor. The user will give you a document (in markdown) and a prompt describing what to change.
@@ -38,33 +38,40 @@ const canvasHandler: ApiNextFunction = async ({ requestEvent, user }) => {
 
 	const userMessage = document ? `Here is the current document:\n\n${document}\n\n---\n\nUser instruction: ${prompt}` : prompt
 
+	const releaseCallSlot = await acquireCallSlot(user)
 	const vendor = getVendor(canvasModel.vendorId)
-	const stream = await vendor.createChatResponseStream({
-		config: {
-			_id: "",
-			name: "Canvas",
-			description: "",
-			vendorId: canvasModel.vendorId,
-			project: canvasModel.project,
-			model: canvasModel.model,
-			accessGroups: ["all"],
-			type: "private",
-			created: { at: "", by: { id: "" } },
-			updated: { at: "", by: { id: "" } },
-			instructions: CANVAS_SYSTEM_PROMPT,
-			tools: webSearch ? [{ type: "web_search" as const }] : undefined
-		},
-		inputs: [
-			{
-				type: "message.input",
-				role: "user",
-				content: [{ type: "input_text", text: userMessage }]
-			}
-		],
-		stream: true
-	})
+	const stream = await vendor
+		.createChatResponseStream({
+			config: {
+				_id: "",
+				name: "Canvas",
+				description: "",
+				vendorId: canvasModel.vendorId,
+				project: canvasModel.project,
+				model: canvasModel.model,
+				accessGroups: ["all"],
+				type: "private",
+				created: { at: "", by: { id: "" } },
+				updated: { at: "", by: { id: "" } },
+				instructions: CANVAS_SYSTEM_PROMPT,
+				tools: webSearch ? [{ type: "web_search" as const }] : undefined
+			},
+			inputs: [
+				{
+					type: "message.input",
+					role: "user",
+					content: [{ type: "input_text", text: userMessage }]
+				}
+			],
+			stream: true
+		})
+		.catch((error) => {
+			releaseCallSlot()
+			throw error
+		})
 
-	return { isAuthorized: true, response: responseStream(meterUsageStream(stream, user, canvasModel, estimateInputUsage([CANVAS_SYSTEM_PROMPT, userMessage]))) }
+	// The slot is released when the stream ends - not when this handler returns, which is right away
+	return { isAuthorized: true, response: responseStream(meterUsageStream(stream, user, canvasModel, estimateInputUsage([CANVAS_SYSTEM_PROMPT, userMessage]), releaseCallSlot)) }
 }
 
 export const POST: RequestHandler = async (requestEvent) => {

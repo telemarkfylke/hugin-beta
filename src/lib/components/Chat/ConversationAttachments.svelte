@@ -9,7 +9,7 @@
 	let { chatState }: Props = $props()
 
 	let armedCount = $derived(chatState.armedAttachmentIds.length)
-	let atLimit = $derived(armedCount >= MAX_ARMED_ATTACHMENTS)
+	let atLimit = $derived(chatState.attachmentRoom === 0)
 
 	const formatSize = (bytes: number): string => {
 		if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} kB`
@@ -19,7 +19,7 @@
 
 <div class="conversation-attachments">
 	<span class="label" title="Bare aktive filer sendes med til modellen. Hver aktiv fil sendes på nytt for hver melding.">
-		Filer i samtalen · {armedCount}/{MAX_ARMED_ATTACHMENTS} aktive
+		Filer i samtalen · {armedCount + chatState.pendingAttachmentCount}/{MAX_ARMED_ATTACHMENTS} aktive
 	</span>
 	<div class="chips">
 		{#each chatState.attachments as attachment (attachment.id)}
@@ -33,7 +33,7 @@
 				title={armed
 					? "Aktiv - sendes med til modellen. Klikk for å slå av."
 					: atLimit
-						? `Maks ${MAX_ARMED_ATTACHMENTS} filer kan være aktive samtidig`
+						? `Maks ${MAX_ARMED_ATTACHMENTS} filer kan være aktive samtidig - nye filer i meldingen du skriver teller med`
 						: "Ikke aktiv - modellen ser ikke innholdet. Klikk for å slå på."}
 			>
 				<span class="material-symbols-outlined">{armed ? "check_circle" : attachment.kind === "image" ? "image" : "description"}</span>

@@ -1,7 +1,7 @@
 import { logger } from "@vestfoldfylke/loglady"
 import type { Response } from "openai/resources/responses/responses.js"
 import type { EasyInputMessage, ResponseInputItem, ResponseOutputItem, ResponseOutputMessage } from "openai/resources/responses/responses.mjs"
-import type { ChatConfig, ChatResponseObject } from "$lib/types/chat"
+import type { ChatConfig, ChatResponseObject, ChatResponseUsage } from "$lib/types/chat"
 import type { ChatInputItem, ChatInputMessage, ChatOutputItem, ChatOutputMessage } from "$lib/types/chat-item"
 
 const chatInputMessageToOpenAIInputMessage = (inputItem: ChatInputMessage): ResponseInputItem.Message => {
@@ -143,6 +143,18 @@ const openAIOutputToChatOutput = (outputItem: ResponseOutputItem): ChatOutputIte
 	}
 }
 
+// A response cut off by MAX_OUTPUT_TOKENS ends with "response.incomplete" instead of "response.completed"
+// - still billed, so its usage must be reported all the same, and the user should know why it stops.
+export const usageFromOpenAIResponse = (response: Response): ChatResponseUsage => ({
+	inputTokens: response.usage?.input_tokens || 0,
+	outputTokens: response.usage?.output_tokens || 0,
+	totalTokens: response.usage?.total_tokens || 0
+})
+
+export const OUTPUT_LIMIT_NOTICE = "\n\n_(Svaret ble avkortet fordi det ble for langt.)_"
+
+export const wasCutOffByOutputLimit = (response: Response): boolean => response.incomplete_details?.reason === "max_output_tokens"
+
 export const openAiResponseToChatResponseObject = (config: ChatConfig, response: Response): ChatResponseObject => {
 	return {
 		id: response.id,
@@ -151,10 +163,6 @@ export const openAiResponseToChatResponseObject = (config: ChatConfig, response:
 		createdAt: new Date(response.created_at).toISOString(),
 		outputs: response.output.map(openAIOutputToChatOutput),
 		status: response.status || "incomplete",
-		usage: {
-			inputTokens: response.usage?.input_tokens || 0,
-			outputTokens: response.usage?.output_tokens || 0,
-			totalTokens: response.usage?.total_tokens || 0
-		}
+		usage: usageFromOpenAIResponse(response)
 	}
 }

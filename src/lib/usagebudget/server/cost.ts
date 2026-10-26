@@ -2,26 +2,32 @@ import type { ModelConfig, ModelPrice } from "$lib/server/models/types"
 import type { AppRoles } from "$lib/types/app-config"
 import type { AuthenticatedPrincipal } from "$lib/types/authentication"
 import type { ChatResponseUsage, VendorId } from "$lib/types/chat"
+import type { ChatInputItem } from "$lib/types/chat-item"
 
 export type UsageBudget = {
 	perHourUsd: number
 	perDayUsd: number
 }
 
-type BudgetRole = "ADMIN" | "EMPLOYEE" | "EDU_EMPLOYEE" | "STUDENT"
-export type UsageBudgets = Record<BudgetRole, UsageBudget>
+const BUDGET_ROLES = ["ADMIN", "EMPLOYEE", "EDU_EMPLOYEE", "STUDENT"] as const
+type BudgetRole = (typeof BUDGET_ROLES)[number]
+export type UsageBudgets = Record<BudgetRole | "ANONYMOUS_EMBED", UsageBudget>
 
-// Per-user spend caps in USD, by app role - USD because that's what the vendors' price lists use,
-// so model prices are copied as-is with no exchange rate to keep current. A user with several roles
-// gets the most generous one; a user with none of these roles gets STUDENT's. Two windows: the
-// hourly cap stops a runaway script early, the daily cap bounds a whole night of it.
-// Rough NOK at ~10.5: student 3/10 kr, employee 10/40 kr, admin 50/200 kr per hour/day.
+// Spend caps in USD - USD because that's what the vendors' price lists use, so model prices are
+// copied as-is with no exchange rate to keep current. Two windows: the hourly cap stops a runaway
+// script early, the daily cap bounds a whole night of it.
+// - Per user, by app role: a user with several roles gets the most generous one; a user with none
+//   of these roles gets STUDENT's. Rough NOK at ~10.5: student 3/10 kr, employee 10/40 kr, admin
+//   50/200 kr per hour/day.
+// - ANONYMOUS_EMBED: per anonymously embedded assistant, shared by all its visitors - there's no
+//   user to budget, and per-IP limits alone don't bound cost across many IPs. ~10/50 kr per bot.
 // Defaults only - the USAGE_BUDGET env var overrides any of them, see parseUsageBudgets.
 export const DEFAULT_USAGE_BUDGETS: UsageBudgets = {
 	ADMIN: { perHourUsd: 5, perDayUsd: 20 },
 	EMPLOYEE: { perHourUsd: 1, perDayUsd: 4 },
 	EDU_EMPLOYEE: { perHourUsd: 1, perDayUsd: 4 },
-	STUDENT: { perHourUsd: 0.3, perDayUsd: 1 }
+	STUDENT: { perHourUsd: 0.3, perDayUsd: 1 },
+	ANONYMOUS_EMBED: { perHourUsd: 1, perDayUsd: 5 }
 }
 
 const BUDGET_FIELDS = { hour: "perHourUsd", day: "perDayUsd" } as const
@@ -67,7 +73,7 @@ export const parseUsageBudgets = (raw: string | undefined): { budgets: UsageBudg
 				warnings.push(`USAGE_BUDGET.${role}.${field} must be a positive number - ignored`)
 				continue
 			}
-			budgets[role as BudgetRole][BUDGET_FIELDS[field as keyof typeof BUDGET_FIELDS]] = value
+			budgets[role as keyof UsageBudgets][BUDGET_FIELDS[field as keyof typeof BUDGET_FIELDS]] = value
 		}
 	}
 	return { budgets, warnings }
@@ -79,7 +85,7 @@ export const parseUsageBudgets = (raw: string | undefined): { budgets: UsageBudg
 export const UNKNOWN_MODEL_PRICE: ModelPrice = { inputPerMillion: 4, outputPerMillion: 20 }
 
 export const usageBudgetFor = (user: AuthenticatedPrincipal, appRoles: AppRoles, usageBudgets: UsageBudgets): UsageBudget => {
-	const budgets = (Object.keys(usageBudgets) as BudgetRole[]).filter((role) => user.roles.includes(appRoles[role])).map((role) => usageBudgets[role])
+	const budgets = BUDGET_ROLES.filter((role) => user.roles.includes(appRoles[role])).map((role) => usageBudgets[role])
 	if (budgets.length === 0) {
 		return usageBudgets.STUDENT
 	}
@@ -101,3 +107,10 @@ export const estimateInputUsage = (texts: string[]): ChatResponseUsage => {
 	const inputTokens = Math.ceil(texts.reduce((sum, text) => sum + text.length, 0) / 4)
 	return { inputTokens, outputTokens: 0, totalTokens: inputTokens }
 }
+
+// Every text the vendor is billed for as input - for estimateInputUsage. Attachments are left out:
+// their base64 length says little about their token count.
+export const requestTexts = (instructions: string | undefined, inputs: ChatInputItem[]): string[] => [
+	instructions ?? "",
+	...inputs.flatMap((item) => item.content.flatMap((c) => ("text" in c ? [c.text] : [])))
+]

@@ -1,6 +1,7 @@
 import type OpenAI from "openai"
 import type { ResponseInputItem, Tool } from "openai/resources/responses/responses.mjs"
-import { chatInputToOpenAIInput } from "$lib/server/openai/openai-mapping"
+import { MAX_OUTPUT_TOKENS } from "$lib/server/models/models.config"
+import { chatInputToOpenAIInput, OUTPUT_LIMIT_NOTICE, usageFromOpenAIResponse, wasCutOffByOutputLimit } from "$lib/server/openai/openai-mapping"
 import type { ChatRequest } from "$lib/types/chat"
 import type { ToolResult, ToolTurnDriver, ToolTurnEvent } from "../agentic-loop"
 import { type McpToolDefinition, mcpToolToOpenAIResponsesTool } from "../mcp-tools"
@@ -20,13 +21,16 @@ export const createOpenAIToolDriver = (openai: OpenAI, chatRequest: ChatRequest,
 			instructions: chatRequest.config.instructions || "",
 			input,
 			store: false,
+			max_output_tokens: MAX_OUTPUT_TOKENS,
 			...(responsesTools.length > 0 ? { tools: responsesTools } : {}),
 			stream: true
 		})
 
+		let lastTextItemId: string | undefined
 		for await (const chunk of stream) {
 			switch (chunk.type) {
 				case "response.output_text.delta":
+					lastTextItemId = chunk.item_id
 					yield { type: "text_delta", itemId: chunk.item_id, content: chunk.delta }
 					break
 				case "response.output_item.done":
@@ -37,14 +41,11 @@ export const createOpenAIToolDriver = (openai: OpenAI, chatRequest: ChatRequest,
 					}
 					break
 				case "response.completed":
-					yield {
-						type: "usage",
-						usage: {
-							inputTokens: chunk.response.usage?.input_tokens || 0,
-							outputTokens: chunk.response.usage?.output_tokens || 0,
-							totalTokens: chunk.response.usage?.total_tokens || 0
-						}
+				case "response.incomplete":
+					if (chunk.type === "response.incomplete" && wasCutOffByOutputLimit(chunk.response)) {
+						yield { type: "text_delta", itemId: lastTextItemId ?? `cut_off_${chunk.response.id}`, content: OUTPUT_LIMIT_NOTICE }
 					}
+					yield { type: "usage", usage: usageFromOpenAIResponse(chunk.response) }
 					break
 				default:
 					break

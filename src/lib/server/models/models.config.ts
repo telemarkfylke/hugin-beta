@@ -95,3 +95,9 @@ const LEGACY: Record<string, ProfileId> = {
 }
 
 export const MODEL_CONFIG: ModelConfig = { MODELS, PROFILES, DEFAULTS, LEGACY }
+
+// Upper bound on one model response's output, set on every vendor call (agentic tool rounds included,
+// each round separately). The per-user usage budget only counts a call after it's done, so this is
+// what bounds a single call's worst case. Generous on purpose: OpenAI counts reasoning tokens towards
+// it, and a reasoning model that hits the cap mid-thought returns an incomplete or empty answer.
+export const MAX_OUTPUT_TOKENS = 32_000

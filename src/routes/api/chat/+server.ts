@@ -1,7 +1,7 @@
 import { json, type RequestHandler } from "@sveltejs/kit"
 import { logger } from "@vestfoldfylke/loglady"
 import { canUseHistory, canUseMcpSharepoint, canUseWebsiteDataSource } from "$lib/authorization"
-import { chatHistoryToInputItems, stripUnarmedAttachments } from "$lib/chat-history"
+import { chatHistoryToInputItems, exceedsAttachmentLimit, stripUnarmedAttachments, TOO_MANY_ATTACHMENTS_MESSAGE } from "$lib/chat-history"
 import { applyChatSseEventToResponseObject } from "$lib/chat-response-builder"
 import type { ConversationManager } from "$lib/conversationstore/server/conv_manager"
 import { getConversationManager } from "$lib/conversationstore/server/get-conversation-manager"
@@ -28,14 +28,22 @@ import { createSse, parseSse, responseStream } from "$lib/streaming"
 import type { IAIVendor } from "$lib/types/AIVendor"
 import type { AuthenticatedPrincipal } from "$lib/types/authentication"
 import type { ChatConfig, ChatRequest, ChatResponseObject } from "$lib/types/chat"
-import type { ChatInputMessage } from "$lib/types/chat-item"
+import type { ChatInputItem, ChatInputMessage } from "$lib/types/chat-item"
 import type { InputText } from "$lib/types/chat-item-content"
 import type { McpSource } from "$lib/types/mcp-source"
 import type { ApiNextFunction } from "$lib/types/middleware/http-request"
 import type { WebsiteSource, WebsiteSourceEntry } from "$lib/types/website-source"
-import { estimateInputUsage } from "$lib/usagebudget/server/cost"
-import { assertWithinUsageBudget, meterUsageStream, recordUsage } from "$lib/usagebudget/server/usage-budget"
+import { estimateInputUsage, requestTexts } from "$lib/usagebudget/server/cost"
+import { acquireCallSlot, assertWithinUsageBudget, meterUsageStream, recordUsage } from "$lib/usagebudget/server/usage-budget"
+import { chatInputsSchema, INVALID_INPUTS_MESSAGE } from "$lib/validation/chat-input-schema"
 import { validateFileInputs } from "$lib/validation/file-input"
+
+// Higher than the anonymous embed's limits: an incognito conversation here sends its whole history.
+// 1M characters is roughly 250k tokens - a very long real conversation, but no longer "as much as the
+// context window and the request body allow" in a single call.
+const MAX_CHAT_INPUT_ITEMS = 400
+const MAX_CHAT_TOTAL_TEXT_CHARS = 1_000_000
+const ChatInputsSchema = chatInputsSchema(MAX_CHAT_INPUT_ITEMS, MAX_CHAT_TOTAL_TEXT_CHARS)
 
 const parseChatRequest = async (body: unknown, user: AuthenticatedPrincipal): Promise<ChatRequest> => {
 	if (typeof body !== "object" || body === null) {
@@ -47,15 +55,21 @@ const parseChatRequest = async (body: unknown, user: AuthenticatedPrincipal): Pr
 	// reads from the client's config
 	const config = await loadChatRequestConfig(incomingChatRequest.config, user)
 
-	if (!Array.isArray(incomingChatRequest.inputs) || incomingChatRequest.inputs.length === 0) {
-		throw new HTTPError(400, "inputs must be a non-empty array")
+	// Only user/assistant turns, bounded sizes - see chat-input-schema.ts
+	const parsedInputs = ChatInputsSchema.safeParse(incomingChatRequest.inputs)
+	if (!parsedInputs.success) {
+		throw new HTTPError(400, INVALID_INPUTS_MESSAGE)
 	}
+	const inputs = parsedInputs.data as ChatInputItem[]
 	// Only ever selects among attachments already in the history - the cap itself is enforced in stripUnarmedAttachments
 	const armedAttachments = Array.isArray(incomingChatRequest.armedAttachments) ? incomingChatRequest.armedAttachments.filter((id): id is string => typeof id === "string") : []
+	if (await exceedsAttachmentLimit(inputs, armedAttachments)) {
+		throw new HTTPError(400, TOO_MANY_ATTACHMENTS_MESSAGE)
+	}
 	if (config.vendorAgent) {
 		return {
 			config,
-			inputs: incomingChatRequest.inputs,
+			inputs,
 			stream: Boolean(incomingChatRequest.stream),
 			store: Boolean(incomingChatRequest.store),
 			huginConversationId: incomingChatRequest.huginConversationId,
@@ -65,7 +79,7 @@ const parseChatRequest = async (body: unknown, user: AuthenticatedPrincipal): Pr
 
 	const manualChatRequest: ChatRequest = {
 		config,
-		inputs: incomingChatRequest.inputs,
+		inputs,
 		stream: Boolean(incomingChatRequest.stream),
 		store: Boolean(incomingChatRequest.store),
 		huginConversationId: incomingChatRequest.huginConversationId,
@@ -205,13 +219,18 @@ const supahChat: ApiNextFunction = async ({ requestEvent, user }) => {
 
 	const vendor = getVendor(chatRequest.config.vendorId)
 
+	const releaseCallSlot = await acquireCallSlot(user)
+
 	if (chatRequest.stream) {
-		const stream = meterUsageStream(
-			await buildToolCallingStream(chatRequest, vendor, mcpSources, websiteToolActive ? websiteEntries : []),
-			user,
-			chatRequest.config,
-			estimateInputUsage(chatRequestTexts(chatRequest))
-		)
+		let toolCallingStream: ReadableStream<Uint8Array>
+		try {
+			toolCallingStream = await buildToolCallingStream(chatRequest, vendor, mcpSources, websiteToolActive ? websiteEntries : [])
+		} catch (error) {
+			releaseCallSlot()
+			throw error
+		}
+		// The slot is released when the stream ends - not when this handler returns, which is right away
+		const stream = meterUsageStream(toolCallingStream, user, chatRequest.config, estimateInputUsage(requestTexts(chatRequest.config.instructions, chatRequest.inputs)), releaseCallSlot)
 
 		if (huginConversationId && userInputMessage) {
 			const [clientBranch, captureBranch] = stream.tee()
@@ -235,7 +254,12 @@ const supahChat: ApiNextFunction = async ({ requestEvent, user }) => {
 		}
 	}
 
-	const response = await vendor.createChatResponse(chatRequest)
+	let response: ChatResponseObject
+	try {
+		response = await vendor.createChatResponse(chatRequest)
+	} finally {
+		releaseCallSlot()
+	}
 	recordUsage(user, chatRequest.config, response.usage).catch((error) => {
 		logger.errorException(error, "Failed to record usage for {userId}", user.userId)
 	})
@@ -257,14 +281,6 @@ const supahChat: ApiNextFunction = async ({ requestEvent, user }) => {
 		response: json(response)
 	}
 }
-
-// Every text the vendor is billed for as input - only for the usage-budget fallback estimate when a
-// stream ends without reporting usage. Attachments are left out: their base64 length says little
-// about their token count.
-const chatRequestTexts = (chatRequest: ChatRequest): string[] => [
-	chatRequest.config.instructions ?? "",
-	...chatRequest.inputs.flatMap((item) => item.content.flatMap((c) => ("text" in c ? [c.text] : [])))
-]
 
 // Builds one combined tool-calling stream out of every active tool-calling data source (MCP,
 // website, or both at once - see combined-tool-client.ts), or falls back to a plain vendor stream

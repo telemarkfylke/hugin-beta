@@ -166,6 +166,11 @@ export class ChatState {
 	// a freshly uploaded file starts armed, a loaded/imported conversation starts with nothing armed.
 	public attachments: ConversationAttachment[] = $state([])
 	public armedAttachmentIds: string[] = $state([])
+	// Files added in ChatInput but not sent yet - they count towards MAX_ARMED_ATTACHMENTS together with
+	// the armed ones (the server enforces the same, see exceedsAttachmentLimit), so arming an earlier
+	// file and adding a new one both draw from this one shared room.
+	public pendingAttachmentCount: number = $state(0)
+	public attachmentRoom: number = $derived(Math.max(0, MAX_ARMED_ATTACHMENTS - this.armedAttachmentIds.length - this.pendingAttachmentCount))
 
 	constructor(chat: Chat, user: AuthenticatedPrincipal, appConfig: AppConfig, options?: ChatStateOptions) {
 		this.user = user
@@ -226,7 +231,7 @@ export class ChatState {
 	public toggleAttachment = (id: string): void => {
 		if (this.armedAttachmentIds.includes(id)) {
 			this.armedAttachmentIds = this.armedAttachmentIds.filter((armedId) => armedId !== id)
-		} else if (this.armedAttachmentIds.length < MAX_ARMED_ATTACHMENTS) {
+		} else if (this.attachmentRoom > 0) {
 			this.armedAttachmentIds = [...this.armedAttachmentIds, id]
 		}
 	}

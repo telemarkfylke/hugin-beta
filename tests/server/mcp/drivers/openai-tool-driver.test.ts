@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest"
 import type { ToolTurnEvent } from "../../../../src/lib/server/mcp/agentic-loop"
 import { createOpenAIToolDriver } from "../../../../src/lib/server/mcp/drivers/openai-tool-driver"
+import { MAX_OUTPUT_TOKENS } from "../../../../src/lib/server/models/models.config"
+import { OUTPUT_LIMIT_NOTICE } from "../../../../src/lib/server/openai/openai-mapping"
 import type { ChatRequest } from "../../../../src/lib/types/chat"
 
 const chatRequest = {
@@ -75,6 +77,20 @@ describe("createOpenAIToolDriver", () => {
 		})
 	})
 
+	it("caps every round's output at MAX_OUTPUT_TOKENS", async () => {
+		const createCalls: unknown[] = []
+		const fakeOpenAI = {
+			responses: {
+				create: async (request: unknown) => {
+					createCalls.push(request)
+					return responseStream([])
+				}
+			}
+		}
+		await drain(createOpenAIToolDriver(fakeOpenAI as never, chatRequest, []).start())
+		expect(createCalls[0]).toMatchObject({ max_output_tokens: MAX_OUTPUT_TOKENS })
+	})
+
 	it("emits text_delta from a response.output_text.delta chunk", async () => {
 		const fakeOpenAI = {
 			responses: {
@@ -84,5 +100,38 @@ describe("createOpenAIToolDriver", () => {
 		const driver = createOpenAIToolDriver(fakeOpenAI as never, chatRequest, [])
 		const events = await drain(driver.start())
 		expect(events.find((e) => e.type === "text_delta")).toMatchObject({ type: "text_delta", itemId: "msg_1", content: "Hallo" })
+	})
+})
+
+describe("createOpenAIToolDriver - a round cut off by MAX_OUTPUT_TOKENS", () => {
+	it("still reports the billed usage, and tells the user the answer was cut off", async () => {
+		const fakeOpenAI = {
+			responses: {
+				create: async () =>
+					responseStream([
+						{ type: "response.output_text.delta", item_id: "msg_1", delta: "Et langt svar" },
+						{
+							type: "response.incomplete",
+							response: { id: "r1", incomplete_details: { reason: "max_output_tokens" }, usage: { input_tokens: 10, output_tokens: 32000, total_tokens: 32010 } }
+						}
+					])
+			}
+		}
+		const events = await drain(createOpenAIToolDriver(fakeOpenAI as never, chatRequest, []).start())
+
+		expect(events).toContainEqual({ type: "text_delta", itemId: "msg_1", content: OUTPUT_LIMIT_NOTICE })
+		expect(events).toContainEqual({ type: "usage", usage: { inputTokens: 10, outputTokens: 32000, totalTokens: 32010 } })
+	})
+
+	it("reports usage without a notice when incomplete for another reason", async () => {
+		const fakeOpenAI = {
+			responses: {
+				create: async () =>
+					responseStream([{ type: "response.incomplete", response: { id: "r1", incomplete_details: { reason: "content_filter" }, usage: { input_tokens: 1, output_tokens: 2, total_tokens: 3 } } }])
+			}
+		}
+		const events = await drain(createOpenAIToolDriver(fakeOpenAI as never, chatRequest, []).start())
+
+		expect(events).toEqual([{ type: "usage", usage: { inputTokens: 1, outputTokens: 2, totalTokens: 3 } }])
 	})
 })

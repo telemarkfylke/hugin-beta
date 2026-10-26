@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { ATTACHMENT_STRIP_MODE } from "$lib/chat-history"
+	import { ATTACHMENT_STRIP_MODE, MAX_ARMED_ATTACHMENTS } from "$lib/chat-history"
 	import { supportsWebSearch } from "$lib/model-profiles"
 	import FileDropZone from "../FileDropZone.svelte"
 	import TypingDots from "../TypingDots.svelte"
@@ -44,7 +44,7 @@
 	let inputText: string = $state("")
 	let inputFiles: File[] = $state([])
 	let messageInProgress = $state(false)
-	let fileSizeWarning = $state(false)
+	let fileWarning: string | null = $state(null)
 	let webSearchEnabled = $derived(chatState.webSearchEnabled)
 	let datasourceEnabled = $derived(chatState.datasourceEnabled)
 	let hasDatasources = $derived((chatState.chat.config.dataSources?.length ?? 0) > 0)
@@ -102,6 +102,13 @@
 		target.value = ""
 	}
 
+	const showFileWarning = (message: string) => {
+		fileWarning = message
+		setTimeout(() => {
+			fileWarning = null
+		}, 4000) // Viser varsel i 4 sekunder
+	}
+
 	const addFiles = (files: File[]) => {
 		const oversizedFiles: string[] = []
 		const validFiles = files.filter((file) => {
@@ -118,13 +125,19 @@
 			return true
 		})
 		if (oversizedFiles.length > 0) {
-			fileSizeWarning = true
-			setTimeout(() => {
-				fileSizeWarning = false
-			}, 4000) // Viser varsel i 4 sekunder
+			showFileWarning("Filen er for stor (maks 10 MB)")
 		}
-		inputFiles = [...inputFiles, ...validFiles]
+		// New files share MAX_ARMED_ATTACHMENTS with the armed earlier ones (see ChatState.attachmentRoom)
+		const accepted = validFiles.slice(0, chatState.attachmentRoom)
+		if (accepted.length < validFiles.length) {
+			showFileWarning(`Du kan ha maks ${MAX_ARMED_ATTACHMENTS} aktive filer om gangen. Slå av tidligere filer eller fjern noen nye for å legge til flere.`)
+		}
+		inputFiles = [...inputFiles, ...accepted]
 	}
+
+	$effect(() => {
+		chatState.pendingAttachmentCount = inputFiles.length
+	})
 
 	// Håndtering av drag-n-drop filer
 	const handleFilesDropped = (files: FileList) => {
@@ -191,8 +204,8 @@
 			</div>
 		{/if}
 
-		{#if fileSizeWarning}
-			<div class="file-size-warning">Filen er for stor (maks 10 MB)</div>
+		{#if fileWarning}
+			<div class="file-size-warning">{fileWarning}</div>
 		{/if}
 
 		<div class="input-row">
