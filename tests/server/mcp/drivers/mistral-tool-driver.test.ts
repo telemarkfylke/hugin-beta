@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 import type { ToolTurnEvent } from "../../../../src/lib/server/mcp/agentic-loop"
 import { createMistralToolDriver } from "../../../../src/lib/server/mcp/drivers/mistral-tool-driver"
+import { MAX_OUTPUT_TOKENS } from "../../../../src/lib/server/models/models.config"
 import type { ChatRequest } from "../../../../src/lib/types/chat"
 
 const chatRequest = {
@@ -182,7 +183,8 @@ describe("createMistralToolDriver", () => {
 		expect(appendCalls[0]).toMatchObject({
 			conversationId: "conv_42",
 			conversationAppendStreamRequest: {
-				inputs: [{ type: "function.result", toolCallId: "tool_call_9", result: "result text" }]
+				inputs: [{ type: "function.result", toolCallId: "tool_call_9", result: "result text" }],
+				completionArgs: { maxTokens: MAX_OUTPUT_TOKENS }
 			}
 		})
 		expect(events.find((e) => e.type === "text_delta")).toMatchObject({ type: "text_delta", content: "ferdig" })

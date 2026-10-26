@@ -1,5 +1,6 @@
 import type OpenAI from "openai"
 import type { ResponseInputItem, Tool } from "openai/resources/responses/responses.mjs"
+import { MAX_OUTPUT_TOKENS } from "$lib/server/models/models.config"
 import { chatInputToOpenAIInput } from "$lib/server/openai/openai-mapping"
 import type { ChatRequest } from "$lib/types/chat"
 import type { ToolResult, ToolTurnDriver, ToolTurnEvent } from "../agentic-loop"
@@ -20,6 +21,7 @@ export const createOpenAIToolDriver = (openai: OpenAI, chatRequest: ChatRequest,
 			instructions: chatRequest.config.instructions || "",
 			input,
 			store: false,
+			max_output_tokens: MAX_OUTPUT_TOKENS,
 			...(responsesTools.length > 0 ? { tools: responsesTools } : {}),
 			stream: true
 		})

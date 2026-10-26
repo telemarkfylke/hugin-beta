@@ -4,6 +4,7 @@ import { env } from "$env/dynamic/private"
 import type { IAIVendor } from "$lib/types/AIVendor"
 import type { ChatRequest, ChatResponseObject, ChatResponseStream } from "$lib/types/chat"
 import { APP_CONFIG } from "../app-config/app-config"
+import { MAX_OUTPUT_TOKENS } from "../models/models.config"
 import { chatInputToOpenAIInput, openAiResponseToChatResponseObject } from "./openai-mapping"
 import { handleOpenAIResponseStream } from "./openai-stream"
 
@@ -12,7 +13,8 @@ const OPEN_AI_SUPPORTED_MODELS = APP_CONFIG.VENDORS.OPENAI.MODELS.map((model) =>
 const openAiRequest = (chatRequest: ChatRequest): ResponseCreateParamsBase => {
 	const baseConfig: ResponseCreateParamsBase = {
 		input: chatRequest.inputs.map(chatInputToOpenAIInput),
-		store: false
+		store: false,
+		max_output_tokens: MAX_OUTPUT_TOKENS
 	}
 
 	const tools = chatRequest.config.tools?.flatMap((tool) => {

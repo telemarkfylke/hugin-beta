@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 import type { ToolTurnEvent } from "../../../../src/lib/server/mcp/agentic-loop"
 import { createOpenAIToolDriver } from "../../../../src/lib/server/mcp/drivers/openai-tool-driver"
+import { MAX_OUTPUT_TOKENS } from "../../../../src/lib/server/models/models.config"
 import type { ChatRequest } from "../../../../src/lib/types/chat"
 
 const chatRequest = {
@@ -73,6 +74,20 @@ describe("createOpenAIToolDriver", () => {
 		expect(createCalls[0]).toMatchObject({
 			tools: [{ type: "function", name: "Search_SharePoint" }]
 		})
+	})
+
+	it("caps every round's output at MAX_OUTPUT_TOKENS", async () => {
+		const createCalls: unknown[] = []
+		const fakeOpenAI = {
+			responses: {
+				create: async (request: unknown) => {
+					createCalls.push(request)
+					return responseStream([])
+				}
+			}
+		}
+		await drain(createOpenAIToolDriver(fakeOpenAI as never, chatRequest, []).start())
+		expect(createCalls[0]).toMatchObject({ max_output_tokens: MAX_OUTPUT_TOKENS })
 	})
 
 	it("emits text_delta from a response.output_text.delta chunk", async () => {
