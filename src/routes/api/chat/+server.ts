@@ -1,5 +1,6 @@
 import { json, type RequestHandler } from "@sveltejs/kit"
 import { logger } from "@vestfoldfylke/loglady"
+import z from "zod"
 import { canUseHistory, canUseMcpSharepoint, canUseWebsiteDataSource } from "$lib/authorization"
 import { chatHistoryToInputItems, stripUnarmedAttachments } from "$lib/chat-history"
 import { applyChatSseEventToResponseObject } from "$lib/chat-response-builder"
@@ -28,14 +29,19 @@ import { createSse, parseSse, responseStream } from "$lib/streaming"
 import type { IAIVendor } from "$lib/types/AIVendor"
 import type { AuthenticatedPrincipal } from "$lib/types/authentication"
 import type { ChatConfig, ChatRequest, ChatResponseObject } from "$lib/types/chat"
-import type { ChatInputMessage } from "$lib/types/chat-item"
+import type { ChatInputItem, ChatInputMessage } from "$lib/types/chat-item"
 import type { InputText } from "$lib/types/chat-item-content"
 import type { McpSource } from "$lib/types/mcp-source"
 import type { ApiNextFunction } from "$lib/types/middleware/http-request"
 import type { WebsiteSource, WebsiteSourceEntry } from "$lib/types/website-source"
 import { estimateInputUsage } from "$lib/usagebudget/server/cost"
 import { assertWithinUsageBudget, meterUsageStream, recordUsage } from "$lib/usagebudget/server/usage-budget"
+import { ChatInputItemSchema } from "$lib/validation/chat-input-schema"
 import { validateFileInputs } from "$lib/validation/file-input"
+
+// Higher than the anonymous embed's 100: an incognito conversation here sends its whole history
+const MAX_CHAT_INPUT_ITEMS = 400
+const ChatInputsSchema = z.array(ChatInputItemSchema).min(1).max(MAX_CHAT_INPUT_ITEMS)
 
 const parseChatRequest = async (body: unknown, user: AuthenticatedPrincipal): Promise<ChatRequest> => {
 	if (typeof body !== "object" || body === null) {
@@ -47,15 +53,18 @@ const parseChatRequest = async (body: unknown, user: AuthenticatedPrincipal): Pr
 	// reads from the client's config
 	const config = await loadChatRequestConfig(incomingChatRequest.config, user)
 
-	if (!Array.isArray(incomingChatRequest.inputs) || incomingChatRequest.inputs.length === 0) {
-		throw new HTTPError(400, "inputs must be a non-empty array")
+	// Only user/assistant turns, bounded sizes - see chat-input-schema.ts
+	const parsedInputs = ChatInputsSchema.safeParse(incomingChatRequest.inputs)
+	if (!parsedInputs.success) {
+		throw new HTTPError(400, "Invalid inputs")
 	}
+	const inputs = parsedInputs.data as ChatInputItem[]
 	// Only ever selects among attachments already in the history - the cap itself is enforced in stripUnarmedAttachments
 	const armedAttachments = Array.isArray(incomingChatRequest.armedAttachments) ? incomingChatRequest.armedAttachments.filter((id): id is string => typeof id === "string") : []
 	if (config.vendorAgent) {
 		return {
 			config,
-			inputs: incomingChatRequest.inputs,
+			inputs,
 			stream: Boolean(incomingChatRequest.stream),
 			store: Boolean(incomingChatRequest.store),
 			huginConversationId: incomingChatRequest.huginConversationId,
@@ -65,7 +74,7 @@ const parseChatRequest = async (body: unknown, user: AuthenticatedPrincipal): Pr
 
 	const manualChatRequest: ChatRequest = {
 		config,
-		inputs: incomingChatRequest.inputs,
+		inputs,
 		stream: Boolean(incomingChatRequest.stream),
 		store: Boolean(incomingChatRequest.store),
 		huginConversationId: incomingChatRequest.huginConversationId,

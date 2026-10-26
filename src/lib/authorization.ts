@@ -53,6 +53,12 @@ export const canUpdateChatConfig = (user: AuthenticatedPrincipal, appRoles: AppR
 	if (chatConfigInput.allowAnonymousEmbed !== chatConfigToUpdate.allowAnonymousEmbed && !canSetAnonymousEmbed(user, appRoles)) {
 		return false
 	}
+	// Same rule for who may see it: create already requires canPublishChatConfig for "published", and
+	// without this an owner could create a private assistant and then publish it to everyone by PUT.
+	const audienceChanged = chatConfigInput.type !== chatConfigToUpdate.type || JSON.stringify(chatConfigInput.accessGroups) !== JSON.stringify(chatConfigToUpdate.accessGroups)
+	if (audienceChanged && !canPublishChatConfig(user, appRoles)) {
+		return false
+	}
 	if (chatConfigToUpdate.created.by.id === user.userId) {
 		return true
 	}
