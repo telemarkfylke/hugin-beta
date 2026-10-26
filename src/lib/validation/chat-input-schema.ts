@@ -32,3 +32,18 @@ export const ChatInputItemSchema = z.discriminatedUnion("type", [
 	z.object({ type: z.literal("message.input"), role: z.literal("user"), content: z.array(InputContentSchema).min(1).max(MAX_CONTENT_PARTS) }),
 	z.object({ id: z.string(), type: z.literal("message.output"), role: z.literal("assistant"), content: z.array(OutputContentSchema).max(MAX_CONTENT_PARTS) })
 ])
+
+type ParsedChatInputItem = z.infer<typeof ChatInputItemSchema>
+
+const textChars = (item: ParsedChatInputItem): number => item.content.reduce((sum, part) => sum + ("text" in part ? part.text.length : "reason" in part ? part.reason.length : 0), 0)
+
+// A whole `inputs` array: at most maxItems items, and at most maxTotalTextChars of text across all of
+// them - the per-part cap alone still let maxItems x 50k characters through, i.e. a context-window-
+// filling (and model-bill-filling) request in a single call. Attachments are bounded separately
+// (file-input.ts, armed attachments).
+export const chatInputsSchema = (maxItems: number, maxTotalTextChars: number) =>
+	z
+		.array(ChatInputItemSchema)
+		.min(1)
+		.max(maxItems)
+		.refine((items) => items.reduce((sum, item) => sum + textChars(item), 0) <= maxTotalTextChars, { message: `inputs may contain at most ${maxTotalTextChars} characters of text` })

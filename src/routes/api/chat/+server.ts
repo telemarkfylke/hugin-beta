@@ -1,6 +1,5 @@
 import { json, type RequestHandler } from "@sveltejs/kit"
 import { logger } from "@vestfoldfylke/loglady"
-import z from "zod"
 import { canUseHistory, canUseMcpSharepoint, canUseWebsiteDataSource } from "$lib/authorization"
 import { chatHistoryToInputItems, stripUnarmedAttachments } from "$lib/chat-history"
 import { applyChatSseEventToResponseObject } from "$lib/chat-response-builder"
@@ -36,12 +35,15 @@ import type { ApiNextFunction } from "$lib/types/middleware/http-request"
 import type { WebsiteSource, WebsiteSourceEntry } from "$lib/types/website-source"
 import { estimateInputUsage } from "$lib/usagebudget/server/cost"
 import { acquireCallSlot, assertWithinUsageBudget, meterUsageStream, recordUsage } from "$lib/usagebudget/server/usage-budget"
-import { ChatInputItemSchema } from "$lib/validation/chat-input-schema"
+import { chatInputsSchema } from "$lib/validation/chat-input-schema"
 import { validateFileInputs } from "$lib/validation/file-input"
 
-// Higher than the anonymous embed's 100: an incognito conversation here sends its whole history
+// Higher than the anonymous embed's limits: an incognito conversation here sends its whole history.
+// 1M characters is roughly 250k tokens - a very long real conversation, but no longer "as much as the
+// context window and the request body allow" in a single call.
 const MAX_CHAT_INPUT_ITEMS = 400
-const ChatInputsSchema = z.array(ChatInputItemSchema).min(1).max(MAX_CHAT_INPUT_ITEMS)
+const MAX_CHAT_TOTAL_TEXT_CHARS = 1_000_000
+const ChatInputsSchema = chatInputsSchema(MAX_CHAT_INPUT_ITEMS, MAX_CHAT_TOTAL_TEXT_CHARS)
 
 const parseChatRequest = async (body: unknown, user: AuthenticatedPrincipal): Promise<ChatRequest> => {
 	if (typeof body !== "object" || body === null) {

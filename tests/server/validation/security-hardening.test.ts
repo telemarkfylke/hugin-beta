@@ -4,7 +4,7 @@ import { canUpdateChatConfig } from "$lib/authorization"
 import { APP_CONFIG } from "$lib/server/app-config/app-config"
 import type { AuthenticatedPrincipal } from "$lib/types/authentication"
 import type { ChatConfig } from "$lib/types/chat"
-import { ChatInputItemSchema } from "$lib/validation/chat-input-schema"
+import { ChatInputItemSchema, chatInputsSchema } from "$lib/validation/chat-input-schema"
 import { handle } from "../../../src/hooks.server"
 
 const ROLES = APP_CONFIG.APP_ROLES
@@ -48,6 +48,23 @@ describe("canUpdateChatConfig - who may change an assistant's audience", () => {
 	it("lets a maintainer change the audience", () => {
 		const stored = config({ type: "published", created: { at: "now", by: { id: "someone" } } })
 		expect(canUpdateChatConfig(maintainer, ROLES, stored, { ...stored, accessGroups: ["employee"] })).toBe(true)
+	})
+})
+
+describe("chatInputsSchema - the whole inputs array", () => {
+	const user = (t: string) => ({ type: "message.input", role: "user", content: [{ type: "input_text", text: t }] })
+	const assistant = (t: string) => ({ id: "a", type: "message.output", role: "assistant", content: [{ type: "output_text", text: t }] })
+
+	it("caps the total text across all items, not just per part", () => {
+		const schema = chatInputsSchema(10, 100)
+		expect(schema.safeParse([user("x".repeat(50)), assistant("y".repeat(50))]).success).toBe(true)
+		expect(schema.safeParse([user("x".repeat(50)), assistant("y".repeat(50)), user("z")]).success).toBe(false)
+	})
+
+	it("caps the number of items and requires at least one", () => {
+		const schema = chatInputsSchema(2, 1000)
+		expect(schema.safeParse([user("a"), assistant("b"), user("c")]).success).toBe(false)
+		expect(schema.safeParse([]).success).toBe(false)
 	})
 })
 
