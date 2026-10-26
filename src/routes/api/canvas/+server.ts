@@ -8,6 +8,8 @@ import { apiRequestMiddleware } from "$lib/server/middleware/http-request"
 import { getDefaultModel } from "$lib/server/models/model-registry"
 import { responseStream } from "$lib/streaming"
 import type { ApiNextFunction } from "$lib/types/middleware/http-request"
+import { estimateInputUsage } from "$lib/usagebudget/server/cost"
+import { assertWithinUsageBudget, meterUsageStream } from "$lib/usagebudget/server/usage-budget"
 import { parseCanvasRequest } from "$lib/validation/parse-canvas-request"
 
 const CANVAS_SYSTEM_PROMPT = `You are a document editor. The user will give you a document (in markdown) and a prompt describing what to change.
@@ -29,6 +31,8 @@ const canvasHandler: ApiNextFunction = async ({ requestEvent, user }) => {
 	if (!canvasModel) {
 		throw new HTTPError(503, "Canvas is not available — the canvas model's vendor is not configured")
 	}
+
+	await assertWithinUsageBudget(user)
 
 	logger.info("[Canvas] User {userId} submitting prompt (webSearch: {webSearch}, documentLength: {documentLength})", user.userId, webSearch ?? false, document.length)
 
@@ -60,7 +64,7 @@ const canvasHandler: ApiNextFunction = async ({ requestEvent, user }) => {
 		stream: true
 	})
 
-	return { isAuthorized: true, response: responseStream(stream) }
+	return { isAuthorized: true, response: responseStream(meterUsageStream(stream, user, canvasModel, estimateInputUsage([CANVAS_SYSTEM_PROMPT, userMessage]))) }
 }
 
 export const POST: RequestHandler = async (requestEvent) => {

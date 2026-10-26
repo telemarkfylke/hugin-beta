@@ -7,6 +7,7 @@ import { HTTPError } from "$lib/server/middleware/http-error"
 import { apiRequestMiddleware } from "$lib/server/middleware/http-request"
 import { getDefaultModel } from "$lib/server/models/model-registry"
 import type { ApiNextFunction } from "$lib/types/middleware/http-request"
+import { assertWithinUsageBudget, recordUsage } from "$lib/usagebudget/server/usage-budget"
 import { parsePresentationRequest } from "$lib/validation/parse-presentation-request"
 import { extractTextOutput } from "../extract-text-output"
 
@@ -31,6 +32,8 @@ const presentationHandler: ApiNextFunction = async ({ requestEvent, user }) => {
 
 	const body = await requestEvent.request.json()
 	const { slides, prompt, webSearch, document } = parsePresentationRequest(body)
+
+	await assertWithinUsageBudget(user)
 
 	logger.info(
 		"[Canvas Presentation] User {userId} submitting prompt (slidesLength: {slidesLength}), webSearch: {webSearch}, document: {hasDocument}",
@@ -66,6 +69,9 @@ const presentationHandler: ApiNextFunction = async ({ requestEvent, user }) => {
 			}
 		],
 		stream: false
+	})
+	recordUsage(user, canvasModel, response.usage).catch((error) => {
+		logger.errorException(error, "Failed to record usage for {userId}", user.userId)
 	})
 
 	const text = extractTextOutput(response.outputs)

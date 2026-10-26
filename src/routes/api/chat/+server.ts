@@ -33,6 +33,8 @@ import type { InputText } from "$lib/types/chat-item-content"
 import type { McpSource } from "$lib/types/mcp-source"
 import type { ApiNextFunction } from "$lib/types/middleware/http-request"
 import type { WebsiteSource, WebsiteSourceEntry } from "$lib/types/website-source"
+import { estimateInputUsage } from "$lib/usagebudget/server/cost"
+import { assertWithinUsageBudget, meterUsageStream, recordUsage } from "$lib/usagebudget/server/usage-budget"
 import { validateFileInputs } from "$lib/validation/file-input"
 import { parseChatConfig } from "$lib/validation/parse-chat-config"
 
@@ -103,6 +105,9 @@ const supahChat: ApiNextFunction = async ({ requestEvent, user }) => {
 	if (!isModelAvailable(chatRequest.config)) {
 		throw new HTTPError(503, MODEL_UNAVAILABLE_MESSAGE)
 	}
+
+	// Before any other work (categorization, RAG, vendor call) so an over-budget request costs nothing
+	await assertWithinUsageBudget(user)
 
 	const userInputMessage = [...chatRequest.inputs].reverse().find((i): i is ChatInputMessage => i.type === "message.input" && i.role === "user")
 
@@ -214,7 +219,12 @@ const supahChat: ApiNextFunction = async ({ requestEvent, user }) => {
 	const vendor = getVendor(chatRequest.config.vendorId)
 
 	if (chatRequest.stream) {
-		const stream = await buildToolCallingStream(chatRequest, vendor, mcpSources, websiteToolActive ? websiteEntries : [])
+		const stream = meterUsageStream(
+			await buildToolCallingStream(chatRequest, vendor, mcpSources, websiteToolActive ? websiteEntries : []),
+			user,
+			chatRequest.config,
+			estimateInputUsage(chatRequestTexts(chatRequest))
+		)
 
 		if (huginConversationId && userInputMessage) {
 			const [clientBranch, captureBranch] = stream.tee()
@@ -239,6 +249,9 @@ const supahChat: ApiNextFunction = async ({ requestEvent, user }) => {
 	}
 
 	const response = await vendor.createChatResponse(chatRequest)
+	recordUsage(user, chatRequest.config, response.usage).catch((error) => {
+		logger.errorException(error, "Failed to record usage for {userId}", user.userId)
+	})
 
 	if (huginConversationId && userInputMessage) {
 		try {
@@ -257,6 +270,14 @@ const supahChat: ApiNextFunction = async ({ requestEvent, user }) => {
 		response: json(response)
 	}
 }
+
+// Every text the vendor is billed for as input - only for the usage-budget fallback estimate when a
+// stream ends without reporting usage. Attachments are left out: their base64 length says little
+// about their token count.
+const chatRequestTexts = (chatRequest: ChatRequest): string[] => [
+	chatRequest.config.instructions ?? "",
+	...chatRequest.inputs.flatMap((item) => item.content.flatMap((c) => ("text" in c ? [c.text] : [])))
+]
 
 // Builds one combined tool-calling stream out of every active tool-calling data source (MCP,
 // website, or both at once - see combined-tool-client.ts), or falls back to a plain vendor stream

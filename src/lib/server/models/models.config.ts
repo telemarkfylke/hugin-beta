@@ -4,6 +4,7 @@ import type { CatalogueModel, ModelConfig, Profile } from "./types"
 //   Add a model:        one line in MODELS
 //   Upgrade a profile:  change its `model`
 //   Retire a model:     status: "retired" + map its providerModel in LEGACY
+//   Price a model:      price: { inputPerMillion, outputPerMillion } in USD - feeds the per-user usage budget
 // A typo in a profile/default/LEGACY value is a type error; everything else is checked at startup
 // by assertModelConfig.
 
@@ -14,16 +15,23 @@ const MODELS = {
 	"gpt-5.2": { vendor: "OPENAI", providerModel: "gpt-5.2", files: "openai", capabilities: ["webSearch"], status: "retired" },
 	"gpt-5.4": { vendor: "OPENAI", providerModel: "gpt-5.4", files: "openai", capabilities: ["webSearch"], status: "retired" },
 	"gpt-5.5": { vendor: "OPENAI", providerModel: "gpt-5.5", files: "openai", capabilities: ["webSearch"], status: "retired" },
-	"gpt-5.6-terra": { vendor: "OPENAI", providerModel: "gpt-5.6-terra", files: "openai", capabilities: ["webSearch"] },
-	"gpt-6-sol": { vendor: "OPENAI", providerModel: "gpt-6-sol", files: "openai", capabilities: ["webSearch"] },
-	"gpt-6-luna": { vendor: "OPENAI", providerModel: "gpt-6-luna", files: "openai", capabilities: ["webSearch"] },
-	"gpt-5.6-luna": { vendor: "OPENAI", providerModel: "gpt-5.6-luna", files: "openai", capabilities: ["webSearch"] },
+	"gpt-5.6-terra": { vendor: "OPENAI", providerModel: "gpt-5.6-terra", files: "openai", capabilities: ["webSearch"], price: { inputPerMillion: 2, outputPerMillion: 12 } },
+	"gpt-6-sol": { vendor: "OPENAI", providerModel: "gpt-6-sol", files: "openai", capabilities: ["webSearch"], price: { inputPerMillion: 2, outputPerMillion: 10 } },
+	"gpt-6-luna": { vendor: "OPENAI", providerModel: "gpt-6-luna", files: "openai", capabilities: ["webSearch"], price: { inputPerMillion: 0.1, outputPerMillion: 0.5 } },
+	"gpt-5.6-luna": { vendor: "OPENAI", providerModel: "gpt-5.6-luna", files: "openai", capabilities: ["webSearch"], price: { inputPerMillion: 0.2, outputPerMillion: 1.2 } },
 	"mistral-medium": { vendor: "MISTRAL", providerModel: "mistral-medium-latest", files: "mistral", capabilities: ["webSearch"], status: "retired" },
-	"mistral-large": { vendor: "MISTRAL", providerModel: "mistral-large-latest", files: "mistral", capabilities: ["webSearch"] },
+	"mistral-large": { vendor: "MISTRAL", providerModel: "mistral-large-latest", files: "mistral", capabilities: ["webSearch"], price: { inputPerMillion: 0.5, outputPerMillion: 1.5 } },
 	"ollama-llama3": { vendor: "OLLAMA", providerModel: "llama3:8b", files: "none", capabilities: [], status: "retired" },
-	"ollama-normistral": { vendor: "OLLAMA", providerModel: "LTG/normistral-11b-thinking:latest", files: "none", capabilities: [], status: "retired" },
+	"ollama-normistral": {
+		vendor: "OLLAMA",
+		providerModel: "LTG/normistral-11b-thinking:latest",
+		files: "none",
+		capabilities: [],
+		price: { inputPerMillion: 0.01, outputPerMillion: 0.01 },
+		status: "retired"
+	},
 	// MIDLERTIDIG retired mens den lokale KI-serveren er frakoblet - fjern status for å koble til igjen
-	normistral: { vendor: "LITELLM", providerModel: "norallm/normistral-11b-thinking", files: "none", capabilities: [], status: "retired" },
+	normistral: { vendor: "LITELLM", providerModel: "norallm/normistral-11b-thinking", files: "none", capabilities: [], price: { inputPerMillion: 0.01, outputPerMillion: 0.01 }, status: "retired" },
 	// Small, mechanical text tasks (RAG query rewriting, conversation titles, question categories) via
 	// the KI-server LiteLLM gateway. Must also be on the KI-server's own model allow-list. Avoid
 	// "thinking" variants - the extra reasoning pass is wasted latency here. UTILITY_LLM_MODEL in env
