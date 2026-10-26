@@ -139,6 +139,11 @@ export class ChatState {
 	public configMode: boolean = $state(false)
 	public initialConfig: ChatConfig = $state(placeHolderConfig)
 	public configEdited: boolean = $derived(JSON.stringify(this.chat.config) !== JSON.stringify(this.initialConfig))
+	// A brand new assistant on /agents/create that hasn't been saved yet - there's nothing to chat with.
+	public isDraft: boolean = $state(false)
+	// /api/chat answers with the SAVED assistant (it never trusts the config we send), so chatting
+	// while there are unsaved edits would silently test the old version - block it and say why.
+	public promptBlockedReason: string | null = $derived(this.isDraft ? "Lagre assistenten før du chatter med den" : this.configEdited ? "Lagre endringene før du tester dem i samtalen" : null)
 	// True only while a brand new (never-saved) conversation's very first message is in flight - the
 	// user message gets pushed into chat.history optimistically, before the server has had a chance
 	// to hand back a conversationId, which would otherwise look identical to an imported/born-incognito
@@ -397,6 +402,9 @@ export class ChatState {
 	}
 
 	public promptChat = async (inputText: string, inputFiles: FileList) => {
+		if (this.promptBlockedReason) {
+			return
+		}
 		const userMessage: ChatInputItem = {
 			type: "message.input",
 			role: "user",

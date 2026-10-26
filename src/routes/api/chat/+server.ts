@@ -1,11 +1,11 @@
 import { json, type RequestHandler } from "@sveltejs/kit"
 import { logger } from "@vestfoldfylke/loglady"
-import { canPromptConfig, canUseHistory, canUseMcpSharepoint, canUseWebsiteDataSource, canViewMcpSource, canViewWebsiteSource } from "$lib/authorization"
+import { canUseHistory, canUseMcpSharepoint, canUseWebsiteDataSource } from "$lib/authorization"
 import { chatHistoryToInputItems, stripUnarmedAttachments } from "$lib/chat-history"
 import { applyChatSseEventToResponseObject } from "$lib/chat-response-builder"
 import type { ConversationManager } from "$lib/conversationstore/server/conv_manager"
 import { getConversationManager } from "$lib/conversationstore/server/get-conversation-manager"
-import { loadSavedConfigSourceGrant } from "$lib/server/agents/saved-config-source-grant"
+import { loadChatRequestConfig } from "$lib/server/agents/load-chat-request-config"
 import { getVendor } from "$lib/server/ai-vendors"
 import { APP_CONFIG } from "$lib/server/app-config/app-config"
 import { MS_AUTH_TOKEN_HEADER } from "$lib/server/auth/auth-constants"
@@ -19,7 +19,7 @@ import { runAgenticToolChatOrDegrade } from "$lib/server/mcp/run-agentic-chat"
 import { configHasMcpTool, mcpUnavailableStream } from "$lib/server/mcp/run-mcp-chat"
 import { HTTPError } from "$lib/server/middleware/http-error"
 import { apiRequestMiddleware } from "$lib/server/middleware/http-request"
-import { isModelAvailable, MODEL_UNAVAILABLE_MESSAGE, resolveConfig } from "$lib/server/models/model-registry"
+import { isModelAvailable, MODEL_UNAVAILABLE_MESSAGE } from "$lib/server/models/model-registry"
 import { appendRagContextToInstructions } from "$lib/server/ragservice/format-rag-context"
 import { rewriteRagQuery } from "$lib/server/ragservice/rag-query-rewrite"
 import { searchRagStores } from "$lib/server/ragservice/rag-search"
@@ -36,16 +36,16 @@ import type { WebsiteSource, WebsiteSourceEntry } from "$lib/types/website-sourc
 import { estimateInputUsage } from "$lib/usagebudget/server/cost"
 import { assertWithinUsageBudget, meterUsageStream, recordUsage } from "$lib/usagebudget/server/usage-budget"
 import { validateFileInputs } from "$lib/validation/file-input"
-import { parseChatConfig } from "$lib/validation/parse-chat-config"
 
-const parseChatRequest = (body: unknown): ChatRequest => {
+const parseChatRequest = async (body: unknown, user: AuthenticatedPrincipal): Promise<ChatRequest> => {
 	if (typeof body !== "object" || body === null) {
 		throw new HTTPError(400, "Invalid chat config")
 	}
 	const incomingChatRequest: ChatRequest = body as ChatRequest
 
-	// Client-sent vendorId/model/project are never trusted - resolution overwrites them from profile/pin
-	const config = resolveConfig(parseChatConfig(incomingChatRequest.config, APP_CONFIG, { mode: "use" }))
+	// Loaded from the DB (and authorized) by id - see loadChatRequestConfig for the little it still
+	// reads from the client's config
+	const config = await loadChatRequestConfig(incomingChatRequest.config, user)
 
 	if (!Array.isArray(incomingChatRequest.inputs) || incomingChatRequest.inputs.length === 0) {
 		throw new HTTPError(400, "inputs must be a non-empty array")
@@ -88,16 +88,12 @@ const supahChat: ApiNextFunction = async ({ requestEvent, user }) => {
 
 	const body = await requestEvent.request.json()
 
-	const chatRequest = parseChatRequest(body)
+	const chatRequest = await parseChatRequest(body, user)
 
 	// Users without history must never have conversations persisted - enforce server-side regardless
 	// of what the client sent, since the incognito toggle is only hidden/disabled client-side.
 	if (!canUseHistory(user, APP_CONFIG.APP_ROLES)) {
 		chatRequest.store = false
-	}
-
-	if (!canPromptConfig(user, APP_CONFIG, chatRequest.config)) {
-		throw new HTTPError(403, "Not authorized to use this chat configuration")
 	}
 
 	// Fail closed: resolution keeps a dataLocation profile on its own (disabled) vendor rather than
@@ -165,19 +161,14 @@ const supahChat: ApiNextFunction = async ({ requestEvent, user }) => {
 	// ragservice/website) - resolve which McpSource(s) were actually selected only when it's on.
 	const mcpSourceIds = mcpSharepointActive ? (chatRequest.config.dataSources?.filter((s) => s.type === "mcp").map((s) => s.sourceId) ?? []) : []
 
-	// The source ids come from the client-sent config, so each one must be authorized server-side:
-	// either the user may see the source themselves, or the SAVED version of this assistant (which the
-	// user may prompt) references it - e.g. a published assistant built on its creator's private source.
-	const isGrantedBySavedConfig = websiteSourceIds.length > 0 || mcpSourceIds.length > 0 ? await loadSavedConfigSourceGrant(chatRequest.config._id, user) : () => false
-
+	// The source ids come from the SAVED assistant (see loadChatRequestConfig), which the user may
+	// prompt - that's what authorizes them, e.g. a published assistant built on its creator's private
+	// source. NB: saving an assistant doesn't yet check that its author may use the sources it names.
 	let websiteEntries: WebsiteSourceEntry[] = []
-	let deniedSourceCount = 0
 	if (websiteSourceIds.length > 0) {
 		const websiteSourceStore = getWebsiteSourceStore()
 		const resolved = await Promise.all(websiteSourceIds.map((id) => websiteSourceStore.getWebsiteSource(id).catch(() => null)))
-		const sources = resolved.filter((source): source is WebsiteSource => source !== null && (canViewWebsiteSource(source, user, APP_CONFIG.APP_ROLES) || isGrantedBySavedConfig("website", source._id)))
-		deniedSourceCount += resolved.filter((source) => source !== null).length - sources.length
-		websiteEntries = sources.flatMap((source) => source.entries)
+		websiteEntries = resolved.filter((source): source is WebsiteSource => source !== null).flatMap((source) => source.entries)
 	}
 	const websiteToolActive = websiteEntries.length > 0
 
@@ -185,11 +176,7 @@ const supahChat: ApiNextFunction = async ({ requestEvent, user }) => {
 	if (mcpSourceIds.length > 0) {
 		const mcpSourceStore = getMcpSourceStore()
 		const resolved = await Promise.all(mcpSourceIds.map((id) => mcpSourceStore.getMcpSource(id).catch(() => null)))
-		mcpSources = resolved.filter((source): source is McpSource => source !== null && (canViewMcpSource(source, user, APP_CONFIG.APP_ROLES) || isGrantedBySavedConfig("mcp", source._id)))
-		deniedSourceCount += resolved.filter((source) => source !== null).length - mcpSources.length
-	}
-	if (deniedSourceCount > 0) {
-		logger.warn("Ignored {count} data source(s) on config {configId} that {userId} may not use", deniedSourceCount, chatRequest.config._id, user.userId)
+		mcpSources = resolved.filter((source): source is McpSource => source !== null)
 	}
 
 	if (ragStoreIds.length > 0) {

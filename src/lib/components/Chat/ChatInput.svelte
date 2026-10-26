@@ -63,8 +63,8 @@
 
 	// Simple helper for posting prompt, and clearing input
 	const submitPrompt = async (): Promise<void> => {
-		if (messageInProgress || (inputText.trim() === "" && inputFiles.length === 0)) {
-			return // Do not submit empty prompts or if a message is already in progress
+		if (messageInProgress || chatState.promptBlockedReason || (inputText.trim() === "" && inputFiles.length === 0)) {
+			return // Do not submit empty prompts, while a message is in progress, or over unsaved assistant edits
 		}
 		const textToSend = inputText
 		const filesToSend = filesToFileList(inputFiles)
@@ -202,7 +202,8 @@
 					<textarea
 						bind:this={textArea}
 						bind:value={inputText}
-						placeholder="Skriv en melding..."
+						placeholder={chatState.promptBlockedReason ?? "Skriv en melding..."}
+						disabled={chatState.promptBlockedReason !== null}
 						onkeydown={submitOnEnter}
 						onpaste={handlePaste}
 						rows={1}
@@ -267,10 +268,9 @@
 					<button
 						class="icon-button filled input-action-button send"
 						onclick={submitPrompt}
-						disabled={inputText.trim().length === 0 && inputFiles.length === 0}
-						title={inputText.trim().length === 0 && inputFiles.length === 0
-							? "Skriv en melding eller legg til filer for å sende"
-							: "Send melding"}
+						disabled={chatState.promptBlockedReason !== null || (inputText.trim().length === 0 && inputFiles.length === 0)}
+						title={chatState.promptBlockedReason ??
+							(inputText.trim().length === 0 && inputFiles.length === 0 ? "Skriv en melding eller legg til filer for å sende" : "Send melding")}
 						type="button"
 					>
 						<span class="material-symbols-outlined">arrow_upward</span>

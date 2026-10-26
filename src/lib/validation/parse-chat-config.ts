@@ -4,7 +4,8 @@ import type { AppConfig } from "../types/app-config"
 import type { AuthenticatedPrincipal } from "../types/authentication"
 import { type ChatConfig, ChatConfigSchema } from "../types/chat"
 
-// "use": /api/chat on every message - no role/admin checks on profile/pinned (resolution handles unusable values).
+// "use": shape/consistency checks only - no role/admin checks on profile/pinned. Never for trusting a
+// client's config: /api/chat loads the saved one instead (see load-chat-request-config.ts).
 // "save": creating/updating an assistant. Checks only fire on values that CHANGED vs previous, so a non-admin
 // co-editor isn't locked out by an admin's pin or a profile they couldn't choose themselves.
 export type ParseChatConfigOptions = { mode: "use" } | { mode: "save"; user: AuthenticatedPrincipal; previous: ChatConfig | null }
