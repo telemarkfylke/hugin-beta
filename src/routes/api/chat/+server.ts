@@ -35,7 +35,7 @@ import type { McpSource } from "$lib/types/mcp-source"
 import type { ApiNextFunction } from "$lib/types/middleware/http-request"
 import type { WebsiteSource, WebsiteSourceEntry } from "$lib/types/website-source"
 import { estimateInputUsage } from "$lib/usagebudget/server/cost"
-import { assertWithinUsageBudget, meterUsageStream, recordUsage } from "$lib/usagebudget/server/usage-budget"
+import { acquireCallSlot, assertWithinUsageBudget, meterUsageStream, recordUsage } from "$lib/usagebudget/server/usage-budget"
 import { ChatInputItemSchema } from "$lib/validation/chat-input-schema"
 import { validateFileInputs } from "$lib/validation/file-input"
 
@@ -214,13 +214,18 @@ const supahChat: ApiNextFunction = async ({ requestEvent, user }) => {
 
 	const vendor = getVendor(chatRequest.config.vendorId)
 
+	const releaseCallSlot = await acquireCallSlot(user)
+
 	if (chatRequest.stream) {
-		const stream = meterUsageStream(
-			await buildToolCallingStream(chatRequest, vendor, mcpSources, websiteToolActive ? websiteEntries : []),
-			user,
-			chatRequest.config,
-			estimateInputUsage(chatRequestTexts(chatRequest))
-		)
+		let toolCallingStream: ReadableStream<Uint8Array>
+		try {
+			toolCallingStream = await buildToolCallingStream(chatRequest, vendor, mcpSources, websiteToolActive ? websiteEntries : [])
+		} catch (error) {
+			releaseCallSlot()
+			throw error
+		}
+		// The slot is released when the stream ends - not when this handler returns, which is right away
+		const stream = meterUsageStream(toolCallingStream, user, chatRequest.config, estimateInputUsage(chatRequestTexts(chatRequest)), releaseCallSlot)
 
 		if (huginConversationId && userInputMessage) {
 			const [clientBranch, captureBranch] = stream.tee()
@@ -244,7 +249,12 @@ const supahChat: ApiNextFunction = async ({ requestEvent, user }) => {
 		}
 	}
 
-	const response = await vendor.createChatResponse(chatRequest)
+	let response: ChatResponseObject
+	try {
+		response = await vendor.createChatResponse(chatRequest)
+	} finally {
+		releaseCallSlot()
+	}
 	recordUsage(user, chatRequest.config, response.usage).catch((error) => {
 		logger.errorException(error, "Failed to record usage for {userId}", user.userId)
 	})

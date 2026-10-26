@@ -55,6 +55,40 @@ export const assertWithinUsageBudget = async (user: AuthenticatedPrincipal): Pro
 	}
 }
 
+// The budget above is check-now-record-later, so without this a script firing hundreds of requests
+// at once would get all of them past assertWithinUsageBudget before the first one's cost landed.
+// Capping the calls in flight per user bounds that overshoot to MAX_CONCURRENT_CALLS x one call,
+// and one call is itself bounded (input size limits, MAX_OUTPUT_TOKENS).
+const MAX_CONCURRENT_CALLS = 3
+// A slot whose release never runs (process crashed mid-call) frees itself when its window ends. A
+// release landing in the next window decrements that one instead, which can briefly allow a few
+// extra calls right after a rollover - bounded, and far simpler than per-slot bookkeeping.
+const CONCURRENCY_WINDOW_MS = 10 * 60_000
+const concurrencyKey = (userId: string) => `usage-budget:user-inflight:${userId}`
+
+// Take a slot right before the vendor call; call the returned release once the call is over (stream
+// ended/aborted, response returned, or an error). Safe to call release more than once.
+export const acquireCallSlot = async (user: AuthenticatedPrincipal): Promise<() => void> => {
+	const rateLimiter = getRateLimiter()
+	const key = concurrencyKey(user.userId)
+	const slot = await rateLimiter.checkAndIncrement(key, MAX_CONCURRENT_CALLS, CONCURRENCY_WINDOW_MS)
+	let released = false
+	const release = () => {
+		if (released) return
+		released = true
+		rateLimiter.add(key, -1, CONCURRENCY_WINDOW_MS).catch((error) => {
+			logger.errorException(error, "Failed to release call slot for {userId}", user.userId)
+		})
+	}
+	if (!slot.allowed) {
+		// checkAndIncrement counted this attempt too - give it back
+		release()
+		logger.warn("Usage budget: {userId} already has {max} calls in flight", user.userId, MAX_CONCURRENT_CALLS)
+		throw new HTTPError(429, "Du har allerede flere svar på vei. Vent til de er ferdige, og prøv igjen.")
+	}
+	return release
+}
+
 export const recordUsage = async (user: AuthenticatedPrincipal, model: MeteredModel, usage: ChatResponseUsage): Promise<void> => {
 	const cost = usageCostUsd(modelPriceFor(MODEL_CONFIG, model.vendorId, model.model), usage)
 	if (cost <= 0) {
@@ -65,8 +99,15 @@ export const recordUsage = async (user: AuthenticatedPrincipal, model: MeteredMo
 }
 
 // Passes the SSE stream through untouched and records the usage from its response.done event once
-// it ends - or `fallbackUsage` if it never reports any (client aborted, vendor error).
-export const meterUsageStream = (stream: ReadableStream<Uint8Array>, user: AuthenticatedPrincipal, model: MeteredModel, fallbackUsage: ChatResponseUsage): ReadableStream<Uint8Array> => {
+// it ends - or `fallbackUsage` if it never reports any (client aborted, vendor error). `onEnd` runs
+// at that same moment, e.g. to release the call slot from acquireCallSlot.
+export const meterUsageStream = (
+	stream: ReadableStream<Uint8Array>,
+	user: AuthenticatedPrincipal,
+	model: MeteredModel,
+	fallbackUsage: ChatResponseUsage,
+	onEnd?: () => void
+): ReadableStream<Uint8Array> => {
 	const reader = stream.getReader()
 	const decoder = new TextDecoder("utf-8")
 	let buffer = ""
@@ -76,6 +117,7 @@ export const meterUsageStream = (stream: ReadableStream<Uint8Array>, user: Authe
 	const record = () => {
 		if (recorded) return
 		recorded = true
+		onEnd?.()
 		recordUsage(user, model, usage ?? fallbackUsage).catch((error) => {
 			logger.errorException(error, "Failed to record usage for {userId}", user.userId)
 		})

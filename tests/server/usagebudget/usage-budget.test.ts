@@ -5,7 +5,7 @@ import type { ModelConfig } from "$lib/server/models/types"
 import { createSse } from "$lib/streaming"
 import type { AuthenticatedPrincipal } from "$lib/types/authentication"
 import { DEFAULT_USAGE_BUDGETS, estimateInputUsage, modelPriceFor, parseUsageBudgets, UNKNOWN_MODEL_PRICE, usageBudgetFor, usageCostUsd } from "$lib/usagebudget/server/cost"
-import { assertWithinUsageBudget, meterUsageStream, recordUsage, USAGE_BUDGETS } from "$lib/usagebudget/server/usage-budget"
+import { acquireCallSlot, assertWithinUsageBudget, meterUsageStream, recordUsage, USAGE_BUDGETS } from "$lib/usagebudget/server/usage-budget"
 
 const DAY_MS = 24 * 60 * 60_000
 
@@ -167,5 +167,55 @@ describe("meterUsageStream", () => {
 		await settle()
 
 		expect(await spentToday(user)).toBe(2 * UNKNOWN_MODEL_PRICE.inputPerMillion)
+	})
+})
+
+describe("acquireCallSlot", () => {
+	it("refuses a fourth call while three are in flight - the parallel-request overshoot of a check-then-record budget", async () => {
+		const user = principal()
+		const releases = await Promise.all([acquireCallSlot(user), acquireCallSlot(user), acquireCallSlot(user)])
+		await expect(acquireCallSlot(user)).rejects.toMatchObject({ status: 429 })
+
+		releases[0]?.()
+		await settle()
+		await expect(acquireCallSlot(user)).resolves.toBeTypeOf("function")
+	})
+
+	it("doesn't count a refused attempt as in flight", async () => {
+		const user = principal()
+		const releases = await Promise.all([acquireCallSlot(user), acquireCallSlot(user), acquireCallSlot(user)])
+		for (let i = 0; i < 5; i++) await expect(acquireCallSlot(user)).rejects.toMatchObject({ status: 429 })
+		await settle()
+
+		releases[0]?.()
+		await settle()
+		await expect(acquireCallSlot(user)).resolves.toBeTypeOf("function")
+	})
+
+	it("only gives a slot back once, however often release is called", async () => {
+		const user = principal()
+		const release = await acquireCallSlot(user)
+		await Promise.all([acquireCallSlot(user), acquireCallSlot(user)])
+		release()
+		release()
+		release()
+		await settle()
+
+		await acquireCallSlot(user)
+		await expect(acquireCallSlot(user)).rejects.toMatchObject({ status: 429 })
+	})
+
+	it("is released by meterUsageStream when the stream ends or is aborted", async () => {
+		const user = principal()
+		const ended = await acquireCallSlot(user)
+		await drain(meterUsageStream(streamOf(done(1, 1)), user, { vendorId: "MISTRAL" }, estimateInputUsage([]), ended))
+
+		const aborted = await acquireCallSlot(user)
+		const reader = meterUsageStream(new ReadableStream<Uint8Array>(), user, { vendorId: "MISTRAL" }, estimateInputUsage([]), aborted).getReader()
+		await reader.cancel()
+		await settle()
+
+		await Promise.all([acquireCallSlot(user), acquireCallSlot(user), acquireCallSlot(user)])
+		await expect(acquireCallSlot(user)).rejects.toMatchObject({ status: 429 })
 	})
 })
