@@ -44,8 +44,6 @@
 		"vitest": "^4.1.11"
 	},
 	"dependencies": {
-		"@excalidraw/excalidraw": "^0.18.1",
-		"@excalidraw/mermaid-to-excalidraw": "^2.2.2",
 		"@mistralai/mistralai": "^2.2.0",
 		"@modelcontextprotocol/sdk": "^1.30.0",
 		"@vestfoldfylke/loglady": "^1.5.3",
