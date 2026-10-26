@@ -44,6 +44,9 @@ export const apiRequestMiddleware = async (requestEvent: RequestEvent, next: Api
 		logger.info(`${loggerPrefix} - Authenticated user: {userId}`, user.userId)
 	} catch (error) {
 		logger.errorException(error, `${loggerPrefix} - Error during authentication`)
+		if (error instanceof HTTPError && error.status === 403) {
+			return json({ message: "Forbidden" }, { status: 403 })
+		}
 		return json({ message: "Unauthorized" }, { status: 401 })
 	}
 	if (MOCK_AUTH && MOCK_AUTH_FORCE_403) {
@@ -94,6 +97,9 @@ export const serverLoadRequestMiddleware = async <T>(requestEvent: RequestEvent,
 		logger.info(`${loggerPrefix} - Authenticated user: {userId}`, user.userId)
 	} catch (error) {
 		logger.errorException(error, `${loggerPrefix} - Error during authentication`)
+		if (error instanceof HTTPError && error.status === 403) {
+			svelteError(403, "Forbidden")
+		}
 		svelteError(401, "Unauthorized")
 	}
 	let data: T
