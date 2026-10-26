@@ -7,6 +7,7 @@ import { HTTPError } from "$lib/server/middleware/http-error"
 import { apiRequestMiddleware } from "$lib/server/middleware/http-request"
 import { getDefaultModel } from "$lib/server/models/model-registry"
 import type { ApiNextFunction } from "$lib/types/middleware/http-request"
+import { assertWithinUsageBudget, recordUsage } from "$lib/usagebudget/server/usage-budget"
 import { parseMermaidRequest } from "$lib/validation/parse-mermaid-request"
 import { extractTextOutput } from "../extract-text-output"
 
@@ -78,6 +79,8 @@ const mermaidHandler: ApiNextFunction = async ({ requestEvent, user }) => {
 	const body = await requestEvent.request.json()
 	const { diagram, prompt } = parseMermaidRequest(body)
 
+	await assertWithinUsageBudget(user)
+
 	logger.info("[Canvas Mermaid] User {userId} submitting prompt (diagramLength: {diagramLength})", user.userId, diagram.length)
 
 	const userMessage = diagram ? `Here is the current Mermaid diagram source:\n\n${diagram}\n\n---\n\nUser instruction: ${prompt}` : prompt
@@ -105,6 +108,9 @@ const mermaidHandler: ApiNextFunction = async ({ requestEvent, user }) => {
 			}
 		],
 		stream: false
+	})
+	recordUsage(user, canvasModel, response.usage).catch((error) => {
+		logger.errorException(error, "Failed to record usage for {userId}", user.userId)
 	})
 
 	const text = extractTextOutput(response.outputs)

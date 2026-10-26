@@ -17,4 +17,18 @@ export class MockRateLimiter implements IRateLimiter {
 
 		return { allowed: count <= limit, remaining: Math.max(0, limit - count), retryAfterMs: windowEnd - now }
 	}
+
+	async getCount(key: string, windowMs: number): Promise<{ count: number; retryAfterMs: number }> {
+		const now = Date.now()
+		const windowStart = Math.floor(now / windowMs) * windowMs
+		const existing = this.windows.get(key)
+		return { count: existing && existing.windowStart === windowStart ? existing.count : 0, retryAfterMs: windowStart + windowMs - now }
+	}
+
+	async add(key: string, amount: number, windowMs: number): Promise<void> {
+		const windowStart = Math.floor(Date.now() / windowMs) * windowMs
+		const existing = this.windows.get(key)
+		const count = existing && existing.windowStart === windowStart ? existing.count + amount : amount
+		this.windows.set(key, { windowStart, count })
+	}
 }
