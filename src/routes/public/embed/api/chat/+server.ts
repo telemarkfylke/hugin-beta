@@ -17,6 +17,8 @@ import { createSse, responseStream } from "$lib/streaming"
 import type { ChatConfig, ChatResponseObject } from "$lib/types/chat"
 import type { ChatInputItem, ChatInputMessage } from "$lib/types/chat-item"
 import type { InputText } from "$lib/types/chat-item-content"
+import { estimateInputUsage, requestTexts } from "$lib/usagebudget/server/cost"
+import { isAnonymousEmbedOverBudget, meterUsageStream, recordUsage } from "$lib/usagebudget/server/usage-budget"
 import { parseEmbedInputs } from "$lib/validation/parse-embed-inputs"
 
 const chatConfigStore = getChatConfigStore()
@@ -168,6 +170,13 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 		}
 	}
 
+	// Always on, unlike the message-count cap above: the per-IP limits count messages, not what they
+	// cost, and spreading across many IPs gets around them - this bounds what the bot can cost per
+	// hour/day in USD (USAGE_BUDGET's ANONYMOUS_EMBED, see $lib/usagebudget). Logged inside.
+	if (await isAnonymousEmbedOverBudget(dbConfig._id)) {
+		return json({ message: RATE_LIMITED_MESSAGE }, { status: 429 })
+	}
+
 	// This route returns its errors rather than throwing HTTPError (no middleware here to convert them)
 	let inputs: ChatInputItem[]
 	try {
@@ -266,11 +275,16 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 	const vendor = getVendor(dbConfig.vendorId)
 	const chatRequest = { config: dbConfig, inputs, stream: wantsStream }
 
+	const budgetSubject = { anonymousEmbedBotId: dbConfig._id }
+
 	if (chatRequest.stream) {
 		const stream = await vendor.createChatResponseStream(chatRequest)
-		return responseStream(stream)
+		return responseStream(meterUsageStream(stream, budgetSubject, dbConfig, estimateInputUsage(requestTexts(dbConfig.instructions, inputs))))
 	}
 
 	const response = await vendor.createChatResponse(chatRequest)
+	recordUsage(budgetSubject, dbConfig, response.usage).catch((error) => {
+		logger.errorException(error, "Failed to record usage for anonymous embed of {botId}", dbConfig._id)
+	})
 	return json(response)
 }

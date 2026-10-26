@@ -33,7 +33,7 @@ import type { InputText } from "$lib/types/chat-item-content"
 import type { McpSource } from "$lib/types/mcp-source"
 import type { ApiNextFunction } from "$lib/types/middleware/http-request"
 import type { WebsiteSource, WebsiteSourceEntry } from "$lib/types/website-source"
-import { estimateInputUsage } from "$lib/usagebudget/server/cost"
+import { estimateInputUsage, requestTexts } from "$lib/usagebudget/server/cost"
 import { acquireCallSlot, assertWithinUsageBudget, meterUsageStream, recordUsage } from "$lib/usagebudget/server/usage-budget"
 import { chatInputsSchema } from "$lib/validation/chat-input-schema"
 import { validateFileInputs } from "$lib/validation/file-input"
@@ -227,7 +227,7 @@ const supahChat: ApiNextFunction = async ({ requestEvent, user }) => {
 			throw error
 		}
 		// The slot is released when the stream ends - not when this handler returns, which is right away
-		const stream = meterUsageStream(toolCallingStream, user, chatRequest.config, estimateInputUsage(chatRequestTexts(chatRequest)), releaseCallSlot)
+		const stream = meterUsageStream(toolCallingStream, user, chatRequest.config, estimateInputUsage(requestTexts(chatRequest.config.instructions, chatRequest.inputs)), releaseCallSlot)
 
 		if (huginConversationId && userInputMessage) {
 			const [clientBranch, captureBranch] = stream.tee()
@@ -278,14 +278,6 @@ const supahChat: ApiNextFunction = async ({ requestEvent, user }) => {
 		response: json(response)
 	}
 }
-
-// Every text the vendor is billed for as input - only for the usage-budget fallback estimate when a
-// stream ends without reporting usage. Attachments are left out: their base64 length says little
-// about their token count.
-const chatRequestTexts = (chatRequest: ChatRequest): string[] => [
-	chatRequest.config.instructions ?? "",
-	...chatRequest.inputs.flatMap((item) => item.content.flatMap((c) => ("text" in c ? [c.text] : [])))
-]
 
 // Builds one combined tool-calling stream out of every active tool-calling data source (MCP,
 // website, or both at once - see combined-tool-client.ts), or falls back to a plain vendor stream

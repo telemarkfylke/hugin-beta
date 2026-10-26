@@ -4,8 +4,8 @@ import { getRateLimiter } from "$lib/server/db/get-db"
 import type { ModelConfig } from "$lib/server/models/types"
 import { createSse } from "$lib/streaming"
 import type { AuthenticatedPrincipal } from "$lib/types/authentication"
-import { DEFAULT_USAGE_BUDGETS, estimateInputUsage, modelPriceFor, parseUsageBudgets, UNKNOWN_MODEL_PRICE, usageBudgetFor, usageCostUsd } from "$lib/usagebudget/server/cost"
-import { acquireCallSlot, assertWithinUsageBudget, meterUsageStream, recordUsage, USAGE_BUDGETS } from "$lib/usagebudget/server/usage-budget"
+import { DEFAULT_USAGE_BUDGETS, estimateInputUsage, modelPriceFor, parseUsageBudgets, requestTexts, UNKNOWN_MODEL_PRICE, usageBudgetFor, usageCostUsd } from "$lib/usagebudget/server/cost"
+import { acquireCallSlot, assertWithinUsageBudget, isAnonymousEmbedOverBudget, meterUsageStream, recordUsage, USAGE_BUDGETS } from "$lib/usagebudget/server/usage-budget"
 
 const DAY_MS = 24 * 60 * 60_000
 
@@ -217,5 +217,54 @@ describe("acquireCallSlot", () => {
 
 		await Promise.all([acquireCallSlot(user), acquireCallSlot(user), acquireCallSlot(user)])
 		await expect(acquireCallSlot(user)).rejects.toMatchObject({ status: 429 })
+	})
+})
+
+describe("anonymous embed budget", () => {
+	let botCounter = 0
+	const bot = () => `budget-bot-${++botCounter}`
+
+	it("is counted per bot, separately from any user", async () => {
+		const botId = bot()
+		expect(await isAnonymousEmbedOverBudget(botId)).toBe(false)
+
+		await recordUsage({ anonymousEmbedBotId: botId }, { vendorId: "MISTRAL" }, { inputTokens: 0, outputTokens: 1_000_000, totalTokens: 1_000_000 })
+		expect(await getRateLimiter().getCount(`usage-budget:anon-bot-day:${botId}`, DAY_MS)).toMatchObject({ count: UNKNOWN_MODEL_PRICE.outputPerMillion })
+		expect(await isAnonymousEmbedOverBudget(bot())).toBe(false)
+	})
+
+	it("is over budget once the bot's daily ANONYMOUS_EMBED budget is spent", async () => {
+		const botId = bot()
+		await getRateLimiter().add(`usage-budget:anon-bot-day:${botId}`, USAGE_BUDGETS.ANONYMOUS_EMBED.perDayUsd, DAY_MS)
+		expect(await isAnonymousEmbedOverBudget(botId)).toBe(true)
+	})
+
+	it("gets metered from the stream like a user's", async () => {
+		const botId = bot()
+		await drain(meterUsageStream(streamOf(done(1_000_000, 0)), { anonymousEmbedBotId: botId }, { vendorId: "MISTRAL" }, estimateInputUsage([])))
+		await settle()
+		expect((await getRateLimiter().getCount(`usage-budget:anon-bot-hour:${botId}`, 60 * 60_000)).count).toBe(UNKNOWN_MODEL_PRICE.inputPerMillion)
+	})
+
+	it("is never mistaken for a role when picking a user's budget", () => {
+		expect(usageBudgetFor(principal(), APP_CONFIG.APP_ROLES, { ...DEFAULT_USAGE_BUDGETS, ANONYMOUS_EMBED: { perHourUsd: 999, perDayUsd: 999 } })).toEqual(DEFAULT_USAGE_BUDGETS.STUDENT)
+	})
+})
+
+describe("requestTexts", () => {
+	it("collects the instructions and every text part, leaving attachments out", () => {
+		expect(
+			requestTexts("sys", [
+				{
+					type: "message.input",
+					role: "user",
+					content: [
+						{ type: "input_text", text: "hei" },
+						{ type: "input_file", fileName: "a.pdf", fileUrl: "data:application/pdf;base64,AAAA" }
+					]
+				},
+				{ id: "1", type: "message.output", role: "assistant", content: [{ type: "output_text", text: "svar" }] }
+			])
+		).toEqual(["sys", "hei", "svar"])
 	})
 })

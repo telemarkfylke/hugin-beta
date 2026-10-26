@@ -9,12 +9,19 @@ import type { AuthenticatedPrincipal } from "$lib/types/authentication"
 import type { ChatResponseUsage, VendorId } from "$lib/types/chat"
 import { modelPriceFor, parseUsageBudgets, usageBudgetFor, usageCostUsd } from "./cost"
 
-// Per-user token-cost budget, counted in USD on the shared rate-limit counters (see IRateLimiter).
-// Check-then-record, not atomic: the cost is only known once the vendor has answered, so a user can
-// overshoot by whatever requests they had in flight when they crossed the line. Accepted - that's a
-// few requests, not a night's worth. Deliberately independent of incognito/store, like the stats.
+// Token-cost budget, counted in USD on the shared rate-limit counters (see IRateLimiter) - per user,
+// or per anonymously embedded assistant. Check-then-record, not atomic: the cost is only known once
+// the vendor has answered, so a user can overshoot by whatever calls they had in flight when they
+// crossed the line - bounded by acquireCallSlot below. Deliberately independent of incognito/store,
+// like the stats.
 
 type MeteredModel = { vendorId: VendorId; model?: string | undefined }
+
+// Who a budget is counted for: a logged-in user, or - on the anonymous embed, where there's no user -
+// the embedded assistant itself, shared by all its visitors.
+export type BudgetSubject = AuthenticatedPrincipal | { anonymousEmbedBotId: string }
+
+const isAnonymousEmbed = (subject: BudgetSubject): subject is { anonymousEmbedBotId: string } => "anonymousEmbedBotId" in subject
 
 const parsedBudgets = parseUsageBudgets(env.USAGE_BUDGET)
 for (const warning of parsedBudgets.warnings) {
@@ -26,8 +33,12 @@ export const USAGE_BUDGETS = parsedBudgets.budgets
 const HOUR_MS = 60 * 60_000
 const DAY_MS = 24 * HOUR_MS
 
-const hourKey = (userId: string) => `usage-budget:user-hour:${userId}`
-const dayKey = (userId: string) => `usage-budget:user-day:${userId}`
+const budgetKeys = (subject: BudgetSubject) =>
+	isAnonymousEmbed(subject)
+		? { hour: `usage-budget:anon-bot-hour:${subject.anonymousEmbedBotId}`, day: `usage-budget:anon-bot-day:${subject.anonymousEmbedBotId}` }
+		: { hour: `usage-budget:user-hour:${subject.userId}`, day: `usage-budget:user-day:${subject.userId}` }
+
+const subjectLabel = (subject: BudgetSubject) => (isAnonymousEmbed(subject) ? `anonymous embed of ${subject.anonymousEmbedBotId}` : subject.userId)
 
 const formatRetry = (ms: number): string => {
 	const minutes = Math.ceil(ms / 60_000)
@@ -38,22 +49,36 @@ const formatRetry = (ms: number): string => {
 	return `${hours} ${hours === 1 ? "time" : "timer"}`
 }
 
+// The window the subject has used up (day checked first), or null while within budget
+const findExceededWindow = async (subject: BudgetSubject): Promise<{ window: "day" | "hour"; retryAfterMs: number } | null> => {
+	const budget = isAnonymousEmbed(subject) ? USAGE_BUDGETS.ANONYMOUS_EMBED : usageBudgetFor(subject, APP_CONFIG.APP_ROLES, USAGE_BUDGETS)
+	const keys = budgetKeys(subject)
+	const rateLimiter = getRateLimiter()
+	const [hour, day] = await Promise.all([rateLimiter.getCount(keys.hour, HOUR_MS), rateLimiter.getCount(keys.day, DAY_MS)])
+
+	if (day.count >= budget.perDayUsd) {
+		logger.warn("Usage budget: {subject} is over the daily budget ({spent} of {budget} USD)", subjectLabel(subject), day.count.toFixed(2), budget.perDayUsd)
+		return { window: "day", retryAfterMs: day.retryAfterMs }
+	}
+	if (hour.count >= budget.perHourUsd) {
+		logger.warn("Usage budget: {subject} is over the hourly budget ({spent} of {budget} USD)", subjectLabel(subject), hour.count.toFixed(2), budget.perHourUsd)
+		return { window: "hour", retryAfterMs: hour.retryAfterMs }
+	}
+	return null
+}
+
 // Call before any vendor work - throws a 429 with a user-facing (Norwegian) message, which the chat
 // and canvas clients already show as-is.
 export const assertWithinUsageBudget = async (user: AuthenticatedPrincipal): Promise<void> => {
-	const budget = usageBudgetFor(user, APP_CONFIG.APP_ROLES, USAGE_BUDGETS)
-	const rateLimiter = getRateLimiter()
-	const [hour, day] = await Promise.all([rateLimiter.getCount(hourKey(user.userId), HOUR_MS), rateLimiter.getCount(dayKey(user.userId), DAY_MS)])
-
-	if (day.count >= budget.perDayUsd) {
-		logger.warn("Usage budget: {userId} is over the daily budget ({spent} of {budget} USD)", user.userId, day.count.toFixed(2), budget.perDayUsd)
-		throw new HTTPError(429, `Du har nådd grensen for KI-bruk i dag. Prøv igjen om ${formatRetry(day.retryAfterMs)}.`)
-	}
-	if (hour.count >= budget.perHourUsd) {
-		logger.warn("Usage budget: {userId} is over the hourly budget ({spent} of {budget} USD)", user.userId, hour.count.toFixed(2), budget.perHourUsd)
-		throw new HTTPError(429, `Du har nådd grensen for KI-bruk denne timen. Prøv igjen om ${formatRetry(hour.retryAfterMs)}.`)
+	const exceeded = await findExceededWindow(user)
+	if (exceeded) {
+		throw new HTTPError(429, `Du har nådd grensen for KI-bruk ${exceeded.window === "day" ? "i dag" : "denne timen"}. Prøv igjen om ${formatRetry(exceeded.retryAfterMs)}.`)
 	}
 }
+
+// The anonymous embed's counterpart - that route answers with its own generic rate-limit message, so
+// this just says whether the assistant's shared budget is used up.
+export const isAnonymousEmbedOverBudget = async (botId: string): Promise<boolean> => (await findExceededWindow({ anonymousEmbedBotId: botId })) !== null
 
 // The budget above is check-now-record-later, so without this a script firing hundreds of requests
 // at once would get all of them past assertWithinUsageBudget before the first one's cost landed.
@@ -89,25 +114,20 @@ export const acquireCallSlot = async (user: AuthenticatedPrincipal): Promise<() 
 	return release
 }
 
-export const recordUsage = async (user: AuthenticatedPrincipal, model: MeteredModel, usage: ChatResponseUsage): Promise<void> => {
+export const recordUsage = async (subject: BudgetSubject, model: MeteredModel, usage: ChatResponseUsage): Promise<void> => {
 	const cost = usageCostUsd(modelPriceFor(MODEL_CONFIG, model.vendorId, model.model), usage)
 	if (cost <= 0) {
 		return
 	}
+	const keys = budgetKeys(subject)
 	const rateLimiter = getRateLimiter()
-	await Promise.all([rateLimiter.add(hourKey(user.userId), cost, HOUR_MS), rateLimiter.add(dayKey(user.userId), cost, DAY_MS)])
+	await Promise.all([rateLimiter.add(keys.hour, cost, HOUR_MS), rateLimiter.add(keys.day, cost, DAY_MS)])
 }
 
 // Passes the SSE stream through untouched and records the usage from its response.done event once
 // it ends - or `fallbackUsage` if it never reports any (client aborted, vendor error). `onEnd` runs
 // at that same moment, e.g. to release the call slot from acquireCallSlot.
-export const meterUsageStream = (
-	stream: ReadableStream<Uint8Array>,
-	user: AuthenticatedPrincipal,
-	model: MeteredModel,
-	fallbackUsage: ChatResponseUsage,
-	onEnd?: () => void
-): ReadableStream<Uint8Array> => {
+export const meterUsageStream = (stream: ReadableStream<Uint8Array>, subject: BudgetSubject, model: MeteredModel, fallbackUsage: ChatResponseUsage, onEnd?: () => void): ReadableStream<Uint8Array> => {
 	const reader = stream.getReader()
 	const decoder = new TextDecoder("utf-8")
 	let buffer = ""
@@ -118,8 +138,8 @@ export const meterUsageStream = (
 		if (recorded) return
 		recorded = true
 		onEnd?.()
-		recordUsage(user, model, usage ?? fallbackUsage).catch((error) => {
-			logger.errorException(error, "Failed to record usage for {userId}", user.userId)
+		recordUsage(subject, model, usage ?? fallbackUsage).catch((error) => {
+			logger.errorException(error, "Failed to record usage for {subject}", subjectLabel(subject))
 		})
 	}
 
