@@ -3,7 +3,7 @@ import { logger } from "@vestfoldfylke/loglady"
 import z from "zod"
 import { env } from "$env/dynamic/private"
 import { ANONYMOUS_PRINCIPAL } from "$lib/anonymous-principal"
-import { stripUnarmedAttachments } from "$lib/chat-history"
+import { exceedsAttachmentLimit, stripUnarmedAttachments, TOO_MANY_ATTACHMENTS_MESSAGE } from "$lib/chat-history"
 import { getVendor } from "$lib/server/ai-vendors"
 import { APP_CONFIG } from "$lib/server/app-config/app-config"
 import { classifyQuestion, recordQuestionCategoryStat } from "$lib/server/categorize-question"
@@ -180,7 +180,11 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 	// This route returns its errors rather than throwing HTTPError (no middleware here to convert them)
 	let inputs: ChatInputItem[]
 	try {
-		inputs = await stripUnarmedAttachments(parseEmbedInputs(parsed.data.inputs, dbConfig, APP_CONFIG), parsed.data.armedAttachments)
+		const parsedInputs = parseEmbedInputs(parsed.data.inputs, dbConfig, APP_CONFIG)
+		if (await exceedsAttachmentLimit(parsedInputs, parsed.data.armedAttachments ?? [])) {
+			throw new HTTPError(400, TOO_MANY_ATTACHMENTS_MESSAGE)
+		}
+		inputs = await stripUnarmedAttachments(parsedInputs, parsed.data.armedAttachments)
 	} catch (error) {
 		if (error instanceof HTTPError) {
 			return json({ message: error.message }, { status: error.status })

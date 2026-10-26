@@ -77,6 +77,22 @@ const strippedAttachmentNote = (attachment: Attachment): ChatInputMessageContent
  * MAX_ARMED_ATTACHMENTS is reached - enforced here, since armedIds comes from the client. A file
  * that appears several times in the history is only ever sent once (its newest occurrence).
  */
+/**
+ * The newest message's own files always go to the model (stripUnarmedAttachments never touches
+ * them), so they and the earlier files the request re-arms must stay within MAX_ARMED_ATTACHMENTS
+ * together. ChatInput/ConversationAttachments enforce the same while composing; this is for a
+ * caller that skips the UI.
+ */
+export const exceedsAttachmentLimit = async (inputs: ChatInputItem[], armedIds: string[]): Promise<boolean> => {
+	const lastUserMessage = inputs.findLast((item) => item.type === "message.input" && item.role === "user")
+	const latest = lastUserMessage ? userAttachments(lastUserMessage) : []
+	const latestIds = new Set(await Promise.all(latest.map(attachmentId)))
+	const earlierArmed = new Set(armedIds.filter((id) => !latestIds.has(id)))
+	return latest.length + earlierArmed.size > MAX_ARMED_ATTACHMENTS
+}
+
+export const TOO_MANY_ATTACHMENTS_MESSAGE = `Du kan ha maks ${MAX_ARMED_ATTACHMENTS} aktive filer om gangen - nye og tidligere til sammen.`
+
 export const stripUnarmedAttachments = async (inputs: ChatInputItem[], armedIds: string[] = []): Promise<ChatInputItem[]> => {
 	if (ATTACHMENT_STRIP_MODE === "off") {
 		return inputs

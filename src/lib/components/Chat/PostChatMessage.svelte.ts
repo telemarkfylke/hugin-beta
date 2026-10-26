@@ -28,8 +28,9 @@ export const postChatMessage = async (chatRequest: ChatRequest, chatResponseObje
 				chatResponseObject.status = "failed"
 				return
 			}
-			if (response.status === 404 || response.status === 429 || response.status === 503) {
-				// 404: the assistant no longer exists (e.g. deleted while this chat was open, or a resumed
+			if (response.status === 400 || response.status === 404 || response.status === 429 || response.status === 503) {
+				// 400: the request broke a limit the UI normally prevents (too many active files, an
+				// incognito conversation too long to send). 404: the assistant no longer exists (e.g. deleted while this chat was open, or a resumed
 				// conversation's agent is gone). 429: rate limited or over the usage budget. 503: the
 				// assistant's model is unavailable (a dataLocation profile whose vendor is disabled - see
 				// resolve.ts). Not an error state worth an [Error occurred ...] banner - show the server's

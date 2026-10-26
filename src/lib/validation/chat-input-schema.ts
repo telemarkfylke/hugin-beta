@@ -33,6 +33,10 @@ export const ChatInputItemSchema = z.discriminatedUnion("type", [
 	z.object({ id: z.string(), type: z.literal("message.output"), role: z.literal("assistant"), content: z.array(OutputContentSchema).max(MAX_CONTENT_PARTS) })
 ])
 
+// Shown to the user as-is (PostChatMessage displays a 400's message) - a legitimate user mostly gets
+// here with an incognito conversation too long to send in one go
+export const INVALID_INPUTS_MESSAGE = "Samtalen er for lang eller meldingen er ugyldig. Start en ny samtale og prøv igjen."
+
 type ParsedChatInputItem = z.infer<typeof ChatInputItemSchema>
 
 const textChars = (item: ParsedChatInputItem): number => item.content.reduce((sum, part) => sum + ("text" in part ? part.text.length : "reason" in part ? part.reason.length : 0), 0)

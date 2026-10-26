@@ -1,7 +1,7 @@
 import { json, type RequestHandler } from "@sveltejs/kit"
 import { logger } from "@vestfoldfylke/loglady"
 import { canUseHistory, canUseMcpSharepoint, canUseWebsiteDataSource } from "$lib/authorization"
-import { chatHistoryToInputItems, stripUnarmedAttachments } from "$lib/chat-history"
+import { chatHistoryToInputItems, exceedsAttachmentLimit, stripUnarmedAttachments, TOO_MANY_ATTACHMENTS_MESSAGE } from "$lib/chat-history"
 import { applyChatSseEventToResponseObject } from "$lib/chat-response-builder"
 import type { ConversationManager } from "$lib/conversationstore/server/conv_manager"
 import { getConversationManager } from "$lib/conversationstore/server/get-conversation-manager"
@@ -35,7 +35,7 @@ import type { ApiNextFunction } from "$lib/types/middleware/http-request"
 import type { WebsiteSource, WebsiteSourceEntry } from "$lib/types/website-source"
 import { estimateInputUsage, requestTexts } from "$lib/usagebudget/server/cost"
 import { acquireCallSlot, assertWithinUsageBudget, meterUsageStream, recordUsage } from "$lib/usagebudget/server/usage-budget"
-import { chatInputsSchema } from "$lib/validation/chat-input-schema"
+import { chatInputsSchema, INVALID_INPUTS_MESSAGE } from "$lib/validation/chat-input-schema"
 import { validateFileInputs } from "$lib/validation/file-input"
 
 // Higher than the anonymous embed's limits: an incognito conversation here sends its whole history.
@@ -58,11 +58,14 @@ const parseChatRequest = async (body: unknown, user: AuthenticatedPrincipal): Pr
 	// Only user/assistant turns, bounded sizes - see chat-input-schema.ts
 	const parsedInputs = ChatInputsSchema.safeParse(incomingChatRequest.inputs)
 	if (!parsedInputs.success) {
-		throw new HTTPError(400, "Invalid inputs")
+		throw new HTTPError(400, INVALID_INPUTS_MESSAGE)
 	}
 	const inputs = parsedInputs.data as ChatInputItem[]
 	// Only ever selects among attachments already in the history - the cap itself is enforced in stripUnarmedAttachments
 	const armedAttachments = Array.isArray(incomingChatRequest.armedAttachments) ? incomingChatRequest.armedAttachments.filter((id): id is string => typeof id === "string") : []
+	if (await exceedsAttachmentLimit(inputs, armedAttachments)) {
+		throw new HTTPError(400, TOO_MANY_ATTACHMENTS_MESSAGE)
+	}
 	if (config.vendorAgent) {
 		return {
 			config,

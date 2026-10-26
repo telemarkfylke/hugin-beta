@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { ATTACHMENT_STRIP_MODE, attachmentId, listConversationAttachments, MAX_ARMED_ATTACHMENTS, stripUnarmedAttachments } from "../../src/lib/chat-history"
+import { ATTACHMENT_STRIP_MODE, attachmentId, exceedsAttachmentLimit, listConversationAttachments, MAX_ARMED_ATTACHMENTS, stripUnarmedAttachments } from "../../src/lib/chat-history"
 import type { ChatInputItem } from "../../src/lib/types/chat-item"
 
 const file = (name: string) => ({ type: "input_file", fileName: name, fileUrl: `data:application/pdf;base64,${name}` }) as const
@@ -58,5 +58,33 @@ describe("listConversationAttachments", () => {
 			["image", "Bilde 1"]
 		])
 		expect(list[0]?.id).toBe(await attachmentId(file("a.pdf")))
+	})
+})
+
+describe("exceedsAttachmentLimit", () => {
+	const newFiles = (n: number) => user(text("se på disse"), ...Array.from({ length: n }, (_, i) => file(`ny-${i}.pdf`)))
+
+	it("allows up to MAX_ARMED_ATTACHMENTS new files with nothing armed", async () => {
+		expect(await exceedsAttachmentLimit([newFiles(MAX_ARMED_ATTACHMENTS)], [])).toBe(false)
+		expect(await exceedsAttachmentLimit([newFiles(MAX_ARMED_ATTACHMENTS + 1)], [])).toBe(true)
+	})
+
+	it("counts new files and re-armed earlier ones together", async () => {
+		const earlier = [file("a.pdf"), file("b.pdf")]
+		const armed = await Promise.all(earlier.map(attachmentId))
+		const history = [user(...earlier), answer("1")]
+
+		expect(await exceedsAttachmentLimit([...history, newFiles(MAX_ARMED_ATTACHMENTS - 2)], armed)).toBe(false)
+		expect(await exceedsAttachmentLimit([...history, newFiles(MAX_ARMED_ATTACHMENTS - 1)], armed)).toBe(true)
+	})
+
+	it("doesn't count a new file twice when it's also listed as armed", async () => {
+		const files = Array.from({ length: MAX_ARMED_ATTACHMENTS }, (_, i) => file(`ny-${i}.pdf`))
+		const ids = await Promise.all(files.map(attachmentId))
+		expect(await exceedsAttachmentLimit([user(...files)], ids)).toBe(false)
+	})
+
+	it("ignores a message with only text", async () => {
+		expect(await exceedsAttachmentLimit([user(text("hei"))], [])).toBe(false)
 	})
 })

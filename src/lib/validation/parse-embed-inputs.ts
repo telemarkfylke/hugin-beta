@@ -2,7 +2,7 @@ import { HTTPError } from "$lib/server/middleware/http-error"
 import type { AppConfig } from "$lib/types/app-config"
 import type { ChatConfig } from "$lib/types/chat"
 import type { ChatInputItem } from "$lib/types/chat-item"
-import { chatInputsSchema } from "./chat-input-schema"
+import { chatInputsSchema, INVALID_INPUTS_MESSAGE } from "./chat-input-schema"
 import { validateFileInputs } from "./file-input"
 
 // The anonymous embed has no stored history, so the visitor's client must send the whole conversation.
@@ -17,7 +17,7 @@ const EmbedInputsSchema = chatInputsSchema(MAX_INPUT_ITEMS, MAX_TOTAL_TEXT_CHARS
 export const parseEmbedInputs = (rawInputs: unknown, dbConfig: ChatConfig, appConfig: AppConfig): ChatInputItem[] => {
 	const parsed = EmbedInputsSchema.safeParse(rawInputs)
 	if (!parsed.success) {
-		throw new HTTPError(400, "Invalid inputs")
+		throw new HTTPError(400, INVALID_INPUTS_MESSAGE)
 	}
 	const inputs = parsed.data as ChatInputItem[]
 
