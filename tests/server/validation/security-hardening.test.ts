@@ -51,6 +51,26 @@ describe("canUpdateChatConfig - who may change an assistant's audience", () => {
 	})
 })
 
+describe("canUpdateChatConfig - anonymous embed rate limits", () => {
+	const admin = principal("admin", ROLES.ADMIN)
+	const maintainer = principal("maintainer", ROLES.EMPLOYEE, ROLES.AGENT_MAINTAINER)
+	const stored = config({ type: "published", allowAnonymousEmbed: true, rateLimitPerIpPerDay: 50, created: { at: "now", by: { id: "maintainer" } } })
+
+	it("stops a non-admin editor from changing them", () => {
+		expect(canUpdateChatConfig(maintainer, ROLES, stored, { ...stored, rateLimitPerIpPerDay: 100000 })).toBe(false)
+		expect(canUpdateChatConfig(maintainer, ROLES, stored, { ...stored, rateLimitPerIpPerMinute: 1000 })).toBe(false)
+		expect(canUpdateChatConfig(maintainer, ROLES, stored, { ...stored, rateLimitPerBotPerDay: undefined, rateLimitPerIpPerDay: undefined })).toBe(false)
+	})
+
+	it("lets a non-admin editor save other changes with the limits unchanged", () => {
+		expect(canUpdateChatConfig(maintainer, ROLES, stored, { ...stored, instructions: "new" })).toBe(true)
+	})
+
+	it("lets an admin change them", () => {
+		expect(canUpdateChatConfig(admin, ROLES, stored, { ...stored, rateLimitPerIpPerDay: 100000 })).toBe(true)
+	})
+})
+
 describe("chatInputsSchema - the whole inputs array", () => {
 	const user = (t: string) => ({ type: "message.input", role: "user", content: [{ type: "input_text", text: t }] })
 	const assistant = (t: string) => ({ id: "a", type: "message.output", role: "assistant", content: [{ type: "output_text", text: t }] })
