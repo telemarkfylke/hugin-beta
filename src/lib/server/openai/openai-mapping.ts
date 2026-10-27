@@ -145,11 +145,15 @@ const openAIOutputToChatOutput = (outputItem: ResponseOutputItem): ChatOutputIte
 
 // A response cut off by MAX_OUTPUT_TOKENS ends with "response.incomplete" instead of "response.completed"
 // - still billed, so its usage must be reported all the same, and the user should know why it stops.
-export const usageFromOpenAIResponse = (response: Response): ChatResponseUsage => ({
-	inputTokens: response.usage?.input_tokens || 0,
-	outputTokens: response.usage?.output_tokens || 0,
-	totalTokens: response.usage?.total_tokens || 0
-})
+export const usageFromOpenAIResponse = (response: Response): ChatResponseUsage => {
+	const webSearchCalls = (response.output ?? []).filter((item) => item.type === "web_search_call").length
+	return {
+		inputTokens: response.usage?.input_tokens || 0,
+		outputTokens: response.usage?.output_tokens || 0,
+		totalTokens: response.usage?.total_tokens || 0,
+		...(webSearchCalls > 0 ? { webSearchCalls } : {})
+	}
+}
 
 export const OUTPUT_LIMIT_NOTICE = "\n\n_(Svaret ble avkortet fordi det ble for langt.)_"
 

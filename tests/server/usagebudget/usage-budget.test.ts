@@ -1,10 +1,23 @@
+import type { Response } from "openai/resources/responses/responses"
 import { describe, expect, it } from "vitest"
 import { APP_CONFIG } from "$lib/server/app-config/app-config"
 import { getRateLimiter } from "$lib/server/db/get-db"
+import { usageFromMistral } from "$lib/server/mistral/mistral-mapping"
 import type { ModelConfig } from "$lib/server/models/types"
+import { usageFromOpenAIResponse } from "$lib/server/openai/openai-mapping"
 import { createSse } from "$lib/streaming"
 import type { AuthenticatedPrincipal } from "$lib/types/authentication"
-import { DEFAULT_USAGE_BUDGETS, estimateInputUsage, modelPriceFor, parseUsageBudgets, requestTexts, UNKNOWN_MODEL_PRICE, usageBudgetFor, usageCostUsd } from "$lib/usagebudget/server/cost"
+import {
+	DEFAULT_USAGE_BUDGETS,
+	estimateInputUsage,
+	modelPriceFor,
+	parseUsageBudgets,
+	requestTexts,
+	UNKNOWN_MODEL_PRICE,
+	usageBudgetFor,
+	usageCostUsd,
+	WEB_SEARCH_CALL_PRICE_USD
+} from "$lib/usagebudget/server/cost"
 import { acquireCallSlot, assertWithinUsageBudget, isAnonymousEmbedOverBudget, meterUsageStream, recordUsage, USAGE_BUDGETS } from "$lib/usagebudget/server/usage-budget"
 
 const DAY_MS = 24 * 60 * 60_000
@@ -46,6 +59,27 @@ const done = (inputTokens: number, outputTokens: number) => createSse({ event: "
 describe("usage cost", () => {
 	it("prices input and output tokens separately, per million", () => {
 		expect(usageCostUsd({ inputPerMillion: 10, outputPerMillion: 40 }, { inputTokens: 500_000, outputTokens: 250_000, totalTokens: 750_000 })).toBe(15)
+	})
+
+	it("adds the per-call web search fee on top of the tokens", () => {
+		const price = { inputPerMillion: 10, outputPerMillion: 40 }
+		const tokens = { inputTokens: 500_000, outputTokens: 250_000, totalTokens: 750_000 }
+		expect(usageCostUsd(price, { ...tokens, webSearchCalls: 4 })).toBeCloseTo(15 + 4 * WEB_SEARCH_CALL_PRICE_USD)
+		expect(usageCostUsd(price, { inputTokens: 0, outputTokens: 0, totalTokens: 0, webSearchCalls: 1 })).toBeGreaterThan(0)
+	})
+
+	it("counts OpenAI web search calls from the response output", () => {
+		const response = { usage: { input_tokens: 10, output_tokens: 5, total_tokens: 15 }, output: [{ type: "web_search_call" }, { type: "web_search_call" }, { type: "message" }] } as unknown as Response
+		expect(usageFromOpenAIResponse(response)).toEqual({ inputTokens: 10, outputTokens: 5, totalTokens: 15, webSearchCalls: 2 })
+	})
+
+	it("counts Mistral connector calls, and their tokens as input", () => {
+		expect(usageFromMistral({ promptTokens: 10, completionTokens: 5, totalTokens: 15, connectorTokens: 100, connectors: { web_search: 3 } })).toEqual({
+			inputTokens: 110,
+			outputTokens: 5,
+			totalTokens: 115,
+			webSearchCalls: 3
+		})
 	})
 
 	it("looks a model up by vendor + provider model, and never treats a missing price as free", () => {

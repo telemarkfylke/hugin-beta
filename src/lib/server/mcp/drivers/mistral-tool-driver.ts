@@ -1,6 +1,6 @@
 import type { Mistral } from "@mistralai/mistralai"
-import type { FunctionResultEntry, FunctionTool, InputEntries, WebSearchTool } from "@mistralai/mistralai/models/components"
-import { chatInputToMistralInput } from "$lib/server/mistral/mistral-mapping"
+import type { ConversationUsageInfo, FunctionResultEntry, FunctionTool, InputEntries, WebSearchTool } from "@mistralai/mistralai/models/components"
+import { chatInputToMistralInput, usageFromMistral } from "$lib/server/mistral/mistral-mapping"
 import { MAX_OUTPUT_TOKENS } from "$lib/server/models/models.config"
 import type { ChatRequest } from "$lib/types/chat"
 import type { ToolResult, ToolTurnDriver, ToolTurnEvent } from "../agentic-loop"
@@ -57,16 +57,7 @@ export const createMistralToolDriver = (mistral: Mistral, chatRequest: ChatReque
 					throw new Error(message)
 				}
 				case "conversation.response.done": {
-					// ResponseDoneEvent.usage is a ConversationUsageInfo (promptTokens/completionTokens/totalTokens).
-					const usage = data.usage as { promptTokens?: number; completionTokens?: number; totalTokens?: number } | undefined
-					yield {
-						type: "usage",
-						usage: {
-							inputTokens: usage?.promptTokens ?? 0,
-							outputTokens: usage?.completionTokens ?? 0,
-							totalTokens: usage?.totalTokens ?? 0
-						}
-					}
+					yield { type: "usage", usage: usageFromMistral(data.usage as ConversationUsageInfo | undefined) }
 					break
 				}
 				default:
