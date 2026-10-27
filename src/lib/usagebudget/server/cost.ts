@@ -99,7 +99,12 @@ export const modelPriceFor = (modelConfig: ModelConfig, vendorId: VendorId, prov
 	return model?.price ?? UNKNOWN_MODEL_PRICE
 }
 
-export const usageCostUsd = (price: ModelPrice, usage: ChatResponseUsage): number => (usage.inputTokens * price.inputPerMillion + usage.outputTokens * price.outputPerMillion) / 1_000_000
+// Per web search call, on top of the tokens - the priciest of our vendors' list prices (Mistral $30 per
+// 1k calls, OpenAI $10-25 depending on tool version), rounded up rather than kept per vendor.
+export const WEB_SEARCH_CALL_PRICE_USD = 0.03
+
+export const usageCostUsd = (price: ModelPrice, usage: ChatResponseUsage): number =>
+	(usage.inputTokens * price.inputPerMillion + usage.outputTokens * price.outputPerMillion) / 1_000_000 + (usage.webSearchCalls ?? 0) * WEB_SEARCH_CALL_PRICE_USD
 
 // ~4 characters per token - only used when a stream ends without reporting usage (client aborted,
 // vendor error), so the input the vendor already billed for still counts against the budget.

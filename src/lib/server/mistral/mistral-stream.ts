@@ -2,6 +2,7 @@ import type { EventStream } from "@mistralai/mistralai/lib/event-streams"
 import type { ConversationEvents } from "@mistralai/mistralai/models/components/conversationevents"
 import { createSse } from "$lib/streaming.js"
 import type { IAIVendorStreamHandler } from "$lib/types/AIVendor"
+import { usageFromMistral } from "./mistral-mapping"
 
 export const handleMistralResponseStream: IAIVendorStreamHandler<EventStream<ConversationEvents>> = (_chatRequest, mistralStream) => {
 	return new ReadableStream({
@@ -39,12 +40,7 @@ export const handleMistralResponseStream: IAIVendorStreamHandler<EventStream<Con
 					case "tool.execution.done":
 						break
 					case "conversation.response.done":
-						controller.enqueue(
-							createSse({
-								event: "response.done",
-								data: { usage: { inputTokens: chunk.data.usage?.promptTokens || 0, outputTokens: chunk.data.usage?.completionTokens || 0, totalTokens: chunk.data.usage?.totalTokens || 0 } }
-							})
-						)
+						controller.enqueue(createSse({ event: "response.done", data: { usage: usageFromMistral(chunk.data.usage) } }))
 						break
 					case "conversation.response.error":
 						controller.enqueue(createSse({ event: "response.error", data: { code: chunk.data.code.toString(), message: chunk.data.message } }))

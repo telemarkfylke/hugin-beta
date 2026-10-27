@@ -1,6 +1,6 @@
-import type { ConversationResponse, InputEntries, MessageInputEntry, MessageOutputEntry } from "@mistralai/mistralai/models/components"
+import type { ConversationResponse, ConversationUsageInfo, InputEntries, MessageInputEntry, MessageOutputEntry } from "@mistralai/mistralai/models/components"
 import { logger } from "@vestfoldfylke/loglady"
-import type { ChatConfig, ChatResponseObject } from "$lib/types/chat"
+import type { ChatConfig, ChatResponseObject, ChatResponseUsage } from "$lib/types/chat"
 import type { ChatInputItem, ChatInputMessage, ChatOutputItem, ChatOutputMessage } from "$lib/types/chat-item"
 
 const chatInputMessageToMistralInputMessage = (inputItem: ChatInputMessage): MessageInputEntry => {
@@ -140,6 +140,19 @@ const MistralOutputToChatOutput = (outputItem: ConversationResponse["outputs"][n
 	}
 }
 
+// Connectors (web_search etc.) are billed per call, and their tokens may not be in promptTokens - counted
+// as input here so they're never free; at worst that counts them twice.
+export const usageFromMistral = (usage: ConversationUsageInfo | null | undefined): ChatResponseUsage => {
+	const connectorTokens = usage?.connectorTokens || 0
+	const webSearchCalls = Object.values(usage?.connectors ?? {}).reduce((sum, calls) => sum + calls, 0)
+	return {
+		inputTokens: (usage?.promptTokens || 0) + connectorTokens,
+		outputTokens: usage?.completionTokens || 0,
+		totalTokens: (usage?.totalTokens || 0) + connectorTokens,
+		...(webSearchCalls > 0 ? { webSearchCalls } : {})
+	}
+}
+
 export const mistralResponseToChatResponseObject = (config: ChatConfig, response: ConversationResponse): ChatResponseObject => {
 	return {
 		id: response.conversationId,
@@ -148,10 +161,6 @@ export const mistralResponseToChatResponseObject = (config: ChatConfig, response
 		createdAt: new Date().toISOString(),
 		outputs: response.outputs.map(MistralOutputToChatOutput),
 		status: "completed",
-		usage: {
-			inputTokens: response.usage.promptTokens || 0,
-			outputTokens: response.usage?.completionTokens || 0,
-			totalTokens: response.usage?.totalTokens || 0
-		}
+		usage: usageFromMistral(response.usage)
 	}
 }

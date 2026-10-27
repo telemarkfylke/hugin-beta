@@ -1,4 +1,4 @@
-import { canChooseProfile } from "../authorization"
+import { canChooseProfile, canEditPredefinedConfig } from "../authorization"
 import { HTTPError } from "../server/middleware/http-error"
 import type { AppConfig } from "../types/app-config"
 import type { AuthenticatedPrincipal } from "../types/authentication"
@@ -97,6 +97,11 @@ export const parseChatConfig = (input: unknown, APP_CONFIG: AppConfig, options: 
 		}
 		if (!parsedConfig.vendorAgent.id || typeof parsedConfig.vendorAgent.id !== "string") {
 			throw new HTTPError(400, "vendorAgent.id must be a string")
+		}
+		// A vendor agent skips the profile role check, so only maintainers may point an assistant at one.
+		// Unchanged ids pass, so a co-editor can still save an assistant a maintainer set up.
+		if (options.mode === "save" && parsedConfig.vendorAgent.id !== options.previous?.vendorAgent?.id && !canEditPredefinedConfig(options.user, APP_CONFIG.APP_ROLES)) {
+			throw new HTTPError(403, "Only agent maintainers can choose a vendor agent")
 		}
 		if (parsedConfig.tools?.some((tool) => tool.type === "mcp")) {
 			throw new HTTPError(400, "MCP tools are not supported on predefined vendor-agent configs")
