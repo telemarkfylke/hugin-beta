@@ -193,6 +193,10 @@ const supahChat: ApiNextFunction = async ({ requestEvent, user }) => {
 		mcpSources = resolved.filter((source): source is McpSource => source !== null)
 	}
 
+	// The RAG step below appends this turn's context to the instructions - the stored and returned
+	// response gets the instructions from before that, so the conversation doesn't keep it forever
+	const instructionsBeforeRag = chatRequest.config.instructions
+
 	if (ragStoreIds.length > 0) {
 		if (queryText) {
 			const graphToken = requestEvent.request.headers.get(MS_AUTH_TOKEN_HEADER)
@@ -238,7 +242,7 @@ const supahChat: ApiNextFunction = async ({ requestEvent, user }) => {
 			const announceChunk = createSse({ event: "hugin_conversation.created", data: { huginConversationId } })
 			const finalStream = prependChunk(clientBranch, announceChunk)
 
-			captureAndPersistStream(captureBranch, getConversationManager(), huginConversationId, userInputMessage, chatRequest.config, user).catch((error) => {
+			captureAndPersistStream(captureBranch, getConversationManager(), huginConversationId, userInputMessage, { ...chatRequest.config, instructions: instructionsBeforeRag }, user).catch((error) => {
 				logger.errorException(error, "Failed to capture/persist streamed chat response")
 			})
 
@@ -263,6 +267,7 @@ const supahChat: ApiNextFunction = async ({ requestEvent, user }) => {
 	recordUsage(user, chatRequest.config, response.usage).catch((error) => {
 		logger.errorException(error, "Failed to record usage for {userId}", user.userId)
 	})
+	response = { ...response, config: { ...chatRequest.config, instructions: instructionsBeforeRag } }
 
 	if (huginConversationId && userInputMessage) {
 		try {
