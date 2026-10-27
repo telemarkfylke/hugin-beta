@@ -1,6 +1,14 @@
 import { goto } from "$app/navigation"
 import { canUseHistory } from "$lib/authorization"
-import { ATTACHMENT_STRIP_MODE, attachmentId, type ConversationAttachment, chatHistoryToInputItems, listConversationAttachments, MAX_ARMED_ATTACHMENTS } from "$lib/chat-history"
+import {
+	ATTACHMENT_STRIP_MODE,
+	attachmentId,
+	type ConversationAttachment,
+	chatHistoryToInputItems,
+	listConversationAttachments,
+	MAX_ARMED_ATTACHMENTS,
+	stripUnarmedAttachments
+} from "$lib/chat-history"
 import { getModelDisplayName, supportsWebSearch } from "$lib/model-profiles"
 import type { AppConfig } from "$lib/types/app-config"
 import type { AuthenticatedPrincipal } from "$lib/types/authentication"
@@ -475,7 +483,8 @@ export class ChatState {
 				tools: activeTools
 			},
 			// Uten lagring (store=false) har backend ingen historikk å bygge kontekst fra, så da må vi fortsatt sende hele samtalen selv.
-			inputs: effectiveStoreChat ? [userMessage] : [...chatInput, userMessage],
+			// Inaktive vedlegg strippes her også - serveren gjør det samme uansett, så de er bare dødvekt i forespørselen.
+			inputs: effectiveStoreChat ? [userMessage] : await stripUnarmedAttachments([...chatInput, userMessage], armedForThisTurn),
 			stream: this.streamResponse,
 			store: effectiveStoreChat,
 			huginConversationId: effectiveStoreChat ? this.chat._id || undefined : undefined,
