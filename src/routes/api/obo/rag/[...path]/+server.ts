@@ -19,9 +19,8 @@ async function proxyToRag(request: Request, path: string, url: URL): Promise<Res
 	}
 	const userId = principal.userId
 
-	// Admin-only while the ragservice GUI still needs a deeper review - not just for existing
-	// libraries (those are already gated per-store via AccessRow), but anyone let through here
-	// could otherwise create their own libraries too, which nothing else here would stop.
+	// Employees and admins only - anyone let through here can also create their own libraries,
+	// which nothing else here would stop (existing libraries are gated per-store via AccessRow).
 	if (!canUseRagservice(principal, APP_CONFIG.APP_ROLES)) {
 		error(403, "Ikke tilgang til datakilder")
 	}
@@ -63,7 +62,9 @@ async function proxyToRag(request: Request, path: string, url: URL): Promise<Res
 
 	if (upstream.status >= 300 && upstream.status < 400) {
 		const location = upstream.headers.get("location")
-		if (location) upstream = await fetch(location, { method: request.method, headers })
+		// Only follow redirects back to ragservice itself - the headers carry our bearer token
+		const target = location ? new URL(location, ragUrl) : null
+		if (target && target.origin === new URL(ragUrl).origin) upstream = await fetch(target, { method: request.method, headers })
 	}
 
 	return new Response(upstream.body, {
