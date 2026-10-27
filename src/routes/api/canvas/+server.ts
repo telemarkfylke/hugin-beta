@@ -9,7 +9,7 @@ import { getDefaultModel } from "$lib/server/models/model-registry"
 import { responseStream } from "$lib/streaming"
 import type { ApiNextFunction } from "$lib/types/middleware/http-request"
 import { estimateInputUsage } from "$lib/usagebudget/server/cost"
-import { acquireCallSlot, assertWithinUsageBudget, meterUsageStream } from "$lib/usagebudget/server/usage-budget"
+import { acquireCallSlot, assertWithinUsageBudget, meterUsageStream, reserveUsage } from "$lib/usagebudget/server/usage-budget"
 import { parseCanvasRequest } from "$lib/validation/parse-canvas-request"
 
 const CANVAS_SYSTEM_PROMPT = `You are a document editor. The user will give you a document (in markdown) and a prompt describing what to change.
@@ -39,6 +39,10 @@ const canvasHandler: ApiNextFunction = async ({ requestEvent, user }) => {
 	const userMessage = document ? `Here is the current document:\n\n${document}\n\n---\n\nUser instruction: ${prompt}` : prompt
 
 	const releaseCallSlot = await acquireCallSlot(user)
+	const reservation = await reserveUsage(user, canvasModel, estimateInputUsage([CANVAS_SYSTEM_PROMPT, userMessage])).catch((error) => {
+		releaseCallSlot()
+		throw error
+	})
 	const vendor = getVendor(canvasModel.vendorId)
 	const stream = await vendor
 		.createChatResponseStream({
@@ -67,11 +71,12 @@ const canvasHandler: ApiNextFunction = async ({ requestEvent, user }) => {
 		})
 		.catch((error) => {
 			releaseCallSlot()
+			reservation.cancel()
 			throw error
 		})
 
 	// The slot is released when the stream ends - not when this handler returns, which is right away
-	return { isAuthorized: true, response: responseStream(meterUsageStream(stream, user, canvasModel, estimateInputUsage([CANVAS_SYSTEM_PROMPT, userMessage]), releaseCallSlot)) }
+	return { isAuthorized: true, response: responseStream(meterUsageStream(stream, reservation, releaseCallSlot)) }
 }
 
 export const POST: RequestHandler = async (requestEvent) => {

@@ -10,10 +10,11 @@ import type { ChatResponseUsage, VendorId } from "$lib/types/chat"
 import { modelPriceFor, parseUsageBudgets, usageBudgetFor, usageCostUsd } from "./cost"
 
 // Token-cost budget, counted in USD on the shared rate-limit counters (see IRateLimiter) - per user,
-// or per anonymously embedded assistant. Check-then-record, not atomic: the cost is only known once
-// the vendor has answered, so a user can overshoot by whatever calls they had in flight when they
-// crossed the line - bounded by acquireCallSlot below. Deliberately independent of incognito/store,
-// like the stats.
+// or per anonymously embedded assistant. The full cost is only known once the vendor has answered, so
+// each call reserves its input cost (known up front) right before the vendor call and settles the
+// difference afterwards (see reserveUsage) - calls in flight count against each other, and only their
+// output can overshoot, bounded by MAX_OUTPUT_TOKENS and acquireCallSlot. Deliberately independent of
+// incognito/store, like the stats.
 
 type MeteredModel = { vendorId: VendorId; model?: string | undefined }
 
@@ -49,30 +50,34 @@ const formatRetry = (ms: number): string => {
 	return `${hours} ${hours === 1 ? "time" : "timer"}`
 }
 
-// The window the subject has used up (day checked first), or null while within budget
-const findExceededWindow = async (subject: BudgetSubject): Promise<{ window: "day" | "hour"; retryAfterMs: number } | null> => {
+// The window the subject has used up (day checked first), or null while within budget. `ownReservation`
+// is left out of the count, so a call is only refused for what was spent or reserved before it.
+const findExceededWindow = async (subject: BudgetSubject, ownReservation = 0): Promise<{ window: "day" | "hour"; retryAfterMs: number } | null> => {
 	const budget = isAnonymousEmbed(subject) ? USAGE_BUDGETS.ANONYMOUS_EMBED : usageBudgetFor(subject, APP_CONFIG.APP_ROLES, USAGE_BUDGETS)
 	const keys = budgetKeys(subject)
 	const rateLimiter = getRateLimiter()
 	const [hour, day] = await Promise.all([rateLimiter.getCount(keys.hour, HOUR_MS), rateLimiter.getCount(keys.day, DAY_MS)])
 
-	if (day.count >= budget.perDayUsd) {
+	if (day.count - ownReservation >= budget.perDayUsd) {
 		logger.warn("Usage budget: {subject} is over the daily budget ({spent} of {budget} USD)", subjectLabel(subject), day.count.toFixed(2), budget.perDayUsd)
 		return { window: "day", retryAfterMs: day.retryAfterMs }
 	}
-	if (hour.count >= budget.perHourUsd) {
+	if (hour.count - ownReservation >= budget.perHourUsd) {
 		logger.warn("Usage budget: {subject} is over the hourly budget ({spent} of {budget} USD)", subjectLabel(subject), hour.count.toFixed(2), budget.perHourUsd)
 		return { window: "hour", retryAfterMs: hour.retryAfterMs }
 	}
 	return null
 }
 
+const budgetExceededError = (exceeded: { window: "day" | "hour"; retryAfterMs: number }) =>
+	new HTTPError(429, `Du har nådd grensen for KI-bruk ${exceeded.window === "day" ? "i dag" : "denne timen"}. Prøv igjen om ${formatRetry(exceeded.retryAfterMs)}.`)
+
 // Call before any vendor work - throws a 429 with a user-facing (Norwegian) message, which the chat
-// and canvas clients already show as-is.
+// and canvas clients already show as-is. A cheap early exit only; reserveUsage checks again.
 export const assertWithinUsageBudget = async (user: AuthenticatedPrincipal): Promise<void> => {
 	const exceeded = await findExceededWindow(user)
 	if (exceeded) {
-		throw new HTTPError(429, `Du har nådd grensen for KI-bruk ${exceeded.window === "day" ? "i dag" : "denne timen"}. Prøv igjen om ${formatRetry(exceeded.retryAfterMs)}.`)
+		throw budgetExceededError(exceeded)
 	}
 }
 
@@ -80,10 +85,9 @@ export const assertWithinUsageBudget = async (user: AuthenticatedPrincipal): Pro
 // this just says whether the assistant's shared budget is used up.
 export const isAnonymousEmbedOverBudget = async (botId: string): Promise<boolean> => (await findExceededWindow({ anonymousEmbedBotId: botId })) !== null
 
-// The budget above is check-now-record-later, so without this a script firing hundreds of requests
-// at once would get all of them past assertWithinUsageBudget before the first one's cost landed.
-// Capping the calls in flight per user bounds that overshoot to MAX_CONCURRENT_CALLS x one call,
-// and one call is itself bounded (input size limits, MAX_OUTPUT_TOKENS).
+// A reservation only covers a call's input, so without this a script firing hundreds of requests at
+// once could still overshoot by hundreds of outputs. Capping the calls in flight per user bounds that
+// to MAX_CONCURRENT_CALLS x one output, itself capped at MAX_OUTPUT_TOKENS.
 const MAX_CONCURRENT_CALLS = 3
 // A slot whose release never runs (process crashed mid-call) frees itself when its window ends. A
 // release landing in the next window decrements that one instead, which can briefly allow a few
@@ -114,20 +118,64 @@ export const acquireCallSlot = async (user: AuthenticatedPrincipal): Promise<() 
 	return release
 }
 
-export const recordUsage = async (subject: BudgetSubject, model: MeteredModel, usage: ChatResponseUsage): Promise<void> => {
-	const cost = usageCostUsd(modelPriceFor(MODEL_CONFIG, model.vendorId, model.model), usage)
-	if (cost <= 0) {
+// May be negative (a reservation settled below its estimate). A settle landing in the next window adds
+// there instead - like a call slot's release, bounded and far simpler than per-call bookkeeping.
+const addCost = async (subject: BudgetSubject, costUsd: number): Promise<void> => {
+	if (costUsd === 0) {
 		return
 	}
 	const keys = budgetKeys(subject)
 	const rateLimiter = getRateLimiter()
-	await Promise.all([rateLimiter.add(keys.hour, cost, HOUR_MS), rateLimiter.add(keys.day, cost, DAY_MS)])
+	await Promise.all([rateLimiter.add(keys.hour, costUsd, HOUR_MS), rateLimiter.add(keys.day, costUsd, DAY_MS)])
 }
 
-// Passes the SSE stream through untouched and records the usage from its response.done event once
-// it ends - or `fallbackUsage` if it never reports any (client aborted, vendor error). `onEnd` runs
-// at that same moment, e.g. to release the call slot from acquireCallSlot.
-export const meterUsageStream = (stream: ReadableStream<Uint8Array>, subject: BudgetSubject, model: MeteredModel, fallbackUsage: ChatResponseUsage, onEnd?: () => void): ReadableStream<Uint8Array> => {
+export const recordUsage = async (subject: BudgetSubject, model: MeteredModel, usage: ChatResponseUsage): Promise<void> => {
+	const cost = usageCostUsd(modelPriceFor(MODEL_CONFIG, model.vendorId, model.model), usage)
+	if (cost > 0) {
+		await addCost(subject, cost)
+	}
+}
+
+const NO_USAGE: ChatResponseUsage = { inputTokens: 0, outputTokens: 0, totalTokens: 0 }
+
+// settle(usage) once the call is over, with its real usage - or null when it ended without reporting
+// any (client aborted, vendor error mid-stream), which keeps the reserved input estimate as the cost.
+// cancel() when the vendor call failed outright, so nothing was billed. Only the first of either counts.
+export type UsageReservation = { settle: (usage: ChatResponseUsage | null) => void; cancel: () => void }
+
+// Right before the vendor call, once the input is final: counts the estimated input cost against the
+// budget straight away, so calls in flight see each other, then checks the budget again with them
+// included. Throws the same 429 as assertWithinUsageBudget (giving the reservation back first).
+export const reserveUsage = async (subject: BudgetSubject, model: MeteredModel, estimatedInput: ChatResponseUsage): Promise<UsageReservation> => {
+	const price = modelPriceFor(MODEL_CONFIG, model.vendorId, model.model)
+	const reserved = usageCostUsd(price, estimatedInput)
+	await addCost(subject, reserved)
+
+	let settled = false
+	const settle = (usage: ChatResponseUsage | null) => {
+		if (settled) return
+		settled = true
+		const difference = usage ? usageCostUsd(price, usage) - reserved : 0
+		addCost(subject, difference).catch((error) => {
+			logger.errorException(error, "Failed to settle usage for {subject}", subjectLabel(subject))
+		})
+	}
+
+	const cancel = () => settle(NO_USAGE)
+
+	const exceeded = await findExceededWindow(subject, reserved)
+	if (exceeded) {
+		cancel()
+		throw budgetExceededError(exceeded)
+	}
+	return { settle, cancel }
+}
+
+// Passes the SSE stream through untouched and settles the reservation with the usage from its
+// response.done event once it ends - or keeps the reserved estimate if it never reports any (client
+// aborted, vendor error). `onEnd` runs at that same moment, e.g. to release the call slot from
+// acquireCallSlot.
+export const meterUsageStream = (stream: ReadableStream<Uint8Array>, reservation: UsageReservation, onEnd?: () => void): ReadableStream<Uint8Array> => {
 	const reader = stream.getReader()
 	const decoder = new TextDecoder("utf-8")
 	let buffer = ""
@@ -138,9 +186,7 @@ export const meterUsageStream = (stream: ReadableStream<Uint8Array>, subject: Bu
 		if (recorded) return
 		recorded = true
 		onEnd?.()
-		recordUsage(subject, model, usage ?? fallbackUsage).catch((error) => {
-			logger.errorException(error, "Failed to record usage for {subject}", subjectLabel(subject))
-		})
+		reservation.settle(usage)
 	}
 
 	// Chunks needn't line up with SSE events - only parse up to the last complete one

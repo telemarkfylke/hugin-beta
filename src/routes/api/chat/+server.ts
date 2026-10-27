@@ -34,7 +34,7 @@ import type { McpSource } from "$lib/types/mcp-source"
 import type { ApiNextFunction } from "$lib/types/middleware/http-request"
 import type { WebsiteSource, WebsiteSourceEntry } from "$lib/types/website-source"
 import { estimateInputUsage, requestTexts } from "$lib/usagebudget/server/cost"
-import { acquireCallSlot, assertWithinUsageBudget, meterUsageStream, recordUsage } from "$lib/usagebudget/server/usage-budget"
+import { acquireCallSlot, assertWithinUsageBudget, meterUsageStream, reserveUsage } from "$lib/usagebudget/server/usage-budget"
 import { chatInputsSchema, INVALID_INPUTS_MESSAGE } from "$lib/validation/chat-input-schema"
 import { validateFileInputs } from "$lib/validation/file-input"
 
@@ -224,6 +224,11 @@ const supahChat: ApiNextFunction = async ({ requestEvent, user }) => {
 	const vendor = getVendor(chatRequest.config.vendorId)
 
 	const releaseCallSlot = await acquireCallSlot(user)
+	// After the RAG step, so its context in the instructions is part of the reserved input
+	const reservation = await reserveUsage(user, chatRequest.config, estimateInputUsage(requestTexts(chatRequest.config.instructions, chatRequest.inputs))).catch((error) => {
+		releaseCallSlot()
+		throw error
+	})
 
 	if (chatRequest.stream) {
 		let toolCallingStream: ReadableStream<Uint8Array>
@@ -231,10 +236,11 @@ const supahChat: ApiNextFunction = async ({ requestEvent, user }) => {
 			toolCallingStream = await buildToolCallingStream(chatRequest, vendor, mcpSources, websiteToolActive ? websiteEntries : [])
 		} catch (error) {
 			releaseCallSlot()
+			reservation.cancel()
 			throw error
 		}
 		// The slot is released when the stream ends - not when this handler returns, which is right away
-		const stream = meterUsageStream(toolCallingStream, user, chatRequest.config, estimateInputUsage(requestTexts(chatRequest.config.instructions, chatRequest.inputs)), releaseCallSlot)
+		const stream = meterUsageStream(toolCallingStream, reservation, releaseCallSlot)
 
 		if (huginConversationId && userInputMessage) {
 			const [clientBranch, captureBranch] = stream.tee()
@@ -261,12 +267,13 @@ const supahChat: ApiNextFunction = async ({ requestEvent, user }) => {
 	let response: ChatResponseObject
 	try {
 		response = await vendor.createChatResponse(chatRequest)
+	} catch (error) {
+		reservation.cancel()
+		throw error
 	} finally {
 		releaseCallSlot()
 	}
-	recordUsage(user, chatRequest.config, response.usage).catch((error) => {
-		logger.errorException(error, "Failed to record usage for {userId}", user.userId)
-	})
+	reservation.settle(response.usage)
 	response = { ...response, config: { ...chatRequest.config, instructions: instructionsBeforeRag } }
 
 	if (huginConversationId && userInputMessage) {

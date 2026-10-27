@@ -1,5 +1,5 @@
 import type { Response } from "openai/resources/responses/responses"
-import { describe, expect, it } from "vitest"
+import { describe, expect, it, vi } from "vitest"
 import { APP_CONFIG } from "$lib/server/app-config/app-config"
 import { getRateLimiter } from "$lib/server/db/get-db"
 import { usageFromMistral } from "$lib/server/mistral/mistral-mapping"
@@ -18,7 +18,14 @@ import {
 	usageCostUsd,
 	WEB_SEARCH_CALL_PRICE_USD
 } from "$lib/usagebudget/server/cost"
-import { acquireCallSlot, assertWithinUsageBudget, isAnonymousEmbedOverBudget, meterUsageStream, recordUsage, USAGE_BUDGETS } from "$lib/usagebudget/server/usage-budget"
+import { acquireCallSlot, assertWithinUsageBudget, isAnonymousEmbedOverBudget, meterUsageStream, recordUsage, reserveUsage, USAGE_BUDGETS } from "$lib/usagebudget/server/usage-budget"
+
+// The budgets under test are the defaults - a local USAGE_BUDGET override (e.g. a tiny one for trying
+// out the 429) would otherwise decide which of these pass
+vi.mock("$env/dynamic/private", async (importOriginal) => {
+	const original = await importOriginal<{ env: Record<string, string | undefined> }>()
+	return { env: { ...original.env, USAGE_BUDGET: undefined } }
+})
 
 const DAY_MS = 24 * 60 * 60_000
 
@@ -160,7 +167,7 @@ describe("meterUsageStream", () => {
 	it("passes the stream through and records the usage from response.done", async () => {
 		const user = principal()
 		const body = [createSse({ event: "response.started", data: { responseId: "r" } }), done(1_000_000, 0)]
-		const reader = meterUsageStream(streamOf(...body), user, { vendorId: "MISTRAL", model: "not-in-catalogue" }, estimateInputUsage([])).getReader()
+		const reader = meterUsageStream(streamOf(...body), await reserveUsage(user, { vendorId: "MISTRAL", model: "not-in-catalogue" }, estimateInputUsage([]))).getReader()
 
 		const received: Uint8Array[] = []
 		for (let chunk = await reader.read(); !chunk.done; chunk = await reader.read()) received.push(chunk.value)
@@ -173,7 +180,7 @@ describe("meterUsageStream", () => {
 	it("finds response.done even when it's split across chunks", async () => {
 		const user = principal()
 		const event = done(0, 1_000_000)
-		await drain(meterUsageStream(streamOf(event.slice(0, 10), event.slice(10)), user, { vendorId: "MISTRAL" }, estimateInputUsage([])))
+		await drain(meterUsageStream(streamOf(event.slice(0, 10), event.slice(10)), await reserveUsage(user, { vendorId: "MISTRAL" }, estimateInputUsage([]))))
 		await settle()
 
 		expect(await spentToday(user)).toBe(UNKNOWN_MODEL_PRICE.outputPerMillion)
@@ -186,7 +193,7 @@ describe("meterUsageStream", () => {
 				controller.enqueue(createSse({ event: "response.started", data: { responseId: "r" } }))
 			}
 		})
-		const reader = meterUsageStream(source, user, { vendorId: "MISTRAL" }, { inputTokens: 1_000_000, outputTokens: 0, totalTokens: 1_000_000 }).getReader()
+		const reader = meterUsageStream(source, await reserveUsage(user, { vendorId: "MISTRAL" }, { inputTokens: 1_000_000, outputTokens: 0, totalTokens: 1_000_000 })).getReader()
 		await reader.read()
 		await reader.cancel()
 		await settle()
@@ -195,12 +202,53 @@ describe("meterUsageStream", () => {
 	})
 
 	it("adds to what the user has already spent in the window", async () => {
-		const user = principal()
+		// Admin, so the first million tokens don't already use up the budget the reservation checks
+		const user = principal(APP_CONFIG.APP_ROLES.ADMIN)
 		await recordUsage(user, { vendorId: "MISTRAL" }, { inputTokens: 1_000_000, outputTokens: 0, totalTokens: 1_000_000 })
-		await drain(meterUsageStream(streamOf(done(1_000_000, 0)), user, { vendorId: "MISTRAL" }, estimateInputUsage([])))
+		await drain(meterUsageStream(streamOf(done(1_000_000, 0)), await reserveUsage(user, { vendorId: "MISTRAL" }, estimateInputUsage([]))))
 		await settle()
 
 		expect(await spentToday(user)).toBe(2 * UNKNOWN_MODEL_PRICE.inputPerMillion)
+	})
+})
+
+describe("reserveUsage", () => {
+	const mistral = { vendorId: "MISTRAL" } as const
+	// Priced as UNKNOWN_MODEL_PRICE, so this many input tokens cost `usd`
+	const inputWorth = (usd: number) => {
+		const inputTokens = Math.round((usd / UNKNOWN_MODEL_PRICE.inputPerMillion) * 1_000_000)
+		return { inputTokens, outputTokens: 0, totalTokens: inputTokens }
+	}
+
+	it("counts the estimated input straight away, then settles to the real usage", async () => {
+		const user = principal()
+		const reservation = await reserveUsage(user, mistral, inputWorth(0.2))
+		expect(await spentToday(user)).toBeCloseTo(0.2)
+
+		reservation.settle(inputWorth(0.05))
+		await settle()
+		expect(await spentToday(user)).toBeCloseTo(0.05)
+	})
+
+	it("keeps the estimate when the call ends without reporting usage, and gives it all back on cancel", async () => {
+		const user = principal()
+		;(await reserveUsage(user, mistral, inputWorth(0.1))).settle(null)
+		const cancelled = await reserveUsage(user, mistral, inputWorth(0.2))
+		cancelled.cancel()
+		cancelled.settle(inputWorth(0.2))
+		await settle()
+		expect(await spentToday(user)).toBeCloseTo(0.1)
+	})
+
+	it("refuses a call when other calls in flight already reserved the rest of the budget", async () => {
+		const user = principal(APP_CONFIG.APP_ROLES.STUDENT)
+		await getRateLimiter().add(`usage-budget:user-day:${user.userId}`, USAGE_BUDGETS.STUDENT.perDayUsd - 0.1, DAY_MS)
+
+		// Its own reservation never counts against it - only what was there before
+		await reserveUsage(user, mistral, inputWorth(0.2))
+		await expect(reserveUsage(user, mistral, inputWorth(0.01))).rejects.toMatchObject({ status: 429 })
+		await settle()
+		expect(await spentToday(user)).toBeCloseTo(USAGE_BUDGETS.STUDENT.perDayUsd + 0.1)
 	})
 })
 
@@ -242,10 +290,10 @@ describe("acquireCallSlot", () => {
 	it("is released by meterUsageStream when the stream ends or is aborted", async () => {
 		const user = principal()
 		const ended = await acquireCallSlot(user)
-		await drain(meterUsageStream(streamOf(done(1, 1)), user, { vendorId: "MISTRAL" }, estimateInputUsage([]), ended))
+		await drain(meterUsageStream(streamOf(done(1, 1)), await reserveUsage(user, { vendorId: "MISTRAL" }, estimateInputUsage([])), ended))
 
 		const aborted = await acquireCallSlot(user)
-		const reader = meterUsageStream(new ReadableStream<Uint8Array>(), user, { vendorId: "MISTRAL" }, estimateInputUsage([]), aborted).getReader()
+		const reader = meterUsageStream(new ReadableStream<Uint8Array>(), await reserveUsage(user, { vendorId: "MISTRAL" }, estimateInputUsage([])), aborted).getReader()
 		await reader.cancel()
 		await settle()
 
@@ -275,7 +323,7 @@ describe("anonymous embed budget", () => {
 
 	it("gets metered from the stream like a user's", async () => {
 		const botId = bot()
-		await drain(meterUsageStream(streamOf(done(1_000_000, 0)), { anonymousEmbedBotId: botId }, { vendorId: "MISTRAL" }, estimateInputUsage([])))
+		await drain(meterUsageStream(streamOf(done(1_000_000, 0)), await reserveUsage({ anonymousEmbedBotId: botId }, { vendorId: "MISTRAL" }, estimateInputUsage([]))))
 		await settle()
 		expect((await getRateLimiter().getCount(`usage-budget:anon-bot-hour:${botId}`, 60 * 60_000)).count).toBe(UNKNOWN_MODEL_PRICE.inputPerMillion)
 	})

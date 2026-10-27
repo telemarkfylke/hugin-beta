@@ -7,7 +7,8 @@ import { HTTPError } from "$lib/server/middleware/http-error"
 import { apiRequestMiddleware } from "$lib/server/middleware/http-request"
 import { getDefaultModel } from "$lib/server/models/model-registry"
 import type { ApiNextFunction } from "$lib/types/middleware/http-request"
-import { acquireCallSlot, assertWithinUsageBudget, recordUsage } from "$lib/usagebudget/server/usage-budget"
+import { estimateInputUsage } from "$lib/usagebudget/server/cost"
+import { acquireCallSlot, assertWithinUsageBudget, reserveUsage } from "$lib/usagebudget/server/usage-budget"
 import { parsePresentationRequest } from "$lib/validation/parse-presentation-request"
 import { extractTextOutput } from "../extract-text-output"
 
@@ -46,6 +47,10 @@ const presentationHandler: ApiNextFunction = async ({ requestEvent, user }) => {
 	const userMessage = slides ? `Here is the current presentation Markdown:\n\n${slides}\n\n---\n\nUser instruction: ${prompt}` : prompt
 
 	const releaseCallSlot = await acquireCallSlot(user)
+	const reservation = await reserveUsage(user, canvasModel, estimateInputUsage([PRESENTATION_SYSTEM_PROMPT, userMessage])).catch((error) => {
+		releaseCallSlot()
+		throw error
+	})
 	const vendor = getVendor(canvasModel.vendorId)
 	const response = await vendor
 		.createChatResponse({
@@ -72,10 +77,12 @@ const presentationHandler: ApiNextFunction = async ({ requestEvent, user }) => {
 			],
 			stream: false
 		})
+		.catch((error) => {
+			reservation.cancel()
+			throw error
+		})
 		.finally(releaseCallSlot)
-	recordUsage(user, canvasModel, response.usage).catch((error) => {
-		logger.errorException(error, "Failed to record usage for {userId}", user.userId)
-	})
+	reservation.settle(response.usage)
 
 	const text = extractTextOutput(response.outputs)
 

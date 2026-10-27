@@ -19,7 +19,7 @@ import type { ChatConfig, ChatResponseObject } from "$lib/types/chat"
 import type { ChatInputItem, ChatInputMessage } from "$lib/types/chat-item"
 import type { InputText } from "$lib/types/chat-item-content"
 import { estimateInputUsage, requestTexts } from "$lib/usagebudget/server/cost"
-import { isAnonymousEmbedOverBudget, meterUsageStream, recordUsage } from "$lib/usagebudget/server/usage-budget"
+import { isAnonymousEmbedOverBudget, meterUsageStream, reserveUsage, type UsageReservation } from "$lib/usagebudget/server/usage-budget"
 import { parseEmbedInputs } from "$lib/validation/parse-embed-inputs"
 
 const chatConfigStore = getChatConfigStore()
@@ -280,17 +280,29 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 	const vendor = getVendor(dbConfig.vendorId)
 	const chatRequest = { config: dbConfig, inputs, stream: wantsStream }
 
-	const budgetSubject = { anonymousEmbedBotId: dbConfig._id }
-
-	if (chatRequest.stream) {
-		const stream = await vendor.createChatResponseStream(chatRequest)
-		return responseStream(meterUsageStream(stream, budgetSubject, dbConfig, estimateInputUsage(requestTexts(dbConfig.instructions, inputs))))
+	let reservation: UsageReservation
+	try {
+		reservation = await reserveUsage({ anonymousEmbedBotId: dbConfig._id }, dbConfig, estimateInputUsage(requestTexts(dbConfig.instructions, inputs)))
+	} catch (error) {
+		if (error instanceof HTTPError && error.status === 429) {
+			return json({ message: RATE_LIMITED_MESSAGE }, { status: 429 })
+		}
+		throw error
 	}
 
-	const response = await vendor.createChatResponse(chatRequest)
-	recordUsage(budgetSubject, dbConfig, response.usage).catch((error) => {
-		logger.errorException(error, "Failed to record usage for anonymous embed of {botId}", dbConfig._id)
+	if (chatRequest.stream) {
+		const stream = await vendor.createChatResponseStream(chatRequest).catch((error) => {
+			reservation.cancel()
+			throw error
+		})
+		return responseStream(meterUsageStream(stream, reservation))
+	}
+
+	const response = await vendor.createChatResponse(chatRequest).catch((error) => {
+		reservation.cancel()
+		throw error
 	})
+	reservation.settle(response.usage)
 	// response.config is dbConfig, by now with the RAG context in its instructions
 	return json({ ...response, config: toPublicChatConfig(dbConfig) })
 }
