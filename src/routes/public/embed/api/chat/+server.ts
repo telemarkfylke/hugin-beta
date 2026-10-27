@@ -4,6 +4,7 @@ import z from "zod"
 import { env } from "$env/dynamic/private"
 import { ANONYMOUS_PRINCIPAL } from "$lib/anonymous-principal"
 import { exceedsAttachmentLimit, stripUnarmedAttachments, TOO_MANY_ATTACHMENTS_MESSAGE } from "$lib/chat-history"
+import { toPublicChatConfig } from "$lib/server/agents/public-chat-config"
 import { getVendor } from "$lib/server/ai-vendors"
 import { APP_CONFIG } from "$lib/server/app-config/app-config"
 import { classifyQuestion, recordQuestionCategoryStat } from "$lib/server/categorize-question"
@@ -75,7 +76,7 @@ const OUT_OF_SCOPE_MESSAGE = "Beklager, det spørsmålet er utenfor det jeg er s
 const buildRefusalResponse = (config: ChatConfig, text: string): ChatResponseObject => ({
 	id: crypto.randomUUID(),
 	type: "chat_response",
-	config,
+	config: toPublicChatConfig(config),
 	createdAt: new Date().toISOString(),
 	outputs: [{ id: crypto.randomUUID(), type: "message.output", role: "assistant", content: [{ type: "output_text", text }] }],
 	status: "completed",
@@ -290,5 +291,6 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 	recordUsage(budgetSubject, dbConfig, response.usage).catch((error) => {
 		logger.errorException(error, "Failed to record usage for anonymous embed of {botId}", dbConfig._id)
 	})
-	return json(response)
+	// response.config is dbConfig, by now with the RAG context in its instructions
+	return json({ ...response, config: toPublicChatConfig(dbConfig) })
 }

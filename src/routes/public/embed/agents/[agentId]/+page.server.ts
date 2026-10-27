@@ -1,4 +1,5 @@
 import { error } from "@sveltejs/kit"
+import { toPublicChatConfig } from "$lib/server/agents/public-chat-config"
 import { getChatConfigStore } from "$lib/server/db/get-db"
 import type { PageServerLoad } from "./$types"
 
@@ -14,5 +15,5 @@ export const load: PageServerLoad = async ({ params }) => {
 	if (!agent?.allowAnonymousEmbed) {
 		error(404, "Not found")
 	}
-	return { agent }
+	return { agent: toPublicChatConfig(agent) }
 }
