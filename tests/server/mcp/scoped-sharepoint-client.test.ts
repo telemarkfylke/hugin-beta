@@ -361,4 +361,44 @@ describe("createScopedSharePointClient", () => {
 		await expect(client.callTool("Get_SharePoint_List_Items", { list_name: "Budsjettposter" })).rejects.toThrow(/Programmer/)
 		expect(baseClient.callTool).not.toHaveBeenCalled()
 	})
+
+	it("checks EVERY folder argument, not just the first - a second one was read by the server while only the first was scoped", async () => {
+		const baseClient = makeBaseClient()
+		const client = createScopedSharePointClient(baseClient, [{ value: "Budsjett", matchType: "prefix" }], false, [])
+		await expect(client.callTool("Get_Document_Content", { parent_folder: "Budsjett", folder_name: "HR/Lønn", file_name: "x.xlsx" })).rejects.toThrow(/HR\/Lønn/)
+		expect(baseClient.callTool).not.toHaveBeenCalled()
+	})
+
+	it("rejects .. and . path segments that would climb out of an allowed prefix", async () => {
+		const baseClient = makeBaseClient()
+		const client = createScopedSharePointClient(baseClient, [{ value: "Budsjett", matchType: "prefix" }], false, [])
+		await expect(client.callTool("List_SharePoint_Documents", { folder_name: "Budsjett/../Ledelse" })).rejects.toThrow()
+		await expect(client.callTool("List_SharePoint_Documents", { folder_name: "Budsjett/./2026" })).rejects.toThrow()
+		expect(baseClient.callTool).not.toHaveBeenCalled()
+	})
+
+	it("rejects a file_name that is a path rather than a plain name", async () => {
+		const baseClient = makeBaseClient()
+		const client = createScopedSharePointClient(baseClient, [{ value: "Budsjett", matchType: "prefix" }], false, [])
+		for (const file_name of ["../Ledelse/x.docx", "Ledelse\\x.docx", "..", ""]) {
+			await expect(client.callTool("Get_Document_Content", { folder_name: "Budsjett", file_name })).rejects.toThrow()
+		}
+		expect(baseClient.callTool).not.toHaveBeenCalled()
+	})
+
+	it("forwards only the reviewed arguments, dropping anything else the model sent", async () => {
+		const baseClient = makeBaseClient()
+		const client = createScopedSharePointClient(baseClient, [{ value: "Budsjett", matchType: "prefix" }], false, ["Programmer"])
+		await client.callTool("Get_Document_Content", { folder_name: "Budsjett", file_name: "x.docx", site: "https://evil", drive_id: "other" })
+		expect(baseClient.callTool).toHaveBeenCalledWith("Get_Document_Content", { folder_name: "Budsjett", file_name: "x.docx" })
+		await client.callTool("Get_SharePoint_List_Items", { list_name: "Programmer", top: 5, site: "https://evil" })
+		expect(baseClient.callTool).toHaveBeenCalledWith("Get_SharePoint_List_Items", { list_name: "Programmer", top: 5 })
+	})
+
+	it("rejects a .. segment in Search_SharePoint folder_path too", async () => {
+		const baseClient = makeBaseClient()
+		const client = createScopedSharePointClient(baseClient, [{ value: "Budsjett", matchType: "prefix" }], true, [])
+		await expect(client.callTool("Search_SharePoint", { query: "lønn", folder_path: "Budsjett/../HR" })).rejects.toThrow()
+		expect(baseClient.callTool).not.toHaveBeenCalled()
+	})
 })

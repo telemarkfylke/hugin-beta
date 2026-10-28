@@ -4,6 +4,7 @@ import { env } from "$env/dynamic/private"
 import type { IAIVendor } from "$lib/types/AIVendor"
 import type { ChatRequest, ChatResponseObject, ChatResponseStream } from "$lib/types/chat"
 import { APP_CONFIG } from "../app-config/app-config"
+import { MAX_OUTPUT_TOKENS } from "../models/models.config"
 import { chatInputToMistralInput, mistralResponseToChatResponseObject } from "./mistral-mapping"
 import { handleMistralResponseStream } from "./mistral-stream"
 
@@ -20,6 +21,7 @@ const mistralRequest = (chatRequest: ChatRequest): ConversationRequest => {
 	const baseConfig: ConversationRequest = {
 		inputs: chatRequest.inputs.map(chatInputToMistralInput),
 		store: false,
+		completionArgs: { maxTokens: MAX_OUTPUT_TOKENS },
 		...(tools ? { tools } : {})
 	}
 	if (chatRequest.config.vendorAgent) {

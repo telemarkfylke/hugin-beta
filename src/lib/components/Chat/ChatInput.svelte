@@ -1,8 +1,10 @@
 <script lang="ts">
+	import { ATTACHMENT_STRIP_MODE, MAX_ARMED_ATTACHMENTS } from "$lib/chat-history"
 	import { supportsWebSearch } from "$lib/model-profiles"
 	import FileDropZone from "../FileDropZone.svelte"
 	import TypingDots from "../TypingDots.svelte"
 	import type { ChatState } from "./ChatState.svelte"
+	import ConversationAttachments from "./ConversationAttachments.svelte"
 	import FilePreview from "./FilePreview.svelte"
 
 	type Props = {
@@ -42,7 +44,7 @@
 	let inputText: string = $state("")
 	let inputFiles: File[] = $state([])
 	let messageInProgress = $state(false)
-	let fileSizeWarning = $state(false)
+	let fileWarning: string | null = $state(null)
 	let webSearchEnabled = $derived(chatState.webSearchEnabled)
 	let datasourceEnabled = $derived(chatState.datasourceEnabled)
 	let hasDatasources = $derived((chatState.chat.config.dataSources?.length ?? 0) > 0)
@@ -61,8 +63,8 @@
 
 	// Simple helper for posting prompt, and clearing input
 	const submitPrompt = async (): Promise<void> => {
-		if (messageInProgress || (inputText.trim() === "" && inputFiles.length === 0)) {
-			return // Do not submit empty prompts or if a message is already in progress
+		if (messageInProgress || chatState.promptBlockedReason || (inputText.trim() === "" && inputFiles.length === 0)) {
+			return // Do not submit empty prompts, while a message is in progress, or over unsaved assistant edits
 		}
 		const textToSend = inputText
 		const filesToSend = filesToFileList(inputFiles)
@@ -100,6 +102,13 @@
 		target.value = ""
 	}
 
+	const showFileWarning = (message: string) => {
+		fileWarning = message
+		setTimeout(() => {
+			fileWarning = null
+		}, 4000) // Viser varsel i 4 sekunder
+	}
+
 	const addFiles = (files: File[]) => {
 		const oversizedFiles: string[] = []
 		const validFiles = files.filter((file) => {
@@ -116,13 +125,19 @@
 			return true
 		})
 		if (oversizedFiles.length > 0) {
-			fileSizeWarning = true
-			setTimeout(() => {
-				fileSizeWarning = false
-			}, 4000) // Viser varsel i 4 sekunder
+			showFileWarning("Filen er for stor (maks 10 MB)")
 		}
-		inputFiles = [...inputFiles, ...validFiles]
+		// New files share MAX_ARMED_ATTACHMENTS with the armed earlier ones (see ChatState.attachmentRoom)
+		const accepted = validFiles.slice(0, chatState.attachmentRoom)
+		if (accepted.length < validFiles.length) {
+			showFileWarning(`Du kan ha maks ${MAX_ARMED_ATTACHMENTS} aktive filer om gangen. Slå av tidligere filer eller fjern noen nye for å legge til flere.`)
+		}
+		inputFiles = [...inputFiles, ...accepted]
 	}
+
+	$effect(() => {
+		chatState.pendingAttachmentCount = inputFiles.length
+	})
 
 	// Håndtering av drag-n-drop filer
 	const handleFilesDropped = (files: FileList) => {
@@ -175,6 +190,10 @@
 <div class="chat-input-container">
 	<FileDropZone onFilesDropped={handleFilesDropped} />
 
+	{#if ATTACHMENT_STRIP_MODE === "armed" && chatState.attachments.length > 0}
+		<ConversationAttachments {chatState} />
+	{/if}
+
 	<!-- Main input wrapper -->
 	<div class="input-wrapper">
 		{#if inputFiles.length > 0}
@@ -185,8 +204,8 @@
 			</div>
 		{/if}
 
-		{#if fileSizeWarning}
-			<div class="file-size-warning">Filen er for stor (maks 10 MB)</div>
+		{#if fileWarning}
+			<div class="file-size-warning">{fileWarning}</div>
 		{/if}
 
 		<div class="input-row">
@@ -196,7 +215,8 @@
 					<textarea
 						bind:this={textArea}
 						bind:value={inputText}
-						placeholder="Skriv en melding..."
+						placeholder={chatState.promptBlockedReason ?? "Skriv en melding..."}
+						disabled={chatState.promptBlockedReason !== null}
 						onkeydown={submitOnEnter}
 						onpaste={handlePaste}
 						rows={1}
@@ -261,10 +281,9 @@
 					<button
 						class="icon-button filled input-action-button send"
 						onclick={submitPrompt}
-						disabled={inputText.trim().length === 0 && inputFiles.length === 0}
-						title={inputText.trim().length === 0 && inputFiles.length === 0
-							? "Skriv en melding eller legg til filer for å sende"
-							: "Send melding"}
+						disabled={chatState.promptBlockedReason !== null || (inputText.trim().length === 0 && inputFiles.length === 0)}
+						title={chatState.promptBlockedReason ??
+							(inputText.trim().length === 0 && inputFiles.length === 0 ? "Skriv en melding eller legg til filer for å sende" : "Send melding")}
 						type="button"
 					>
 						<span class="material-symbols-outlined">arrow_upward</span>

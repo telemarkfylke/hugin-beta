@@ -7,6 +7,8 @@ import { HTTPError } from "$lib/server/middleware/http-error"
 import { apiRequestMiddleware } from "$lib/server/middleware/http-request"
 import { getDefaultModel } from "$lib/server/models/model-registry"
 import type { ApiNextFunction } from "$lib/types/middleware/http-request"
+import { estimateInputUsage } from "$lib/usagebudget/server/cost"
+import { acquireCallSlot, assertWithinUsageBudget, reserveUsage } from "$lib/usagebudget/server/usage-budget"
 import { parseMermaidRequest } from "$lib/validation/parse-mermaid-request"
 import { extractTextOutput } from "../extract-text-output"
 
@@ -78,34 +80,48 @@ const mermaidHandler: ApiNextFunction = async ({ requestEvent, user }) => {
 	const body = await requestEvent.request.json()
 	const { diagram, prompt } = parseMermaidRequest(body)
 
+	await assertWithinUsageBudget(user)
+
 	logger.info("[Canvas Mermaid] User {userId} submitting prompt (diagramLength: {diagramLength})", user.userId, diagram.length)
 
 	const userMessage = diagram ? `Here is the current Mermaid diagram source:\n\n${diagram}\n\n---\n\nUser instruction: ${prompt}` : prompt
 
-	const vendor = getVendor(canvasModel.vendorId)
-	const response = await vendor.createChatResponse({
-		config: {
-			_id: "",
-			name: "Canvas Mermaid",
-			description: "",
-			vendorId: canvasModel.vendorId,
-			project: canvasModel.project,
-			model: canvasModel.model,
-			accessGroups: ["all"],
-			type: "private",
-			created: { at: "", by: { id: "" } },
-			updated: { at: "", by: { id: "" } },
-			instructions: MERMAID_SYSTEM_PROMPT
-		},
-		inputs: [
-			{
-				type: "message.input",
-				role: "user",
-				content: [{ type: "input_text", text: userMessage }]
-			}
-		],
-		stream: false
+	const releaseCallSlot = await acquireCallSlot(user)
+	const reservation = await reserveUsage(user, canvasModel, estimateInputUsage([MERMAID_SYSTEM_PROMPT, userMessage])).catch((error) => {
+		releaseCallSlot()
+		throw error
 	})
+	const vendor = getVendor(canvasModel.vendorId)
+	const response = await vendor
+		.createChatResponse({
+			config: {
+				_id: "",
+				name: "Canvas Mermaid",
+				description: "",
+				vendorId: canvasModel.vendorId,
+				project: canvasModel.project,
+				model: canvasModel.model,
+				accessGroups: ["all"],
+				type: "private",
+				created: { at: "", by: { id: "" } },
+				updated: { at: "", by: { id: "" } },
+				instructions: MERMAID_SYSTEM_PROMPT
+			},
+			inputs: [
+				{
+					type: "message.input",
+					role: "user",
+					content: [{ type: "input_text", text: userMessage }]
+				}
+			],
+			stream: false
+		})
+		.catch((error) => {
+			reservation.cancel()
+			throw error
+		})
+		.finally(releaseCallSlot)
+	reservation.settle(response.usage)
 
 	const text = extractTextOutput(response.outputs)
 

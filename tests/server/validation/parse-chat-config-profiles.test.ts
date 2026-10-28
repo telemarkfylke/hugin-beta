@@ -47,6 +47,7 @@ const user = (roles: string[]): AuthenticatedPrincipal => ({ userId: "u1", name:
 const admin = user(["Admin"])
 const employee = user(["Employee"])
 const student = user(["Student"])
+const maintainer = user(["Employee", "AgentMaintainer"])
 
 const base = {
 	_id: "1",
@@ -144,7 +145,7 @@ describe("parseChatConfig - save mode", () => {
 		const previous = stored({ profile: "rask", pinned: { model: "gpt-live", project: "STUDENTS", legacy: true } })
 		const config = parseChatConfig({ ...base, profile: "rask" }, APP_CONFIG, { mode: "save", user: employee, previous })
 		expect(config.pinned).toBeUndefined()
-		expect(parseChatConfig({ ...base, vendorAgent: { id: "agent-1" } }, APP_CONFIG, { mode: "save", user: employee, previous }).vendorAgent).toEqual({ id: "agent-1" })
+		expect(parseChatConfig({ ...base, vendorAgent: { id: "agent-1" } }, APP_CONFIG, { mode: "save", user: maintainer, previous }).vendorAgent).toEqual({ id: "agent-1" })
 	})
 
 	it("never trusts a client-sent legacy flag on an admin pin", () => {
@@ -161,8 +162,18 @@ describe("parseChatConfig - save mode", () => {
 
 	it("rejects a non-admin converting a pinned assistant to a vendor agent with 403", () => {
 		const previous = stored({ profile: "rask", pinned: { model: "gpt-live", project: "DEFAULT" } })
-		expectStatus(() => parseChatConfig({ ...base, vendorAgent: { id: "agent-1" } }, APP_CONFIG, { mode: "save", user: employee, previous }), 403)
+		expectStatus(() => parseChatConfig({ ...base, vendorAgent: { id: "agent-1" } }, APP_CONFIG, { mode: "save", user: maintainer, previous }), 403)
 		expect(parseChatConfig({ ...base, vendorAgent: { id: "agent-1" } }, APP_CONFIG, { mode: "save", user: admin, previous }).vendorAgent).toEqual({ id: "agent-1" })
+	})
+
+	it("rejects a non-maintainer choosing a vendor agent with 403", () => {
+		expectStatus(() => parseChatConfig({ ...base, vendorAgent: { id: "agent-1" } }, APP_CONFIG, { mode: "save", user: employee, previous: null }), 403)
+		expectStatus(() => parseChatConfig({ ...base, vendorAgent: { id: "agent-2" } }, APP_CONFIG, { mode: "save", user: student, previous: stored({ vendorAgent: { id: "agent-1" } }) }), 403)
+	})
+
+	it("lets a co-editor save an assistant with an unchanged vendor agent", () => {
+		const config = parseChatConfig({ ...base, vendorAgent: { id: "agent-1" } }, APP_CONFIG, { mode: "save", user: student, previous: stored({ vendorAgent: { id: "agent-1" } }) })
+		expect(config.vendorAgent).toEqual({ id: "agent-1" })
 	})
 
 	it("accepts a pinned-only admin config without a profile", () => {
@@ -172,7 +183,7 @@ describe("parseChatConfig - save mode", () => {
 	})
 
 	it("does not require a profile on vendor-agent configs", () => {
-		const config = parseChatConfig({ ...base, vendorAgent: { id: "agent-1" } }, APP_CONFIG, { mode: "save", user: employee, previous: null })
+		const config = parseChatConfig({ ...base, vendorAgent: { id: "agent-1" } }, APP_CONFIG, { mode: "save", user: maintainer, previous: null })
 		expect(config.vendorAgent).toEqual({ id: "agent-1" })
 	})
 

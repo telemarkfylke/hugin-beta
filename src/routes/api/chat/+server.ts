@@ -1,11 +1,11 @@
 import { json, type RequestHandler } from "@sveltejs/kit"
 import { logger } from "@vestfoldfylke/loglady"
-import { canPromptConfig, canUseHistory, canUseMcpSharepoint, canUseWebsiteDataSource, canViewMcpSource, canViewWebsiteSource } from "$lib/authorization"
-import { chatHistoryToInputItems } from "$lib/chat-history"
+import { canUseHistory, canUseMcpSharepoint, canUseWebsiteDataSource } from "$lib/authorization"
+import { chatHistoryToInputItems, exceedsAttachmentLimit, stripUnarmedAttachments, TOO_MANY_ATTACHMENTS_MESSAGE } from "$lib/chat-history"
 import { applyChatSseEventToResponseObject } from "$lib/chat-response-builder"
 import type { ConversationManager } from "$lib/conversationstore/server/conv_manager"
 import { getConversationManager } from "$lib/conversationstore/server/get-conversation-manager"
-import { loadSavedConfigSourceGrant } from "$lib/server/agents/saved-config-source-grant"
+import { loadChatRequestConfig } from "$lib/server/agents/load-chat-request-config"
 import { getVendor } from "$lib/server/ai-vendors"
 import { APP_CONFIG } from "$lib/server/app-config/app-config"
 import { MS_AUTH_TOKEN_HEADER } from "$lib/server/auth/auth-constants"
@@ -19,7 +19,7 @@ import { runAgenticToolChatOrDegrade } from "$lib/server/mcp/run-agentic-chat"
 import { configHasMcpTool, mcpUnavailableStream } from "$lib/server/mcp/run-mcp-chat"
 import { HTTPError } from "$lib/server/middleware/http-error"
 import { apiRequestMiddleware } from "$lib/server/middleware/http-request"
-import { isModelAvailable, MODEL_UNAVAILABLE_MESSAGE, resolveConfig } from "$lib/server/models/model-registry"
+import { isModelAvailable, MODEL_UNAVAILABLE_MESSAGE } from "$lib/server/models/model-registry"
 import { appendRagContextToInstructions } from "$lib/server/ragservice/format-rag-context"
 import { rewriteRagQuery } from "$lib/server/ragservice/rag-query-rewrite"
 import { searchRagStores } from "$lib/server/ragservice/rag-search"
@@ -28,42 +28,62 @@ import { createSse, parseSse, responseStream } from "$lib/streaming"
 import type { IAIVendor } from "$lib/types/AIVendor"
 import type { AuthenticatedPrincipal } from "$lib/types/authentication"
 import type { ChatConfig, ChatRequest, ChatResponseObject } from "$lib/types/chat"
-import type { ChatInputMessage } from "$lib/types/chat-item"
+import type { ChatInputItem, ChatInputMessage } from "$lib/types/chat-item"
 import type { InputText } from "$lib/types/chat-item-content"
 import type { McpSource } from "$lib/types/mcp-source"
 import type { ApiNextFunction } from "$lib/types/middleware/http-request"
 import type { WebsiteSource, WebsiteSourceEntry } from "$lib/types/website-source"
+import { estimateInputUsage, requestTexts } from "$lib/usagebudget/server/cost"
+import { acquireCallSlot, assertWithinUsageBudget, meterUsageStream, reserveUsage } from "$lib/usagebudget/server/usage-budget"
+import { chatInputsSchema, INVALID_INPUTS_MESSAGE } from "$lib/validation/chat-input-schema"
 import { validateFileInputs } from "$lib/validation/file-input"
-import { parseChatConfig } from "$lib/validation/parse-chat-config"
 
-const parseChatRequest = (body: unknown): ChatRequest => {
+// Higher than the anonymous embed's limits: an incognito conversation here sends its whole history.
+// 1M characters is roughly 250k tokens - a very long real conversation, but no longer "as much as the
+// context window and the request body allow" in a single call.
+const MAX_CHAT_INPUT_ITEMS = 400
+const MAX_CHAT_TOTAL_TEXT_CHARS = 1_000_000
+const ChatInputsSchema = chatInputsSchema(MAX_CHAT_INPUT_ITEMS, MAX_CHAT_TOTAL_TEXT_CHARS)
+
+const parseChatRequest = async (body: unknown, user: AuthenticatedPrincipal): Promise<ChatRequest> => {
 	if (typeof body !== "object" || body === null) {
 		throw new HTTPError(400, "Invalid chat config")
 	}
 	const incomingChatRequest: ChatRequest = body as ChatRequest
 
-	// Client-sent vendorId/model/project are never trusted - resolution overwrites them from profile/pin
-	const config = resolveConfig(parseChatConfig(incomingChatRequest.config, APP_CONFIG, { mode: "use" }))
+	// Loaded from the DB (and authorized) by id - see loadChatRequestConfig for the little it still
+	// reads from the client's config
+	const config = await loadChatRequestConfig(incomingChatRequest.config, user)
 
-	if (!Array.isArray(incomingChatRequest.inputs) || incomingChatRequest.inputs.length === 0) {
-		throw new HTTPError(400, "inputs must be a non-empty array")
+	// Only user/assistant turns, bounded sizes - see chat-input-schema.ts
+	const parsedInputs = ChatInputsSchema.safeParse(incomingChatRequest.inputs)
+	if (!parsedInputs.success) {
+		throw new HTTPError(400, INVALID_INPUTS_MESSAGE)
+	}
+	const inputs = parsedInputs.data as ChatInputItem[]
+	// Only ever selects among attachments already in the history - the cap itself is enforced in stripUnarmedAttachments
+	const armedAttachments = Array.isArray(incomingChatRequest.armedAttachments) ? incomingChatRequest.armedAttachments.filter((id): id is string => typeof id === "string") : []
+	if (await exceedsAttachmentLimit(inputs, armedAttachments)) {
+		throw new HTTPError(400, TOO_MANY_ATTACHMENTS_MESSAGE)
 	}
 	if (config.vendorAgent) {
 		return {
 			config,
-			inputs: incomingChatRequest.inputs,
+			inputs,
 			stream: Boolean(incomingChatRequest.stream),
 			store: Boolean(incomingChatRequest.store),
-			huginConversationId: incomingChatRequest.huginConversationId
+			huginConversationId: incomingChatRequest.huginConversationId,
+			armedAttachments
 		}
 	}
 
 	const manualChatRequest: ChatRequest = {
 		config,
-		inputs: incomingChatRequest.inputs,
+		inputs,
 		stream: Boolean(incomingChatRequest.stream),
 		store: Boolean(incomingChatRequest.store),
-		huginConversationId: incomingChatRequest.huginConversationId
+		huginConversationId: incomingChatRequest.huginConversationId,
+		armedAttachments
 	}
 
 	validateFileInputs(manualChatRequest, APP_CONFIG)
@@ -82,7 +102,7 @@ const supahChat: ApiNextFunction = async ({ requestEvent, user }) => {
 
 	const body = await requestEvent.request.json()
 
-	const chatRequest = parseChatRequest(body)
+	const chatRequest = await parseChatRequest(body, user)
 
 	// Users without history must never have conversations persisted - enforce server-side regardless
 	// of what the client sent, since the incognito toggle is only hidden/disabled client-side.
@@ -90,15 +110,14 @@ const supahChat: ApiNextFunction = async ({ requestEvent, user }) => {
 		chatRequest.store = false
 	}
 
-	if (!canPromptConfig(user, APP_CONFIG, chatRequest.config)) {
-		throw new HTTPError(403, "Not authorized to use this chat configuration")
-	}
-
 	// Fail closed: resolution keeps a dataLocation profile on its own (disabled) vendor rather than
 	// sending the data elsewhere
 	if (!isModelAvailable(chatRequest.config)) {
 		throw new HTTPError(503, MODEL_UNAVAILABLE_MESSAGE)
 	}
+
+	// Before any other work (categorization, RAG, vendor call) so an over-budget request costs nothing
+	await assertWithinUsageBudget(user)
 
 	const userInputMessage = [...chatRequest.inputs].reverse().find((i): i is ChatInputMessage => i.type === "message.input" && i.role === "user")
 
@@ -130,6 +149,8 @@ const supahChat: ApiNextFunction = async ({ requestEvent, user }) => {
 		const priorHistory = await conversationManager.getChatHistoryFromDb(huginConversationId, user)
 		chatRequest.inputs = [...chatHistoryToInputItems(priorHistory), ...chatRequest.inputs]
 	}
+	// After the history prepend, so it covers both stored history and the incognito client-sent one
+	chatRequest.inputs = await stripUnarmedAttachments(chatRequest.inputs, chatRequest.armedAttachments)
 
 	const datasourceToolActive = chatRequest.config.tools?.some((t) => t.type === "datasource") ?? false
 	const ragStoreIds = datasourceToolActive ? (chatRequest.config.dataSources?.filter((s) => s.type === "ragservice").map((s) => s.id) ?? []) : []
@@ -154,19 +175,14 @@ const supahChat: ApiNextFunction = async ({ requestEvent, user }) => {
 	// ragservice/website) - resolve which McpSource(s) were actually selected only when it's on.
 	const mcpSourceIds = mcpSharepointActive ? (chatRequest.config.dataSources?.filter((s) => s.type === "mcp").map((s) => s.sourceId) ?? []) : []
 
-	// The source ids come from the client-sent config, so each one must be authorized server-side:
-	// either the user may see the source themselves, or the SAVED version of this assistant (which the
-	// user may prompt) references it - e.g. a published assistant built on its creator's private source.
-	const isGrantedBySavedConfig = websiteSourceIds.length > 0 || mcpSourceIds.length > 0 ? await loadSavedConfigSourceGrant(chatRequest.config._id, user) : () => false
-
+	// The source ids come from the SAVED assistant (see loadChatRequestConfig), which the user may
+	// prompt - that's what authorizes them, e.g. a published assistant built on its creator's private
+	// source. NB: saving an assistant doesn't yet check that its author may use the sources it names.
 	let websiteEntries: WebsiteSourceEntry[] = []
-	let deniedSourceCount = 0
 	if (websiteSourceIds.length > 0) {
 		const websiteSourceStore = getWebsiteSourceStore()
 		const resolved = await Promise.all(websiteSourceIds.map((id) => websiteSourceStore.getWebsiteSource(id).catch(() => null)))
-		const sources = resolved.filter((source): source is WebsiteSource => source !== null && (canViewWebsiteSource(source, user, APP_CONFIG.APP_ROLES) || isGrantedBySavedConfig("website", source._id)))
-		deniedSourceCount += resolved.filter((source) => source !== null).length - sources.length
-		websiteEntries = sources.flatMap((source) => source.entries)
+		websiteEntries = resolved.filter((source): source is WebsiteSource => source !== null).flatMap((source) => source.entries)
 	}
 	const websiteToolActive = websiteEntries.length > 0
 
@@ -174,12 +190,12 @@ const supahChat: ApiNextFunction = async ({ requestEvent, user }) => {
 	if (mcpSourceIds.length > 0) {
 		const mcpSourceStore = getMcpSourceStore()
 		const resolved = await Promise.all(mcpSourceIds.map((id) => mcpSourceStore.getMcpSource(id).catch(() => null)))
-		mcpSources = resolved.filter((source): source is McpSource => source !== null && (canViewMcpSource(source, user, APP_CONFIG.APP_ROLES) || isGrantedBySavedConfig("mcp", source._id)))
-		deniedSourceCount += resolved.filter((source) => source !== null).length - mcpSources.length
+		mcpSources = resolved.filter((source): source is McpSource => source !== null)
 	}
-	if (deniedSourceCount > 0) {
-		logger.warn("Ignored {count} data source(s) on config {configId} that {userId} may not use", deniedSourceCount, chatRequest.config._id, user.userId)
-	}
+
+	// The RAG step below appends this turn's context to the instructions - the stored and returned
+	// response gets the instructions from before that, so the conversation doesn't keep it forever
+	const instructionsBeforeRag = chatRequest.config.instructions
 
 	if (ragStoreIds.length > 0) {
 		if (queryText) {
@@ -207,8 +223,24 @@ const supahChat: ApiNextFunction = async ({ requestEvent, user }) => {
 
 	const vendor = getVendor(chatRequest.config.vendorId)
 
+	const releaseCallSlot = await acquireCallSlot(user)
+	// After the RAG step, so its context in the instructions is part of the reserved input
+	const reservation = await reserveUsage(user, chatRequest.config, estimateInputUsage(requestTexts(chatRequest.config.instructions, chatRequest.inputs))).catch((error) => {
+		releaseCallSlot()
+		throw error
+	})
+
 	if (chatRequest.stream) {
-		const stream = await buildToolCallingStream(chatRequest, vendor, mcpSources, websiteToolActive ? websiteEntries : [])
+		let toolCallingStream: ReadableStream<Uint8Array>
+		try {
+			toolCallingStream = await buildToolCallingStream(chatRequest, vendor, mcpSources, websiteToolActive ? websiteEntries : [])
+		} catch (error) {
+			releaseCallSlot()
+			reservation.cancel()
+			throw error
+		}
+		// The slot is released when the stream ends - not when this handler returns, which is right away
+		const stream = meterUsageStream(toolCallingStream, reservation, releaseCallSlot)
 
 		if (huginConversationId && userInputMessage) {
 			const [clientBranch, captureBranch] = stream.tee()
@@ -216,7 +248,7 @@ const supahChat: ApiNextFunction = async ({ requestEvent, user }) => {
 			const announceChunk = createSse({ event: "hugin_conversation.created", data: { huginConversationId } })
 			const finalStream = prependChunk(clientBranch, announceChunk)
 
-			captureAndPersistStream(captureBranch, getConversationManager(), huginConversationId, userInputMessage, chatRequest.config, user).catch((error) => {
+			captureAndPersistStream(captureBranch, getConversationManager(), huginConversationId, userInputMessage, { ...chatRequest.config, instructions: instructionsBeforeRag }, user).catch((error) => {
 				logger.errorException(error, "Failed to capture/persist streamed chat response")
 			})
 
@@ -232,7 +264,17 @@ const supahChat: ApiNextFunction = async ({ requestEvent, user }) => {
 		}
 	}
 
-	const response = await vendor.createChatResponse(chatRequest)
+	let response: ChatResponseObject
+	try {
+		response = await vendor.createChatResponse(chatRequest)
+	} catch (error) {
+		reservation.cancel()
+		throw error
+	} finally {
+		releaseCallSlot()
+	}
+	reservation.settle(response.usage)
+	response = { ...response, config: { ...chatRequest.config, instructions: instructionsBeforeRag } }
 
 	if (huginConversationId && userInputMessage) {
 		try {

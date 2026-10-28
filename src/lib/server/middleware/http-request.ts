@@ -6,6 +6,22 @@ import { getAuthenticatedPrincipal } from "../auth/get-authenticated-user"
 import { MOCK_AUTH, MOCK_AUTH_FORCE_403 } from "../auth/mock-authenticated-user"
 import { HTTPError } from "./http-error"
 
+// Paths whose trailing segments carry personal data (transcription upload: <userId>/<jobId>/<fileName>).
+const REDACTED_PATH_PREFIXES = ["/api/transcription/upload/"]
+
+/** The request URL as it may be logged: for redacted prefixes everything after the prefix (path and query) is replaced. */
+export const urlForLog = (rawUrl: string): string => {
+	let url: URL
+	try {
+		url = new URL(rawUrl)
+	} catch {
+		return "[invalid url]"
+	}
+	const prefix = REDACTED_PATH_PREFIXES.find((p) => url.pathname.startsWith(p))
+	if (!prefix) return rawUrl
+	return `${url.origin}${prefix}[redacted]`
+}
+
 /**
  * Wrap functionality in a server route with this middleware to handle authentication, some simple logging and error handling.
  * The `next` function will only be called if authentication is successful.
@@ -17,7 +33,7 @@ import { HTTPError } from "./http-error"
  */
 export const apiRequestMiddleware = async (requestEvent: RequestEvent, next: ApiNextFunction): Promise<Response> => {
 	const request = requestEvent.request
-	let loggerPrefix = `[API Request Middleware] - ${request.method} ${request.url}`
+	let loggerPrefix = `[API Request Middleware] - ${request.method} ${urlForLog(request.url)}`
 
 	logger.info(`${loggerPrefix} - Incoming request`)
 
@@ -70,7 +86,7 @@ export const apiRequestMiddleware = async (requestEvent: RequestEvent, next: Api
  */
 export const serverLoadRequestMiddleware = async <T>(requestEvent: RequestEvent, next: ServerLoadNextFunction<T>): Promise<T> => {
 	const request = requestEvent.request
-	let loggerPrefix = `[Server load Request Middleware] - ${request.method} ${request.url}`
+	let loggerPrefix = `[Server load Request Middleware] - ${request.method} ${urlForLog(request.url)}`
 
 	logger.info(`${loggerPrefix} - Incoming request`)
 

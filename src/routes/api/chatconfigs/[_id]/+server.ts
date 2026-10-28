@@ -38,7 +38,19 @@ const replaceChatConfig: ApiNextFunction = async ({ requestEvent, user }) => {
 		throw new HTTPError(403, "Not authorized to update this chat config")
 	}
 
-	const chatConfigUpdateData = chatConfig as NewChatConfig
+	// Authorship is the server's to say, never the client's - otherwise an editor could forge
+	// created.by (posing as e.g. IT, or handing the assistant to someone else) or the audit trail
+	const chatConfigUpdateData: NewChatConfig = {
+		...chatConfig,
+		created: chatConfigToReplace.created,
+		updated: {
+			at: new Date().toISOString(),
+			by: {
+				id: user.userId,
+				name: user.name
+			}
+		}
+	}
 
 	// @ts-expect-error (_id må fjernes, men jeg orker ikke fikse det på en annen måte nå)
 	delete chatConfigUpdateData._id

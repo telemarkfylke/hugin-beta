@@ -3,6 +3,7 @@ import type { ChatCompletionCreateParamsBase } from "openai/resources/chat/compl
 import { env } from "$env/dynamic/private"
 import type { IAIVendor } from "$lib/types/AIVendor"
 import type { ChatRequest, ChatResponseObject, ChatResponseStream } from "$lib/types/chat"
+import { MAX_OUTPUT_TOKENS } from "../models/models.config"
 import { chatInputToCompletionMessage, litellmResponseToChatResponseObject } from "./litellm-mapping"
 import { handleLitellmChatStream } from "./litellm-stream"
 
@@ -26,7 +27,8 @@ const buildCompletionRequest = (chatRequest: ChatRequest): ChatCompletionCreateP
 
 	return {
 		model: chatRequest.config.model,
-		messages
+		messages,
+		max_tokens: MAX_OUTPUT_TOKENS
 	}
 }
 

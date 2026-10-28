@@ -3,6 +3,7 @@ import { logger } from "@vestfoldfylke/loglady"
 import { canUseCanvas } from "$lib/authorization"
 import { APP_CONFIG } from "$lib/server/app-config/app-config"
 import { buildPresentation } from "$lib/server/canvas/presentation/build-presentation"
+import { acquireExportSlot } from "$lib/server/canvas/presentation/export-slots"
 import { parseSlidesForExport } from "$lib/server/canvas/presentation/parse-slides-for-export"
 import { HTTPError } from "$lib/server/middleware/http-error"
 import { apiRequestMiddleware } from "$lib/server/middleware/http-request"
@@ -27,12 +28,15 @@ const exportHandler: ApiNextFunction = async ({ requestEvent, user }) => {
 
 	logger.info("[Canvas Presentation] User {userId} exporting presentation (slideCount: {slideCount})", user.userId, parsedSlides.length)
 
+	const releaseExportSlot = acquireExportSlot(user.userId)
 	let pptxBuffer: Buffer
 	try {
 		pptxBuffer = await buildPresentation(parsedSlides)
 	} catch (error) {
 		logger.errorException(error, "[Canvas Presentation] Failed to build PPTX for user {userId}", user.userId)
 		throw new HTTPError(500, "Kunne ikke generere PPTX-fil")
+	} finally {
+		releaseExportSlot()
 	}
 
 	return {

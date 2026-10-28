@@ -121,6 +121,8 @@ export type ChatRequest = {
 	store?: boolean
 	stream?: boolean
 	huginConversationId?: string | undefined
+	// Ids (see attachmentId) of earlier attachments the user has armed - see stripUnarmedAttachments
+	armedAttachments?: string[]
 }
 
 export type ChatResponseStream = ReadableStream<Uint8Array>
@@ -129,6 +131,8 @@ export type ChatResponseUsage = {
 	inputTokens: number
 	outputTokens: number
 	totalTokens: number
+	// Billed per call by the vendor on top of tokens - see WEB_SEARCH_CALL_PRICE_USD
+	webSearchCalls?: number
 }
 
 export type ChatResponseObject = {

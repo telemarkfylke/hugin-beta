@@ -5,8 +5,9 @@ import { APP_CONFIG } from "$lib/server/app-config/app-config"
 import { HTTPError } from "$lib/server/middleware/http-error"
 import { apiRequestMiddleware } from "$lib/server/middleware/http-request"
 import type { ChatHistory, ChatResponseObject } from "$lib/types/chat"
-import type { ChatInputItem } from "$lib/types/chat-item"
+import type { ChatInputItem, ChatOutputItem } from "$lib/types/chat-item"
 import type { ApiNextFunction } from "$lib/types/middleware/http-request"
+import { ChatInputItemSchema } from "$lib/validation/chat-input-schema"
 
 const getConversations: ApiNextFunction = async ({ user }) => {
 	const conversations = await getConversationManager().listConversations(user)
@@ -25,18 +26,30 @@ export const GET: RequestHandler = async (requestEvent) => {
 // Used to bulk-persist a history that was assembled outside the normal per-turn save path: an
 // imported .kráa file, or a conversation that was incognito from its very first message and so
 // never got a conversationId.
+// The stored turns are replayed to the model on every later message, so they get the same checks as
+// /api/chat inputs (chat-input-schema.ts): only user/assistant roles - an imported "system" turn would
+// otherwise override the assistant's instructions for the rest of the conversation - and bounded sizes.
+const MAX_IMPORTED_PAIRS = 200
+
 const splitIntoPairs = (history: ChatHistory): { userInput: ChatInputItem; response: ChatResponseObject }[] => {
+	if (history.length > MAX_IMPORTED_PAIRS * 2) {
+		throw new HTTPError(400, `history can have at most ${MAX_IMPORTED_PAIRS} turns`)
+	}
 	const pairs: { userInput: ChatInputItem; response: ChatResponseObject }[] = []
 	for (let i = 0; i + 1 < history.length; i += 2) {
-		const userInput = history[i]
+		const userInput = ChatInputItemSchema.safeParse(history[i])
 		const response = history[i + 1]
-		if (userInput?.type !== "message.input" || response?.type !== "chat_response") {
-			throw new HTTPError(400, "history must alternate message.input and chat_response items")
+		if (!userInput.success || userInput.data.type !== "message.input" || response?.type !== "chat_response" || !Array.isArray(response.outputs)) {
+			throw new HTTPError(400, "history must alternate valid message.input and chat_response items")
 		}
 		if (response.status === "failed") {
 			continue // Same reasoning as chatHistoryToInputItems - a failed turn isn't real assistant context.
 		}
-		pairs.push({ userInput, response })
+		const outputs = response.outputs.map((output) => ChatInputItemSchema.safeParse(output))
+		if (outputs.some((output) => !output.success || output.data.type !== "message.output")) {
+			throw new HTTPError(400, "chat_response outputs must be assistant messages")
+		}
+		pairs.push({ userInput: userInput.data as ChatInputItem, response: { ...response, outputs: outputs.map((output) => output.data) as ChatOutputItem[] } })
 	}
 	return pairs
 }

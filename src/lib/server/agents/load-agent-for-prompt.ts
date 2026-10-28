@@ -15,7 +15,7 @@ export const loadAgentForPrompt = async (user: AuthenticatedPrincipal, agentId: 
 	}
 	const agent = await chatConfigStore.getChatConfig(agentId)
 	if (!agent) {
-		throw new HTTPError(404, `Agent with id ${agentId} not found`)
+		throw new HTTPError(404, "Fant ikke assistenten - den kan ha blitt slettet")
 	}
 	if (!canPromptConfig(user, APP_CONFIG, agent)) {
 		throw new HTTPError(403, "Du har ikke tilgang til denne assistenten")

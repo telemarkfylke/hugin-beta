@@ -23,6 +23,13 @@ export const canSetAnonymousEmbed = (user: AuthenticatedPrincipal, appRoles: App
 	return user.roles.includes(appRoles.ADMIN)
 }
 
+// The anonymous-embed rate limits are admin-only like the toggle itself - the UI only shows them to
+// admins. Pass previous = null on create, where any value set counts as a change.
+export const anonymousEmbedRateLimitsChanged = (previous: ChatConfig | null, input: ChatConfig): boolean =>
+	input.rateLimitPerIpPerMinute !== previous?.rateLimitPerIpPerMinute ||
+	input.rateLimitPerIpPerDay !== previous?.rateLimitPerIpPerDay ||
+	input.rateLimitPerBotPerDay !== previous?.rateLimitPerBotPerDay
+
 export const canEditChatConfig = (chat: Chat, user: AuthenticatedPrincipal, appRoles: AppRoles): boolean => {
 	if (chat.config._id === "") {
 		return true
@@ -51,6 +58,15 @@ export const canUpdateChatConfig = (user: AuthenticatedPrincipal, appRoles: AppR
 	// deleting/editing their own config (DELETE calls this with chatConfigToUpdate === chatConfigInput,
 	// so the value never "changes" there either way) the moment an admin turns the flag on for them.
 	if (chatConfigInput.allowAnonymousEmbed !== chatConfigToUpdate.allowAnonymousEmbed && !canSetAnonymousEmbed(user, appRoles)) {
+		return false
+	}
+	if (anonymousEmbedRateLimitsChanged(chatConfigToUpdate, chatConfigInput) && !canSetAnonymousEmbed(user, appRoles)) {
+		return false
+	}
+	// Same rule for who may see it: create already requires canPublishChatConfig for "published", and
+	// without this an owner could create a private assistant and then publish it to everyone by PUT.
+	const audienceChanged = chatConfigInput.type !== chatConfigToUpdate.type || JSON.stringify(chatConfigInput.accessGroups) !== JSON.stringify(chatConfigToUpdate.accessGroups)
+	if (audienceChanged && !canPublishChatConfig(user, appRoles)) {
 		return false
 	}
 	if (chatConfigToUpdate.created.by.id === user.userId) {

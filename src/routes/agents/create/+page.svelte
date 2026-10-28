@@ -51,6 +51,7 @@
 	// svelte-ignore state_referenced_locally (don't care, user is user, APP_CONFIG is APP_CONFIG. If somebody messes with them, backend must handle that)
 	const chatState = new ChatState(defaultChat, data.authenticatedUser, data.APP_CONFIG)
 	chatState.configMode = true
+	chatState.isDraft = true
 </script>
 
 <ChatComponent {chatState} />

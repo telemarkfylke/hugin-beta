@@ -71,6 +71,9 @@ export const runMcpAgenticLoop = (driver: ToolTurnDriver, mcpClient: McpClient, 
 							accumulatedUsage.inputTokens += event.usage.inputTokens
 							accumulatedUsage.outputTokens += event.usage.outputTokens
 							accumulatedUsage.totalTokens += event.usage.totalTokens
+							if (event.usage.webSearchCalls) {
+								accumulatedUsage.webSearchCalls = (accumulatedUsage.webSearchCalls ?? 0) + event.usage.webSearchCalls
+							}
 						}
 					}
 

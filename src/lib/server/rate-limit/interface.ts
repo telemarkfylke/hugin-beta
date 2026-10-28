@@ -22,4 +22,10 @@ export interface IRateLimiter {
 	// independent window/counter - callers namespace keys themselves (see embed/api/chat/+server.ts
 	// for the "one key per IP, one key per bot" pattern).
 	checkAndIncrement(key: string, limit: number, windowMs: number): Promise<RateLimitResult>
+	// The read half of a check-now-record-later budget (see $lib/usagebudget), where the amount to
+	// add is only known after the work is done, so it can't be one atomic check-and-increment.
+	// Returns the counter for `key` in the current window without changing it - 0 if nothing yet.
+	getCount(key: string, windowMs: number): Promise<{ count: number; retryAfterMs: number }>
+	// Atomically adds `amount` (may be fractional, e.g. kroner) to `key`'s counter in the current window.
+	add(key: string, amount: number, windowMs: number): Promise<void>
 }

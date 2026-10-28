@@ -71,4 +71,18 @@ export class MongoRateLimiter implements IRateLimiter {
 		const count = result?.count ?? 1
 		return { allowed: count <= limit, remaining: Math.max(0, limit - count), retryAfterMs: windowEnd - now }
 	}
+
+	async getCount(key: string, windowMs: number): Promise<{ count: number; retryAfterMs: number }> {
+		const collection = await this.getCollection()
+		const now = Date.now()
+		const windowStart = Math.floor(now / windowMs) * windowMs
+		const doc = await collection.findOne({ _id: `${key}:${windowStart}` })
+		return { count: doc?.count ?? 0, retryAfterMs: windowStart + windowMs - now }
+	}
+
+	async add(key: string, amount: number, windowMs: number): Promise<void> {
+		const collection = await this.getCollection()
+		const windowStart = Math.floor(Date.now() / windowMs) * windowMs
+		await collection.updateOne({ _id: `${key}:${windowStart}` }, { $inc: { count: amount }, $setOnInsert: { expiresAt: new Date(windowStart + windowMs) } }, { upsert: true })
+	}
 }

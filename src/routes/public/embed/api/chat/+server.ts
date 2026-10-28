@@ -3,6 +3,8 @@ import { logger } from "@vestfoldfylke/loglady"
 import z from "zod"
 import { env } from "$env/dynamic/private"
 import { ANONYMOUS_PRINCIPAL } from "$lib/anonymous-principal"
+import { exceedsAttachmentLimit, stripUnarmedAttachments, TOO_MANY_ATTACHMENTS_MESSAGE } from "$lib/chat-history"
+import { toPublicChatConfig } from "$lib/server/agents/public-chat-config"
 import { getVendor } from "$lib/server/ai-vendors"
 import { APP_CONFIG } from "$lib/server/app-config/app-config"
 import { classifyQuestion, recordQuestionCategoryStat } from "$lib/server/categorize-question"
@@ -16,6 +18,8 @@ import { createSse, responseStream } from "$lib/streaming"
 import type { ChatConfig, ChatResponseObject } from "$lib/types/chat"
 import type { ChatInputItem, ChatInputMessage } from "$lib/types/chat-item"
 import type { InputText } from "$lib/types/chat-item-content"
+import { estimateInputUsage, requestTexts } from "$lib/usagebudget/server/cost"
+import { isAnonymousEmbedOverBudget, meterUsageStream, reserveUsage, type UsageReservation } from "$lib/usagebudget/server/usage-budget"
 import { parseEmbedInputs } from "$lib/validation/parse-embed-inputs"
 
 const chatConfigStore = getChatConfigStore()
@@ -72,7 +76,7 @@ const OUT_OF_SCOPE_MESSAGE = "Beklager, det spørsmålet er utenfor det jeg er s
 const buildRefusalResponse = (config: ChatConfig, text: string): ChatResponseObject => ({
 	id: crypto.randomUUID(),
 	type: "chat_response",
-	config,
+	config: toPublicChatConfig(config),
 	createdAt: new Date().toISOString(),
 	outputs: [{ id: crypto.randomUUID(), type: "message.output", role: "assistant", content: [{ type: "output_text", text }] }],
 	status: "completed",
@@ -101,6 +105,7 @@ const buildRefusalStream = (text: string): ReadableStream<Uint8Array> =>
 const EmbedChatRequestSchema = z.object({
 	config: z.object({ _id: z.string() }),
 	inputs: z.unknown(),
+	armedAttachments: z.array(z.string()).max(100).optional(),
 	stream: z.boolean().optional()
 })
 
@@ -166,10 +171,21 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 		}
 	}
 
+	// Always on, unlike the message-count cap above: the per-IP limits count messages, not what they
+	// cost, and spreading across many IPs gets around them - this bounds what the bot can cost per
+	// hour/day in USD (USAGE_BUDGET's ANONYMOUS_EMBED, see $lib/usagebudget). Logged inside.
+	if (await isAnonymousEmbedOverBudget(dbConfig._id)) {
+		return json({ message: RATE_LIMITED_MESSAGE }, { status: 429 })
+	}
+
 	// This route returns its errors rather than throwing HTTPError (no middleware here to convert them)
 	let inputs: ChatInputItem[]
 	try {
-		inputs = parseEmbedInputs(parsed.data.inputs, dbConfig, APP_CONFIG)
+		const parsedInputs = parseEmbedInputs(parsed.data.inputs, dbConfig, APP_CONFIG)
+		if (await exceedsAttachmentLimit(parsedInputs, parsed.data.armedAttachments ?? [])) {
+			throw new HTTPError(400, TOO_MANY_ATTACHMENTS_MESSAGE)
+		}
+		inputs = await stripUnarmedAttachments(parsedInputs, parsed.data.armedAttachments)
 	} catch (error) {
 		if (error instanceof HTTPError) {
 			return json({ message: error.message }, { status: error.status })
@@ -264,11 +280,29 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 	const vendor = getVendor(dbConfig.vendorId)
 	const chatRequest = { config: dbConfig, inputs, stream: wantsStream }
 
-	if (chatRequest.stream) {
-		const stream = await vendor.createChatResponseStream(chatRequest)
-		return responseStream(stream)
+	let reservation: UsageReservation
+	try {
+		reservation = await reserveUsage({ anonymousEmbedBotId: dbConfig._id }, dbConfig, estimateInputUsage(requestTexts(dbConfig.instructions, inputs)))
+	} catch (error) {
+		if (error instanceof HTTPError && error.status === 429) {
+			return json({ message: RATE_LIMITED_MESSAGE }, { status: 429 })
+		}
+		throw error
 	}
 
-	const response = await vendor.createChatResponse(chatRequest)
-	return json(response)
+	if (chatRequest.stream) {
+		const stream = await vendor.createChatResponseStream(chatRequest).catch((error) => {
+			reservation.cancel()
+			throw error
+		})
+		return responseStream(meterUsageStream(stream, reservation))
+	}
+
+	const response = await vendor.createChatResponse(chatRequest).catch((error) => {
+		reservation.cancel()
+		throw error
+	})
+	reservation.settle(response.usage)
+	// response.config is dbConfig, by now with the RAG context in its instructions
+	return json({ ...response, config: toPublicChatConfig(dbConfig) })
 }

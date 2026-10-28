@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from "svelte"
 	import { slide } from "svelte/transition"
+	import { goto } from "$app/navigation"
 	import { page } from "$app/state"
 	import { canEditPredefinedConfig, canPublishChatConfig, canSetAnonymousEmbed, canUseMcpSharepoint, canUseRagservice, canUseWebsiteDataSource } from "$lib/authorization"
 	import { McpSourcesApi } from "$lib/mcp-sources/adapters/mcpSourcesApi"
@@ -177,6 +178,17 @@
 	}
 
 	let activeTab: "settings" | "stats" = $state("settings")
+
+	// Edits never reach the chat until saved (see ChatState.promptBlockedReason), so cancelling just
+	// throws them away. A never-saved new assistant has nothing to fall back to - leave the page.
+	const cancelEdit = () => {
+		if (chatState.isDraft) {
+			goto("/")
+			return
+		}
+		chatState.chat.config = JSON.parse(JSON.stringify(chatState.initialConfig))
+		chatState.configMode = false
+	}
 
 	const onConfigTypeChange = (event: Event) => {
 		const target = event.target as HTMLInputElement
@@ -638,13 +650,7 @@
 				{/if}
 			</div>
 			<div class="config-action-item right">
-				{#if chatState.configEdited}
-					<button onclick={() => chatState.configMode = false} title="Test endringer i samtalen">
-						<span class="material-symbols-rounded">experiment</span>
-						Test assistent
-					</button>
-				{/if}
-				<button onclick={() => { chatState.chat.config = JSON.parse(JSON.stringify(chatState.initialConfig)); chatState.configMode = false; }}>Avbryt</button>
+				<button onclick={cancelEdit}>Avbryt</button>
 				{#if chatState.chat.config._id}
 					<button disabled={!chatState.configEdited} class="filled" onclick={chatState.updateChatConfig}><span class="material-symbols-outlined">save</span>Lagre endringer</button>
 				{:else}
@@ -652,14 +658,6 @@
 				{/if}
 			</div>
 		</div>
-	</div>
-{/if}
-
-<!-- Unsaved changes banner: visible when testing with unsaved edits -->
-{#if chatState.configEdited && !chatState.configMode}
-	<div class="unsaved-banner" transition:slide={{ duration: 200 }}>
-		<span class="material-symbols-rounded">edit_note</span>
-		<span>Ulagrede endringer</span>
 	</div>
 {/if}
 
@@ -726,20 +724,6 @@
 	.config-action-item.right {
 		flex-shrink: 0;
 		gap: 0.5rem;
-	}
-	.unsaved-banner {
-		max-width: 50rem;
-		margin: 0 auto 0.75rem;
-		width: 100%;
-		box-sizing: border-box;
-		display: flex;
-		align-items: center;
-		gap: 0.75rem;
-		padding: 0.5rem 0.75rem;
-		background-color: var(--color-primary-20);
-		border-left: 3px solid var(--color-primary);
-		border-radius: 4px;
-		font-size: small;
 	}
 	.share-row button.icon-button:disabled {
 		background-color: transparent;

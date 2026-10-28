@@ -1,8 +1,11 @@
 import { json, type RequestHandler } from "@sveltejs/kit"
 import z from "zod"
 import { env } from "$env/dynamic/private"
+import { canUseTranscription } from "$lib/authorization"
+import { APP_CONFIG } from "$lib/server/app-config/app-config"
 import { HTTPError } from "$lib/server/middleware/http-error"
 import { apiRequestMiddleware } from "$lib/server/middleware/http-request"
+import { buildAudioUrl, buildLegacyAudioUrl, hasAcceptedAudioExtension, isSafePathSegment, resolveOwnDocxUrl, resolveUrlUnderBase } from "$lib/server/transcription/copyparty-paths"
 import { createPendingJob, getJobById, listJobsForUser, markJobProcessing, removeJob } from "$lib/server/transcription/job-store"
 import { triggerTranscription } from "$lib/server/transcription/tale-til-notat"
 import type { ApiNextFunction } from "$lib/types/middleware/http-request"
@@ -23,22 +26,31 @@ const DeleteJobSchema = z.object({
 	docxUrl: z.string().url().nullable().optional()
 })
 
+const forbidden = () => ({ isAuthorized: false, response: json({ message: "Forbidden" }, { status: 403 }) })
+
 const getJobs: ApiNextFunction = async ({ user }) => {
+	if (!canUseTranscription(user, APP_CONFIG.APP_ROLES)) return forbidden()
 	const jobs = listJobsForUser(user.userId)
 	return { isAuthorized: true, response: json({ jobs }) }
 }
 
 const createJob: ApiNextFunction = async ({ requestEvent, user }) => {
+	if (!canUseTranscription(user, APP_CONFIG.APP_ROLES)) return forbidden()
 	const body = await requestEvent.request.json().catch(() => null)
 	const parsed = CreateJobSchema.safeParse(body)
 	if (!parsed.success) {
 		throw new HTTPError(400, "Invalid body", parsed.error.issues)
+	}
+	// fileName becomes a Copyparty path segment (upload, delete) - validate it once, here.
+	if (!isSafePathSegment(parsed.data.fileName) || !hasAcceptedAudioExtension(parsed.data.fileName)) {
+		throw new HTTPError(400, "Invalid fileName")
 	}
 	const job = createPendingJob(user.userId, parsed.data.fileName)
 	return { isAuthorized: true, response: json({ job }, { status: 201 }) }
 }
 
 const patchJob: ApiNextFunction = async ({ requestEvent, user }) => {
+	if (!canUseTranscription(user, APP_CONFIG.APP_ROLES)) return forbidden()
 	const body = await requestEvent.request.json().catch(() => null)
 	const parsed = UpdateJobSchema.safeParse(body)
 	if (!parsed.success) {
@@ -48,6 +60,10 @@ const patchJob: ApiNextFunction = async ({ requestEvent, user }) => {
 	const job = getJobById(user.userId, parsed.data.id)
 	if (!job) {
 		throw new HTTPError(404, "Job not found")
+	}
+	// Only a freshly uploaded job may be started - stops the same file being transcribed twice.
+	if (job.status !== "uploading") {
+		throw new HTTPError(409, "Job is already started")
 	}
 
 	const copypartyBase = env.COPYPARTY_BASE_URL
@@ -61,7 +77,7 @@ const patchJob: ApiNextFunction = async ({ requestEvent, user }) => {
 
 	// Construct the canonical audio URL using the job id in the path — this is what was
 	// uploaded to (via the upload proxy), so it is guaranteed to be unique and never renamed by Copyparty.
-	const audioUrl = `${copypartyBase}/${encodeURIComponent(user.userId)}/${encodeURIComponent(job.id)}/${encodeURIComponent(job.fileName)}`
+	const audioUrl = buildAudioUrl(copypartyBase, user.userId, job.id, job.fileName)
 
 	const taleJobId = await triggerTranscription({
 		userId: user.userId,
@@ -74,6 +90,7 @@ const patchJob: ApiNextFunction = async ({ requestEvent, user }) => {
 }
 
 const deleteJob: ApiNextFunction = async ({ requestEvent, user }) => {
+	if (!canUseTranscription(user, APP_CONFIG.APP_ROLES)) return forbidden()
 	const copypartyBase = env.COPYPARTY_BASE_URL
 	if (!copypartyBase) throw new HTTPError(500, "COPYPARTY_BASE_URL is not configured")
 
@@ -81,27 +98,24 @@ const deleteJob: ApiNextFunction = async ({ requestEvent, user }) => {
 	const parsed = DeleteJobSchema.safeParse(body)
 	if (!parsed.success) throw new HTTPError(400, "Invalid body", parsed.error.issues)
 
-	const { id, fileName, audioUrl: clientAudioUrl, docxUrl } = parsed.data
+	const { id, fileName, audioUrl: clientAudioUrl, docxUrl: clientDocxUrl } = parsed.data
+	if (!isSafePathSegment(id) || !isSafePathSegment(fileName)) {
+		throw new HTTPError(400, "Invalid id or fileName")
+	}
 
 	const job = getJobById(user.userId, id)
 
-	// Priority: in-memory job's audioUrl → client-provided audioUrl (survives server restarts via
-	// localStorage) → legacy fallback: construct from fileName (for jobs created before this change).
-	// Guard against SSRF — only delete from the configured Copyparty base URL.
-	const effectiveAudioUrl = job?.audioUrl ?? (clientAudioUrl?.startsWith(copypartyBase) ? clientAudioUrl : null)
-	if (effectiveAudioUrl) {
-		await fetch(`${effectiveAudioUrl}?delete`, { method: "POST" }).catch(() => null)
-	} else {
-		if (fileName.includes("/") || fileName.includes("\\") || fileName.includes("..")) {
-			throw new HTTPError(400, "Invalid fileName")
-		}
-		await fetch(`${copypartyBase}/${encodeURIComponent(user.userId)}/${encodeURIComponent(fileName)}?delete`, { method: "POST" }).catch(() => null)
-	}
+	// Audio URLs are always built server-side inside the caller's own folder - a client-supplied URL is
+	// never fetched. Priority: in-memory job → <user>/<id>/<fileName> (jobs that survive a restart only in
+	// localStorage, recognised by having had an audioUrl) → legacy <user>/<fileName>.
+	const effectiveAudioUrl = job?.audioUrl ?? (clientAudioUrl ? buildAudioUrl(copypartyBase, user.userId, id, fileName) : buildLegacyAudioUrl(copypartyBase, user.userId, fileName))
+	await fetch(`${effectiveAudioUrl}?delete`, { method: "POST" }).catch(() => null)
 
-	// Same priority for docx: in-memory job result → client-provided value.
-	const effectiveDocxUrl = job?.result?.docx_url ?? docxUrl
-	if (effectiveDocxUrl?.startsWith(copypartyBase)) {
-		await fetch(`${effectiveDocxUrl}?delete`, { method: "POST" }).catch(() => null)
+	// docx: the in-memory value came from tale-til-notat and only has to be inside Copyparty; a
+	// client-supplied value must be a .docx directly in the caller's own folder.
+	const effectiveDocxUrl = job?.result?.docx_url ? resolveUrlUnderBase(copypartyBase, job.result.docx_url) : clientDocxUrl ? resolveOwnDocxUrl(copypartyBase, user.userId, clientDocxUrl) : null
+	if (effectiveDocxUrl) {
+		await fetch(`${effectiveDocxUrl.href}?delete`, { method: "POST" }).catch(() => null)
 	}
 
 	removeJob(user.userId, id)

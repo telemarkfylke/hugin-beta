@@ -1,6 +1,14 @@
 import { goto } from "$app/navigation"
 import { canUseHistory } from "$lib/authorization"
-import { chatHistoryToInputItems } from "$lib/chat-history"
+import {
+	ATTACHMENT_STRIP_MODE,
+	attachmentId,
+	type ConversationAttachment,
+	chatHistoryToInputItems,
+	listConversationAttachments,
+	MAX_ARMED_ATTACHMENTS,
+	stripUnarmedAttachments
+} from "$lib/chat-history"
 import { getModelDisplayName, supportsWebSearch } from "$lib/model-profiles"
 import type { AppConfig } from "$lib/types/app-config"
 import type { AuthenticatedPrincipal } from "$lib/types/authentication"
@@ -139,6 +147,11 @@ export class ChatState {
 	public configMode: boolean = $state(false)
 	public initialConfig: ChatConfig = $state(placeHolderConfig)
 	public configEdited: boolean = $derived(JSON.stringify(this.chat.config) !== JSON.stringify(this.initialConfig))
+	// A brand new assistant on /agents/create that hasn't been saved yet - there's nothing to chat with.
+	public isDraft: boolean = $state(false)
+	// /api/chat answers with the SAVED assistant (it never trusts the config we send), so chatting
+	// while there are unsaved edits would silently test the old version - block it and say why.
+	public promptBlockedReason: string | null = $derived(this.isDraft ? "Lagre assistenten før du chatter med den" : this.configEdited ? "Lagre endringene før du tester dem i samtalen" : null)
 	// True only while a brand new (never-saved) conversation's very first message is in flight - the
 	// user message gets pushed into chat.history optimistically, before the server has had a chance
 	// to hand back a conversationId, which would otherwise look identical to an imported/born-incognito
@@ -156,6 +169,16 @@ export class ChatState {
 	// Set by loadChat when the conversation being opened last belonged to a different agent than
 	// the one we're currently on - the UI must show a choice before we touch this.chat.
 	public pendingConversationLoad: PendingConversationLoad | null = $state(null)
+	// Every distinct attachment in the current conversation, and the ids of those armed to be sent
+	// along with the next message (see stripUnarmedAttachments). Arming lives only here in memory:
+	// a freshly uploaded file starts armed, a loaded/imported conversation starts with nothing armed.
+	public attachments: ConversationAttachment[] = $state([])
+	public armedAttachmentIds: string[] = $state([])
+	// Files added in ChatInput but not sent yet - they count towards MAX_ARMED_ATTACHMENTS together with
+	// the armed ones (the server enforces the same, see exceedsAttachmentLimit), so arming an earlier
+	// file and adding a new one both draw from this one shared room.
+	public pendingAttachmentCount: number = $state(0)
+	public attachmentRoom: number = $derived(Math.max(0, MAX_ARMED_ATTACHMENTS - this.armedAttachmentIds.length - this.pendingAttachmentCount))
 
 	constructor(chat: Chat, user: AuthenticatedPrincipal, appConfig: AppConfig, options?: ChatStateOptions) {
 		this.user = user
@@ -188,6 +211,37 @@ export class ChatState {
 		// Same default-on-if-available rule as web search - if an agent has a datasource configured,
 		// it's presumably configured for a reason, so it starts active rather than needing a click.
 		this.datasourceEnabled = this.lockedTools ? this.lockedTools.datasource : (chat.config.dataSources?.length ?? 0) > 0
+		this.resetAttachments()
+	}
+
+	private resetAttachments = (): void => {
+		this.armedAttachmentIds = []
+		this.refreshAttachments()
+	}
+
+	private refreshAttachments = (): void => {
+		if (ATTACHMENT_STRIP_MODE !== "armed") {
+			return
+		}
+		const history = this.chat.history
+		listConversationAttachments(chatHistoryToInputItems(history))
+			.then((attachments) => {
+				// A newer history replaced this one while hashing - its own refresh wins
+				if (this.chat.history === history) {
+					this.attachments = attachments
+				}
+			})
+			.catch((error) => {
+				console.error("Error listing conversation attachments:", error)
+			})
+	}
+
+	public toggleAttachment = (id: string): void => {
+		if (this.armedAttachmentIds.includes(id)) {
+			this.armedAttachmentIds = this.armedAttachmentIds.filter((armedId) => armedId !== id)
+		} else if (this.attachmentRoom > 0) {
+			this.armedAttachmentIds = [...this.armedAttachmentIds, id]
+		}
 	}
 
 	// Fire-and-forget - the endpoint is idempotent (no-ops if a title already exists), so callers
@@ -224,6 +278,7 @@ export class ChatState {
 		this.chat._id = ""
 		this.chat.createdAt = new Date().toISOString()
 		this.chat.updatedAt = new Date().toISOString()
+		this.resetAttachments()
 	}
 
 	// An imported .kráa file must never silently become a continuation of whatever real, stored
@@ -237,6 +292,7 @@ export class ChatState {
 		this.chat._id = ""
 		this.chat.createdAt = new Date().toISOString()
 		this.chat.updatedAt = new Date().toISOString()
+		this.resetAttachments()
 	}
 
 	public toggleStoreChat = (): void => {
@@ -320,13 +376,10 @@ export class ChatState {
 				return
 			}
 
-			// Same agent: the snapshot's model selection may be stale (a pin or profile changed since, or a
-			// pre-profile snapshot) - keep the live one, so saving from here never reverts it or trips a 403
-			const current = this.chat.config
-			const config: ChatConfig = originalConfig
-				? { ...originalConfig, vendorId: current.vendorId, project: current.project, model: current.model, profile: current.profile, pinned: current.pinned }
-				: current
-			this.applyLoadedConversation(data.conversation, data.history, config)
+			// Same agent: keep the live config, never the snapshot stored with the message - that one may be
+			// stale (instructions, sources, model edited since), so saving from here would revert the
+			// assistant, and older snapshots carry that turn's RAG context in their instructions
+			this.applyLoadedConversation(data.conversation, data.history, this.chat.config)
 		} finally {
 			this.isLoading = false
 		}
@@ -359,6 +412,9 @@ export class ChatState {
 	}
 
 	public promptChat = async (inputText: string, inputFiles: FileList) => {
+		if (this.promptBlockedReason) {
+			return
+		}
 		const userMessage: ChatInputItem = {
 			type: "message.input",
 			role: "user",
@@ -413,6 +469,13 @@ export class ChatState {
 			this.isCreatingConversation = true
 		}
 
+		// The new message's own files count first towards MAX_ARMED_ATTACHMENTS; if that's exceeded the
+		// earliest-armed earlier files are disarmed. The new files stay armed for the turns after this one.
+		const newAttachmentIds = await Promise.all(userMessage.content.filter((c) => c.type !== "input_text").map(attachmentId))
+		const earlierRoom = Math.max(0, MAX_ARMED_ATTACHMENTS - newAttachmentIds.length)
+		const earlierArmed = this.armedAttachmentIds.filter((id) => !newAttachmentIds.includes(id))
+		const armedForThisTurn = earlierRoom === 0 ? [] : earlierArmed.slice(-earlierRoom)
+
 		const chatRequest: ChatRequest = {
 			config: {
 				...this.chat.config,
@@ -420,13 +483,19 @@ export class ChatState {
 				tools: activeTools
 			},
 			// Uten lagring (store=false) har backend ingen historikk å bygge kontekst fra, så da må vi fortsatt sende hele samtalen selv.
-			inputs: effectiveStoreChat ? [userMessage] : [...chatInput, userMessage],
+			// Inaktive vedlegg strippes her også - serveren gjør det samme uansett, så de er bare dødvekt i forespørselen.
+			inputs: effectiveStoreChat ? [userMessage] : await stripUnarmedAttachments([...chatInput, userMessage], armedForThisTurn),
 			stream: this.streamResponse,
 			store: effectiveStoreChat,
-			huginConversationId: effectiveStoreChat ? this.chat._id || undefined : undefined
+			huginConversationId: effectiveStoreChat ? this.chat._id || undefined : undefined,
+			armedAttachments: armedForThisTurn
 		}
 
 		this.chat.history.push(userMessage)
+		if (newAttachmentIds.length > 0) {
+			this.armedAttachmentIds = [...armedForThisTurn, ...newAttachmentIds].slice(-MAX_ARMED_ATTACHMENTS)
+			this.refreshAttachments()
+		}
 
 		const tempChatResponseObject: ChatResponseObject = {
 			id: `temp_id_${Date.now()}`,

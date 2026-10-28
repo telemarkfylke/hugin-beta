@@ -1,6 +1,7 @@
 import type OpenAI from "openai"
 import type { ChatCompletionMessageParam, ChatCompletionTool } from "openai/resources/chat/completions"
 import { chatInputToCompletionMessage } from "$lib/server/litellm/litellm-mapping"
+import { MAX_OUTPUT_TOKENS } from "$lib/server/models/models.config"
 import type { ChatRequest } from "$lib/types/chat"
 import type { ToolResult, ToolTurnDriver, ToolTurnEvent } from "../agentic-loop"
 import { type McpToolDefinition, mcpToolToCompletionTool } from "../mcp-tools"
@@ -22,6 +23,7 @@ export const createLitellmToolDriver = (client: OpenAI, chatRequest: ChatRequest
 		const stream = await client.chat.completions.create({
 			model,
 			messages,
+			max_tokens: MAX_OUTPUT_TOKENS,
 			...(completionTools.length > 0 ? { tools: completionTools } : {}),
 			stream: true,
 			stream_options: { include_usage: true }

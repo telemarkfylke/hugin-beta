@@ -79,11 +79,20 @@ export const isToolAllowed = (toolName: string, searchEnabled: boolean, listsEna
 
 const normalizePath = (path: string): string => path.replace(/\\/g, "/").replace(/^\/+/, "").replace(/\/+$/, "")
 
+// "Allowed/../Ledelse" would pass a plain prefix check and may well be resolved by the server
+const hasDotSegment = (path: string): boolean =>
+	normalizePath(path)
+		.split("/")
+		.some((segment) => segment === ".." || segment === ".")
+
 // Same boundary-safe reasoning as website-tool-client.ts's isUrlAllowed - a prefix "Ruens hjørne"
 // must not match a sibling folder like "Ruens hjørne 2", only "Ruens hjørne" itself or something
 // nested under it ("Ruens hjørne/Trudelutt"). An empty prefix value means "the whole SharePoint
 // area" (no restriction).
 export const isFolderPathAllowed = (requestedPath: string, folders: SharePointFolderEntry[]): boolean => {
+	if (hasDotSegment(requestedPath)) {
+		return false
+	}
 	const normalizedRequested = normalizePath(requestedPath)
 	return folders.some((entry) => {
 		const normalizedEntry = normalizePath(entry.value)
@@ -117,6 +126,31 @@ export const extractFolderArg = (args: Record<string, unknown>): string | undefi
 	}
 	return undefined
 }
+
+// The only arguments forwarded for the folder/list tools (see the verified shapes in the module
+// comment). Everything else the model sends is dropped rather than passed through unexamined - a
+// tool that grew e.g. a site/drive parameter must not let the model step outside this source.
+const FOLDER_TOOL_ARG_KEYS = [...FOLDER_ARG_KEYS, "file_name"]
+const LIST_TOOL_ARG_KEYS = ["list_name", "filter_column", "filter_value", "top"]
+
+const pickArgs = (args: Record<string, unknown>, keys: string[]): Record<string, unknown> => Object.fromEntries(keys.filter((key) => Object.hasOwn(args, key)).map((key) => [key, args[key]]))
+
+// Every folder argument present must be in scope - not just the first one found. Otherwise
+// { parent_folder: <allowed>, folder_name: <anything> } passes the check while the server reads folder_name.
+// Returns the first out-of-scope (or non-string) value, undefined when all are fine.
+export const findDisallowedFolderArg = (args: Record<string, unknown>, folders: SharePointFolderEntry[]): string | undefined => {
+	for (const key of FOLDER_ARG_KEYS) {
+		if (!Object.hasOwn(args, key)) continue
+		const value = args[key]
+		if (typeof value !== "string" || !isFolderPathAllowed(value, folders)) {
+			return String(value)
+		}
+	}
+	return undefined
+}
+
+// file_name is a name inside the (already scoped) folder - never a path that could climb out of it
+export const isPlainFileName = (fileName: unknown): boolean => typeof fileName === "string" && fileName.length > 0 && !/[/\\]/.test(fileName) && fileName !== "." && fileName !== ".."
 
 export const extractListNameArg = (args: Record<string, unknown>): string | undefined => {
 	const value = args.list_name
@@ -228,14 +262,17 @@ export const createScopedSharePointClient = (baseClient: McpClient, folders: Sha
 				if (!isListNameAllowed(listNameArg, lists)) {
 					throw new Error(`«${listNameArg}» er ikke en tillatt liste for denne datakilden. Tillatte lister: ${describeLists(lists)}. Ikke gjett listenavn - bruk et av navnene over.`)
 				}
-				return baseClient.callTool(name, args)
+				return baseClient.callTool(name, pickArgs(args, LIST_TOOL_ARG_KEYS))
 			}
-			const folderArg = extractFolderArg(args)
-			if (folderArg === undefined) {
+			if (extractFolderArg(args) === undefined) {
 				logger.warn("[scoped-sharepoint] Tool call {name} had no recognized folder argument", name)
 				throw new Error(`Verktøyet ${name} manglet et forventet mappe-argument`)
 			}
-			if (!isFolderPathAllowed(folderArg, folders)) {
+			if (Object.hasOwn(args, "file_name") && !isPlainFileName(args.file_name)) {
+				throw new Error(`«${String(args.file_name)}» er ikke et gyldig filnavn - oppgi bare navnet på filen, og mappen i et eget mappe-argument.`)
+			}
+			const folderArg = findDisallowedFolderArg(args, folders)
+			if (folderArg !== undefined) {
 				// Names the actual allowed folders in the rejection itself (not just "no"), so the
 				// model can self-correct in the same turn instead of guessing again blindly - this is
 				// the exact failure mode that motivated this: a model guessed "Profiles/Eldrin.txt"
@@ -245,7 +282,7 @@ export const createScopedSharePointClient = (baseClient: McpClient, folders: Sha
 					`«${folderArg}» er ikke en tillatt mappe for denne datakilden. Tillatte mapper: ${describeFolders(folders)}. Ikke gjett filnavn eller mappenavn - bruk List_SharePoint_Folders/List_SharePoint_Documents på en av disse mappene for å se hva som faktisk finnes, før du henter innhold.`
 				)
 			}
-			return baseClient.callTool(name, args)
+			return baseClient.callTool(name, pickArgs(args, FOLDER_TOOL_ARG_KEYS))
 		}
 	}
 }
