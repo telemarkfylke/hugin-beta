@@ -8,6 +8,9 @@ import type { CatalogueModel, ModelConfig, Profile } from "./types"
 // A typo in a profile/default/LEGACY value is a type error; everything else is checked at startup
 // by assertModelConfig.
 
+// Self-hosted: no vendor price list, so a nominal price (same as normistral) instead of the deliberately expensive unknown-model default
+const OLLAMA_PRICE = { inputPerMillion: 0.01, outputPerMillion: 0.01 }
+
 const MODELS = {
 	"gpt-4o": { vendor: "OPENAI", providerModel: "gpt-4o", files: "openai", capabilities: ["webSearch"], status: "retired" },
 	"gpt-4": { vendor: "OPENAI", providerModel: "gpt-4", files: "openai", capabilities: ["webSearch"], status: "retired" },
@@ -22,14 +25,11 @@ const MODELS = {
 	"mistral-medium": { vendor: "MISTRAL", providerModel: "mistral-medium-latest", files: "mistral", capabilities: ["webSearch"], status: "retired" },
 	"mistral-large": { vendor: "MISTRAL", providerModel: "mistral-large-latest", files: "mistral", capabilities: ["webSearch"], price: { inputPerMillion: 0.5, outputPerMillion: 1.5 } },
 	// Offered to admins under "Avansert" only while OLLAMA_ENABLED="true" (ki.telemarkfylke.no POC). No profile uses them.
-	"ollama-llama3": { vendor: "OLLAMA", providerModel: "llama3:8b", files: "none", capabilities: [], price: { inputPerMillion: 0.01, outputPerMillion: 0.01 } },
-	"ollama-normistral": {
-		vendor: "OLLAMA",
-		providerModel: "LTG/normistral-11b-thinking:latest",
-		files: "none",
-		capabilities: [],
-		price: { inputPerMillion: 0.01, outputPerMillion: 0.01 }
-	},
+	// providerModel must match a tag installed on the KI-server: curl <OLLAMA_HOST>/api/tags
+	"ollama-llama3": { vendor: "OLLAMA", providerModel: "llama3:8b-instruct-q5_K_M", files: "none", capabilities: [], price: OLLAMA_PRICE },
+	"ollama-mistral": { vendor: "OLLAMA", providerModel: "mistral:7b", files: "none", capabilities: [], price: OLLAMA_PRICE },
+	"ollama-gemma": { vendor: "OLLAMA", providerModel: "gemma:7b", files: "none", capabilities: [], price: OLLAMA_PRICE },
+	"ollama-deepseek-r1": { vendor: "OLLAMA", providerModel: "deepseek-r1:8b", files: "none", capabilities: [], price: OLLAMA_PRICE },
 	// MIDLERTIDIG retired mens den lokale KI-serveren er frakoblet - fjern status for å koble til igjen
 	normistral: { vendor: "LITELLM", providerModel: "norallm/normistral-11b-thinking", files: "none", capabilities: [], price: { inputPerMillion: 0.01, outputPerMillion: 0.01 }, status: "retired" },
 	// Small, mechanical text tasks (RAG query rewriting, conversation titles, question categories) via
@@ -88,6 +88,11 @@ const LEGACY: Record<string, ProfileId> = {
 	"norallm/normistral-11b-thinking": "lokal",
 	"llama3:8b": "lokal",
 	"LTG/normistral-11b-thinking:latest": "lokal",
+	// Ollama models offered to admins as pins (OLLAMA_ENABLED) - a stored config naming one without a pin must stay on "lokal", never a cloud profile
+	"llama3:8b-instruct-q5_K_M": "lokal",
+	"mistral:7b": "lokal",
+	"gemma:7b": "lokal",
+	"deepseek-r1:8b": "lokal",
 	// Local-server models from earlier app-config.ts versions - must never migrate to a cloud profile
 	"gemma:2b": "lokal",
 	"LTG/normistral-11b-thinking": "lokal",

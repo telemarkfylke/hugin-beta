@@ -37,8 +37,10 @@ describe("deriveVendorModels on the real catalogue", () => {
 
 	it("keeps Ollama and LiteLLM model IDs with no file support", () => {
 		expect(deriveVendorModels(MODEL_CONFIG, "OLLAMA").map((m) => [m.ID, m.SUPPORTED_MESSAGE_FILE_MIME_TYPES])).toEqual([
-			["llama3:8b", NO_MIME],
-			["LTG/normistral-11b-thinking:latest", NO_MIME]
+			["llama3:8b-instruct-q5_K_M", NO_MIME],
+			["mistral:7b", NO_MIME],
+			["gemma:7b", NO_MIME],
+			["deepseek-r1:8b", NO_MIME]
 		])
 		expect(deriveVendorModels(MODEL_CONFIG, "LITELLM").map((m) => m.ID)).toEqual(["norallm/normistral-11b-thinking"])
 	})
