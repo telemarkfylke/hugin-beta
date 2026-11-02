@@ -21,14 +21,14 @@ const MODELS = {
 	"gpt-5.6-luna": { vendor: "OPENAI", providerModel: "gpt-5.6-luna", files: "openai", capabilities: ["webSearch"], price: { inputPerMillion: 0.2, outputPerMillion: 1.2 } },
 	"mistral-medium": { vendor: "MISTRAL", providerModel: "mistral-medium-latest", files: "mistral", capabilities: ["webSearch"], status: "retired" },
 	"mistral-large": { vendor: "MISTRAL", providerModel: "mistral-large-latest", files: "mistral", capabilities: ["webSearch"], price: { inputPerMillion: 0.5, outputPerMillion: 1.5 } },
-	"ollama-llama3": { vendor: "OLLAMA", providerModel: "llama3:8b", files: "none", capabilities: [], status: "retired" },
+	// Offered to admins under "Avansert" only while OLLAMA_ENABLED="true" (ki.telemarkfylke.no POC). No profile uses them.
+	"ollama-llama3": { vendor: "OLLAMA", providerModel: "llama3:8b", files: "none", capabilities: [], price: { inputPerMillion: 0.01, outputPerMillion: 0.01 } },
 	"ollama-normistral": {
 		vendor: "OLLAMA",
 		providerModel: "LTG/normistral-11b-thinking:latest",
 		files: "none",
 		capabilities: [],
-		price: { inputPerMillion: 0.01, outputPerMillion: 0.01 },
-		status: "retired"
+		price: { inputPerMillion: 0.01, outputPerMillion: 0.01 }
 	},
 	// MIDLERTIDIG retired mens den lokale KI-serveren er frakoblet - fjern status for å koble til igjen
 	normistral: { vendor: "LITELLM", providerModel: "norallm/normistral-11b-thinking", files: "none", capabilities: [], price: { inputPerMillion: 0.01, outputPerMillion: 0.01 }, status: "retired" },

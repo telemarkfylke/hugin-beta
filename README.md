@@ -111,7 +111,7 @@ Four vendors are implemented today: OpenAI, Mistral AI, Ollama, and LiteLLM (`sr
 | `{vendor}-mapping.ts` | Converts between internal types and vendor SDK types |
 | `{vendor}-stream.ts` | Handles SSE streaming and event normalization |
 
-Vendors are registered in `src/lib/server/ai-vendors.ts` and enabled/configured per-vendor via `APP_CONFIG.VENDORS` (`src/lib/server/app-config/app-config.ts`). Each vendor's model list is derived from the model catalogue - see [Model Profiles](#model-profiles). **`vendorId` values are uppercase** (`"OPENAI"`, `"MISTRAL"`, `"OLLAMA"`, `"LITELLM"`), matching the `VENDORS` keys in `APP_CONFIG`.
+Vendors are registered in `src/lib/server/ai-vendors.ts` and enabled/configured per-vendor via `APP_CONFIG.VENDORS` (`src/lib/server/app-config/app-config.ts`). Each vendor's model list is derived from the model catalogue - see [Model Profiles](#model-profiles). Ollama is behind the `OLLAMA_ENABLED` feature flag and is only reachable through "Avansert → Lås til modell" (admin-only pins); no profile uses it. **`vendorId` values are uppercase** (`"OPENAI"`, `"MISTRAL"`, `"OLLAMA"`, `"LITELLM"`), matching the `VENDORS` keys in `APP_CONFIG`.
 
 **Data Flow:**
 ```
@@ -586,7 +586,7 @@ Create a `.env` file in the project root:
 MISTRAL_API_KEY_PROJECT_DEFAULT="your-mistral-api-key"
 OPENAI_API_KEY_PROJECT_DEFAULT="your-openai-api-key"
 # Extra API-key projects: MISTRAL_API_KEY_PROJECT_<NAME> / OPENAI_API_KEY_PROJECT_<NAME> (used by admin pins)
-# OLLAMA_HOST / LITELLM_BASE_URL enable the Ollama / LiteLLM vendors if set
+# LITELLM_BASE_URL enables the LiteLLM vendor if set. Ollama needs OLLAMA_ENABLED="true" and OLLAMA_HOST (see Feature flags)
 # LITELLM_BASE_URL="..."          # Required for the "Lokal" profile
 # LITELLM_API_KEY="..."
 
@@ -622,6 +622,9 @@ APP_ROLE_QA="QA"              # optional - defaults to "QA" if unset; grants "Op
 
 # Feature flags
 CANVAS_ENABLED="true"             # Enable the Canvas document editor
+OLLAMA_ENABLED="true"             # Enable the Ollama vendor - its models appear under "Avansert" for admins only (needs OLLAMA_HOST)
+OLLAMA_HOST="https://ki.telemarkfylke.no/ollama"
+OLLAMA_BASIC_AUTH="<user>:<password>" # Optional, server-side only - proxy basic auth, sent as an Authorization header
 DEFAULT_AGENT_ID=""                # Agent loaded by default on the home page
 
 # Transcription (Tale-til-notat) - see the Transcription feature section

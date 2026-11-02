@@ -3,6 +3,7 @@ import { Ollama } from "ollama"
 import { env } from "$env/dynamic/private"
 import type { IAIVendor } from "$lib/types/AIVendor"
 import type { ChatRequest, ChatResponseObject, ChatResponseStream } from "$lib/types/chat"
+import { buildOllamaHeaders } from "./ollama-headers"
 import { chatInputToOllamaMessage, ollamaResponseToChatResponseObject } from "./ollama-mapping"
 import { handleOllamaChatStream } from "./ollama-stream"
 
@@ -12,6 +13,8 @@ const getOllamaHost = (): string => {
 	}
 	return `${env.OLLAMA_HOST}`
 }
+
+const createOllamaClient = (): Ollama => new Ollama({ host: getOllamaHost(), headers: buildOllamaHeaders(env.OLLAMA_BASIC_AUTH) })
 
 const buildOllamaRequest = (chatRequest: ChatRequest): Omit<OllamaChatRequest, "stream"> => {
 	if (!chatRequest.config.model) {
@@ -32,7 +35,7 @@ const buildOllamaRequest = (chatRequest: ChatRequest): Omit<OllamaChatRequest, "
 
 export class OllamaAIVendor implements IAIVendor {
 	public async createChatResponse(chatRequest: ChatRequest): Promise<ChatResponseObject> {
-		const ollama = new Ollama({ host: getOllamaHost() })
+		const ollama = createOllamaClient()
 		const response = await ollama.chat({
 			...buildOllamaRequest(chatRequest),
 			stream: false
@@ -41,7 +44,7 @@ export class OllamaAIVendor implements IAIVendor {
 	}
 
 	public async createChatResponseStream(chatRequest: ChatRequest): Promise<ChatResponseStream> {
-		const ollama = new Ollama({ host: getOllamaHost() })
+		const ollama = createOllamaClient()
 		const responseStream = await ollama.chat({
 			...buildOllamaRequest(chatRequest),
 			stream: true
