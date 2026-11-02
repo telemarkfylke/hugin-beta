@@ -27,7 +27,8 @@ const VENDORS: AppConfig["VENDORS"] = {
 	},
 	OLLAMA: {
 		NAME: "Ollama",
-		ENABLED: Boolean(env.OLLAMA_HOST),
+		// Feature flag, off by default: the models only show up under "Avansert" (admin pin) once this is "true"
+		ENABLED: env.OLLAMA_ENABLED === "true" && Boolean(env.OLLAMA_HOST),
 		PROJECTS: ["DEFAULT"],
 		MODELS: deriveVendorModels(MODEL_CONFIG, "OLLAMA")
 	},
