@@ -3,6 +3,9 @@ import { env } from "$env/dynamic/private"
 import { MongoConversationStore } from "$lib/conversationstore/server/adapters/conversation-store"
 import type { IConversationStore } from "$lib/conversationstore/server/adapters/interface"
 import { MockConversationStore } from "$lib/conversationstore/server/adapters/mock-conversation-store"
+import { MongoFeatureFlagStore } from "$lib/featureflags/server/adapters/featureflag-store"
+import type { IFeatureFlagStore } from "$lib/featureflags/server/adapters/interface"
+import { MockFeatureFlagStore } from "$lib/featureflags/server/adapters/mock-featureflag-store"
 import type { IMcpSourceStore } from "$lib/mcp-sources/server/adapters/interface"
 import { MongoMcpSourceStore } from "$lib/mcp-sources/server/adapters/mcp-source-store"
 import { MockMcpSourceStore } from "$lib/mcp-sources/server/adapters/mock-mcp-source-store"
@@ -26,6 +29,7 @@ let websiteSourceStore: IWebsiteSourceStore
 let mcpSourceStore: IMcpSourceStore
 let conversationStore: IConversationStore
 let statsStore: IStatsStore
+let featureFlagStore: IFeatureFlagStore
 let rateLimiter: IRateLimiter
 
 if (env.MOCK_DB === "true") {
@@ -34,6 +38,7 @@ if (env.MOCK_DB === "true") {
 	mcpSourceStore = new MockMcpSourceStore()
 	conversationStore = new MockConversationStore()
 	statsStore = new MockStatsStore()
+	featureFlagStore = new MockFeatureFlagStore()
 	rateLimiter = new MockRateLimiter()
 } else {
 	if (!env.MONGODB_CONNECTION_STRING) {
@@ -46,6 +51,7 @@ if (env.MOCK_DB === "true") {
 	mcpSourceStore = new MongoMcpSourceStore(mongoClient)
 	conversationStore = new MongoConversationStore(mongoClient, null)
 	statsStore = new MongoStatsStore(mongoClient)
+	featureFlagStore = new MongoFeatureFlagStore(mongoClient)
 	rateLimiter = new MongoRateLimiter(mongoClient)
 }
 
@@ -67,6 +73,11 @@ export const getConversationStore = (): IConversationStore => {
 
 export const getStatsStore = (): IStatsStore => {
 	return statsStore
+}
+
+// Read through the cache in $lib/featureflags/server/feature-access, not directly
+export const getFeatureFlagStore = (): IFeatureFlagStore => {
+	return featureFlagStore
 }
 
 // Swappable backing store (Mongo today, see $lib/server/rate-limit) behind one shared instance -

@@ -1,7 +1,6 @@
 import type { RequestHandler } from "@sveltejs/kit"
 import { env } from "$env/dynamic/private"
-import { canUseTranscription } from "$lib/authorization"
-import { APP_CONFIG } from "$lib/server/app-config/app-config"
+import { hasFeature } from "$lib/featureflags/server/feature-access"
 import { HTTPError } from "$lib/server/middleware/http-error"
 import { apiRequestMiddleware } from "$lib/server/middleware/http-request"
 import { buildAudioUrl, hasAcceptedAudioExtension, isSafePathSegment, limitBytes, MAX_UPLOAD_BYTES } from "$lib/server/transcription/copyparty-paths"
@@ -9,7 +8,7 @@ import { getJobById } from "$lib/server/transcription/job-store"
 import type { ApiNextFunction } from "$lib/types/middleware/http-request"
 
 const proxyUpload: ApiNextFunction = async ({ requestEvent, user }) => {
-	if (!canUseTranscription(user, APP_CONFIG.APP_ROLES)) {
+	if (!(await hasFeature(user, "transcription"))) {
 		return { isAuthorized: false, response: new Response(null, { status: 403 }) }
 	}
 	const copypartyBase = env.COPYPARTY_BASE_URL

@@ -20,7 +20,7 @@
 
 	// Real authenticated user, default /api/chat endpoint, normal storeChat behavior - only the
 	// rendering (EmbedChat instead of Chat.svelte, no Menu chrome) differs from /agents/[agentId].
-	const embedChatState = new ChatState(initialChat, data.authenticatedUser, data.APP_CONFIG)
+	const embedChatState = new ChatState(initialChat, data.authenticatedUser, data.APP_CONFIG, { canUseHistory: data.features.history })
 </script>
 
 <EmbedChat

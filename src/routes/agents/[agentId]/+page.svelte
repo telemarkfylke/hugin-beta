@@ -20,7 +20,7 @@
 		history: []
 	}
 
-	const agentChatState = new ChatState(initialChat, data.authenticatedUser, data.APP_CONFIG)
+	const agentChatState = new ChatState(initialChat, data.authenticatedUser, data.APP_CONFIG, { canUseHistory: data.features.history })
 
 	// Track which agent the current chat belongs to, so we only reset on a real
 	// agentId change — not on every `data` update (e.g. invalidateAll() on tab

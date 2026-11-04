@@ -1,5 +1,6 @@
 import { json, type RequestHandler } from "@sveltejs/kit"
-import { canManageMcpSources, canUseMcpSharepoint } from "$lib/authorization"
+import { canManageMcpSources } from "$lib/authorization"
+import { hasFeature } from "$lib/featureflags/server/feature-access"
 import { APP_CONFIG } from "$lib/server/app-config/app-config"
 import { getMcpSourceStore } from "$lib/server/db/get-db"
 import { HTTPError } from "$lib/server/middleware/http-error"
@@ -11,7 +12,7 @@ import type { ApiNextFunction } from "$lib/types/middleware/http-request"
 const mcpSourceStore = getMcpSourceStore()
 
 const getMcpSources: ApiNextFunction = async ({ user }) => {
-	if (!canUseMcpSharepoint(user, APP_CONFIG.APP_ROLES)) {
+	if (!(await hasFeature(user, "mcpSharepoint"))) {
 		throw new HTTPError(403, "Not authorized to use MCP data sources")
 	}
 	const sources = await mcpSourceStore.getMcpSources(user)

@@ -1,7 +1,6 @@
 import { json, type RequestHandler } from "@sveltejs/kit"
-import { canUseHistory } from "$lib/authorization"
 import { getConversationManager } from "$lib/conversationstore/server/get-conversation-manager"
-import { APP_CONFIG } from "$lib/server/app-config/app-config"
+import { hasFeature } from "$lib/featureflags/server/feature-access"
 import { HTTPError } from "$lib/server/middleware/http-error"
 import { apiRequestMiddleware } from "$lib/server/middleware/http-request"
 import type { ChatHistory, ChatResponseObject } from "$lib/types/chat"
@@ -59,7 +58,7 @@ const createConversationFromHistory: ApiNextFunction = async ({ requestEvent, us
 		throw new HTTPError(400, "No request event")
 	}
 	// Users without history must never have conversations persisted - same rule as the normal chat save path.
-	if (!canUseHistory(user, APP_CONFIG.APP_ROLES)) {
+	if (!(await hasFeature(user, "history"))) {
 		throw new HTTPError(403, "Not authorized to store conversation history")
 	}
 

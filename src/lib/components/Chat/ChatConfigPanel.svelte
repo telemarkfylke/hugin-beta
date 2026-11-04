@@ -3,7 +3,8 @@
 	import { slide } from "svelte/transition"
 	import { goto } from "$app/navigation"
 	import { page } from "$app/state"
-	import { canEditPredefinedConfig, canPublishChatConfig, canSetAnonymousEmbed, canUseMcpSharepoint, canUseRagservice, canUseWebsiteDataSource } from "$lib/authorization"
+	import { canEditPredefinedConfig, canPublishChatConfig, canSetAnonymousEmbed } from "$lib/authorization"
+	import type { UserFeatures } from "$lib/featureflags/types"
 	import { McpSourcesApi } from "$lib/mcp-sources/adapters/mcpSourcesApi"
 	import { defaultProfileSelection } from "$lib/model-profiles"
 	import { RagServiceApi } from "$lib/ragservice/adapters/ragserviceApi"
@@ -25,8 +26,10 @@
 
 	let userCanEditPredefinedConfig = $derived(canEditPredefinedConfig(chatState.user, chatState.APP_CONFIG.APP_ROLES))
 	let userCanSetAnonymousEmbed = $derived(canSetAnonymousEmbed(chatState.user, chatState.APP_CONFIG.APP_ROLES))
-	let userCanUseRagservice = $derived(canUseRagservice(chatState.user, chatState.APP_CONFIG.APP_ROLES))
-	let userCanUseWebsiteDataSource = $derived(canUseWebsiteDataSource(chatState.user, chatState.APP_CONFIG.APP_ROLES))
+	// Resolved server-side in the root layout from the feature-flag matrix (see $lib/featureflags)
+	let features = $derived(page.data.features as UserFeatures)
+	let userCanUseRagservice = $derived(features.ragservice)
+	let userCanUseWebsiteDataSource = $derived(features.websiteSources)
 	// Deliberately just a role check, not "is the real SharePoint connection configured right now"
 	// (there used to be a separate AppConfig flag for that, removed as dead weight along with this
 	// check - see mcp-config.ts's own env.MCP_SHAREPOINT_ENABLED, which still gates the server
@@ -35,7 +38,7 @@
 	// the admin list page (role-only) would still show them as selectable-looking. Matches
 	// ragservice/website: whether the underlying source is actually reachable is a chat-time concern
 	// (see chat/+server.ts's mcpUnavailableStream), not a config-time one.
-	let userCanUseMcpSharepoint = $derived(canUseMcpSharepoint(chatState.user, chatState.APP_CONFIG.APP_ROLES))
+	let userCanUseMcpSharepoint = $derived(features.mcpSharepoint)
 	let embedUrl = $derived(chatState.chat.config._id ? `${page.url.origin}/embed/agents/${chatState.chat.config._id}` : "")
 	let publicEmbedUrl = $derived(chatState.chat.config._id ? `${page.url.origin}/public/embed/agents/${chatState.chat.config._id}` : "")
 	// Recommended snippet - drops a floating, ready-styled chat bubble via static/public/widget.js,

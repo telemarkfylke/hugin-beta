@@ -1,6 +1,6 @@
 import type { RequestHandler } from "@sveltejs/kit"
 import { logger } from "@vestfoldfylke/loglady"
-import { canUseCanvas } from "$lib/authorization"
+import { hasFeature } from "$lib/featureflags/server/feature-access"
 import { getVendor } from "$lib/server/ai-vendors"
 import { APP_CONFIG } from "$lib/server/app-config/app-config"
 import { HTTPError } from "$lib/server/middleware/http-error"
@@ -20,7 +20,7 @@ const canvasHandler: ApiNextFunction = async ({ requestEvent, user }) => {
 	if (!APP_CONFIG.CANVAS_ENABLED) {
 		throw new HTTPError(404, "Canvas is not enabled")
 	}
-	if (!canUseCanvas(user, APP_CONFIG.APP_ROLES)) {
+	if (!(await hasFeature(user, "canvas"))) {
 		throw new HTTPError(403, "Not authorized to use Canvas")
 	}
 

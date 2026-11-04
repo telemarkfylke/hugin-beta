@@ -1,4 +1,47 @@
 
+// Sjekke antallet som bruker HUgin nå
+rate-limits: { _id: RegExp("^usage-budget:user-inflight:") } 
+
+// Sjekke forbruket på dagsbasis på bruker
+rate-limits: { _id: RegExp("^usage-budget:user-day:90b53621-fa19-43f3-ab66-54a10c3f5dc2:") }  //
+
+// Sjekke forbruket på timesbasis på bruker
+rate-limits: { _id: RegExp("^usage-budget:user-hour:90b53621-fa19-43f3-ab66-54a10c3f5dc2:") }  //
+
+// Hvor mange har brukt hvor mye Dollars i dag ?
+[
+  { $match: { _id: /^usage-budget:user-day:/, $expr: { $gt: ["$expiresAt", "$$NOW"] } } },
+  { $bucket: {
+      groupBy: "$count",
+      boundaries: [0, 0.01, 0.05, 0.1, 0.25, 0.5, 1, 2, 5, 10, 999999],
+      default: "negativ",
+      output: { users: { $sum: 1 }, totalUsd: { $sum: "$count" } }
+  }},
+  { $project: {
+    _id: 0,
+    k: {
+      $cond: [
+        { $eq: ["$_id", "negativ"] },
+        "negativ",
+        { $let: {
+            vars: { b: [0, 0.01, 0.05, 0.1, 0.25, 0.5, 1, 2, 5, 10, 999999] },
+            in: { $concat: [
+              { $toString: "$_id" }, "->",
+              { $toString: { $arrayElemAt: ["$$b", { $add: [{ $indexOfArray: ["$$b", "$_id"] }, 1] }] } },
+              " USD"
+            ] }
+        } }
+      ]
+    },
+    v: { users: "$users", totalUsd: { $round: ["$totalUsd", 2] } }
+}},
+  { $group: { _id: null, items: { $push: { k: "$k", v: "$v" } } } },
+  { $replaceRoot: { newRoot: { $arrayToObject: "$items" } } }
+]
+
+
+
+
 //  Buckets for antall medlinger i conversations
 [
 { $group: { _id: "$conversationId", count: { $sum: 1 } } },

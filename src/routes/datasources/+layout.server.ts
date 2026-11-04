@@ -1,4 +1,5 @@
-import { canManageMcpSources, canManageWebsiteSources, canUseRagservice } from "$lib/authorization"
+import { canManageMcpSources, canManageWebsiteSources } from "$lib/authorization"
+import { hasFeature } from "$lib/featureflags/server/feature-access"
 import { APP_CONFIG } from "$lib/server/app-config/app-config"
 import { serverLoadRequestMiddleware } from "$lib/server/middleware/http-request"
 import type { ServerLoadNextFunction } from "$lib/types/middleware/http-request"
@@ -21,7 +22,7 @@ type DatasourcesLayoutData = {
 // the real, tab-specific, check.
 const datasourcesLayoutLoad: ServerLoadNextFunction<DatasourcesLayoutData> = async ({ user }) => {
 	const data = {
-		canUseRagservice: canUseRagservice(user, APP_CONFIG.APP_ROLES),
+		canUseRagservice: await hasFeature(user, "ragservice"),
 		canManageMcpSources: canManageMcpSources(user, APP_CONFIG.APP_ROLES),
 		canManageWebsiteSources: canManageWebsiteSources(user, APP_CONFIG.APP_ROLES)
 	}

@@ -5,7 +5,6 @@
 	import favicon32 from "$lib/assets/favicon-32x32.png"
 	import "../style.css" // Add global css (and make it hot reload)
 	import "../lib/axe.js"
-	import { canUseCanvas, canUseRagservice, canUseTranscription } from "$lib/authorization"
 	import Menu from "$lib/components/Menu.svelte"
 	import SpotlightHost from "$lib/components/SpotlightHost.svelte"
 	import type { LayoutProps } from "./$types.js"
@@ -44,9 +43,9 @@
 		<Menu
 			authenticatedUser={data.authenticatedUser}
 			appName={data.APP_CONFIG.NAME}
-			canUseTranscription={canUseTranscription(data.authenticatedUser, data.APP_CONFIG.APP_ROLES)}
-			canUseCanvas={data.APP_CONFIG.CANVAS_ENABLED && canUseCanvas(data.authenticatedUser, data.APP_CONFIG.APP_ROLES)}
-			canUseDatasources={canUseRagservice(data.authenticatedUser, data.APP_CONFIG.APP_ROLES)}
+			canUseTranscription={data.features.transcription}
+			canUseCanvas={data.features.canvas}
+			canUseDatasources={data.features.ragservice}
 			canPreviewRoles={data.authenticatedUser.roles.includes(data.APP_CONFIG.APP_ROLES.QA) || data.authenticatedUser.rolePreview !== undefined}
 		/>
 		<div class="page-content">

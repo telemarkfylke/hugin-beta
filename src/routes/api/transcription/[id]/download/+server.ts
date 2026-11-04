@@ -1,8 +1,7 @@
 import type { RequestHandler } from "@sveltejs/kit"
 import { logger } from "@vestfoldfylke/loglady"
 import { env } from "$env/dynamic/private"
-import { canUseTranscription } from "$lib/authorization"
-import { APP_CONFIG } from "$lib/server/app-config/app-config"
+import { hasFeature } from "$lib/featureflags/server/feature-access"
 import { HTTPError } from "$lib/server/middleware/http-error"
 import { apiRequestMiddleware } from "$lib/server/middleware/http-request"
 import { resolveUrlUnderBase } from "$lib/server/transcription/copyparty-paths"
@@ -15,7 +14,7 @@ const sanitizeFileName = (name: string): string => {
 }
 
 const downloadDocx: ApiNextFunction = async ({ requestEvent, user }) => {
-	if (!canUseTranscription(user, APP_CONFIG.APP_ROLES)) {
+	if (!(await hasFeature(user, "transcription"))) {
 		return { isAuthorized: false, response: new Response(null, { status: 403 }) }
 	}
 	const id = requestEvent.params.id

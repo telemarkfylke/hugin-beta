@@ -1,8 +1,7 @@
 import { json, type RequestHandler } from "@sveltejs/kit"
 import z from "zod"
 import { env } from "$env/dynamic/private"
-import { canUseTranscription } from "$lib/authorization"
-import { APP_CONFIG } from "$lib/server/app-config/app-config"
+import { hasFeature } from "$lib/featureflags/server/feature-access"
 import { HTTPError } from "$lib/server/middleware/http-error"
 import { apiRequestMiddleware } from "$lib/server/middleware/http-request"
 import { buildAudioUrl, buildLegacyAudioUrl, hasAcceptedAudioExtension, isSafePathSegment, resolveOwnDocxUrl, resolveUrlUnderBase } from "$lib/server/transcription/copyparty-paths"
@@ -29,13 +28,13 @@ const DeleteJobSchema = z.object({
 const forbidden = () => ({ isAuthorized: false, response: json({ message: "Forbidden" }, { status: 403 }) })
 
 const getJobs: ApiNextFunction = async ({ user }) => {
-	if (!canUseTranscription(user, APP_CONFIG.APP_ROLES)) return forbidden()
+	if (!(await hasFeature(user, "transcription"))) return forbidden()
 	const jobs = listJobsForUser(user.userId)
 	return { isAuthorized: true, response: json({ jobs }) }
 }
 
 const createJob: ApiNextFunction = async ({ requestEvent, user }) => {
-	if (!canUseTranscription(user, APP_CONFIG.APP_ROLES)) return forbidden()
+	if (!(await hasFeature(user, "transcription"))) return forbidden()
 	const body = await requestEvent.request.json().catch(() => null)
 	const parsed = CreateJobSchema.safeParse(body)
 	if (!parsed.success) {
@@ -50,7 +49,7 @@ const createJob: ApiNextFunction = async ({ requestEvent, user }) => {
 }
 
 const patchJob: ApiNextFunction = async ({ requestEvent, user }) => {
-	if (!canUseTranscription(user, APP_CONFIG.APP_ROLES)) return forbidden()
+	if (!(await hasFeature(user, "transcription"))) return forbidden()
 	const body = await requestEvent.request.json().catch(() => null)
 	const parsed = UpdateJobSchema.safeParse(body)
 	if (!parsed.success) {
@@ -90,7 +89,7 @@ const patchJob: ApiNextFunction = async ({ requestEvent, user }) => {
 }
 
 const deleteJob: ApiNextFunction = async ({ requestEvent, user }) => {
-	if (!canUseTranscription(user, APP_CONFIG.APP_ROLES)) return forbidden()
+	if (!(await hasFeature(user, "transcription"))) return forbidden()
 	const copypartyBase = env.COPYPARTY_BASE_URL
 	if (!copypartyBase) throw new HTTPError(500, "COPYPARTY_BASE_URL is not configured")
 
