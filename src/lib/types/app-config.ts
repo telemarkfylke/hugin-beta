@@ -27,19 +27,12 @@ export type AppRoles = {
 	QA: string
 }
 
-export type TranscriptionGroup = {
-	id: string
-	label: string
-}
-
 export type AppConfig = {
 	NAME: string
 	BODY_SIZE_LIMIT_BYTES: number
 	APP_ROLES: AppRoles
 	CONVERSATION_EXPORT_DISABLED: boolean
 	CANVAS_ENABLED: boolean
-	TRANSCRIPTION_GREEN_GROUP_ID: string | undefined
-	TRANSCRIPTION_GROUPS: TranscriptionGroup[]
 	// Profiles whose vendor is enabled - the picker filters by role client-side, the server enforces on save
 	MODEL_PROFILES: ClientModelProfile[]
 	// Resolved default profile ids ("" only if no profile is usable at all - logged at startup)
