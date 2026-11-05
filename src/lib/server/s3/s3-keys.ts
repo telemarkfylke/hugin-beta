@@ -5,7 +5,7 @@
  * sanitized file name - never from a raw client-supplied name - so a user can't write outside their own prefix.
  */
 
-import { isSafePathSegment } from "$lib/server/transcription/copyparty-paths"
+import { isSafePathSegment } from "$lib/server/files/upload-guards"
 
 export const MAX_S3_POC_UPLOAD_BYTES = 500 * 1024 * 1024
 

@@ -2,11 +2,11 @@ import { json, type RequestHandler } from "@sveltejs/kit"
 import { logger } from "@vestfoldfylke/loglady"
 import { canUseS3Poc } from "$lib/authorization"
 import { APP_CONFIG } from "$lib/server/app-config/app-config"
+import { limitBytes } from "$lib/server/files/upload-guards"
 import { HTTPError } from "$lib/server/middleware/http-error"
 import { apiRequestMiddleware } from "$lib/server/middleware/http-request"
 import { buildObjectKey, MAX_S3_POC_UPLOAD_BYTES, normalizeContentType, sanitizeFileName } from "$lib/server/s3/s3-keys"
 import { getS3PocConfig, listUserObjects, uploadObject } from "$lib/server/s3/s3-poc"
-import { limitBytes } from "$lib/server/transcription/copyparty-paths"
 import type { ApiNextFunction } from "$lib/types/middleware/http-request"
 
 // Admin check comes first, so a non-admin gets 403 whether or not the feature is switched on

@@ -19,13 +19,12 @@ export const createPendingJob = (userId: string, fileName: string): Transcriptio
 	return job
 }
 
-export const markJobProcessing = (userId: string, jobId: string, taleJobId?: string, audioUrl?: string): void => {
+export const markJobProcessing = (userId: string, jobId: string, taleJobId?: string): void => {
 	const job = getJobById(userId, jobId)
 	if (!job) return
 	job.status = "processing"
 	job.updatedAt = new Date().toISOString()
 	if (taleJobId) job.jobId = taleJobId
-	if (audioUrl) job.audioUrl = audioUrl
 }
 
 export const listJobsForUser = (userId: string): TranscriptionJob[] => {
@@ -34,6 +33,16 @@ export const listJobsForUser = (userId: string): TranscriptionJob[] => {
 
 export const getJobById = (userId: string, id: string): TranscriptionJob | undefined => {
 	return listJobsForUser(userId).find((j) => j.id === id)
+}
+
+/** Records the outcome of storing the Word document after a completed callback. */
+export const setDocxStored = (job: TranscriptionJob, stored: boolean): void => {
+	job.hasDocx = stored
+	if (!stored) {
+		job.status = "failed"
+		job.error = "Kunne ikke lagre Word-dokumentet"
+	}
+	job.updatedAt = new Date().toISOString()
 }
 
 export const removeJob = (userId: string, id: string): void => {
@@ -72,6 +81,12 @@ export const applyCallback = (payload: TranscriptionCallback): TranscriptionJob 
 	job.updatedAt = payload.completed_at || new Date().toISOString()
 	job.durationSeconds = payload.duration_seconds ?? null
 	job.error = payload.error ?? null
-	job.result = payload.result ?? null
+	if (payload.result) {
+		const { docx_url: _ignored, ...result } = payload.result
+		job.result = result
+	} else {
+		job.result = null
+	}
+	job.hasDocx = false
 	return job
 }

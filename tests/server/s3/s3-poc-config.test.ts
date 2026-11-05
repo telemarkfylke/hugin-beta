@@ -40,6 +40,11 @@ describe("getS3PocConfig", () => {
 		expect(getS3PocConfig()).toBeNull()
 	})
 
+	it("is off when the endpoint is not HTTPS", () => {
+		Object.assign(mockEnv, COMPLETE, { S3_ENDPOINT: "http://10.201.82.131:9000" })
+		expect(getS3PocConfig()).toBeNull()
+	})
+
 	it.each(["S3_ENDPOINT", "S3_ACCESS_KEY", "S3_SECRET_KEY", "S3_BUCKET"])("is off when %s is missing", (name) => {
 		Object.assign(mockEnv, COMPLETE, { [name]: undefined })
 		expect(getS3PocConfig()).toBeNull()

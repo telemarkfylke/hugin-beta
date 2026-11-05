@@ -6,7 +6,7 @@ import { GET, PUT } from "../../../src/routes/api/s3-poc/+server"
 import { load as pageLoad } from "../../../src/routes/s3-poc/+page.server"
 import { TEST_USER_MS_HEADERS } from "../api/test-requests-data"
 
-const CONFIG: S3PocConfig = { endpoint: "http://s3.test", accessKey: "k", secretKey: "s", bucket: "hugin-poc", region: "us-east-1", keyPrefix: "s3-poc" }
+const CONFIG: S3PocConfig = { endpoint: "https://s3.test", accessKey: "k", secretKey: "s", bucket: "hugin-poc", region: "us-east-1", keyPrefix: "s3-poc" }
 
 // The AWS SDK itself is not under test here - only who may call what, and where the file ends up
 const s3 = vi.hoisted(() => ({

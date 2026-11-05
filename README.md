@@ -164,7 +164,7 @@ All access-control decisions go through named functions in `src/lib/authorizatio
 | `canPromptConfig` | `ADMIN`; a `shared` config; a private config owned by the user; or a published config matching the user's role/group via `accessGroups` (`"all"`, `"employee"`, `"edu_employee"`, `"student"`, or an explicit Entra group id) |
 | `canUseCanvas` | `EMPLOYEE`, `EDU_EMPLOYEE`, `STUDENT` or `ADMIN` (and `CANVAS_ENABLED`) |
 | `canUseRagservice` | `EMPLOYEE` or `ADMIN` |
-| `canUseTranscription` | `EMPLOYEE`, `EDU_EMPLOYEE` or `ADMIN` - only gates the menu link today, see [Transcription](#transcription-tale-til-notat) |
+| `canUseTranscription` | `EMPLOYEE`, `EDU_EMPLOYEE` or `ADMIN` - gates the menu link, the page and every transcription API route, see [Transcription](#transcription-tale-til-notat) |
 | `canUseMcpSharepoint` | `EMPLOYEE` or `ADMIN` - can use the MCP feature at all (see one below for per-source ownership) |
 | `canUseWebsiteDataSource` | anyone authenticated, students included - Website sources touch no live external system or org-wide search, so there's no role gate beyond being logged in (see one below for per-source ownership) |
 | `canViewMcpSource` / `canViewWebsiteSource` | `ADMIN`; the source's own `type === "published"`; or the source's creator |
@@ -265,14 +265,25 @@ Canvas is gated behind the `CANVAS_ENABLED` environment variable and requires th
 
 ### Transcription (Tale-til-notat)
 
-Audio-to-text transcription via an internal service ("tale-til-notat"), available at `/transcription`. Users upload an audio/video file, the app proxies it to an internal Copyparty file server, triggers transcription, and polls/receives a callback with the result.
+Audio-to-text transcription via an internal service ("tale-til-notat"), available at `/transcription`. Users upload or record audio, Hugin streams it to S3 (Silo), tale-til-notat transcribes it, and Hugin builds the Word document from the result and stores it in S3. All S3 traffic is HTTPS-only.
 
 **How it works:**
 
 1. User confirms the recording requirements (a client-side checkbox), then selects a file (accepted: `.mp3`, `.mp4`, `.wav`, `.m4a`, `.ogg`, `.webm`, `.flac`, `.mkv`, `.avi`, `.wma`) or records in the browser. There is one workflow for all content - sensitive content is allowed when the "Krav til opptak" rules on the page are followed
-2. The app creates a job, proxies the upload to Copyparty, and triggers the external transcription service with a callback URL
-3. The external service calls back `POST /api/transcription/callback` (secret-gated via `TRANSCRIPTION_CALLBACK_SECRET`) when done
-4. The finished transcription can be downloaded as a `.docx`
+2. The app creates a job and streams the upload to S3 at `transcription/<userId>/<jobId>/audio/<fileName>` (multipart, 500 MB cap)
+3. Starting the job hands tale-til-notat a **presigned, read-only HTTPS URL** to the audio (valid 6 hours) as `source_url`, plus a callback URL - tale-til-notat never gets S3 keys
+4. tale-til-notat calls back `POST /api/transcription/callback` (secret-gated via `TRANSCRIPTION_CALLBACK_SECRET`). Hugin builds the `.docx` itself from the returned text (`transcription-docx.ts`), stores it at `transcription/<userId>/<jobId>/transkripsjon.docx` and deletes the audio. tale-til-notat's own `docx_url` is ignored
+5. "Åpne" streams the `.docx` from S3 through Hugin; deleting a job deletes everything under its `<userId>/<jobId>/` prefix. Both look files up by prefix, so they keep working after a restart has emptied the in-memory job store
+
+**Storage:** `S3_TRANSCRIPTION_BUCKET` plus the shared `S3_ENDPOINT`/`S3_ACCESS_KEY`/`S3_SECRET_KEY` (`src/lib/server/s3/s3-client.ts`). `S3_ENDPOINT` must be `https://` - otherwise storage is off and the API answers 503. Without the bucket or keys, likewise 503.
+
+**Local development:** run Silo in Docker with a self-signed certificate for `localhost`, set `S3_ENDPOINT="https://localhost:9000"`, and start the dev server with the certificate trusted:
+
+```bash
+NODE_EXTRA_CA_CERTS=~/.hugin-silo/certs/public.crt npm run dev
+```
+
+tale-til-notat can't reach a local Silo, so a full transcription only works against the real Silo.
 
 **Access control:** `EMPLOYEE`, `EDU_EMPLOYEE` and `ADMIN` (`canUseTranscription`) - the same rule gates the menu link, the page load and every `/api/transcription` route. There is no group-based gating.
 
@@ -284,7 +295,10 @@ Audio-to-text transcription via an internal service ("tale-til-notat"), availabl
 | `src/routes/api/transcription/+server.ts` | Create/list/update transcription jobs |
 | `src/routes/api/transcription/callback/+server.ts` | Secret-gated webhook called by the external service |
 | `src/routes/api/transcription/[id]/download/+server.ts` | Download a finished transcription as `.docx` |
-| `src/routes/api/transcription/upload/[...path]/+server.ts` | Proxies large audio uploads to Copyparty |
+| `src/routes/api/transcription/upload/[...path]/+server.ts` | Streams large audio uploads to S3 |
+| `src/lib/server/transcription/transcription-storage.ts` | S3 operations: upload, presigned audio URL, docx put/get, delete |
+| `src/lib/server/transcription/transcription-keys.ts` | S3 key layout per user and job, accepted audio extensions |
+| `src/lib/server/transcription/transcription-docx.ts` | Builds the Word document from the transcription text |
 | `src/lib/server/transcription/job-store.ts` | In-memory job store — **jobs do not survive a restart or work across instances** |
 | `src/lib/server/transcription/tale-til-notat.ts` | Calls the external transcription service |
 | `src/lib/server/transcription/types.ts` | Zod schemas for job/callback payloads |
@@ -629,8 +643,8 @@ DEFAULT_AGENT_ID=""                # Agent loaded by default on the home page
 
 # Transcription (Tale-til-notat) - see the Transcription feature section
 TALE_TIL_NOTAT_URL="http://<ki-server>:<port>"
-COPYPARTY_BASE_URL="http://<copyparty-host>/copyparty"
 TRANSCRIPTION_CALLBACK_SECRET="<random-secret>"
+S3_TRANSCRIPTION_BUCKET="hugin-transcription"  # Uses S3_ENDPOINT (https:// only), S3_ACCESS_KEY, S3_SECRET_KEY
 
 # Datakilder (RAG) - see the Datakilder feature section
 RAGSERVICE_URL="https://ragservice.example.com"
@@ -802,7 +816,7 @@ Fetch one conversation's full message history.
 
 Fire-and-forget: auto-generate a title for a conversation. No-op if the conversation is already titled.
 
-### GET / POST / PATCH `/api/transcription`
+### GET / POST / PATCH / DELETE `/api/transcription`
 
 List, create, or update transcription jobs. See [Transcription](#transcription-tale-til-notat).
 
@@ -812,11 +826,11 @@ Webhook called by the external tale-til-notat service when a job completes. Auth
 
 ### GET `/api/transcription/[id]/download`
 
-Download a finished transcription as a `.docx` file.
+Download a finished transcription as a `.docx` file, streamed from S3.
 
 ### `/api/transcription/upload/[...path]`
 
-Proxies large audio/video uploads to the internal Copyparty file server.
+Streams large audio/video uploads to S3.
 
 ### `/api/obo/rag/[...path]`
 
