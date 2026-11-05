@@ -173,6 +173,11 @@ export const canEditWebsiteSource = (source: WebsiteSource, user: AuthenticatedP
 	return source.createdBy.id === user.userId
 }
 
+// The S3 storage POC (/s3-poc) is admin-only, on top of its own S3_POC_ENABLED env switch.
+export const canUseS3Poc = (user: AuthenticatedPrincipal): boolean => {
+	return isAdmin(user)
+}
+
 export const canPromptConfig = (user: AuthenticatedPrincipal, chatConfig: ChatConfig): boolean => {
 	if (isAdmin(user)) {
 		return true
