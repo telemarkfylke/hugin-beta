@@ -99,6 +99,19 @@ describe("PUT /api/s3-poc", () => {
 		expect(await res.json()).toMatchObject({ object: { key: params.key, fileName: "rapport.pdf" } })
 	})
 
+	it("stores the type declared in the query, whatever Content-Type the request carries", async () => {
+		// The browser sends application/octet-stream because the WAF in front of Hugin blocks media Content-Types
+		const res = await PUT(makeEvent("/api/s3-poc?name=diagram.png&type=image%2Fpng", { method: "PUT", rawBody: new Uint8Array(10), headers: { "content-type": "application/octet-stream" } }))
+		expect(res.status).toBe(201)
+		expect(uploadCall().params.contentType).toBe("image/png")
+	})
+
+	it("falls back to octet-stream when the declared type is not a plain media type", async () => {
+		const res = await PUT(makeEvent("/api/s3-poc?name=a.bin&type=not%20a%20type", { method: "PUT", rawBody: new Uint8Array(10) }))
+		expect(res.status).toBe(201)
+		expect(uploadCall().params.contentType).toBe("application/octet-stream")
+	})
+
 	it("gives every upload of the same name its own key", async () => {
 		await put("a.pdf")
 		await put("a.pdf")

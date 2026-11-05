@@ -50,3 +50,16 @@ export const buildObjectKey = (keyPrefix: string, userId: string, uploadId: stri
 	}
 	return `${userKeyPrefix(keyPrefix, userId)}${uploadId}-${sanitizeFileName(fileName)}`
 }
+
+const DEFAULT_CONTENT_TYPE = "application/octet-stream"
+const MEDIA_TYPE_PATTERN = /^[a-z0-9][a-z0-9.+-]*\/[a-z0-9][a-z0-9.+-]*$/
+
+/**
+ * The content type to store with an object. Takes a client-declared media type (parameters such as
+ * "; charset=utf-8" are dropped) and falls back to application/octet-stream unless it is a plain
+ * type/subtype, so nothing odd ends up in a response header when the object is read back.
+ */
+export const normalizeContentType = (raw: string | null | undefined): string => {
+	const mediaType = raw?.split(";")[0]?.trim().toLowerCase() ?? ""
+	return mediaType.length <= 127 && MEDIA_TYPE_PATTERN.test(mediaType) ? mediaType : DEFAULT_CONTENT_TYPE
+}
