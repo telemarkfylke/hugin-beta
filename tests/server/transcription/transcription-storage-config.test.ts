@@ -5,7 +5,7 @@ vi.mock("$env/dynamic/private", () => ({ env: mockEnv }))
 
 import { getTranscriptionStorage } from "$lib/server/transcription/transcription-storage"
 
-const COMPLETE = { S3_ENDPOINT: "https://s3.ki.telemarkfylke.no", S3_ACCESS_KEY: "key", S3_SECRET_KEY: "secret", TRANSCRIPTION_S3_BUCKET: "hugin-transcription" }
+const COMPLETE = { S3_ENDPOINT: "https://s3.ki.telemarkfylke.no", S3_ACCESS_KEY: "key", S3_SECRET_KEY: "secret", S3_TRANSCRIPTION_BUCKET: "hugin-transcription" }
 
 beforeEach(() => {
 	for (const name of Object.keys(mockEnv)) delete mockEnv[name]
@@ -22,8 +22,8 @@ describe("getTranscriptionStorage", () => {
 		expect(getTranscriptionStorage()?.bucket).toBe("hugin-transcription")
 	})
 
-	it("is null without TRANSCRIPTION_S3_BUCKET", () => {
-		Object.assign(mockEnv, COMPLETE, { TRANSCRIPTION_S3_BUCKET: " " })
+	it("is null without S3_TRANSCRIPTION_BUCKET", () => {
+		Object.assign(mockEnv, COMPLETE, { S3_TRANSCRIPTION_BUCKET: " " })
 		expect(getTranscriptionStorage()).toBeNull()
 	})
 

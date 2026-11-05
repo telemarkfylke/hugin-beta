@@ -275,7 +275,7 @@ Audio-to-text transcription via an internal service ("tale-til-notat"), availabl
 4. tale-til-notat calls back `POST /api/transcription/callback` (secret-gated via `TRANSCRIPTION_CALLBACK_SECRET`). Hugin builds the `.docx` itself from the returned text (`transcription-docx.ts`), stores it at `transcription/<userId>/<jobId>/transkripsjon.docx` and deletes the audio. tale-til-notat's own `docx_url` is ignored
 5. "Åpne" streams the `.docx` from S3 through Hugin; deleting a job deletes everything under its `<userId>/<jobId>/` prefix. Both look files up by prefix, so they keep working after a restart has emptied the in-memory job store
 
-**Storage:** `TRANSCRIPTION_S3_BUCKET` plus the shared `S3_ENDPOINT`/`S3_ACCESS_KEY`/`S3_SECRET_KEY` (`src/lib/server/s3/s3-client.ts`). `S3_ENDPOINT` must be `https://` - otherwise storage is off and the API answers 503. Without the bucket or keys, likewise 503.
+**Storage:** `S3_TRANSCRIPTION_BUCKET` plus the shared `S3_ENDPOINT`/`S3_ACCESS_KEY`/`S3_SECRET_KEY` (`src/lib/server/s3/s3-client.ts`). `S3_ENDPOINT` must be `https://` - otherwise storage is off and the API answers 503. Without the bucket or keys, likewise 503.
 
 **Local development:** run Silo in Docker with a self-signed certificate for `localhost`, set `S3_ENDPOINT="https://localhost:9000"`, and start the dev server with the certificate trusted:
 
@@ -644,7 +644,7 @@ DEFAULT_AGENT_ID=""                # Agent loaded by default on the home page
 # Transcription (Tale-til-notat) - see the Transcription feature section
 TALE_TIL_NOTAT_URL="http://<ki-server>:<port>"
 TRANSCRIPTION_CALLBACK_SECRET="<random-secret>"
-TRANSCRIPTION_S3_BUCKET="hugin-transcription"  # Uses S3_ENDPOINT (https:// only), S3_ACCESS_KEY, S3_SECRET_KEY
+S3_TRANSCRIPTION_BUCKET="hugin-transcription"  # Uses S3_ENDPOINT (https:// only), S3_ACCESS_KEY, S3_SECRET_KEY
 
 # Datakilder (RAG) - see the Datakilder feature section
 RAGSERVICE_URL="https://ragservice.example.com"

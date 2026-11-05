@@ -7,7 +7,7 @@ import { env } from "$env/dynamic/private"
 import { getS3Client, getS3Connection, type S3Connection } from "$lib/server/s3/s3-client"
 import { audioKey, docxKey, jobPrefix } from "./transcription-keys"
 
-/** Where transcription files live: the shared (HTTPS-only) S3 connection plus TRANSCRIPTION_S3_BUCKET. */
+/** Where transcription files live: the shared (HTTPS-only) S3 connection plus S3_TRANSCRIPTION_BUCKET. */
 export type TranscriptionStorage = S3Connection & { bucket: string }
 
 type JobRef = { userId: string; jobId: string }
@@ -25,7 +25,7 @@ const DOCX_CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.wordpro
 /** The storage config, or null when the S3 connection or the bucket is missing, or the endpoint is not HTTPS. */
 export const getTranscriptionStorage = (): TranscriptionStorage | null => {
 	const connection = getS3Connection()
-	const bucket = env.TRANSCRIPTION_S3_BUCKET?.trim()
+	const bucket = env.S3_TRANSCRIPTION_BUCKET?.trim()
 	if (!connection || !bucket) {
 		return null
 	}
