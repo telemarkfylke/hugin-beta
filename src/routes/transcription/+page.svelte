@@ -59,11 +59,9 @@
 
 	const localStorageKey = $derived(`transcription_jobs_${userId}`)
 
+	// The transcription text is never kept in the browser - only what the list needs (the document is in S3)
 	const persistJobs = (list: TranscriptionJob[]) => {
-		const slim = list.map((j) => ({
-			...j,
-			result: j.result ? { docx_url: j.result.docx_url ?? null } : null
-		}))
+		const slim = list.map(({ result: _result, ...j }) => j)
 		localStorage.setItem(localStorageKey, JSON.stringify(slim))
 	}
 
@@ -211,7 +209,7 @@
 		const res = await fetch("/api/transcription", {
 			method: "DELETE",
 			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ id: job.id, fileName: job.fileName, audioUrl: job.audioUrl ?? null, docxUrl: job.result?.docx_url ?? null })
+			body: JSON.stringify({ id: job.id })
 		})
 		if (res.ok) {
 			jobs = jobs.filter((j) => j.id !== job.id)
@@ -591,7 +589,7 @@
 								{/if}
 							</div>
 							<div class="job-actions">
-								{#if job.status === "completed" && job.result?.docx_url}
+								{#if job.status === "completed" && job.hasDocx}
 									<!-- Mock: "Åpne" downloads the Word document until we decide what it should do -->
 									<a class="outline-button" href={`/api/transcription/${job.id}/download`}>
 										<span class="material-symbols-outlined">open_in_new</span>

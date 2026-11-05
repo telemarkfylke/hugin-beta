@@ -10,7 +10,7 @@ type TriggerParams = {
 
 /**
  * Trigger a transcription job on tale-til-notat.
- * Passes the exact audioUrl (Copyparty path including jobId) so tale-til-notat downloads
+ * Passes audioUrl (a presigned, read-only HTTPS link to the audio in S3) so tale-til-notat downloads
  * the file directly — no shared volume required.
  * Returns the tale-til-notat job_id.
  */

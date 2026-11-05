@@ -1,31 +1,29 @@
 import type { RequestHandler } from "@sveltejs/kit"
-import { env } from "$env/dynamic/private"
+import { logger } from "@vestfoldfylke/loglady"
 import { canUseTranscription } from "$lib/authorization"
 import { APP_CONFIG } from "$lib/server/app-config/app-config"
+import { isSafePathSegment, limitBytes } from "$lib/server/files/upload-guards"
 import { HTTPError } from "$lib/server/middleware/http-error"
 import { apiRequestMiddleware } from "$lib/server/middleware/http-request"
-import { buildAudioUrl, hasAcceptedAudioExtension, isSafePathSegment, limitBytes, MAX_UPLOAD_BYTES } from "$lib/server/transcription/copyparty-paths"
 import { getJobById } from "$lib/server/transcription/job-store"
+import { requireTranscriptionStorage } from "$lib/server/transcription/require-storage"
+import { hasAcceptedAudioExtension, MAX_UPLOAD_BYTES } from "$lib/server/transcription/transcription-keys"
+import { uploadAudio } from "$lib/server/transcription/transcription-storage"
 import type { ApiNextFunction } from "$lib/types/middleware/http-request"
 
-const proxyUpload: ApiNextFunction = async ({ requestEvent, user }) => {
+/** PUT /api/transcription/upload/<userId>/<jobId>/<fileName> with the raw audio as the body - streamed on to S3. */
+const uploadHandler: ApiNextFunction = async ({ requestEvent, user }) => {
 	if (!canUseTranscription(user, APP_CONFIG.APP_ROLES)) {
 		return { isAuthorized: false, response: new Response(null, { status: 403 }) }
 	}
-	const copypartyBase = env.COPYPARTY_BASE_URL
-	if (!copypartyBase) {
-		throw new HTTPError(500, "COPYPARTY_BASE_URL is not configured")
-	}
+	const storage = requireTranscriptionStorage()
 
 	const { request } = requestEvent
 
 	// Extract the three expected segments: <userId>/<jobId>/<filename>
 	const suffix = requestEvent.params.path ?? ""
 	const firstSlash = suffix.indexOf("/")
-	if (firstSlash === -1) {
-		throw new HTTPError(400, "Invalid upload path — expected /<userId>/<jobId>/<filename>")
-	}
-	const secondSlash = suffix.indexOf("/", firstSlash + 1)
+	const secondSlash = firstSlash === -1 ? -1 : suffix.indexOf("/", firstSlash + 1)
 	if (secondSlash === -1) {
 		throw new HTTPError(400, "Invalid upload path — expected /<userId>/<jobId>/<filename>")
 	}
@@ -59,35 +57,23 @@ const proxyUpload: ApiNextFunction = async ({ requestEvent, user }) => {
 		throw new HTTPError(400, "Missing file")
 	}
 
-	// Reconstruct the target URL from trusted data only (userId from auth, the job's id and filename)
-	// Using jobId in the path ensures each upload is unique — Copyparty will never rename/deduplicate it
-	const targetUrl = buildAudioUrl(copypartyBase, user.userId, job.id, job.fileName)
-
-	// Forward Content-Length if present so Copyparty gets the size upfront (avoids chunked encoding)
-	const headers: Record<string, string> = { "Content-Type": "application/octet-stream" }
-	if (contentLength) headers["content-length"] = contentLength
-
-	let upstream: Response
 	try {
-		upstream = await fetch(targetUrl, {
-			method: "PUT",
+		await uploadAudio(storage, {
+			userId: user.userId,
+			jobId: job.id,
+			fileName: job.fileName,
 			// The byte limit also covers requests without (or with a lying) Content-Length
-			body: request.body.pipeThrough(limitBytes(MAX_UPLOAD_BYTES)),
-			headers,
-			// @ts-expect-error — required in Node 18+ to stream request bodies
-			duplex: "half"
+			body: request.body.pipeThrough(limitBytes(MAX_UPLOAD_BYTES))
 		})
 	} catch (error) {
-		// The byte limit errors the body stream; fetch may surface that directly or as the cause
+		// The byte limit errors the body stream; the SDK may surface that directly or as the cause
 		if (error instanceof HTTPError) throw error
 		if (error instanceof Error && error.cause instanceof HTTPError) throw error.cause
+		logger.errorException(error, "[Transcription] - Upload to S3 failed for job {jobId}", job.id)
 		throw new HTTPError(502, "Opplastingen feilet")
 	}
 
-	return {
-		isAuthorized: true,
-		response: new Response(upstream.body, { status: upstream.status })
-	}
+	return { isAuthorized: true, response: new Response(null, { status: 201 }) }
 }
 
-export const PUT: RequestHandler = async (requestEvent) => apiRequestMiddleware(requestEvent, proxyUpload)
+export const PUT: RequestHandler = async (requestEvent) => apiRequestMiddleware(requestEvent, uploadHandler)

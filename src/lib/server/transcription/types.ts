@@ -12,7 +12,8 @@ export const TranscriptionResultSchema = z.object({
 	segments: z.array(TranscriptionSegmentSchema).optional().default([]),
 	paragraphs: z.array(z.string()).optional().default([]),
 	language: z.string().optional(),
-	docx_url: z.url().nullable().optional()
+	// Still sent by tale-til-notat, but ignored: Hugin builds and stores the Word document itself (in S3)
+	docx_url: z.string().nullable().optional()
 })
 
 export const TranscriptionCallbackSchema = z.object({
@@ -27,7 +28,7 @@ export const TranscriptionCallbackSchema = z.object({
 })
 
 export type TranscriptionCallback = z.infer<typeof TranscriptionCallbackSchema>
-export type TranscriptionResult = z.infer<typeof TranscriptionResultSchema>
+export type TranscriptionResult = Omit<z.infer<typeof TranscriptionResultSchema>, "docx_url">
 
 export type TranscriptionJobStatus = "uploading" | "processing" | "completed" | "failed"
 
@@ -35,7 +36,6 @@ export type TranscriptionJob = {
 	id: string
 	userId: string
 	fileName: string
-	audioUrl?: string
 	status: TranscriptionJobStatus
 	createdAt: string
 	updatedAt: string
@@ -43,4 +43,6 @@ export type TranscriptionJob = {
 	durationSeconds?: number | null
 	error?: string | null
 	result?: TranscriptionResult | null
+	// True once Hugin has stored the Word document in S3
+	hasDocx?: boolean
 }
