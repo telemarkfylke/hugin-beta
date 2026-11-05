@@ -202,6 +202,11 @@ export const canUseTranscription = (user: AuthenticatedPrincipal, appRoles: AppR
 	return user.roles.includes(appRoles.EMPLOYEE) || user.roles.includes(appRoles.EDU_EMPLOYEE) || user.roles.includes(appRoles.ADMIN)
 }
 
+// The S3 storage POC (/s3-poc) is admin-only, on top of its own S3_POC_ENABLED feature flag.
+export const canUseS3Poc = (user: AuthenticatedPrincipal, appRoles: AppRoles): boolean => {
+	return user.roles.includes(appRoles.ADMIN)
+}
+
 export const canPromptConfig = (user: AuthenticatedPrincipal, appConfig: AppConfig, chatConfig: ChatConfig): boolean => {
 	if (user.roles.includes(appConfig.APP_ROLES.ADMIN)) {
 		return true
