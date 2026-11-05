@@ -24,8 +24,8 @@
 
 	let { chatState = $bindable() }: Props = $props()
 
-	let userCanEditPredefinedConfig = $derived(canEditPredefinedConfig(chatState.user, chatState.APP_CONFIG.APP_ROLES))
-	let userCanSetAnonymousEmbed = $derived(canSetAnonymousEmbed(chatState.user, chatState.APP_CONFIG.APP_ROLES))
+	let userCanEditPredefinedConfig = $derived(canEditPredefinedConfig(chatState.user))
+	let userCanSetAnonymousEmbed = $derived(canSetAnonymousEmbed(chatState.user))
 	// Resolved server-side in the root layout from the feature-flag matrix (see $lib/featureflags)
 	let features = $derived(page.data.features as UserFeatures)
 	let userCanUseRagservice = $derived(features.ragservice)
@@ -476,7 +476,7 @@
 				{/if}
 
 				<!-- Publish options -->
-				{#if canPublishChatConfig(chatState.user, chatState.APP_CONFIG.APP_ROLES)}
+				{#if canPublishChatConfig(chatState.user)}
 					<div class="config-section">
 						<div class="config-item">
 							<label for="publish-status">Publiseringsstatus</label>

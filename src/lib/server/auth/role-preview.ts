@@ -1,21 +1,21 @@
 import { isRolePreviewRole, ROLE_PREVIEW_COOKIE, type RolePreviewRole } from "$lib/role-preview"
-import { APP_CONFIG } from "$lib/server/app-config/app-config"
 import type { AuthenticatedPrincipal } from "$lib/types/authentication"
 
 // Server half of "Opplev Hugin som" (see $lib/role-preview). The previewed roles are swapped into
 // the principal itself (getAuthenticatedPrincipal), not just hidden in the UI - so every
 // authorization check, API route and store query behaves exactly as for a real user with that role.
 
-export const canUseRolePreview = (realPrincipal: AuthenticatedPrincipal): boolean => realPrincipal.roles.includes(APP_CONFIG.APP_ROLES.QA)
+export const canUseRolePreview = (realPrincipal: AuthenticatedPrincipal): boolean => realPrincipal.huginRoles.includes("qa")
 
-// Real agent maintainers also hold EMPLOYEE (several feature gates - canvas, ragservice, MCP - check
-// EMPLOYEE, not AGENT_MAINTAINER), so previewing AGENT_MAINTAINER alone would show a misleadingly
-// restricted Hugin.
-const previewRoles = (role: RolePreviewRole): string[] => {
-	if (role === "AGENT_MAINTAINER") {
-		return [APP_CONFIG.APP_ROLES.AGENT_MAINTAINER, APP_CONFIG.APP_ROLES.EMPLOYEE]
-	}
-	return [APP_CONFIG.APP_ROLES[role]]
+// A preview replaces BOTH dimensions: previewing "Elev" as an admin+QA user must drop admin too, or
+// it shows Hugin as no real student sees it. QA disappears with it - switching the preview off
+// again is checked against the real principal (see /api/role-preview). Agent maintainers are
+// employees in real life, so that's the affiliation they're previewed with.
+const PREVIEW_PRINCIPAL_ROLES: Record<RolePreviewRole, Pick<AuthenticatedPrincipal, "affiliations" | "huginRoles">> = {
+	AGENT_MAINTAINER: { affiliations: ["employee"], huginRoles: ["agentMaintainer"] },
+	EMPLOYEE: { affiliations: ["employee"], huginRoles: [] },
+	EDU_EMPLOYEE: { affiliations: ["edu_employee"], huginRoles: [] },
+	STUDENT: { affiliations: ["student"], huginRoles: [] }
 }
 
 const readCookie = (headers: Headers, name: string): string | undefined => {
@@ -46,5 +46,5 @@ export const applyRolePreview = (realPrincipal: AuthenticatedPrincipal, headers:
 	if (!isRolePreviewRole(role)) {
 		return realPrincipal
 	}
-	return { ...realPrincipal, roles: previewRoles(role), groups: [], rolePreview: role }
+	return { ...realPrincipal, ...PREVIEW_PRINCIPAL_ROLES[role], groups: [], rolePreview: role }
 }

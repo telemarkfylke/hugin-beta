@@ -1,6 +1,7 @@
 import type { Response } from "openai/resources/responses/responses"
 import { describe, expect, it, vi } from "vitest"
 import { APP_CONFIG } from "$lib/server/app-config/app-config"
+import { splitAppRoles } from "$lib/server/auth/principal-roles"
 import { getRateLimiter } from "$lib/server/db/get-db"
 import { usageFromMistral } from "$lib/server/mistral/mistral-mapping"
 import type { ModelConfig } from "$lib/server/models/types"
@@ -30,7 +31,13 @@ vi.mock("$env/dynamic/private", async (importOriginal) => {
 const DAY_MS = 24 * 60 * 60_000
 
 let userCounter = 0
-const principal = (...roles: string[]): AuthenticatedPrincipal => ({ userId: `budget-user-${++userCounter}`, name: "U", preferredUserName: "u", roles, groups: [] })
+const principal = (...roles: string[]): AuthenticatedPrincipal => ({
+	userId: `budget-user-${++userCounter}`,
+	name: "U",
+	preferredUserName: "u",
+	...splitAppRoles(roles, APP_CONFIG.APP_ROLES),
+	groups: []
+})
 
 const modelConfig = {
 	MODELS: {
@@ -103,11 +110,11 @@ describe("usage cost", () => {
 
 describe("usageBudgetFor", () => {
 	it("gives the most generous budget across the user's roles", () => {
-		expect(usageBudgetFor(principal(APP_CONFIG.APP_ROLES.STUDENT, APP_CONFIG.APP_ROLES.EMPLOYEE), APP_CONFIG.APP_ROLES, DEFAULT_USAGE_BUDGETS)).toEqual(DEFAULT_USAGE_BUDGETS.EMPLOYEE)
+		expect(usageBudgetFor(principal(APP_CONFIG.APP_ROLES.STUDENT, APP_CONFIG.APP_ROLES.EMPLOYEE), DEFAULT_USAGE_BUDGETS)).toEqual(DEFAULT_USAGE_BUDGETS.EMPLOYEE)
 	})
 
 	it("falls back to the student budget for a user with no budgeted role", () => {
-		expect(usageBudgetFor(principal(), APP_CONFIG.APP_ROLES, DEFAULT_USAGE_BUDGETS)).toEqual(DEFAULT_USAGE_BUDGETS.STUDENT)
+		expect(usageBudgetFor(principal(), DEFAULT_USAGE_BUDGETS)).toEqual(DEFAULT_USAGE_BUDGETS.STUDENT)
 	})
 })
 
@@ -329,7 +336,7 @@ describe("anonymous embed budget", () => {
 	})
 
 	it("is never mistaken for a role when picking a user's budget", () => {
-		expect(usageBudgetFor(principal(), APP_CONFIG.APP_ROLES, { ...DEFAULT_USAGE_BUDGETS, ANONYMOUS_EMBED: { perHourUsd: 999, perDayUsd: 999 } })).toEqual(DEFAULT_USAGE_BUDGETS.STUDENT)
+		expect(usageBudgetFor(principal(), { ...DEFAULT_USAGE_BUDGETS, ANONYMOUS_EMBED: { perHourUsd: 999, perDayUsd: 999 } })).toEqual(DEFAULT_USAGE_BUDGETS.STUDENT)
 	})
 })
 

@@ -38,7 +38,7 @@ const makeInner = () => {
 	return { inner, written }
 }
 
-const principal: AuthenticatedPrincipal = { userId: "u1", name: "U", preferredUserName: "u", roles: [], groups: [] }
+const principal: AuthenticatedPrincipal = { userId: "u1", name: "U", preferredUserName: "u", affiliations: [], huginRoles: [], groups: [] }
 
 describe("ResolvingChatConfigStore", () => {
 	it("resolves a single config on read", async () => {

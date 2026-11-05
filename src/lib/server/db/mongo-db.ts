@@ -5,7 +5,6 @@ import { canViewAllChatConfigs } from "$lib/authorization"
 import type { AuthenticatedPrincipal } from "$lib/types/authentication"
 import type { ChatConfig, DbChatConfig, NewChatConfig, RoleAccessGroups } from "$lib/types/chat"
 import type { IChatConfigStore } from "$lib/types/db/db-interface"
-import { APP_CONFIG } from "../app-config/app-config"
 
 export class MongoChatConfigStore implements IChatConfigStore {
 	private readonly mongoClient: MongoClient
@@ -50,19 +49,19 @@ export class MongoChatConfigStore implements IChatConfigStore {
 		const db = await this.getDb()
 		const collection: Collection<DbChatConfig> = db.collection(this.collectionName)
 
-		if (canViewAllChatConfigs(principal, APP_CONFIG.APP_ROLES)) {
+		if (canViewAllChatConfigs(principal)) {
 			return (await collection.find({}).toArray()).map((config) => ({ ...config, _id: config._id.toString() }))
 		}
 
 		const roleAccessGroups: RoleAccessGroups[] = ["all"]
-		if (principal.roles.includes(APP_CONFIG.APP_ROLES.EMPLOYEE)) {
+		if (principal.affiliations.includes("employee")) {
 			roleAccessGroups.push("employee")
 		}
-		if (principal.roles.includes(APP_CONFIG.APP_ROLES.EDU_EMPLOYEE)) {
+		if (principal.affiliations.includes("edu_employee")) {
 			roleAccessGroups.push("edu_employee")
 			roleAccessGroups.push("student") // EDU_EMPLOYEE should also have access to "student" configs
 		}
-		if (principal.roles.includes(APP_CONFIG.APP_ROLES.STUDENT)) {
+		if (principal.affiliations.includes("student")) {
 			roleAccessGroups.push("student")
 		}
 

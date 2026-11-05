@@ -59,7 +59,7 @@ export const invalidateFeatureFlags = (): void => {
 }
 
 export const getUserFeatures = async (user: AuthenticatedPrincipal): Promise<UserFeatures> => {
-	const features = resolveUserFeatures(user, APP_CONFIG.APP_ROLES, await getFeatureFlags())
+	const features = resolveUserFeatures(user, await getFeatureFlags())
 	for (const feature of Object.keys(ENVIRONMENT_DISABLED) as FeatureKey[]) {
 		features[feature] = false
 	}

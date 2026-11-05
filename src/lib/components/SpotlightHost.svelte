@@ -1,15 +1,13 @@
 <script lang="ts">
 	import { canSeeSpotlight } from "$lib/authorization"
 	import { SPOTLIGHTS } from "$lib/spotlights"
-	import type { AppRoles } from "$lib/types/app-config"
 	import type { AuthenticatedPrincipal } from "$lib/types/authentication"
 	import FeatureSpotlight from "./FeatureSpotlight.svelte"
 
 	type Props = {
 		authenticatedUser: AuthenticatedPrincipal
-		appRoles: AppRoles
 	}
-	let { authenticatedUser, appRoles }: Props = $props()
+	let { authenticatedUser }: Props = $props()
 </script>
 
 {#each SPOTLIGHTS as spotlight (spotlight.id)}
@@ -22,6 +20,6 @@
 		placement={spotlight.placement}
 		backdrop={spotlight.backdrop}
 		width={spotlight.width}
-		active={canSeeSpotlight(authenticatedUser, appRoles, spotlight.accessGroups ?? ["all"])}
+		active={canSeeSpotlight(authenticatedUser, spotlight.accessGroups ?? ["all"])}
 	/>
 {/each}

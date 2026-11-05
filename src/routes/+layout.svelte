@@ -46,7 +46,7 @@
 			canUseTranscription={data.features.transcription}
 			canUseCanvas={data.features.canvas}
 			canUseDatasources={data.features.ragservice}
-			canPreviewRoles={data.authenticatedUser.roles.includes(data.APP_CONFIG.APP_ROLES.QA) || data.authenticatedUser.rolePreview !== undefined}
+			canPreviewRoles={data.authenticatedUser.huginRoles.includes("qa") || data.authenticatedUser.rolePreview !== undefined}
 		/>
 		<div class="page-content">
 			{#if children}
@@ -59,7 +59,7 @@
 
 	<!-- Feature-announcement overlay - never on embed routes, that's someone else's page/an anonymous
 	     visitor, not a Hugin user we'd be onboarding. -->
-	<SpotlightHost authenticatedUser={data.authenticatedUser} appRoles={data.APP_CONFIG.APP_ROLES} />
+	<SpotlightHost authenticatedUser={data.authenticatedUser} />
 {/if}
 
 <style>

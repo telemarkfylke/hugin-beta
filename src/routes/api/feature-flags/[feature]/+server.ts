@@ -4,7 +4,6 @@ import z from "zod"
 import { canManageFeatureFlags } from "$lib/authorization"
 import { invalidateFeatureFlags } from "$lib/featureflags/server/feature-access"
 import { isFeatureKey } from "$lib/featureflags/types"
-import { APP_CONFIG } from "$lib/server/app-config/app-config"
 import { getFeatureFlagStore } from "$lib/server/db/get-db"
 import { HTTPError } from "$lib/server/middleware/http-error"
 import { apiRequestMiddleware } from "$lib/server/middleware/http-request"
@@ -16,7 +15,7 @@ const FeatureRolesInputSchema = z.object({
 })
 
 const setFeatureRoles: ApiNextFunction = async ({ requestEvent, user }) => {
-	if (!canManageFeatureFlags(user, APP_CONFIG.APP_ROLES)) {
+	if (!canManageFeatureFlags(user)) {
 		throw new HTTPError(403, "Not authorized to manage feature flags")
 	}
 	const feature = requestEvent.params.feature

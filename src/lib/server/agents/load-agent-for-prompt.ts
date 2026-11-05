@@ -1,5 +1,4 @@
 import { canPromptConfig } from "$lib/authorization"
-import { APP_CONFIG } from "$lib/server/app-config/app-config"
 import { getChatConfigStore } from "$lib/server/db/get-db"
 import { HTTPError } from "$lib/server/middleware/http-error"
 import type { AuthenticatedPrincipal } from "$lib/types/authentication"
@@ -17,7 +16,7 @@ export const loadAgentForPrompt = async (user: AuthenticatedPrincipal, agentId: 
 	if (!agent) {
 		throw new HTTPError(404, "Fant ikke assistenten - den kan ha blitt slettet")
 	}
-	if (!canPromptConfig(user, APP_CONFIG, agent)) {
+	if (!canPromptConfig(user, agent)) {
 		throw new HTTPError(403, "Du har ikke tilgang til denne assistenten")
 	}
 	return agent

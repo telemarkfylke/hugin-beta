@@ -2,7 +2,6 @@ import { canViewAllChatConfigs } from "$lib/authorization"
 import type { AuthenticatedPrincipal } from "$lib/types/authentication"
 import type { ChatConfig, NewChatConfig } from "$lib/types/chat"
 import type { IChatConfigStore } from "$lib/types/db/db-interface"
-import { APP_CONFIG } from "../app-config/app-config"
 
 let mockChatConfigs: ChatConfig[] = [
 	{
@@ -82,7 +81,7 @@ export class MockChatConfigStore implements IChatConfigStore {
 		return config
 	}
 	async getChatConfigs(principal: AuthenticatedPrincipal): Promise<ChatConfig[]> {
-		if (canViewAllChatConfigs(principal, APP_CONFIG.APP_ROLES)) {
+		if (canViewAllChatConfigs(principal)) {
 			return mockChatConfigs
 		}
 		return mockChatConfigs.filter((config) => {
@@ -95,13 +94,13 @@ export class MockChatConfigStore implements IChatConfigStore {
 			if (config.accessGroups.includes("all")) {
 				return true
 			}
-			if (config.accessGroups.includes("employee") && principal.roles.includes(APP_CONFIG.APP_ROLES.EMPLOYEE)) {
+			if (config.accessGroups.includes("employee") && principal.affiliations.includes("employee")) {
 				return true
 			}
-			if (config.accessGroups.includes("edu_employee") && principal.roles.includes(APP_CONFIG.APP_ROLES.EDU_EMPLOYEE)) {
+			if (config.accessGroups.includes("edu_employee") && principal.affiliations.includes("edu_employee")) {
 				return true
 			}
-			if (config.accessGroups.includes("student") && (principal.roles.includes(APP_CONFIG.APP_ROLES.STUDENT) || principal.roles.includes(APP_CONFIG.APP_ROLES.EDU_EMPLOYEE))) {
+			if (config.accessGroups.includes("student") && (principal.affiliations.includes("student") || principal.affiliations.includes("edu_employee"))) {
 				return true
 			}
 			if (Array.isArray(config.accessGroups)) {

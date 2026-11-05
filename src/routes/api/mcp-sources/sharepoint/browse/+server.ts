@@ -1,6 +1,5 @@
 import { json, type RequestHandler } from "@sveltejs/kit"
 import { canManageMcpSources } from "$lib/authorization"
-import { APP_CONFIG } from "$lib/server/app-config/app-config"
 import { getSharepointMcpClient } from "$lib/server/mcp/mcp-client"
 import { parseFolderList } from "$lib/server/mcp/parse-sharepoint-folder-list"
 import { HTTPError } from "$lib/server/middleware/http-error"
@@ -21,7 +20,7 @@ const browseSharePointFolders: ApiNextFunction = async ({ requestEvent, user }) 
 	if (!requestEvent) {
 		throw new HTTPError(400, "No request event")
 	}
-	if (!canManageMcpSources(user, APP_CONFIG.APP_ROLES)) {
+	if (!canManageMcpSources(user)) {
 		throw new HTTPError(403, "Not authorized to browse SharePoint")
 	}
 

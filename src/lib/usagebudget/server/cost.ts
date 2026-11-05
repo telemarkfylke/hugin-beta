@@ -1,6 +1,5 @@
 import type { ModelConfig, ModelPrice } from "$lib/server/models/types"
-import type { AppRoles } from "$lib/types/app-config"
-import type { AuthenticatedPrincipal } from "$lib/types/authentication"
+import type { Affiliation, AuthenticatedPrincipal } from "$lib/types/authentication"
 import type { ChatResponseUsage, VendorId } from "$lib/types/chat"
 import type { ChatInputItem } from "$lib/types/chat-item"
 
@@ -84,8 +83,17 @@ export const parseUsageBudgets = (raw: string | undefined): { budgets: UsageBudg
 // never mean "free".
 export const UNKNOWN_MODEL_PRICE: ModelPrice = { inputPerMillion: 4, outputPerMillion: 20 }
 
-export const usageBudgetFor = (user: AuthenticatedPrincipal, appRoles: AppRoles, usageBudgets: UsageBudgets): UsageBudget => {
-	const budgets = BUDGET_ROLES.filter((role) => user.roles.includes(appRoles[role])).map((role) => usageBudgets[role])
+// The budget keys stay the APP_ROLE_* names (they're what USAGE_BUDGET in env is written with) -
+// ADMIN is a Hugin role, the rest are affiliations.
+const BUDGET_AFFILIATIONS: Record<Exclude<BudgetRole, "ADMIN">, Affiliation> = { EMPLOYEE: "employee", EDU_EMPLOYEE: "edu_employee", STUDENT: "student" }
+
+const hasBudgetRole = (user: AuthenticatedPrincipal, role: BudgetRole): boolean => {
+	if (role === "ADMIN") return user.huginRoles.includes("admin")
+	return user.affiliations.includes(BUDGET_AFFILIATIONS[role])
+}
+
+export const usageBudgetFor = (user: AuthenticatedPrincipal, usageBudgets: UsageBudgets): UsageBudget => {
+	const budgets = BUDGET_ROLES.filter((role) => hasBudgetRole(user, role)).map((role) => usageBudgets[role])
 	if (budgets.length === 0) {
 		return usageBudgets.STUDENT
 	}

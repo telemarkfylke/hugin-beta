@@ -1,6 +1,5 @@
 import { json, type RequestHandler } from "@sveltejs/kit"
 import { canEditWebsiteSource, canManageWebsiteSources } from "$lib/authorization"
-import { APP_CONFIG } from "$lib/server/app-config/app-config"
 import { getWebsiteSourceStore } from "$lib/server/db/get-db"
 import { HTTPError } from "$lib/server/middleware/http-error"
 import { apiRequestMiddleware } from "$lib/server/middleware/http-request"
@@ -14,7 +13,7 @@ const replaceWebsiteSource: ApiNextFunction = async ({ requestEvent, user }) => 
 	if (!requestEvent) {
 		throw new HTTPError(400, "No request event")
 	}
-	if (!canManageWebsiteSources(user, APP_CONFIG.APP_ROLES)) {
+	if (!canManageWebsiteSources(user)) {
 		throw new HTTPError(403, "Not authorized to manage website data sources")
 	}
 
@@ -27,7 +26,7 @@ const replaceWebsiteSource: ApiNextFunction = async ({ requestEvent, user }) => 
 	if (!existing) {
 		throw new HTTPError(404, "Website source not found")
 	}
-	if (!canEditWebsiteSource(existing, user, APP_CONFIG.APP_ROLES)) {
+	if (!canEditWebsiteSource(existing, user)) {
 		throw new HTTPError(403, "Not authorized to edit this website source")
 	}
 
@@ -59,7 +58,7 @@ const deleteWebsiteSource: ApiNextFunction = async ({ requestEvent, user }) => {
 	if (!requestEvent) {
 		throw new HTTPError(400, "No request event")
 	}
-	if (!canManageWebsiteSources(user, APP_CONFIG.APP_ROLES)) {
+	if (!canManageWebsiteSources(user)) {
 		throw new HTTPError(403, "Not authorized to manage website data sources")
 	}
 
@@ -72,7 +71,7 @@ const deleteWebsiteSource: ApiNextFunction = async ({ requestEvent, user }) => {
 	if (!existing) {
 		throw new HTTPError(404, "Website source not found")
 	}
-	if (!canEditWebsiteSource(existing, user, APP_CONFIG.APP_ROLES)) {
+	if (!canEditWebsiteSource(existing, user)) {
 		throw new HTTPError(403, "Not authorized to delete this website source")
 	}
 

@@ -1,6 +1,5 @@
 import { logger } from "@vestfoldfylke/loglady"
 import { env } from "$env/dynamic/private"
-import { APP_CONFIG } from "$lib/server/app-config/app-config"
 import { getRateLimiter } from "$lib/server/db/get-db"
 import { HTTPError } from "$lib/server/middleware/http-error"
 import { MODEL_CONFIG } from "$lib/server/models/models.config"
@@ -53,7 +52,7 @@ const formatRetry = (ms: number): string => {
 // The window the subject has used up (day checked first), or null while within budget. `ownReservation`
 // is left out of the count, so a call is only refused for what was spent or reserved before it.
 const findExceededWindow = async (subject: BudgetSubject, ownReservation = 0): Promise<{ window: "day" | "hour"; retryAfterMs: number } | null> => {
-	const budget = isAnonymousEmbed(subject) ? USAGE_BUDGETS.ANONYMOUS_EMBED : usageBudgetFor(subject, APP_CONFIG.APP_ROLES, USAGE_BUDGETS)
+	const budget = isAnonymousEmbed(subject) ? USAGE_BUDGETS.ANONYMOUS_EMBED : usageBudgetFor(subject, USAGE_BUDGETS)
 	const keys = budgetKeys(subject)
 	const rateLimiter = getRateLimiter()
 	const [hour, day] = await Promise.all([rateLimiter.getCount(keys.hour, HOUR_MS), rateLimiter.getCount(keys.day, DAY_MS)])

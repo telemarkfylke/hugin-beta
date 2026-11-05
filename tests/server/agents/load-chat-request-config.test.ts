@@ -1,13 +1,12 @@
 import { beforeAll, describe, expect, it } from "vitest"
 import { getFallbackAgent } from "$lib/server/agents/fallback-agent"
 import { loadChatRequestConfig } from "$lib/server/agents/load-chat-request-config"
-import { APP_CONFIG } from "$lib/server/app-config/app-config"
 import { getChatConfigStore } from "$lib/server/db/get-db"
 import type { AuthenticatedPrincipal } from "$lib/types/authentication"
 import type { ChatConfig, NewChatConfig } from "$lib/types/chat"
 
-const owner: AuthenticatedPrincipal = { userId: "owner", name: "O", preferredUserName: "o", roles: [APP_CONFIG.APP_ROLES.EMPLOYEE], groups: [] }
-const otherEmployee: AuthenticatedPrincipal = { userId: "other", name: "A", preferredUserName: "a", roles: [APP_CONFIG.APP_ROLES.EMPLOYEE], groups: [] }
+const owner: AuthenticatedPrincipal = { userId: "owner", name: "O", preferredUserName: "o", affiliations: ["employee"], huginRoles: [], groups: [] }
+const otherEmployee: AuthenticatedPrincipal = { userId: "other", name: "A", preferredUserName: "a", affiliations: ["employee"], huginRoles: [], groups: [] }
 
 const base: NewChatConfig = {
 	name: "Saved",

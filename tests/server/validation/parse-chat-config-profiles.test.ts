@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest"
+import { splitAppRoles } from "../../../src/lib/server/auth/principal-roles"
 import { HTTPError } from "../../../src/lib/server/middleware/http-error"
 import type { AppConfig } from "../../../src/lib/types/app-config"
 import type { AuthenticatedPrincipal } from "../../../src/lib/types/authentication"
@@ -43,7 +44,7 @@ const APP_CONFIG = {
 	}
 } as unknown as AppConfig
 
-const user = (roles: string[]): AuthenticatedPrincipal => ({ userId: "u1", name: "U", preferredUserName: "u", roles, groups: [] })
+const user = (roles: string[]): AuthenticatedPrincipal => ({ userId: "u1", name: "U", preferredUserName: "u", ...splitAppRoles(roles, APP_CONFIG.APP_ROLES), groups: [] })
 const admin = user(["Admin"])
 const employee = user(["Employee"])
 const student = user(["Student"])

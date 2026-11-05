@@ -7,6 +7,7 @@ export const ANONYMOUS_PRINCIPAL: AuthenticatedPrincipal = {
 	userId: "anonymous",
 	name: "Gjest",
 	preferredUserName: "anonymous",
-	roles: [],
+	affiliations: [],
+	huginRoles: [],
 	groups: []
 }

@@ -35,15 +35,15 @@ const createChatConfig: ApiNextFunction = async ({ requestEvent, user }) => {
 
 	const chatConfig: ChatConfig = parseChatConfig(body, APP_CONFIG, { mode: "save", user, previous: null })
 
-	if (chatConfig.type === "published" && !canPublishChatConfig(user, APP_CONFIG.APP_ROLES)) {
+	if (chatConfig.type === "published" && !canPublishChatConfig(user)) {
 		throw new HTTPError(403, "User is not authorized to create published chat configs")
 	}
 
-	if (chatConfig.allowAnonymousEmbed && !canSetAnonymousEmbed(user, APP_CONFIG.APP_ROLES)) {
+	if (chatConfig.allowAnonymousEmbed && !canSetAnonymousEmbed(user)) {
 		throw new HTTPError(403, "User is not authorized to enable anonymous embedding")
 	}
 
-	if (anonymousEmbedRateLimitsChanged(null, chatConfig) && !canSetAnonymousEmbed(user, APP_CONFIG.APP_ROLES)) {
+	if (anonymousEmbedRateLimitsChanged(null, chatConfig) && !canSetAnonymousEmbed(user)) {
 		throw new HTTPError(403, "User is not authorized to set anonymous embed rate limits")
 	}
 

@@ -1,7 +1,6 @@
 import { canManageFeatureFlags } from "$lib/authorization"
 import { ENVIRONMENT_DISABLED, getFeatureFlags, invalidateFeatureFlags } from "$lib/featureflags/server/feature-access"
 import type { FeatureFlag, FeatureKey } from "$lib/featureflags/types"
-import { APP_CONFIG } from "$lib/server/app-config/app-config"
 import { serverLoadRequestMiddleware } from "$lib/server/middleware/http-request"
 import type { ServerLoadNextFunction } from "$lib/types/middleware/http-request"
 import type { PageServerLoad } from "./$types"
@@ -12,7 +11,7 @@ type FeatureFlagsPageData = {
 }
 
 const featureFlagsLoad: ServerLoadNextFunction<FeatureFlagsPageData> = async ({ user }) => {
-	if (!canManageFeatureFlags(user, APP_CONFIG.APP_ROLES)) {
+	if (!canManageFeatureFlags(user)) {
 		return { data: { flags: [], environmentDisabled: {} }, isAuthorized: false }
 	}
 	// Always fresh from the DB here (another instance may have saved within the last TTL) - and this

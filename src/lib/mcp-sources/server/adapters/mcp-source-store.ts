@@ -1,8 +1,7 @@
 import { logger } from "@vestfoldfylke/loglady"
 import { type Collection, type Db, type Filter, type MongoClient, ObjectId } from "mongodb"
 import { env } from "$env/dynamic/private"
-import { canViewMcpSource } from "$lib/authorization"
-import { APP_CONFIG } from "$lib/server/app-config/app-config"
+import { canViewMcpSource, isAdmin } from "$lib/authorization"
 import type { AuthenticatedPrincipal } from "$lib/types/authentication"
 import type { McpSource, NewMcpSource } from "$lib/types/mcp-source"
 import type { IMcpSourceStore } from "./interface"
@@ -94,10 +93,9 @@ export class MongoMcpSourceStore implements IMcpSourceStore {
 		// canViewMcpSource is still applied below on the (now much smaller) result set - not because
 		// the query above is untrusted, but so the authorization rule keeps living in exactly one
 		// place instead of being reimplemented in two places that could silently drift apart later.
-		const isAdmin = principal.roles.includes(APP_CONFIG.APP_ROLES.ADMIN)
-		const query: Filter<DbMcpSource> = isAdmin ? {} : { $or: [{ type: "published" }, { "createdBy.id": principal.userId }] }
+		const query: Filter<DbMcpSource> = isAdmin(principal) ? {} : { $or: [{ type: "published" }, { "createdBy.id": principal.userId }] }
 		const sources = (await collection.find(query).toArray()).map(normalizeMcpSource)
-		return sources.filter((source) => canViewMcpSource(source, principal, APP_CONFIG.APP_ROLES))
+		return sources.filter((source) => canViewMcpSource(source, principal))
 	}
 
 	async createMcpSource(source: NewMcpSource): Promise<McpSource> {

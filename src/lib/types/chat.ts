@@ -1,6 +1,7 @@
 import type { ObjectId } from "mongodb"
 import z from "zod"
 import type { AppConfig } from "./app-config"
+import type { Affiliation } from "./authentication"
 import type { ChatInputItem, ChatOutputItem } from "./chat-item"
 
 export type VendorId = keyof AppConfig["VENDORS"]
@@ -23,7 +24,7 @@ export type ChatTool = { type: "web_search" } | { type: "datasource" } | { type:
 // door to the two disagreeing.
 export type DataSource = { type: "ragservice"; id: string } | { type: "mcp"; sourceId: string } | { type: "website"; id: string }
 
-export type RoleAccessGroups = "all" | "employee" | "edu_employee" | "student"
+export type RoleAccessGroups = "all" | Affiliation
 export type EntraAccessGroup = {
 	id: string
 	displayName: string
