@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { buildObjectKey, sanitizeFileName, userKeyPrefix } from "$lib/server/s3/s3-keys"
+import { buildObjectKey, normalizeContentType, sanitizeFileName, userKeyPrefix } from "$lib/server/s3/s3-keys"
 
 describe("sanitizeFileName", () => {
 	it.each([
@@ -64,5 +64,21 @@ describe("buildObjectKey", () => {
 
 	it("rejects an unsafe upload id", () => {
 		expect(() => buildObjectKey("s3-poc", "user-oid-1234", "a/b", "x.pdf")).toThrow()
+	})
+})
+
+describe("normalizeContentType", () => {
+	it.each([
+		["image/png", "image/png"],
+		["video/mp4", "video/mp4"],
+		["application/vnd.openxmlformats-officedocument.wordprocessingml.document", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"],
+		["image/svg+xml", "image/svg+xml"],
+		["Text/Plain; charset=UTF-8", "text/plain"]
+	])("keeps %j", (input, expected) => {
+		expect(normalizeContentType(input)).toBe(expected)
+	})
+
+	it.each([null, undefined, "", "png", "image/", "/png", "image/png\r\nX-Evil: 1", "a b/c", `${"a".repeat(128)}/b`])("falls back to octet-stream for %j", (input) => {
+		expect(normalizeContentType(input)).toBe("application/octet-stream")
 	})
 })

@@ -38,8 +38,10 @@
 	const putFile = (file: File, onProgress: (percent: number) => void): Promise<{ status: number; body: string }> =>
 		new Promise((resolve, reject) => {
 			const xhr = new XMLHttpRequest()
-			xhr.open("PUT", `/api/s3-poc?name=${encodeURIComponent(file.name)}`)
-			xhr.setRequestHeader("Content-Type", file.type || "application/octet-stream")
+			// The real type goes in the URL: the WAF in front of Hugin blocks media Content-Types (image/png, video/mp4, ...) with 403
+			const type = file.type ? `&type=${encodeURIComponent(file.type)}` : ""
+			xhr.open("PUT", `/api/s3-poc?name=${encodeURIComponent(file.name)}${type}`)
+			xhr.setRequestHeader("Content-Type", "application/octet-stream")
 			xhr.upload.onprogress = (event) => {
 				if (event.lengthComputable) onProgress(Math.round((event.loaded / event.total) * 100))
 			}
