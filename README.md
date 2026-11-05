@@ -19,7 +19,7 @@ Hugin Beta is an internal AI-agent web application designed to provide a democra
 - **Enterprise Authentication** - Microsoft Entra ID integration with role-based and group-based access control
 - **Multi-Modal Input** - Support for text, images, and document uploads
 - **Canvas** - AI-assisted document editor with web search, manual editing, AI-generated Excalidraw diagrams, and export to text and Word
-- **Transcription (Tale-til-notat)** - Audio upload and transcription via an internal service, with group-gated sensitive use cases
+- **Transcription (Tale-til-notat)** - Audio upload and recording, transcribed by an internal service on the county's own servers
 - **Datakilder** - Three kinds of data sources an agent can use: RAG document libraries (retrieval, injected into `instructions`), SharePoint MCP sources (scoped folder browsing/reading via tool-calling), and Website sources (scoped page fetching via tool-calling) - each with its own tab, private-by-default ownership, and an explicit "make public" toggle to share with other users
 - **Conversation Persistence** - Optional history with auto-generated titles, incognito mode, and at-rest encryption
 - **Agent Management** - Create, publish, and share reusable chat configurations ("agents")
@@ -269,18 +269,18 @@ Audio-to-text transcription via an internal service ("tale-til-notat"), availabl
 
 **How it works:**
 
-1. User selects a file (accepted: `.mp3`, `.mp4`, `.wav`, `.m4a`, `.ogg`, `.webm`, `.flac`, `.mkv`, `.avi`, `.wma`) and a mode — "open" or "red" (sensitive use case)
+1. User confirms the recording requirements (a client-side checkbox), then selects a file (accepted: `.mp3`, `.mp4`, `.wav`, `.m4a`, `.ogg`, `.webm`, `.flac`, `.mkv`, `.avi`, `.wma`) or records in the browser. There is one workflow for all content - sensitive content is allowed when the "Krav til opptak" rules on the page are followed
 2. The app creates a job, proxies the upload to Copyparty, and triggers the external transcription service with a callback URL
 3. The external service calls back `POST /api/transcription/callback` (secret-gated via `TRANSCRIPTION_CALLBACK_SECRET`) when done
 4. The finished transcription can be downloaded as a `.docx`
 
-**Access control:** The menu link is shown to `EMPLOYEE`, `EDU_EMPLOYEE` and `ADMIN` (`canUseTranscription`). The page and API routes don't check roles yet. "Red" (sensitive) use cases are gated by Entra ID group membership — `TRANSCRIPTION_GROUP_N_ID`/`TRANSCRIPTION_GROUP_N_LABEL` env vars (dynamically scanned, `N = 1, 2, 3, …`) define the available groups, checked against the user's Entra groups.
+**Access control:** `EMPLOYEE`, `EDU_EMPLOYEE` and `ADMIN` (`canUseTranscription`) - the same rule gates the menu link, the page load and every `/api/transcription` route. There is no group-based gating.
 
 **Relevant files:**
 
 | File | Purpose |
 |------|---------|
-| `src/routes/transcription/+page.svelte` | UI — job list, upload, mode toggle, download, delete |
+| `src/routes/transcription/+page.svelte` | UI — recording requirements, confirmation, upload/record, job list, download, delete |
 | `src/routes/api/transcription/+server.ts` | Create/list/update transcription jobs |
 | `src/routes/api/transcription/callback/+server.ts` | Secret-gated webhook called by the external service |
 | `src/routes/api/transcription/[id]/download/+server.ts` | Download a finished transcription as `.docx` |
@@ -631,9 +631,6 @@ DEFAULT_AGENT_ID=""                # Agent loaded by default on the home page
 TALE_TIL_NOTAT_URL="http://<ki-server>:<port>"
 COPYPARTY_BASE_URL="http://<copyparty-host>/copyparty"
 TRANSCRIPTION_CALLBACK_SECRET="<random-secret>"
-# Sensitive ("red") use case groups - define as many as needed (TRANSCRIPTION_GROUP_2_ID, _3_ID, ...)
-TRANSCRIPTION_GROUP_1_ID=""
-TRANSCRIPTION_GROUP_1_LABEL=""
 
 # Datakilder (RAG) - see the Datakilder feature section
 RAGSERVICE_URL="https://ragservice.example.com"
