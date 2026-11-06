@@ -132,7 +132,7 @@ export type ChatResponseUsage = {
 	inputTokens: number
 	outputTokens: number
 	totalTokens: number
-	// Billed per call by the vendor on top of tokens - see WEB_SEARCH_CALL_PRICE_USD
+	// Billed per call by the vendor on top of tokens - see UsageLimits.webSearchCallPriceUsd
 	webSearchCalls?: number
 }
 

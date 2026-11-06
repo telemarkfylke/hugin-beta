@@ -15,14 +15,7 @@ export type CatalogueModel = {
 	status?: "active" | "retired"
 	// Internal models (e.g. the utility LLM) are never offered to users or admins
 	internal?: boolean
-	// USD per 1M tokens, straight from the vendor's price list, for the per-user usage budget ($lib/usagebudget). Omitted = priced as
-	// UNKNOWN_MODEL_PRICE there (deliberately expensive), so a missing price never means "free"
-	price?: ModelPrice
-}
-
-export type ModelPrice = {
-	inputPerMillion: number
-	outputPerMillion: number
+	// Prices are not here - they live in the DB per environment (/admin/ratelimits, $lib/usagebudget)
 }
 
 export type Profile = {

@@ -28,4 +28,7 @@ export interface IRateLimiter {
 	getCount(key: string, windowMs: number): Promise<{ count: number; retryAfterMs: number }>
 	// Atomically adds `amount` (may be fractional, e.g. kroner) to `key`'s counter in the current window.
 	add(key: string, amount: number, windowMs: number): Promise<void>
+	// Every counter in the current window whose key starts with `keyPrefix` - for statistics (e.g. how
+	// usage is spread across users today), never on a request's hot path.
+	listCounts(keyPrefix: string, windowMs: number): Promise<number[]>
 }

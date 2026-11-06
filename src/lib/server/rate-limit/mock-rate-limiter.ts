@@ -31,4 +31,9 @@ export class MockRateLimiter implements IRateLimiter {
 		const count = existing && existing.windowStart === windowStart ? existing.count + amount : amount
 		this.windows.set(key, { windowStart, count })
 	}
+
+	async listCounts(keyPrefix: string, windowMs: number): Promise<number[]> {
+		const windowStart = Math.floor(Date.now() / windowMs) * windowMs
+		return [...this.windows].filter(([key, entry]) => key.startsWith(keyPrefix) && entry.windowStart === windowStart).map(([, entry]) => entry.count)
+	}
 }

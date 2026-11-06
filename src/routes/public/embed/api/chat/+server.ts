@@ -1,7 +1,6 @@
 import { json, type RequestHandler } from "@sveltejs/kit"
 import { logger } from "@vestfoldfylke/loglady"
 import z from "zod"
-import { env } from "$env/dynamic/private"
 import { ANONYMOUS_PRINCIPAL } from "$lib/anonymous-principal"
 import { exceedsAttachmentLimit, stripUnarmedAttachments, TOO_MANY_ATTACHMENTS_MESSAGE } from "$lib/chat-history"
 import { toPublicChatConfig } from "$lib/server/agents/public-chat-config"
@@ -20,6 +19,7 @@ import type { ChatInputItem, ChatInputMessage } from "$lib/types/chat-item"
 import type { InputText } from "$lib/types/chat-item-content"
 import { estimateInputUsage, requestTexts } from "$lib/usagebudget/server/cost"
 import { isAnonymousEmbedOverBudget, meterUsageStream, reserveUsage, type UsageReservation } from "$lib/usagebudget/server/usage-budget"
+import { getUsageLimits } from "$lib/usagebudget/server/usage-limits"
 import { parseEmbedInputs } from "$lib/validation/parse-embed-inputs"
 
 const chatConfigStore = getChatConfigStore()
@@ -46,9 +46,9 @@ const rateLimiter = getRateLimiter()
 // env default below) - e.g. a bot with a genuinely fixed cost budget they want capped regardless of
 // how legitimate the traffic is.
 //
-// All three are deployment-wide defaults (env), overridable per bot via
-// ChatConfig.rateLimitPerIpPerMinute / rateLimitPerIpPerDay / rateLimitPerBotPerDay. The right
-// numbers are a guess until there's real traffic to look at, hence env-overridable at all.
+// All three defaults live in the DB (UsageLimits.embedRateLimits, edited on /admin/ratelimits),
+// overridable per bot via ChatConfig.rateLimitPerIpPerMinute / rateLimitPerIpPerDay /
+// rateLimitPerBotPerDay. The right numbers are a guess until there's real traffic to look at.
 //
 // getClientAddress() (used below) needs the deployment's reverse proxy correctly identified via the
 // ADDRESS_HEADER/XFF_DEPTH env vars (see SvelteKit's adapter-node docs) - on Azure App Service
@@ -57,13 +57,8 @@ const rateLimiter = getRateLimiter()
 // resolves to the same address, which only makes the per-IP limits shared across all visitors (never
 // silently too permissive). Verify by checking that the IP logged on a 429 below actually varies
 // between real visitors once this is deployed.
-const PER_IP_MINUTE_LIMIT = Number(env.EMBED_RATE_LIMIT_PER_IP_PER_MINUTE) || 20
 const PER_IP_MINUTE_WINDOW_MS = 60_000
-const PER_IP_DAILY_LIMIT = Number(env.EMBED_RATE_LIMIT_PER_IP_PER_DAY) || 200
 const DAY_WINDOW_MS = 24 * 60 * 60_000
-// Undefined (not a number, e.g. unset or "0") = no shared per-bot cap at all - see the comment
-// above for why that's the deliberate default rather than some large fallback number.
-const DEFAULT_PER_BOT_DAILY_LIMIT = Number(env.EMBED_RATE_LIMIT_PER_BOT_PER_DAY) || undefined
 const RATE_LIMITED_MESSAGE = "For mange forespørsler akkurat nå. Prøv igjen om litt."
 
 // Shown instead of a real answer when classifyQuestion judges the question out of scope for this
@@ -148,22 +143,23 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 		clientIp = "unknown"
 	}
 
-	const ipMinuteLimit = await rateLimiter.checkAndIncrement(`embed-chat:ip-min:${clientIp}`, dbConfig.rateLimitPerIpPerMinute ?? PER_IP_MINUTE_LIMIT, PER_IP_MINUTE_WINDOW_MS)
+	const embedDefaults = (await getUsageLimits()).embedRateLimits
+	const ipMinuteLimit = await rateLimiter.checkAndIncrement(`embed-chat:ip-min:${clientIp}`, dbConfig.rateLimitPerIpPerMinute ?? embedDefaults.perIpPerMinute, PER_IP_MINUTE_WINDOW_MS)
 	if (!ipMinuteLimit.allowed) {
 		logger.warn(`Embed chat per-minute rate limit hit for IP ${clientIp} on bot ${dbConfig._id}`)
 		return json({ message: RATE_LIMITED_MESSAGE }, { status: 429 })
 	}
 
-	const ipDailyLimit = await rateLimiter.checkAndIncrement(`embed-chat:ip-day:${clientIp}`, dbConfig.rateLimitPerIpPerDay ?? PER_IP_DAILY_LIMIT, DAY_WINDOW_MS)
+	const ipDailyLimit = await rateLimiter.checkAndIncrement(`embed-chat:ip-day:${clientIp}`, dbConfig.rateLimitPerIpPerDay ?? embedDefaults.perIpPerDay, DAY_WINDOW_MS)
 	if (!ipDailyLimit.allowed) {
 		logger.warn(`Embed chat per-day rate limit hit for IP ${clientIp} on bot ${dbConfig._id}`)
 		return json({ message: RATE_LIMITED_MESSAGE }, { status: 429 })
 	}
 
-	// No shared per-bot cap unless a maintainer opted this bot into one - see the module-level
-	// comment on why that's the default rather than some large fallback number.
-	const botDailyLimit = dbConfig.rateLimitPerBotPerDay ?? DEFAULT_PER_BOT_DAILY_LIMIT
-	if (botDailyLimit !== undefined) {
+	// No shared per-bot cap unless a maintainer opted this bot into one (or an admin set a default) -
+	// see the module-level comment on why that's the default rather than some large fallback number.
+	const botDailyLimit = dbConfig.rateLimitPerBotPerDay ?? embedDefaults.perBotPerDay
+	if (botDailyLimit !== null && botDailyLimit !== undefined) {
 		const botLimit = await rateLimiter.checkAndIncrement(`embed-chat:bot-day:${dbConfig._id}`, botDailyLimit, DAY_WINDOW_MS)
 		if (!botLimit.allowed) {
 			logger.warn(`Embed chat daily rate limit hit for bot ${dbConfig._id}`)
@@ -173,7 +169,7 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 
 	// Always on, unlike the message-count cap above: the per-IP limits count messages, not what they
 	// cost, and spreading across many IPs gets around them - this bounds what the bot can cost per
-	// hour/day in USD (USAGE_BUDGET's ANONYMOUS_EMBED, see $lib/usagebudget). Logged inside.
+	// hour/day in USD (UsageLimits.anonymousEmbed, see $lib/usagebudget). Logged inside.
 	if (await isAnonymousEmbedOverBudget(dbConfig._id)) {
 		return json({ message: RATE_LIMITED_MESSAGE }, { status: 429 })
 	}

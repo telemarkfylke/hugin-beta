@@ -85,4 +85,13 @@ export class MongoRateLimiter implements IRateLimiter {
 		const windowStart = Math.floor(Date.now() / windowMs) * windowMs
 		await collection.updateOne({ _id: `${key}:${windowStart}` }, { $inc: { count: amount }, $setOnInsert: { expiresAt: new Date(windowStart + windowMs) } }, { upsert: true })
 	}
+
+	async listCounts(keyPrefix: string, windowMs: number): Promise<number[]> {
+		const collection = await this.getCollection()
+		const windowStart = Math.floor(Date.now() / windowMs) * windowMs
+		// Anchored prefix regex on _id, so Mongo can walk the _id index instead of scanning the collection
+		const escaped = keyPrefix.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+		const docs = await collection.find({ _id: { $regex: `^${escaped}.*:${windowStart}$` } }, { projection: { count: 1 } }).toArray()
+		return docs.map((doc) => doc.count)
+	}
 }

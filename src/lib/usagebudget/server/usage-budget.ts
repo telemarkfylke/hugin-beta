@@ -1,12 +1,12 @@
 import { logger } from "@vestfoldfylke/loglady"
-import { env } from "$env/dynamic/private"
 import { getRateLimiter } from "$lib/server/db/get-db"
 import { HTTPError } from "$lib/server/middleware/http-error"
 import { MODEL_CONFIG } from "$lib/server/models/models.config"
 import { parseSse } from "$lib/streaming"
 import type { AuthenticatedPrincipal } from "$lib/types/authentication"
 import type { ChatResponseUsage, VendorId } from "$lib/types/chat"
-import { modelPriceFor, parseUsageBudgets, usageBudgetFor, usageCostUsd } from "./cost"
+import { modelPriceFor, usageBudgetFor, usageCostUsd } from "./cost"
+import { getUsageLimitsSnapshot } from "./usage-limits"
 
 // Token-cost budget, counted in USD on the shared rate-limit counters (see IRateLimiter) - per user,
 // or per anonymously embedded assistant. The full cost is only known once the vendor has answered, so
@@ -23,20 +23,24 @@ export type BudgetSubject = AuthenticatedPrincipal | { anonymousEmbedBotId: stri
 
 const isAnonymousEmbed = (subject: BudgetSubject): subject is { anonymousEmbedBotId: string } => "anonymousEmbedBotId" in subject
 
-const parsedBudgets = parseUsageBudgets(env.USAGE_BUDGET)
-for (const warning of parsedBudgets.warnings) {
-	logger.warn(warning)
-}
-// The effective per-role budgets: DEFAULT_USAGE_BUDGETS with the USAGE_BUDGET env overrides applied
-export const USAGE_BUDGETS = parsedBudgets.budgets
+// The budgets, MAX concurrent calls, model prices and web search fee all come from the DB via the
+// cache in ./usage-limits (edited on /admin/ratelimits), with a strict code floor for anything missing.
 
 const HOUR_MS = 60 * 60_000
-const DAY_MS = 24 * HOUR_MS
+export const DAY_MS = 24 * HOUR_MS
+
+// Exported for the usage statistics (./usage-stats), which read the same day counters
+export const BUDGET_KEY_PREFIX = {
+	userHour: "usage-budget:user-hour:",
+	userDay: "usage-budget:user-day:",
+	anonBotHour: "usage-budget:anon-bot-hour:",
+	anonBotDay: "usage-budget:anon-bot-day:"
+} as const
 
 const budgetKeys = (subject: BudgetSubject) =>
 	isAnonymousEmbed(subject)
-		? { hour: `usage-budget:anon-bot-hour:${subject.anonymousEmbedBotId}`, day: `usage-budget:anon-bot-day:${subject.anonymousEmbedBotId}` }
-		: { hour: `usage-budget:user-hour:${subject.userId}`, day: `usage-budget:user-day:${subject.userId}` }
+		? { hour: `${BUDGET_KEY_PREFIX.anonBotHour}${subject.anonymousEmbedBotId}`, day: `${BUDGET_KEY_PREFIX.anonBotDay}${subject.anonymousEmbedBotId}` }
+		: { hour: `${BUDGET_KEY_PREFIX.userHour}${subject.userId}`, day: `${BUDGET_KEY_PREFIX.userDay}${subject.userId}` }
 
 const subjectLabel = (subject: BudgetSubject) => (isAnonymousEmbed(subject) ? `anonymous embed of ${subject.anonymousEmbedBotId}` : subject.userId)
 
@@ -52,7 +56,8 @@ const formatRetry = (ms: number): string => {
 // The window the subject has used up (day checked first), or null while within budget. `ownReservation`
 // is left out of the count, so a call is only refused for what was spent or reserved before it.
 const findExceededWindow = async (subject: BudgetSubject, ownReservation = 0): Promise<{ window: "day" | "hour"; retryAfterMs: number } | null> => {
-	const budget = isAnonymousEmbed(subject) ? USAGE_BUDGETS.ANONYMOUS_EMBED : usageBudgetFor(subject, USAGE_BUDGETS)
+	const { limits } = (await getUsageLimitsSnapshot()).settings
+	const budget = isAnonymousEmbed(subject) ? limits.anonymousEmbed : usageBudgetFor(subject, limits.budgets)
 	const keys = budgetKeys(subject)
 	const rateLimiter = getRateLimiter()
 	const [hour, day] = await Promise.all([rateLimiter.getCount(keys.hour, HOUR_MS), rateLimiter.getCount(keys.day, DAY_MS)])
@@ -86,8 +91,7 @@ export const isAnonymousEmbedOverBudget = async (botId: string): Promise<boolean
 
 // A reservation only covers a call's input, so without this a script firing hundreds of requests at
 // once could still overshoot by hundreds of outputs. Capping the calls in flight per user bounds that
-// to MAX_CONCURRENT_CALLS x one output, itself capped at MAX_OUTPUT_TOKENS.
-const MAX_CONCURRENT_CALLS = 3
+// to maxConcurrentCalls (UsageLimits) x one output, itself capped at MAX_OUTPUT_TOKENS.
 // A slot whose release never runs (process crashed mid-call) frees itself when its window ends. A
 // release landing in the next window decrements that one instead, which can briefly allow a few
 // extra calls right after a rollover - bounded, and far simpler than per-slot bookkeeping.
@@ -99,7 +103,8 @@ const concurrencyKey = (userId: string) => `usage-budget:user-inflight:${userId}
 export const acquireCallSlot = async (user: AuthenticatedPrincipal): Promise<() => void> => {
 	const rateLimiter = getRateLimiter()
 	const key = concurrencyKey(user.userId)
-	const slot = await rateLimiter.checkAndIncrement(key, MAX_CONCURRENT_CALLS, CONCURRENCY_WINDOW_MS)
+	const { maxConcurrentCalls } = (await getUsageLimitsSnapshot()).settings.limits
+	const slot = await rateLimiter.checkAndIncrement(key, maxConcurrentCalls, CONCURRENCY_WINDOW_MS)
 	let released = false
 	const release = () => {
 		if (released) return
@@ -111,7 +116,7 @@ export const acquireCallSlot = async (user: AuthenticatedPrincipal): Promise<() 
 	if (!slot.allowed) {
 		// checkAndIncrement counted this attempt too - give it back
 		release()
-		logger.warn("Usage budget: {userId} already has {max} calls in flight", user.userId, MAX_CONCURRENT_CALLS)
+		logger.warn("Usage budget: {userId} already has {max} calls in flight", user.userId, maxConcurrentCalls)
 		throw new HTTPError(429, "Du har allerede flere svar på vei. Vent til de er ferdige, og prøv igjen.")
 	}
 	return release
@@ -128,8 +133,17 @@ const addCost = async (subject: BudgetSubject, costUsd: number): Promise<void> =
 	await Promise.all([rateLimiter.add(keys.hour, costUsd, HOUR_MS), rateLimiter.add(keys.day, costUsd, DAY_MS)])
 }
 
+// The price and web search fee for one call, fixed when the call starts so its reservation and its
+// settle are counted at the same price even if an admin changes it in between
+const pricingFor = async (model: MeteredModel) => {
+	const snapshot = await getUsageLimitsSnapshot()
+	const price = modelPriceFor(MODEL_CONFIG, snapshot.priceByModel, model.vendorId, model.model)
+	const webSearchCallPriceUsd = snapshot.settings.limits.webSearchCallPriceUsd
+	return (usage: ChatResponseUsage) => usageCostUsd(price, usage, webSearchCallPriceUsd)
+}
+
 export const recordUsage = async (subject: BudgetSubject, model: MeteredModel, usage: ChatResponseUsage): Promise<void> => {
-	const cost = usageCostUsd(modelPriceFor(MODEL_CONFIG, model.vendorId, model.model), usage)
+	const cost = (await pricingFor(model))(usage)
 	if (cost > 0) {
 		await addCost(subject, cost)
 	}
@@ -146,15 +160,15 @@ export type UsageReservation = { settle: (usage: ChatResponseUsage | null) => vo
 // budget straight away, so calls in flight see each other, then checks the budget again with them
 // included. Throws the same 429 as assertWithinUsageBudget (giving the reservation back first).
 export const reserveUsage = async (subject: BudgetSubject, model: MeteredModel, estimatedInput: ChatResponseUsage): Promise<UsageReservation> => {
-	const price = modelPriceFor(MODEL_CONFIG, model.vendorId, model.model)
-	const reserved = usageCostUsd(price, estimatedInput)
+	const costOf = await pricingFor(model)
+	const reserved = costOf(estimatedInput)
 	await addCost(subject, reserved)
 
 	let settled = false
 	const settle = (usage: ChatResponseUsage | null) => {
 		if (settled) return
 		settled = true
-		const difference = usage ? usageCostUsd(price, usage) - reserved : 0
+		const difference = usage ? costOf(usage) - reserved : 0
 		addCost(subject, difference).catch((error) => {
 			logger.errorException(error, "Failed to settle usage for {subject}", subjectLabel(subject))
 		})

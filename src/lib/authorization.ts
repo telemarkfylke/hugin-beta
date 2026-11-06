@@ -93,6 +93,16 @@ export const canManageFeatureFlags = (user: AuthenticatedPrincipal): boolean => 
 	return isAdmin(user)
 }
 
+// Editing usage limits and model prices (/admin/ratelimits) - admin-only
+export const canManageUsageLimits = (user: AuthenticatedPrincipal): boolean => {
+	return isAdmin(user)
+}
+
+// The usage statistics on /admin/statistics - admin-only
+export const canViewUsageStatistics = (user: AuthenticatedPrincipal): boolean => {
+	return isAdmin(user)
+}
+
 // Same accessGroups semantics as ChatConfig.accessGroups/canPromptConfig - reused here so a
 // FeatureSpotlight's audience is declared the same way an agent's audience is, rather than a
 // second bespoke convention. ADMIN always sees everything, mirroring canPromptConfig.
