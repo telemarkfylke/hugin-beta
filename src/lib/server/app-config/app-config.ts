@@ -73,19 +73,6 @@ export const APP_CONFIG: AppConfig = {
 	},
 	CONVERSATION_EXPORT_DISABLED: env.CONVERSATION_EXPORT_DISABLED === "true",
 	CANVAS_ENABLED: env.CANVAS_ENABLED === "true",
-	TRANSCRIPTION_GREEN_GROUP_ID: env.TRANSCRIPTION_GREEN_ID,
-	TRANSCRIPTION_GROUPS: (() => {
-		const groups = []
-		let n = 1
-		while (env[`TRANSCRIPTION_GROUP_${n}_ID`]) {
-			groups.push({
-				id: env[`TRANSCRIPTION_GROUP_${n}_ID`] as string,
-				label: env[`TRANSCRIPTION_GROUP_${n}_LABEL`] ?? `Group ${n}`
-			})
-			n++
-		}
-		return groups
-	})(),
 	VENDORS,
 	MODEL_PROFILES: buildClientProfiles(MODEL_CONTEXT),
 	DEFAULT_PROFILE_IDS: { CHAT: DEFAULT_CHAT_PROFILE_ID ?? "", ASSISTANT: DEFAULT_ASSISTANT_PROFILE_ID ?? "" }
