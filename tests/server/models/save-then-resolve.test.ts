@@ -34,7 +34,7 @@ const APP_CONFIG = {
 	VENDORS: { OPENAI: vendor("OpenAI", "OPENAI"), LITELLM: vendor("LiteLLM", "LITELLM") }
 } as unknown as AppConfig
 
-const student: AuthenticatedPrincipal = { userId: "s1", name: "S", preferredUserName: "s", roles: ["Student"], groups: [] }
+const student: AuthenticatedPrincipal = { userId: "s1", name: "S", preferredUserName: "s", affiliations: ["student"], huginRoles: [], groups: [] }
 
 const base = {
 	_id: "1",

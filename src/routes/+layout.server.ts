@@ -1,4 +1,6 @@
 import { ANONYMOUS_PRINCIPAL } from "$lib/anonymous-principal"
+import { getUserFeatures } from "$lib/featureflags/server/feature-access"
+import { NO_FEATURES, type UserFeatures } from "$lib/featureflags/types"
 import { APP_CONFIG } from "$lib/server/app-config/app-config"
 import { serverLoadRequestMiddleware } from "$lib/server/middleware/http-request"
 import type { AppConfig } from "$lib/types/app-config"
@@ -6,7 +8,9 @@ import type { AuthenticatedPrincipal } from "$lib/types/authentication"
 import type { ServerLoadNextFunction } from "$lib/types/middleware/http-request"
 import type { LayoutServerLoad } from "./$types"
 
-type LayoutData = { authenticatedUser: AuthenticatedPrincipal; APP_CONFIG: AppConfig; isEmbedRoute: boolean }
+// features: what this user may use, resolved server-side from the DB matrix (see
+// $lib/featureflags) - the client reads this instead of evaluating roles itself.
+type LayoutData = { authenticatedUser: AuthenticatedPrincipal; APP_CONFIG: AppConfig; isEmbedRoute: boolean; features: UserFeatures }
 
 // isPublicRoute (auth): the ONLY exception to "every page requires EasyAuth" - currently just
 // /public/embed/**. Written as a general /public/ prefix so future unauthenticated routes can
@@ -23,7 +27,8 @@ const layoutLoad: ServerLoadNextFunction<LayoutData> = async ({ requestEvent, us
 		data: {
 			authenticatedUser: user,
 			APP_CONFIG,
-			isEmbedRoute: isEmbedRoute(requestEvent.route.id)
+			isEmbedRoute: isEmbedRoute(requestEvent.route.id),
+			features: await getUserFeatures(user)
 		},
 		isAuthorized: true
 	}
@@ -31,7 +36,7 @@ const layoutLoad: ServerLoadNextFunction<LayoutData> = async ({ requestEvent, us
 
 export const load: LayoutServerLoad = async (requestEvent): Promise<LayoutData> => {
 	if (isPublicRoute(requestEvent.route.id)) {
-		return { authenticatedUser: ANONYMOUS_PRINCIPAL, APP_CONFIG, isEmbedRoute: true }
+		return { authenticatedUser: ANONYMOUS_PRINCIPAL, APP_CONFIG, isEmbedRoute: true, features: NO_FEATURES }
 	}
 	return serverLoadRequestMiddleware(requestEvent, layoutLoad)
 }

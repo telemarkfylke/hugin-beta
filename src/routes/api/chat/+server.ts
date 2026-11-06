@@ -1,10 +1,10 @@
 import { json, type RequestHandler } from "@sveltejs/kit"
 import { logger } from "@vestfoldfylke/loglady"
-import { canUseHistory, canUseMcpSharepoint, canUseWebsiteDataSource } from "$lib/authorization"
 import { chatHistoryToInputItems, exceedsAttachmentLimit, stripUnarmedAttachments, TOO_MANY_ATTACHMENTS_MESSAGE } from "$lib/chat-history"
 import { applyChatSseEventToResponseObject } from "$lib/chat-response-builder"
 import type { ConversationManager } from "$lib/conversationstore/server/conv_manager"
 import { getConversationManager } from "$lib/conversationstore/server/get-conversation-manager"
+import { hasFeature } from "$lib/featureflags/server/feature-access"
 import { loadChatRequestConfig } from "$lib/server/agents/load-chat-request-config"
 import { getVendor } from "$lib/server/ai-vendors"
 import { APP_CONFIG } from "$lib/server/app-config/app-config"
@@ -106,7 +106,7 @@ const supahChat: ApiNextFunction = async ({ requestEvent, user }) => {
 
 	// Users without history must never have conversations persisted - enforce server-side regardless
 	// of what the client sent, since the incognito toggle is only hidden/disabled client-side.
-	if (!canUseHistory(user, APP_CONFIG.APP_ROLES)) {
+	if (!(await hasFeature(user, "history"))) {
 		chatRequest.store = false
 	}
 
@@ -160,11 +160,11 @@ const supahChat: ApiNextFunction = async ({ requestEvent, user }) => {
 	// RAG-augmented instructions.
 	const mcpSharepointActive = configHasMcpTool(chatRequest.config)
 
-	if (mcpSharepointActive && !canUseMcpSharepoint(user, APP_CONFIG.APP_ROLES)) {
+	if (mcpSharepointActive && !(await hasFeature(user, "mcpSharepoint"))) {
 		throw new HTTPError(403, "Not authorized to use SharePoint MCP")
 	}
 
-	if (websiteSourceIds.length > 0 && !canUseWebsiteDataSource(user, APP_CONFIG.APP_ROLES)) {
+	if (websiteSourceIds.length > 0 && !(await hasFeature(user, "websiteSources"))) {
 		throw new HTTPError(403, "Not authorized to use website data sources")
 	}
 

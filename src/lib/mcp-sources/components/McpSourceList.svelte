@@ -15,10 +15,9 @@
 	const api = new McpSourcesApi()
 
 	let currentUser = $derived(page.data.authenticatedUser)
-	let appRoles = $derived(page.data.APP_CONFIG.APP_ROLES)
 
 	function canEdit(source: McpSource): boolean {
-		return canEditMcpSource(source, currentUser, appRoles)
+		return canEditMcpSource(source, currentUser)
 	}
 
 	function ownerLabel(source: McpSource): string {

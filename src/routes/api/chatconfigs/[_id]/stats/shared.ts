@@ -1,5 +1,4 @@
 import { canUpdateChatConfig } from "$lib/authorization"
-import { APP_CONFIG } from "$lib/server/app-config/app-config"
 import { getChatConfigStore } from "$lib/server/db/get-db"
 import { HTTPError } from "$lib/server/middleware/http-error"
 import type { AuthenticatedPrincipal } from "$lib/types/authentication"
@@ -32,7 +31,7 @@ export async function getAuthorizedChatConfig(chatConfigId: string, user: Authen
 	if (!chatConfig) {
 		throw new HTTPError(404, "Chat config not found")
 	}
-	if (!canUpdateChatConfig(user, APP_CONFIG.APP_ROLES, chatConfig, chatConfig)) {
+	if (!canUpdateChatConfig(user, chatConfig, chatConfig)) {
 		throw new HTTPError(403, "Not authorized to view statistics for this chat configuration")
 	}
 	return chatConfig

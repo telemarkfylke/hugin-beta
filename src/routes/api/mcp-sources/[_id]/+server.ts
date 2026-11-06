@@ -1,6 +1,5 @@
 import { json, type RequestHandler } from "@sveltejs/kit"
 import { canEditMcpSource, canManageMcpSources } from "$lib/authorization"
-import { APP_CONFIG } from "$lib/server/app-config/app-config"
 import { getMcpSourceStore } from "$lib/server/db/get-db"
 import { HTTPError } from "$lib/server/middleware/http-error"
 import { apiRequestMiddleware } from "$lib/server/middleware/http-request"
@@ -14,7 +13,7 @@ const replaceMcpSource: ApiNextFunction = async ({ requestEvent, user }) => {
 	if (!requestEvent) {
 		throw new HTTPError(400, "No request event")
 	}
-	if (!canManageMcpSources(user, APP_CONFIG.APP_ROLES)) {
+	if (!canManageMcpSources(user)) {
 		throw new HTTPError(403, "Not authorized to manage MCP data sources")
 	}
 
@@ -27,7 +26,7 @@ const replaceMcpSource: ApiNextFunction = async ({ requestEvent, user }) => {
 	if (!existing) {
 		throw new HTTPError(404, "MCP source not found")
 	}
-	if (!canEditMcpSource(existing, user, APP_CONFIG.APP_ROLES)) {
+	if (!canEditMcpSource(existing, user)) {
 		throw new HTTPError(403, "Not authorized to edit this MCP source")
 	}
 
@@ -57,7 +56,7 @@ const deleteMcpSource: ApiNextFunction = async ({ requestEvent, user }) => {
 	if (!requestEvent) {
 		throw new HTTPError(400, "No request event")
 	}
-	if (!canManageMcpSources(user, APP_CONFIG.APP_ROLES)) {
+	if (!canManageMcpSources(user)) {
 		throw new HTTPError(403, "Not authorized to manage MCP data sources")
 	}
 
@@ -70,7 +69,7 @@ const deleteMcpSource: ApiNextFunction = async ({ requestEvent, user }) => {
 	if (!existing) {
 		throw new HTTPError(404, "MCP source not found")
 	}
-	if (!canEditMcpSource(existing, user, APP_CONFIG.APP_ROLES)) {
+	if (!canEditMcpSource(existing, user)) {
 		throw new HTTPError(403, "Not authorized to delete this MCP source")
 	}
 

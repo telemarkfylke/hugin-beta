@@ -16,7 +16,7 @@
 
 	let showDescription: boolean = $state(false)
 
-	let userCanEditConfig = $derived(canEditChatConfig(chatState.chat, chatState.user, chatState.APP_CONFIG.APP_ROLES))
+	let userCanEditConfig = $derived(canEditChatConfig(chatState.chat, chatState.user))
 
 	const getAgentName = () => {
 		if (chatState.configEdited && !chatState.chat.config.name) {

@@ -2,13 +2,14 @@ import type { RequestEvent } from "@sveltejs/kit"
 import { describe, expect, it, vi } from "vitest"
 import { canUpdateChatConfig } from "$lib/authorization"
 import { APP_CONFIG } from "$lib/server/app-config/app-config"
+import { splitAppRoles } from "$lib/server/auth/principal-roles"
 import type { AuthenticatedPrincipal } from "$lib/types/authentication"
 import type { ChatConfig } from "$lib/types/chat"
 import { ChatInputItemSchema, chatInputsSchema } from "$lib/validation/chat-input-schema"
 import { handle } from "../../../src/hooks.server"
 
 const ROLES = APP_CONFIG.APP_ROLES
-const principal = (userId: string, ...roles: string[]): AuthenticatedPrincipal => ({ userId, name: userId, preferredUserName: userId, roles, groups: [] })
+const principal = (userId: string, ...roles: string[]): AuthenticatedPrincipal => ({ userId, name: userId, preferredUserName: userId, ...splitAppRoles(roles, ROLES), groups: [] })
 
 const config = (overrides: Partial<ChatConfig> = {}): ChatConfig => ({
 	_id: "cfg-1",
@@ -31,23 +32,23 @@ describe("canUpdateChatConfig - who may change an assistant's audience", () => {
 
 	it("stops an owner who may not publish from publishing their own assistant by PUT", () => {
 		const stored = config()
-		expect(canUpdateChatConfig(student, ROLES, stored, { ...stored, type: "published" })).toBe(false)
-		expect(canUpdateChatConfig(student, ROLES, stored, { ...stored, accessGroups: ["student"] })).toBe(false)
+		expect(canUpdateChatConfig(student, stored, { ...stored, type: "published" })).toBe(false)
+		expect(canUpdateChatConfig(student, stored, { ...stored, accessGroups: ["student"] })).toBe(false)
 	})
 
 	it("still lets that owner edit everything else", () => {
 		const stored = config()
-		expect(canUpdateChatConfig(student, ROLES, stored, { ...stored, instructions: "new" })).toBe(true)
+		expect(canUpdateChatConfig(student, stored, { ...stored, instructions: "new" })).toBe(true)
 	})
 
 	it("doesn't lock an owner out of an assistant someone else published for them", () => {
 		const stored = config({ type: "published", accessGroups: ["student"] })
-		expect(canUpdateChatConfig(student, ROLES, stored, { ...stored, name: "Renamed" })).toBe(true)
+		expect(canUpdateChatConfig(student, stored, { ...stored, name: "Renamed" })).toBe(true)
 	})
 
 	it("lets a maintainer change the audience", () => {
 		const stored = config({ type: "published", created: { at: "now", by: { id: "someone" } } })
-		expect(canUpdateChatConfig(maintainer, ROLES, stored, { ...stored, accessGroups: ["employee"] })).toBe(true)
+		expect(canUpdateChatConfig(maintainer, stored, { ...stored, accessGroups: ["employee"] })).toBe(true)
 	})
 })
 
@@ -57,17 +58,17 @@ describe("canUpdateChatConfig - anonymous embed rate limits", () => {
 	const stored = config({ type: "published", allowAnonymousEmbed: true, rateLimitPerIpPerDay: 50, created: { at: "now", by: { id: "maintainer" } } })
 
 	it("stops a non-admin editor from changing them", () => {
-		expect(canUpdateChatConfig(maintainer, ROLES, stored, { ...stored, rateLimitPerIpPerDay: 100000 })).toBe(false)
-		expect(canUpdateChatConfig(maintainer, ROLES, stored, { ...stored, rateLimitPerIpPerMinute: 1000 })).toBe(false)
-		expect(canUpdateChatConfig(maintainer, ROLES, stored, { ...stored, rateLimitPerBotPerDay: undefined, rateLimitPerIpPerDay: undefined })).toBe(false)
+		expect(canUpdateChatConfig(maintainer, stored, { ...stored, rateLimitPerIpPerDay: 100000 })).toBe(false)
+		expect(canUpdateChatConfig(maintainer, stored, { ...stored, rateLimitPerIpPerMinute: 1000 })).toBe(false)
+		expect(canUpdateChatConfig(maintainer, stored, { ...stored, rateLimitPerBotPerDay: undefined, rateLimitPerIpPerDay: undefined })).toBe(false)
 	})
 
 	it("lets a non-admin editor save other changes with the limits unchanged", () => {
-		expect(canUpdateChatConfig(maintainer, ROLES, stored, { ...stored, instructions: "new" })).toBe(true)
+		expect(canUpdateChatConfig(maintainer, stored, { ...stored, instructions: "new" })).toBe(true)
 	})
 
 	it("lets an admin change them", () => {
-		expect(canUpdateChatConfig(admin, ROLES, stored, { ...stored, rateLimitPerIpPerDay: 100000 })).toBe(true)
+		expect(canUpdateChatConfig(admin, stored, { ...stored, rateLimitPerIpPerDay: 100000 })).toBe(true)
 	})
 })
 

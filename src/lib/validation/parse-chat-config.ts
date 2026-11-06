@@ -1,4 +1,4 @@
-import { canChooseProfile, canEditPredefinedConfig } from "../authorization"
+import { canChooseProfile, canEditPredefinedConfig, isAdmin } from "../authorization"
 import { HTTPError } from "../server/middleware/http-error"
 import type { AppConfig } from "../types/app-config"
 import type { AuthenticatedPrincipal } from "../types/authentication"
@@ -23,7 +23,7 @@ const validateSavedModelSelection = (config: Pick<ChatConfig, "profile" | "pinne
 		if (!profile) {
 			throw new HTTPError(400, `Unsupported profile: ${config.profile}`)
 		}
-		if (!canChooseProfile(user, APP_CONFIG.APP_ROLES, profile.roles)) {
+		if (!canChooseProfile(user, profile.roles)) {
 			throw new HTTPError(403, `Not authorized to choose profile: ${profile.id}`)
 		}
 	}
@@ -33,7 +33,7 @@ const validateSavedModelSelection = (config: Pick<ChatConfig, "profile" | "pinne
 			// setting/changing one below), otherwise a non-admin co-editor could silently strip an
 			// admin's pin just by omitting it from their save body. A legacy project pin (set by the
 			// server, not an admin) may be cleared by anyone allowed to edit the assistant.
-			if (!previous?.pinned?.legacy && !user.roles.includes(APP_CONFIG.APP_ROLES.ADMIN)) {
+			if (!previous?.pinned?.legacy && !isAdmin(user)) {
 				throw new HTTPError(403, "Only admins can remove a model pin")
 			}
 		} else {
@@ -46,7 +46,7 @@ const validateSavedModelSelection = (config: Pick<ChatConfig, "profile" | "pinne
 			if (!vendor.PROJECTS.includes(pinned.project)) {
 				throw new HTTPError(400, `Unsupported project: ${pinned.project} for pinned model: ${pinned.model}`)
 			}
-			if (!user.roles.includes(APP_CONFIG.APP_ROLES.ADMIN)) {
+			if (!isAdmin(user)) {
 				throw new HTTPError(403, "Only admins can pin a model")
 			}
 		}
@@ -92,7 +92,7 @@ export const parseChatConfig = (input: unknown, APP_CONFIG: AppConfig, options: 
 	}
 	if (parsedConfig.vendorAgent) {
 		// Predefined config. Converting an admin-pinned assistant drops its pin, so it's a pin removal too
-		if (options.mode === "save" && options.previous?.pinned && !options.previous.pinned.legacy && !options.user.roles.includes(APP_CONFIG.APP_ROLES.ADMIN)) {
+		if (options.mode === "save" && options.previous?.pinned && !options.previous.pinned.legacy && !isAdmin(options.user)) {
 			throw new HTTPError(403, "Only admins can remove a model pin")
 		}
 		if (!parsedConfig.vendorAgent.id || typeof parsedConfig.vendorAgent.id !== "string") {
@@ -100,7 +100,7 @@ export const parseChatConfig = (input: unknown, APP_CONFIG: AppConfig, options: 
 		}
 		// A vendor agent skips the profile role check, so only maintainers may point an assistant at one.
 		// Unchanged ids pass, so a co-editor can still save an assistant a maintainer set up.
-		if (options.mode === "save" && parsedConfig.vendorAgent.id !== options.previous?.vendorAgent?.id && !canEditPredefinedConfig(options.user, APP_CONFIG.APP_ROLES)) {
+		if (options.mode === "save" && parsedConfig.vendorAgent.id !== options.previous?.vendorAgent?.id && !canEditPredefinedConfig(options.user)) {
 			throw new HTTPError(403, "Only agent maintainers can choose a vendor agent")
 		}
 		if (parsedConfig.tools?.some((tool) => tool.type === "mcp")) {

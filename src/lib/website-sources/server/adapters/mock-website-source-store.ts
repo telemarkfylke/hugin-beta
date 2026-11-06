@@ -1,5 +1,4 @@
 import { canViewWebsiteSource } from "$lib/authorization"
-import { APP_CONFIG } from "$lib/server/app-config/app-config"
 import type { AuthenticatedPrincipal } from "$lib/types/authentication"
 import type { NewWebsiteSource, WebsiteSource } from "$lib/types/website-source"
 import type { IWebsiteSourceStore } from "./interface"
@@ -16,7 +15,7 @@ export class MockWebsiteSourceStore implements IWebsiteSourceStore {
 	}
 
 	async getWebsiteSources(principal: AuthenticatedPrincipal): Promise<WebsiteSource[]> {
-		return mockWebsiteSources.filter((source) => canViewWebsiteSource(source, principal, APP_CONFIG.APP_ROLES))
+		return mockWebsiteSources.filter((source) => canViewWebsiteSource(source, principal))
 	}
 
 	async createWebsiteSource(source: NewWebsiteSource): Promise<WebsiteSource> {

@@ -11,6 +11,7 @@ import {
 	profileSelection,
 	supportsWebSearch
 } from "$lib/model-profiles"
+import { splitAppRoles } from "$lib/server/auth/principal-roles"
 import type { AppConfig } from "$lib/types/app-config"
 import type { AuthenticatedPrincipal } from "$lib/types/authentication"
 import type { ChatConfig } from "$lib/types/chat"
@@ -56,7 +57,7 @@ const APP_CONFIG = {
 	}
 } as unknown as AppConfig
 
-const user = (roles: string[]): AuthenticatedPrincipal => ({ userId: "u1", name: "U", preferredUserName: "u", roles, groups: [] })
+const user = (roles: string[]): AuthenticatedPrincipal => ({ userId: "u1", name: "U", preferredUserName: "u", ...splitAppRoles(roles, APP_ROLES), groups: [] })
 const chatConfig = (overrides: Partial<ChatConfig>): ChatConfig =>
 	({
 		_id: "",
@@ -86,22 +87,22 @@ describe("getProfileBadges", () => {
 
 describe("getSelectableProfiles", () => {
 	it("hides role-restricted profiles from users outside the roles", () => {
-		expect(getSelectableProfiles(APP_CONFIG.MODEL_PROFILES, user(["Student"]), APP_ROLES, undefined).map((p) => p.id)).toEqual(["rask"])
+		expect(getSelectableProfiles(APP_CONFIG.MODEL_PROFILES, user(["Student"]), undefined).map((p) => p.id)).toEqual(["rask"])
 	})
 
 	it("shows them to users in the roles and to admins", () => {
-		expect(getSelectableProfiles(APP_CONFIG.MODEL_PROFILES, user(["Employee"]), APP_ROLES, undefined)).toHaveLength(2)
-		expect(getSelectableProfiles(APP_CONFIG.MODEL_PROFILES, user(["Admin"]), APP_ROLES, undefined)).toHaveLength(2)
+		expect(getSelectableProfiles(APP_CONFIG.MODEL_PROFILES, user(["Employee"]), undefined)).toHaveLength(2)
+		expect(getSelectableProfiles(APP_CONFIG.MODEL_PROFILES, user(["Admin"]), undefined)).toHaveLength(2)
 	})
 
 	it("keeps the config's current profile visible even when the user couldn't choose it", () => {
-		expect(getSelectableProfiles(APP_CONFIG.MODEL_PROFILES, user(["Student"]), APP_ROLES, "lokal").map((p) => p.id)).toEqual(["rask", "lokal"])
+		expect(getSelectableProfiles(APP_CONFIG.MODEL_PROFILES, user(["Student"]), "lokal").map((p) => p.id)).toEqual(["rask", "lokal"])
 	})
 
 	it("hides a profile with an empty roles list from everyone, admins included, unless it's the current one", () => {
 		const profiles = [profile("rask"), profile("lokal", { roles: [] })]
-		expect(getSelectableProfiles(profiles, user(["Admin"]), APP_ROLES, undefined).map((p) => p.id)).toEqual(["rask"])
-		expect(getSelectableProfiles(profiles, user(["Admin"]), APP_ROLES, "lokal").map((p) => p.id)).toEqual(["rask", "lokal"])
+		expect(getSelectableProfiles(profiles, user(["Admin"]), undefined).map((p) => p.id)).toEqual(["rask"])
+		expect(getSelectableProfiles(profiles, user(["Admin"]), "lokal").map((p) => p.id)).toEqual(["rask", "lokal"])
 	})
 })
 

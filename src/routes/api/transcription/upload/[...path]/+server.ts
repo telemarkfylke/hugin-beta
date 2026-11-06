@@ -1,7 +1,6 @@
 import type { RequestHandler } from "@sveltejs/kit"
 import { logger } from "@vestfoldfylke/loglady"
-import { canUseTranscription } from "$lib/authorization"
-import { APP_CONFIG } from "$lib/server/app-config/app-config"
+import { hasFeature } from "$lib/featureflags/server/feature-access"
 import { isSafePathSegment, limitBytes } from "$lib/server/files/upload-guards"
 import { HTTPError } from "$lib/server/middleware/http-error"
 import { apiRequestMiddleware } from "$lib/server/middleware/http-request"
@@ -13,7 +12,7 @@ import type { ApiNextFunction } from "$lib/types/middleware/http-request"
 
 /** PUT /api/transcription/upload/<userId>/<jobId>/<fileName> with the raw audio as the body - streamed on to S3. */
 const uploadHandler: ApiNextFunction = async ({ requestEvent, user }) => {
-	if (!canUseTranscription(user, APP_CONFIG.APP_ROLES)) {
+	if (!(await hasFeature(user, "transcription"))) {
 		return { isAuthorized: false, response: new Response(null, { status: 403 }) }
 	}
 	const storage = requireTranscriptionStorage()

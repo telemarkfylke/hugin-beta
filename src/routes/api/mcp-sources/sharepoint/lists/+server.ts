@@ -1,6 +1,5 @@
 import { json, type RequestHandler } from "@sveltejs/kit"
 import { canManageMcpSources } from "$lib/authorization"
-import { APP_CONFIG } from "$lib/server/app-config/app-config"
 import { getSharepointMcpClient } from "$lib/server/mcp/mcp-client"
 import { parseListNames } from "$lib/server/mcp/parse-sharepoint-list-names"
 import { HTTPError } from "$lib/server/middleware/http-error"
@@ -15,7 +14,7 @@ import type { ApiNextFunction } from "$lib/types/middleware/http-request"
 // Gated by the same admin-only canManageMcpSources check as creating/editing MCP sources, same reasoning as the folder
 // browse route: this doesn't expose anything beyond what that gate already implies.
 const listSharePointLists: ApiNextFunction = async ({ user }) => {
-	if (!canManageMcpSources(user, APP_CONFIG.APP_ROLES)) {
+	if (!canManageMcpSources(user)) {
 		throw new HTTPError(403, "Not authorized to browse SharePoint")
 	}
 

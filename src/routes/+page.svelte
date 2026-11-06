@@ -20,7 +20,7 @@
 	}
 
 	// svelte-ignore state_referenced_locally (don't care, user is user, APP_CONFIG is APP_CONFIG. If somebody messes with them, backend must handle that)
-	const chatState = new ChatState(defaultChat, data.authenticatedUser, data.APP_CONFIG)
+	const chatState = new ChatState(defaultChat, data.authenticatedUser, data.APP_CONFIG, { canUseHistory: data.features.history })
 </script>
 
 <ChatComponent {chatState} />

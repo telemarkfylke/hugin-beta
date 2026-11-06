@@ -34,7 +34,7 @@ const replaceChatConfig: ApiNextFunction = async ({ requestEvent, user }) => {
 
 	const chatConfig = parseChatConfig(body, APP_CONFIG, { mode: "save", user, previous: chatConfigToReplace })
 
-	if (!canUpdateChatConfig(user, APP_CONFIG.APP_ROLES, chatConfigToReplace, chatConfig)) {
+	if (!canUpdateChatConfig(user, chatConfigToReplace, chatConfig)) {
 		throw new HTTPError(403, "Not authorized to update this chat config")
 	}
 
@@ -87,7 +87,7 @@ const deleteChatConfig: ApiNextFunction = async ({ requestEvent, user }) => {
 		throw new HTTPError(404, "Chat config not found")
 	}
 
-	if (!canUpdateChatConfig(user, APP_CONFIG.APP_ROLES, chatConfigToDelete, chatConfigToDelete)) {
+	if (!canUpdateChatConfig(user, chatConfigToDelete, chatConfigToDelete)) {
 		throw new HTTPError(403, "Not authorized to delete this chat config")
 	}
 

@@ -13,8 +13,8 @@
 
 	let { config = $bindable(), appConfig, user }: Props = $props()
 
-	const isAdmin = $derived(user.roles.includes(appConfig.APP_ROLES.ADMIN))
-	const profiles = $derived(getSelectableProfiles(appConfig.MODEL_PROFILES, user, appConfig.APP_ROLES, config.profile))
+	const isAdmin = $derived(user.huginRoles.includes("admin"))
+	const profiles = $derived(getSelectableProfiles(appConfig.MODEL_PROFILES, user, config.profile))
 	const pinnableModels = $derived(getPinnableModels(appConfig))
 
 	// A pinned assistant is locked for anyone but an admin - the radios must be disabled (not just

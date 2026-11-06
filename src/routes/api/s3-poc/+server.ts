@@ -1,7 +1,6 @@
 import { json, type RequestHandler } from "@sveltejs/kit"
 import { logger } from "@vestfoldfylke/loglady"
 import { canUseS3Poc } from "$lib/authorization"
-import { APP_CONFIG } from "$lib/server/app-config/app-config"
 import { limitBytes } from "$lib/server/files/upload-guards"
 import { HTTPError } from "$lib/server/middleware/http-error"
 import { apiRequestMiddleware } from "$lib/server/middleware/http-request"
@@ -13,7 +12,7 @@ import type { ApiNextFunction } from "$lib/types/middleware/http-request"
 const forbidden = { isAuthorized: false, response: new Response(null, { status: 403 }) }
 
 const listObjects: ApiNextFunction = async ({ user }) => {
-	if (!canUseS3Poc(user, APP_CONFIG.APP_ROLES)) {
+	if (!canUseS3Poc(user)) {
 		return forbidden
 	}
 	const config = getS3PocConfig()
@@ -35,7 +34,7 @@ const listObjects: ApiNextFunction = async ({ user }) => {
  * or video/mp4. The Content-Type header is only a fallback for callers that don't pass `type`.
  */
 const uploadObjectHandler: ApiNextFunction = async ({ requestEvent, user }) => {
-	if (!canUseS3Poc(user, APP_CONFIG.APP_ROLES)) {
+	if (!canUseS3Poc(user)) {
 		return forbidden
 	}
 	const config = getS3PocConfig()

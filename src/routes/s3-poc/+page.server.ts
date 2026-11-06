@@ -1,6 +1,5 @@
 import { logger } from "@vestfoldfylke/loglady"
 import { canUseS3Poc } from "$lib/authorization"
-import { APP_CONFIG } from "$lib/server/app-config/app-config"
 import { HTTPError } from "$lib/server/middleware/http-error"
 import { serverLoadRequestMiddleware } from "$lib/server/middleware/http-request"
 import { MAX_S3_POC_UPLOAD_BYTES } from "$lib/server/s3/s3-keys"
@@ -18,7 +17,7 @@ type S3PocPageData = {
 
 const s3PocPageLoad: ServerLoadNextFunction<S3PocPageData> = async ({ user }) => {
 	const emptyData: S3PocPageData = { objects: [], listError: null, bucket: "", maxUploadBytes: MAX_S3_POC_UPLOAD_BYTES }
-	if (!canUseS3Poc(user, APP_CONFIG.APP_ROLES)) {
+	if (!canUseS3Poc(user)) {
 		return { data: emptyData, isAuthorized: false }
 	}
 	const config = getS3PocConfig()

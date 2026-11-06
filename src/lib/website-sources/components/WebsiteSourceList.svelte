@@ -15,10 +15,9 @@
 	const api = new WebsiteSourcesApi()
 
 	let currentUser = $derived(page.data.authenticatedUser)
-	let appRoles = $derived(page.data.APP_CONFIG.APP_ROLES)
 
 	function canEdit(source: WebsiteSource): boolean {
-		return canEditWebsiteSource(source, currentUser, appRoles)
+		return canEditWebsiteSource(source, currentUser)
 	}
 
 	function ownerLabel(source: WebsiteSource): string {

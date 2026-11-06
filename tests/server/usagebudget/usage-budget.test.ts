@@ -1,40 +1,42 @@
 import type { Response } from "openai/resources/responses/responses"
-import { describe, expect, it, vi } from "vitest"
+import { describe, expect, it } from "vitest"
 import { APP_CONFIG } from "$lib/server/app-config/app-config"
+import { splitAppRoles } from "$lib/server/auth/principal-roles"
 import { getRateLimiter } from "$lib/server/db/get-db"
 import { usageFromMistral } from "$lib/server/mistral/mistral-mapping"
 import type { ModelConfig } from "$lib/server/models/types"
 import { usageFromOpenAIResponse } from "$lib/server/openai/openai-mapping"
 import { createSse } from "$lib/streaming"
 import type { AuthenticatedPrincipal } from "$lib/types/authentication"
-import {
-	DEFAULT_USAGE_BUDGETS,
-	estimateInputUsage,
-	modelPriceFor,
-	parseUsageBudgets,
-	requestTexts,
-	UNKNOWN_MODEL_PRICE,
-	usageBudgetFor,
-	usageCostUsd,
-	WEB_SEARCH_CALL_PRICE_USD
-} from "$lib/usagebudget/server/cost"
-import { acquireCallSlot, assertWithinUsageBudget, isAnonymousEmbedOverBudget, meterUsageStream, recordUsage, reserveUsage, USAGE_BUDGETS } from "$lib/usagebudget/server/usage-budget"
+import { estimateInputUsage, modelPriceFor, requestTexts, UNKNOWN_MODEL_PRICE, usageBudgetFor, usageCostUsd } from "$lib/usagebudget/server/cost"
+import { acquireCallSlot, assertWithinUsageBudget, isAnonymousEmbedOverBudget, meterUsageStream, recordUsage, reserveUsage } from "$lib/usagebudget/server/usage-budget"
+import { FALLBACK_USAGE_LIMITS, getUsageLimits, resolveModelPrices, resolveUsageLimits } from "$lib/usagebudget/server/usage-limits"
+import type { UsageLimits } from "$lib/usagebudget/types"
 
-// The budgets under test are the defaults - a local USAGE_BUDGET override (e.g. a tiny one for trying
-// out the 429) would otherwise decide which of these pass
-vi.mock("$env/dynamic/private", async (importOriginal) => {
-	const original = await importOriginal<{ env: Record<string, string | undefined> }>()
-	return { env: { ...original.env, USAGE_BUDGET: undefined } }
-})
+// The limits under test are the MockUsageLimitsStore's (MOCK_DB=true), seeded like a real environment
+const limits = () => getUsageLimits()
+const WEB_SEARCH = 0.03
+
+const BUDGETS: UsageLimits["budgets"] = {
+	employee: { perHourUsd: 1, perDayUsd: 4 },
+	edu_employee: { perHourUsd: 2, perDayUsd: 3 },
+	student: { perHourUsd: 0.3, perDayUsd: 1 }
+}
 
 const DAY_MS = 24 * 60 * 60_000
 
 let userCounter = 0
-const principal = (...roles: string[]): AuthenticatedPrincipal => ({ userId: `budget-user-${++userCounter}`, name: "U", preferredUserName: "u", roles, groups: [] })
+const principal = (...roles: string[]): AuthenticatedPrincipal => ({
+	userId: `budget-user-${++userCounter}`,
+	name: "U",
+	preferredUserName: "u",
+	...splitAppRoles(roles, APP_CONFIG.APP_ROLES),
+	groups: []
+})
 
 const modelConfig = {
 	MODELS: {
-		priced: { vendor: "OPENAI", providerModel: "priced-model", files: "none", capabilities: [], price: { inputPerMillion: 10, outputPerMillion: 40 } },
+		priced: { vendor: "OPENAI", providerModel: "priced-model", files: "none", capabilities: [] },
 		unpriced: { vendor: "OPENAI", providerModel: "unpriced-model", files: "none", capabilities: [] }
 	},
 	PROFILES: [],
@@ -65,14 +67,14 @@ const done = (inputTokens: number, outputTokens: number) => createSse({ event: "
 
 describe("usage cost", () => {
 	it("prices input and output tokens separately, per million", () => {
-		expect(usageCostUsd({ inputPerMillion: 10, outputPerMillion: 40 }, { inputTokens: 500_000, outputTokens: 250_000, totalTokens: 750_000 })).toBe(15)
+		expect(usageCostUsd({ inputPerMillion: 10, outputPerMillion: 40 }, { inputTokens: 500_000, outputTokens: 250_000, totalTokens: 750_000 }, WEB_SEARCH)).toBe(15)
 	})
 
 	it("adds the per-call web search fee on top of the tokens", () => {
 		const price = { inputPerMillion: 10, outputPerMillion: 40 }
 		const tokens = { inputTokens: 500_000, outputTokens: 250_000, totalTokens: 750_000 }
-		expect(usageCostUsd(price, { ...tokens, webSearchCalls: 4 })).toBeCloseTo(15 + 4 * WEB_SEARCH_CALL_PRICE_USD)
-		expect(usageCostUsd(price, { inputTokens: 0, outputTokens: 0, totalTokens: 0, webSearchCalls: 1 })).toBeGreaterThan(0)
+		expect(usageCostUsd(price, { ...tokens, webSearchCalls: 4 }, WEB_SEARCH)).toBeCloseTo(15 + 4 * WEB_SEARCH)
+		expect(usageCostUsd(price, { inputTokens: 0, outputTokens: 0, totalTokens: 0, webSearchCalls: 1 }, WEB_SEARCH)).toBeGreaterThan(0)
 	})
 
 	it("counts OpenAI web search calls from the response output", () => {
@@ -89,11 +91,12 @@ describe("usage cost", () => {
 		})
 	})
 
-	it("looks a model up by vendor + provider model, and never treats a missing price as free", () => {
-		expect(modelPriceFor(modelConfig, "OPENAI", "priced-model")).toEqual({ inputPerMillion: 10, outputPerMillion: 40 })
-		expect(modelPriceFor(modelConfig, "OPENAI", "unpriced-model")).toBe(UNKNOWN_MODEL_PRICE)
-		expect(modelPriceFor(modelConfig, "MISTRAL", "priced-model")).toBe(UNKNOWN_MODEL_PRICE)
-		expect(modelPriceFor(modelConfig, "OPENAI", undefined)).toBe(UNKNOWN_MODEL_PRICE)
+	it("looks a model up by vendor + provider model, prices it by catalogue key, and never treats a missing price as free", () => {
+		const prices = { priced: { inputPerMillion: 10, outputPerMillion: 40 } }
+		expect(modelPriceFor(modelConfig, prices, "OPENAI", "priced-model")).toEqual({ inputPerMillion: 10, outputPerMillion: 40 })
+		expect(modelPriceFor(modelConfig, prices, "OPENAI", "unpriced-model")).toBe(UNKNOWN_MODEL_PRICE)
+		expect(modelPriceFor(modelConfig, prices, "MISTRAL", "priced-model")).toBe(UNKNOWN_MODEL_PRICE)
+		expect(modelPriceFor(modelConfig, prices, "OPENAI", undefined)).toBe(UNKNOWN_MODEL_PRICE)
 	})
 
 	it("estimates ~4 characters per input token", () => {
@@ -102,54 +105,83 @@ describe("usage cost", () => {
 })
 
 describe("usageBudgetFor", () => {
-	it("gives the most generous budget across the user's roles", () => {
-		expect(usageBudgetFor(principal(APP_CONFIG.APP_ROLES.STUDENT, APP_CONFIG.APP_ROLES.EMPLOYEE), APP_CONFIG.APP_ROLES, DEFAULT_USAGE_BUDGETS)).toEqual(DEFAULT_USAGE_BUDGETS.EMPLOYEE)
+	it("gives the most generous budget across the user's brukertyper, per window", () => {
+		expect(usageBudgetFor(principal(APP_CONFIG.APP_ROLES.STUDENT, APP_CONFIG.APP_ROLES.EMPLOYEE), BUDGETS)).toEqual(BUDGETS.employee)
+		expect(usageBudgetFor(principal(APP_CONFIG.APP_ROLES.EMPLOYEE, APP_CONFIG.APP_ROLES.EDU_EMPLOYEE), BUDGETS)).toEqual({ perHourUsd: 2, perDayUsd: 4 })
 	})
 
-	it("falls back to the student budget for a user with no budgeted role", () => {
-		expect(usageBudgetFor(principal(), APP_CONFIG.APP_ROLES, DEFAULT_USAGE_BUDGETS)).toEqual(DEFAULT_USAGE_BUDGETS.STUDENT)
+	it("falls back to the student budget for a user with no brukertype", () => {
+		expect(usageBudgetFor(principal(), BUDGETS)).toEqual(BUDGETS.student)
+	})
+
+	it("gives the admin role no extra budget - only the brukertype counts", () => {
+		expect(usageBudgetFor(principal(APP_CONFIG.APP_ROLES.ADMIN), BUDGETS)).toEqual(BUDGETS.student)
+		expect(usageBudgetFor(principal(APP_CONFIG.APP_ROLES.ADMIN, APP_CONFIG.APP_ROLES.EMPLOYEE), BUDGETS)).toEqual(BUDGETS.employee)
 	})
 })
 
-describe("parseUsageBudgets", () => {
-	it("uses the defaults when USAGE_BUDGET is unset or blank", () => {
-		expect(parseUsageBudgets(undefined)).toEqual({ budgets: DEFAULT_USAGE_BUDGETS, warnings: [] })
-		expect(parseUsageBudgets("  ")).toEqual({ budgets: DEFAULT_USAGE_BUDGETS, warnings: [] })
+describe("resolveUsageLimits", () => {
+	const valid: UsageLimits = {
+		budgets: BUDGETS,
+		anonymousEmbed: { perHourUsd: 1, perDayUsd: 5 },
+		maxConcurrentCalls: 3,
+		webSearchCallPriceUsd: 0.03,
+		embedRateLimits: { perIpPerMinute: 20, perIpPerDay: 200, perBotPerDay: null }
+	}
+	const raw = (values: Record<string, unknown>) => ({ values, updatedAt: null, updatedBy: null })
+
+	it("uses the strict floor for everything when nothing is saved yet", () => {
+		const resolved = resolveUsageLimits(null)
+		expect(resolved.limits).toEqual(FALLBACK_USAGE_LIMITS)
+		expect(resolved.fallbackFields).toEqual(["budgets", "anonymousEmbed", "maxConcurrentCalls", "webSearchCallPriceUsd", "embedRateLimits"])
 	})
 
-	it("overrides only the roles and fields that are set", () => {
-		const { budgets, warnings } = parseUsageBudgets('{"STUDENT":{"hour":0.01},"ADMIN":{"hour":2,"day":8}}')
-		expect(warnings).toEqual([])
-		expect(budgets).toEqual({
-			...DEFAULT_USAGE_BUDGETS,
-			STUDENT: { perHourUsd: 0.01, perDayUsd: DEFAULT_USAGE_BUDGETS.STUDENT.perDayUsd },
-			ADMIN: { perHourUsd: 2, perDayUsd: 8 }
-		})
-	})
-
-	it("never changes the defaults themselves", () => {
-		parseUsageBudgets('{"STUDENT":{"hour":99}}')
-		expect(DEFAULT_USAGE_BUDGETS.STUDENT.perHourUsd).toBe(0.3)
-	})
-
-	it("falls back to the defaults on invalid JSON or a non-object", () => {
-		for (const raw of ["{STUDENT:", "[1,2]", "5"]) {
-			const { budgets, warnings } = parseUsageBudgets(raw)
-			expect(budgets).toEqual(DEFAULT_USAGE_BUDGETS)
-			expect(warnings).toHaveLength(1)
+	it("keeps the floor strict - nobody above the student budget", () => {
+		for (const budget of [...Object.values(FALLBACK_USAGE_LIMITS.budgets), FALLBACK_USAGE_LIMITS.anonymousEmbed]) {
+			expect(budget.perHourUsd).toBeLessThanOrEqual(0.3)
+			expect(budget.perDayUsd).toBeLessThanOrEqual(1)
 		}
 	})
 
-	it("skips unknown roles/fields and non-positive or non-numeric values, keeping the valid rest", () => {
-		const { budgets, warnings } = parseUsageBudgets('{"TEACHER":{"hour":1},"STUDENT":{"hour":0,"day":"5","week":3},"EMPLOYEE":7,"ADMIN":{"day":-1,"hour":3}}')
-		expect(budgets).toEqual({ ...DEFAULT_USAGE_BUDGETS, ADMIN: { perHourUsd: 3, perDayUsd: DEFAULT_USAGE_BUDGETS.ADMIN.perDayUsd } })
-		expect(warnings).toHaveLength(6)
+	it("uses a valid document as-is", () => {
+		expect(resolveUsageLimits(raw(valid))).toMatchObject({ limits: valid, fallbackFields: [] })
 	})
 
-	it("doesn't treat inherited object keys as roles", () => {
-		const { budgets, warnings } = parseUsageBudgets('{"constructor":{"hour":1},"__proto__":{"hour":1}}')
-		expect(budgets).toEqual(DEFAULT_USAGE_BUDGETS)
-		expect(warnings).toHaveLength(2)
+	it("falls back field by field, keeping the valid rest", () => {
+		const resolved = resolveUsageLimits(
+			raw({
+				...valid,
+				budgets: { ...BUDGETS, student: { perHourUsd: -1, perDayUsd: 1 } },
+				maxConcurrentCalls: "3",
+				webSearchCallPriceUsd: undefined
+			})
+		)
+		expect(resolved.fallbackFields).toEqual(["budgets", "maxConcurrentCalls", "webSearchCallPriceUsd"])
+		expect(resolved.limits).toEqual({
+			...valid,
+			budgets: FALLBACK_USAGE_LIMITS.budgets,
+			maxConcurrentCalls: FALLBACK_USAGE_LIMITS.maxConcurrentCalls,
+			webSearchCallPriceUsd: FALLBACK_USAGE_LIMITS.webSearchCallPriceUsd
+		})
+	})
+
+	it("rejects a typo-sized value instead of lifting the cap", () => {
+		expect(resolveUsageLimits(raw({ ...valid, budgets: { ...BUDGETS, student: { perHourUsd: 3000, perDayUsd: 1 } } })).fallbackFields).toEqual(["budgets"])
+	})
+
+	it("never changes the floor itself", () => {
+		const resolved = resolveUsageLimits(null)
+		resolved.limits.budgets.student.perHourUsd = 99
+		expect(FALLBACK_USAGE_LIMITS.budgets.student.perHourUsd).toBe(0.3)
+	})
+})
+
+describe("resolveModelPrices", () => {
+	it("leaves broken price documents out, so those models are priced as unknown", () => {
+		const doc = (model: string, inputPerMillion: unknown, outputPerMillion: unknown) => ({ model, inputPerMillion, outputPerMillion, updatedAt: null, updatedBy: null })
+		const { entries, invalid } = resolveModelPrices([doc("ok", 1, 2), doc("free", 0, 0), doc("text", "1", 2), doc("negative", -1, 2), doc("missing", 1, undefined)])
+		expect(entries.map((entry) => entry.model)).toEqual(["ok", "free"])
+		expect(invalid).toEqual(["text", "negative", "missing"])
 	})
 })
 
@@ -158,7 +190,7 @@ describe("assertWithinUsageBudget", () => {
 		const user = principal(APP_CONFIG.APP_ROLES.STUDENT)
 		await expect(assertWithinUsageBudget(user)).resolves.toBeUndefined()
 
-		await getRateLimiter().add(`usage-budget:user-day:${user.userId}`, USAGE_BUDGETS.STUDENT.perDayUsd, DAY_MS)
+		await getRateLimiter().add(`usage-budget:user-day:${user.userId}`, (await limits()).budgets.student.perDayUsd, DAY_MS)
 		await expect(assertWithinUsageBudget(user)).rejects.toMatchObject({ status: 429, message: expect.stringContaining("i dag") })
 	})
 })
@@ -202,13 +234,20 @@ describe("meterUsageStream", () => {
 	})
 
 	it("adds to what the user has already spent in the window", async () => {
-		// Admin, so the first million tokens don't already use up the budget the reservation checks
-		const user = principal(APP_CONFIG.APP_ROLES.ADMIN)
-		await recordUsage(user, { vendorId: "MISTRAL" }, { inputTokens: 1_000_000, outputTokens: 0, totalTokens: 1_000_000 })
-		await drain(meterUsageStream(streamOf(done(1_000_000, 0)), await reserveUsage(user, { vendorId: "MISTRAL" }, estimateInputUsage([]))))
+		// Employee, and small enough that the first call doesn't already use up the budget the reservation checks
+		const user = principal(APP_CONFIG.APP_ROLES.EMPLOYEE)
+		await recordUsage(user, { vendorId: "MISTRAL" }, { inputTokens: 100_000, outputTokens: 0, totalTokens: 100_000 })
+		await drain(meterUsageStream(streamOf(done(100_000, 0)), await reserveUsage(user, { vendorId: "MISTRAL" }, estimateInputUsage([]))))
 		await settle()
 
-		expect(await spentToday(user)).toBe(2 * UNKNOWN_MODEL_PRICE.inputPerMillion)
+		expect(await spentToday(user)).toBeCloseTo(0.2 * UNKNOWN_MODEL_PRICE.inputPerMillion)
+	})
+
+	it("prices a catalogue model by its DB price", async () => {
+		const user = principal(APP_CONFIG.APP_ROLES.EMPLOYEE)
+		// gpt-6-luna is 0.1 USD per 1M input in the mock store
+		await recordUsage(user, { vendorId: "OPENAI", model: "gpt-6-luna" }, { inputTokens: 1_000_000, outputTokens: 0, totalTokens: 1_000_000 })
+		expect(await spentToday(user)).toBeCloseTo(0.1)
 	})
 })
 
@@ -242,18 +281,20 @@ describe("reserveUsage", () => {
 
 	it("refuses a call when other calls in flight already reserved the rest of the budget", async () => {
 		const user = principal(APP_CONFIG.APP_ROLES.STUDENT)
-		await getRateLimiter().add(`usage-budget:user-day:${user.userId}`, USAGE_BUDGETS.STUDENT.perDayUsd - 0.1, DAY_MS)
+		const studentPerDay = (await limits()).budgets.student.perDayUsd
+		await getRateLimiter().add(`usage-budget:user-day:${user.userId}`, studentPerDay - 0.1, DAY_MS)
 
 		// Its own reservation never counts against it - only what was there before
 		await reserveUsage(user, mistral, inputWorth(0.2))
 		await expect(reserveUsage(user, mistral, inputWorth(0.01))).rejects.toMatchObject({ status: 429 })
 		await settle()
-		expect(await spentToday(user)).toBeCloseTo(USAGE_BUDGETS.STUDENT.perDayUsd + 0.1)
+		expect(await spentToday(user)).toBeCloseTo(studentPerDay + 0.1)
 	})
 })
 
 describe("acquireCallSlot", () => {
 	it("refuses a fourth call while three are in flight - the parallel-request overshoot of a check-then-record budget", async () => {
+		expect((await limits()).maxConcurrentCalls).toBe(3)
 		const user = principal()
 		const releases = await Promise.all([acquireCallSlot(user), acquireCallSlot(user), acquireCallSlot(user)])
 		await expect(acquireCallSlot(user)).rejects.toMatchObject({ status: 429 })
@@ -315,9 +356,9 @@ describe("anonymous embed budget", () => {
 		expect(await isAnonymousEmbedOverBudget(bot())).toBe(false)
 	})
 
-	it("is over budget once the bot's daily ANONYMOUS_EMBED budget is spent", async () => {
+	it("is over budget once the bot's daily anonymousEmbed budget is spent", async () => {
 		const botId = bot()
-		await getRateLimiter().add(`usage-budget:anon-bot-day:${botId}`, USAGE_BUDGETS.ANONYMOUS_EMBED.perDayUsd, DAY_MS)
+		await getRateLimiter().add(`usage-budget:anon-bot-day:${botId}`, (await limits()).anonymousEmbed.perDayUsd, DAY_MS)
 		expect(await isAnonymousEmbedOverBudget(botId)).toBe(true)
 	})
 
@@ -326,10 +367,6 @@ describe("anonymous embed budget", () => {
 		await drain(meterUsageStream(streamOf(done(1_000_000, 0)), await reserveUsage({ anonymousEmbedBotId: botId }, { vendorId: "MISTRAL" }, estimateInputUsage([]))))
 		await settle()
 		expect((await getRateLimiter().getCount(`usage-budget:anon-bot-hour:${botId}`, 60 * 60_000)).count).toBe(UNKNOWN_MODEL_PRICE.inputPerMillion)
-	})
-
-	it("is never mistaken for a role when picking a user's budget", () => {
-		expect(usageBudgetFor(principal(), APP_CONFIG.APP_ROLES, { ...DEFAULT_USAGE_BUDGETS, ANONYMOUS_EMBED: { perHourUsd: 999, perDayUsd: 999 } })).toEqual(DEFAULT_USAGE_BUDGETS.STUDENT)
 	})
 })
 

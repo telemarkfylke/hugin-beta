@@ -13,7 +13,7 @@
 
 	// Layout data (see +layout.server.ts) - every page has it
 	const appConfig = $derived(page.data.APP_CONFIG as AppConfig)
-	const isAdmin = $derived((page.data.authenticatedUser as AuthenticatedPrincipal)?.roles?.includes(appConfig.APP_ROLES.ADMIN) ?? false)
+	const isAdmin = $derived((page.data.authenticatedUser as AuthenticatedPrincipal)?.huginRoles?.includes("admin") ?? false)
 
 	// Dato på pent format
 	const formatDate = (dateString: string) => {

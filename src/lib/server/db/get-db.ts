@@ -3,6 +3,9 @@ import { env } from "$env/dynamic/private"
 import { MongoConversationStore } from "$lib/conversationstore/server/adapters/conversation-store"
 import type { IConversationStore } from "$lib/conversationstore/server/adapters/interface"
 import { MockConversationStore } from "$lib/conversationstore/server/adapters/mock-conversation-store"
+import { MongoFeatureFlagStore } from "$lib/featureflags/server/adapters/featureflag-store"
+import type { IFeatureFlagStore } from "$lib/featureflags/server/adapters/interface"
+import { MockFeatureFlagStore } from "$lib/featureflags/server/adapters/mock-featureflag-store"
 import type { IMcpSourceStore } from "$lib/mcp-sources/server/adapters/interface"
 import { MongoMcpSourceStore } from "$lib/mcp-sources/server/adapters/mcp-source-store"
 import { MockMcpSourceStore } from "$lib/mcp-sources/server/adapters/mock-mcp-source-store"
@@ -14,6 +17,9 @@ import type { IStatsStore } from "$lib/statsstore/server/adapters/interface"
 import { MockStatsStore } from "$lib/statsstore/server/adapters/mock-stats-store"
 import { MongoStatsStore } from "$lib/statsstore/server/adapters/stats-store"
 import type { IChatConfigStore } from "$lib/types/db/db-interface"
+import type { IUsageLimitsStore } from "$lib/usagebudget/server/adapters/interface"
+import { MockUsageLimitsStore } from "$lib/usagebudget/server/adapters/mock-usage-limits-store"
+import { MongoUsageLimitsStore } from "$lib/usagebudget/server/adapters/usage-limits-store"
 import type { IWebsiteSourceStore } from "$lib/website-sources/server/adapters/interface"
 import { MockWebsiteSourceStore } from "$lib/website-sources/server/adapters/mock-website-source-store"
 import { MongoWebsiteSourceStore } from "$lib/website-sources/server/adapters/website-source-store"
@@ -26,6 +32,8 @@ let websiteSourceStore: IWebsiteSourceStore
 let mcpSourceStore: IMcpSourceStore
 let conversationStore: IConversationStore
 let statsStore: IStatsStore
+let featureFlagStore: IFeatureFlagStore
+let usageLimitsStore: IUsageLimitsStore
 let rateLimiter: IRateLimiter
 
 if (env.MOCK_DB === "true") {
@@ -34,6 +42,8 @@ if (env.MOCK_DB === "true") {
 	mcpSourceStore = new MockMcpSourceStore()
 	conversationStore = new MockConversationStore()
 	statsStore = new MockStatsStore()
+	featureFlagStore = new MockFeatureFlagStore()
+	usageLimitsStore = new MockUsageLimitsStore()
 	rateLimiter = new MockRateLimiter()
 } else {
 	if (!env.MONGODB_CONNECTION_STRING) {
@@ -46,6 +56,8 @@ if (env.MOCK_DB === "true") {
 	mcpSourceStore = new MongoMcpSourceStore(mongoClient)
 	conversationStore = new MongoConversationStore(mongoClient, null)
 	statsStore = new MongoStatsStore(mongoClient)
+	featureFlagStore = new MongoFeatureFlagStore(mongoClient)
+	usageLimitsStore = new MongoUsageLimitsStore(mongoClient)
 	rateLimiter = new MongoRateLimiter(mongoClient)
 }
 
@@ -67,6 +79,16 @@ export const getConversationStore = (): IConversationStore => {
 
 export const getStatsStore = (): IStatsStore => {
 	return statsStore
+}
+
+// Read through the cache in $lib/featureflags/server/feature-access, not directly
+export const getFeatureFlagStore = (): IFeatureFlagStore => {
+	return featureFlagStore
+}
+
+// Read through the cache in $lib/usagebudget/server/usage-limits, not directly
+export const getUsageLimitsStore = (): IUsageLimitsStore => {
+	return usageLimitsStore
 }
 
 // Swappable backing store (Mongo today, see $lib/server/rate-limit) behind one shared instance -

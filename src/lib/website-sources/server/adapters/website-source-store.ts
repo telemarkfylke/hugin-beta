@@ -1,8 +1,7 @@
 import { logger } from "@vestfoldfylke/loglady"
 import { type Collection, type Db, type Filter, type MongoClient, ObjectId } from "mongodb"
 import { env } from "$env/dynamic/private"
-import { canViewWebsiteSource } from "$lib/authorization"
-import { APP_CONFIG } from "$lib/server/app-config/app-config"
+import { canViewWebsiteSource, isAdmin } from "$lib/authorization"
 import type { AuthenticatedPrincipal } from "$lib/types/authentication"
 import type { NewWebsiteSource, WebsiteSource } from "$lib/types/website-source"
 import type { IWebsiteSourceStore } from "./interface"
@@ -75,10 +74,9 @@ export class MongoWebsiteSourceStore implements IWebsiteSourceStore {
 		// Mirrors MongoMcpSourceStore.getMcpSources - see its comment for why canViewWebsiteSource is
 		// still applied below on the (now much smaller) result set rather than being trusted to the
 		// query alone.
-		const isAdmin = principal.roles.includes(APP_CONFIG.APP_ROLES.ADMIN)
-		const query: Filter<DbWebsiteSource> = isAdmin ? {} : { $or: [{ type: "published" }, { "createdBy.id": principal.userId }] }
+		const query: Filter<DbWebsiteSource> = isAdmin(principal) ? {} : { $or: [{ type: "published" }, { "createdBy.id": principal.userId }] }
 		const sources = (await collection.find(query).toArray()).map((source) => ({ ...source, _id: source._id.toString() }))
-		return sources.filter((source) => canViewWebsiteSource(source, principal, APP_CONFIG.APP_ROLES))
+		return sources.filter((source) => canViewWebsiteSource(source, principal))
 	}
 
 	async createWebsiteSource(source: NewWebsiteSource): Promise<WebsiteSource> {

@@ -1,5 +1,4 @@
 import { goto } from "$app/navigation"
-import { canUseHistory } from "$lib/authorization"
 import {
 	ATTACHMENT_STRIP_MODE,
 	attachmentId,
@@ -109,8 +108,9 @@ export type ChatStateOptions = {
 	// Where promptChat posts to - defaults to "/api/chat". Used by /public/embed/** to point at
 	// the separate, unauthenticated /public/embed/api/chat endpoint instead.
 	apiEndpoint?: string
-	// Overrides the role-based canUseHistory default below. Used by /public/embed/** (pass false)
-	// since there is no real user to own a stored conversation - storeChat also forces off with it.
+	// The user's "history" feature (data.features.history from the root layout, see $lib/featureflags).
+	// Defaults to false - fail closed. /public/embed/** passes false since there is no real user to
+	// own a stored conversation - storeChat also forces off with it.
 	canUseHistory?: boolean
 	// Pins webSearchEnabled/datasourceEnabled to fixed values for this ChatState's lifetime and
 	// hides their toggle buttons in ChatInput entirely (see ChatInput's use of chatState.lockedTools).
@@ -142,7 +142,7 @@ export class ChatState {
 	// See ChatStateOptions.lockedTools - null means the user is free to toggle both, same as today.
 	public lockedTools: { webSearch: boolean; datasource: boolean } | null = null
 	// When false, conversations are never stored - incognito isn't a separate toggle then, it's just
-	// what having no history means. See canUseHistory in $lib/authorization.
+	// what having no history means. See the "history" feature in $lib/featureflags.
 	public canUseHistory: boolean = $state(true)
 	public configMode: boolean = $state(false)
 	public initialConfig: ChatConfig = $state(placeHolderConfig)
@@ -185,7 +185,7 @@ export class ChatState {
 		this.APP_CONFIG = appConfig
 		this.apiEndpoint = options?.apiEndpoint ?? "/api/chat"
 		this.lockedTools = options?.lockedTools ?? null
-		this.canUseHistory = options?.canUseHistory ?? canUseHistory(user, appConfig.APP_ROLES)
+		this.canUseHistory = options?.canUseHistory ?? false
 		if (!this.canUseHistory) {
 			this.storeChat = false
 		}

@@ -3,7 +3,6 @@ import { logger } from "@vestfoldfylke/loglady"
 import { env } from "$env/dynamic/private"
 import { MS_AUTH_PRINCIPAL_CLAIMS_HEADER } from "$lib/server/auth/auth-constants"
 import { getPrincipalClaims } from "$lib/server/auth/get-authenticated-user"
-import type { MSPrincipalClaims } from "$lib/types/authentication"
 import type { PageServerLoad } from "./$types"
 
 const ADMIN_ROLE = env.APP_ROLE_ADMIN
@@ -14,7 +13,7 @@ if (!ADMIN_ROLE) {
 
 logger.info("Admin role for Hugin Beta is set to {adminRole}:", ADMIN_ROLE)
 
-export const load: PageServerLoad = async ({ request }): Promise<{ claims: MSPrincipalClaims }> => {
+export const load: PageServerLoad = async ({ request }): Promise<Record<string, never>> => {
 	const userClaimsHeaderValue = request.headers.get(MS_AUTH_PRINCIPAL_CLAIMS_HEADER)
 	if (!userClaimsHeaderValue) {
 		error(401, "Missing claims in request headers")
@@ -34,5 +33,5 @@ export const load: PageServerLoad = async ({ request }): Promise<{ claims: MSPri
 	if (!userRoles.includes(ADMIN_ROLE)) {
 		error(403, "User does not have admin role, access forbidden")
 	}
-	return { claims: userClaims }
+	return {}
 }

@@ -1,11 +1,13 @@
 // https://learn.microsoft.com/en-us/azure/app-service/configure-authentication-user-identities
 
 import { logger } from "@vestfoldfylke/loglady"
+import { APP_CONFIG } from "$lib/server/app-config/app-config"
 import type { AuthenticatedPrincipal, MSPrincipalClaims } from "$lib/types/authentication"
 import { HTTPError } from "../middleware/http-error"
 import { MS_AUTH_PRINCIPAL_CLAIMS_HEADER, MS_PRINCIPAL_CLAIM_TYPS } from "./auth-constants"
 import { isUserBlocked } from "./blocked-users"
 import { injectMockAuthenticatedUserHeaders, MOCK_AUTH } from "./mock-authenticated-user"
+import { splitAppRoles } from "./principal-roles"
 import { applyRolePreview } from "./role-preview"
 
 export const getPrincipalClaims = (base64EncodedHeaderValue: string): MSPrincipalClaims => {
@@ -77,7 +79,7 @@ export const getRealAuthenticatedPrincipal = (headers: Headers): AuthenticatedPr
 		userId,
 		preferredUserName,
 		name,
-		roles,
+		...splitAppRoles(roles, APP_CONFIG.APP_ROLES),
 		groups
 	}
 }
