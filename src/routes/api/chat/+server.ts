@@ -37,7 +37,7 @@ import { estimateInputUsage, requestTexts } from "$lib/usagebudget/server/cost"
 import { acquireCallSlot, assertWithinUsageBudget, meterUsageStream, reserveUsage } from "$lib/usagebudget/server/usage-budget"
 import { chatInputsSchema, INVALID_INPUTS_MESSAGE } from "$lib/validation/chat-input-schema"
 import { validateFileInputs } from "$lib/validation/file-input"
-
+import { STUDIEMODUS_INSTRUCTIONS } from "$lib/server/agents/studiemodus"
 // Higher than the anonymous embed's limits: an incognito conversation here sends its whole history.
 // 1M characters is roughly 250k tokens - a very long real conversation, but no longer "as much as the
 // context window and the request body allow" in a single call.
@@ -83,7 +83,8 @@ const parseChatRequest = async (body: unknown, user: AuthenticatedPrincipal): Pr
 		stream: Boolean(incomingChatRequest.stream),
 		store: Boolean(incomingChatRequest.store),
 		huginConversationId: incomingChatRequest.huginConversationId,
-		armedAttachments
+		armedAttachments,
+		studiemodus: Boolean(incomingChatRequest.studiemodus)
 	}
 
 	validateFileInputs(manualChatRequest, APP_CONFIG)
@@ -108,6 +109,11 @@ const supahChat: ApiNextFunction = async ({ requestEvent, user }) => {
 	// of what the client sent, since the incognito toggle is only hidden/disabled client-side.
 	if (!canUseHistory(user, APP_CONFIG.APP_ROLES)) {
 		chatRequest.store = false
+	}
+
+	if (chatRequest.studiemodus) {
+		chatRequest.config.instructions = STUDIEMODUS_INSTRUCTIONS
+
 	}
 
 	// Fail closed: resolution keeps a dataLocation profile on its own (disabled) vendor rather than

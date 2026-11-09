@@ -135,6 +135,7 @@ export class ChatState {
 	})
 	public streamResponse: boolean = $state(true)
 	public storeChat: boolean = $state(getDefaultStoreChat())
+	public studiemodus: boolean = $state(false)
 	public isLoading: boolean = $state(false)
 	public user: AuthenticatedPrincipal
 	public APP_CONFIG: AppConfig
@@ -488,7 +489,8 @@ export class ChatState {
 			stream: this.streamResponse,
 			store: effectiveStoreChat,
 			huginConversationId: effectiveStoreChat ? this.chat._id || undefined : undefined,
-			armedAttachments: armedForThisTurn
+			armedAttachments: armedForThisTurn,
+			studiemodus: this.studiemodus,
 		}
 
 		this.chat.history.push(userMessage)

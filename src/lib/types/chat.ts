@@ -120,6 +120,7 @@ export type ChatRequest = {
 	inputs: ChatInputItem[]
 	store?: boolean
 	stream?: boolean
+	studiemodus?: boolean
 	huginConversationId?: string | undefined
 	// Ids (see attachmentId) of earlier attachments the user has armed - see stripUnarmedAttachments
 	armedAttachments?: string[]

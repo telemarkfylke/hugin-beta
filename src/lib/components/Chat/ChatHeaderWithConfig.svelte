@@ -68,12 +68,21 @@
 						{/if}
 						Inkognito
 					</button>
+				
 				{/if}
 				{#if userCanEditConfig}
 					<button class="header-action" class:glow={chatState.configEdited} onclick={() => chatState.configMode = true} title="Konfigurer assistent">
 						<span class="material-symbols-rounded">build</span>
 						Konfigurer
 					</button>
+				{/if}
+
+				{#if userCanEditConfig}
+					<label class="toggle" class:active={chatState.studiemodus} title="Studiemodus">
+						Studiemodus
+						<input type="checkbox" role="switch" bind:checked={chatState.studiemodus} />
+						<span class="toggle-track" aria-hidden="true"></span>
+					</label>
 				{/if}
 			{/if}
 		</div>
@@ -138,6 +147,67 @@
 		opacity: 1;
 		color: var(--color-primary);
 		background-color: var(--color-primary-20);
+	}
+	.toggle {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		padding: 0 0.4rem;
+		border-radius: 6px;
+		font-size: 0.8125rem;
+		white-space: nowrap;
+		cursor: pointer;
+		opacity: 0.7;
+		transition:
+			opacity 0.15s,
+			background-color 0.15s;
+	}
+	.toggle:hover,
+	.toggle.active {
+		opacity: 1;
+	}
+	.toggle:hover {
+		background-color: var(--color-primary-10);
+	}
+	.toggle.active {
+		color: var(--color-primary);
+	}
+	.toggle input {
+		position: absolute;
+		opacity: 0;
+		width: 0;
+		height: 0;
+	}
+	.toggle-track {
+		position: relative;
+		flex-shrink: 0;
+		width: 2.25rem;
+		height: 1.25rem;
+		border-radius: 1rem;
+		background-color: var(--color-primary-30);
+		transition: background-color 0.2s;
+	}
+	.toggle-track::after {
+		content: "";
+		position: absolute;
+		top: 2px;
+		left: 2px;
+		width: calc(1.25rem - 4px);
+		height: calc(1.25rem - 4px);
+		border-radius: 50%;
+		background-color: white;
+		box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+		transition: transform 0.2s ease;
+	}
+	.toggle input:checked + .toggle-track {
+		background-color: var(--color-primary);
+	}
+	.toggle input:checked + .toggle-track::after {
+		transform: translateX(1rem);
+	}
+	.toggle input:focus-visible + .toggle-track {
+		outline: 2px solid var(--color-primary);
+		outline-offset: 2px;
 	}
 	@keyframes glow-pulse {
 		0%, 100% {
