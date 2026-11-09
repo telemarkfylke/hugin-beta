@@ -7,6 +7,7 @@
 	import ConversationList from "./ConversationList.svelte"
 	import LoadConversationDialog from "./LoadConversationDialog.svelte"
 	import NewChatMenu from "./NewChatMenu.svelte"
+	import {isStudentOnly} from "$lib/authorization"
 
 	type Props = {
 		chatState: ChatState
@@ -17,6 +18,7 @@
 	let showDescription: boolean = $state(false)
 
 	let userCanEditConfig = $derived(canEditChatConfig(chatState.chat, chatState.user, chatState.APP_CONFIG.APP_ROLES))
+	let student = $derived(isStudentOnly( chatState.user, chatState.APP_CONFIG.APP_ROLES))
 
 	const getAgentName = () => {
 		if (chatState.configEdited && !chatState.chat.config.name) {
@@ -77,7 +79,7 @@
 					</button>
 				{/if}
 
-				{#if userCanEditConfig}
+				{#if userCanEditConfig || student}
 					<label class="toggle" class:active={chatState.studiemodus} title="Studiemodus">
 						Studiemodus
 						<input type="checkbox" role="switch" bind:checked={chatState.studiemodus} />
