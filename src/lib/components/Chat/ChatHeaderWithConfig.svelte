@@ -9,6 +9,8 @@
 	import NewChatMenu from "./NewChatMenu.svelte"
 	import {isStudentOnly} from "$lib/authorization"
 
+
+
 	type Props = {
 		chatState: ChatState
 	}
@@ -79,10 +81,10 @@
 					</button>
 				{/if}
 
-				{#if userCanEditConfig || student}
+				{#if userCanEditConfig || student} 
 					<label class="toggle" class:active={chatState.studiemodus} title="Studiemodus">
 						Studiemodus
-						<input type="checkbox" role="switch" bind:checked={chatState.studiemodus} />
+						<input type="checkbox" role="switch" bind:checked={chatState.studiemodus}  />
 						<span class="toggle-track" aria-hidden="true"></span>
 					</label>
 				{/if}

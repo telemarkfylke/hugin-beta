@@ -1,6 +1,6 @@
 import { json, type RequestHandler } from "@sveltejs/kit"
 import { logger } from "@vestfoldfylke/loglady"
-import { canUseHistory, canUseMcpSharepoint, canUseWebsiteDataSource } from "$lib/authorization"
+import { canUseHistory, canUseMcpSharepoint, canUseWebsiteDataSource, isStudentOnly } from "$lib/authorization"
 import { chatHistoryToInputItems, exceedsAttachmentLimit, stripUnarmedAttachments, TOO_MANY_ATTACHMENTS_MESSAGE } from "$lib/chat-history"
 import { applyChatSseEventToResponseObject } from "$lib/chat-response-builder"
 import type { ConversationManager } from "$lib/conversationstore/server/conv_manager"
@@ -115,6 +115,12 @@ const supahChat: ApiNextFunction = async ({ requestEvent, user }) => {
 		chatRequest.config.instructions = STUDIEMODUS_INSTRUCTIONS
 
 	}
+
+	if (chatRequest.studiemodus, user.rolePreview = "STUDENT") {
+		chatRequest.studiemodus = true
+	}
+
+
 
 	// Fail closed: resolution keeps a dataLocation profile on its own (disabled) vendor rather than
 	// sending the data elsewhere
