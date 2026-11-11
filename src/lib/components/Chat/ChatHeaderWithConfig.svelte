@@ -22,6 +22,10 @@
 	let userCanEditConfig = $derived(canEditChatConfig(chatState.chat, chatState.user, chatState.APP_CONFIG.APP_ROLES))
 	let student = $derived(isStudentOnly( chatState.user, chatState.APP_CONFIG.APP_ROLES))
 
+	if (isStudentOnly(chatState.user, chatState.APP_CONFIG.APP_ROLES)) {
+		chatState.studiemodus = true
+	}
+
 	const getAgentName = () => {
 		if (chatState.configEdited && !chatState.chat.config.name) {
 			return "Uten navn*"
