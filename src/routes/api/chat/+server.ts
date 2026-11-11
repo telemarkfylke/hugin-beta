@@ -117,8 +117,6 @@ const supahChat: ApiNextFunction = async ({ requestEvent, user }) => {
 
 	}
 
-	console.log("student:", isStudentOnly(user, APP_CONFIG.APP_ROLES), "studiemodus:", chatRequest.studiemodus)
-
 	// Fail closed: resolution keeps a dataLocation profile on its own (disabled) vendor rather than
 	// sending the data elsewhere
 	if (!isModelAvailable(chatRequest.config)) {
