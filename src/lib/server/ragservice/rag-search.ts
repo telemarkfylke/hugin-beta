@@ -6,13 +6,13 @@ import { getRagToken } from "./get-rag-token"
 
 const USE_MULTISEARCH: boolean = true
 
-type RagAuth = {
+export type RagAuth = {
 	ragToken: string
 	userId: string
 	groups: string[]
 }
 
-async function resolveRagAuth(user: AuthenticatedPrincipal | null, graphToken: string | null): Promise<RagAuth> {
+export async function resolveRagAuth(user: AuthenticatedPrincipal | null, graphToken: string | null): Promise<RagAuth> {
 	if (env.MOCK_AUTH === "true") {
 		if (!env.RAGSERVICE_TOKEN) throw new Error("RAGSERVICE_TOKEN er ikke satt i .env for lokal utvikling")
 		return {
@@ -30,7 +30,7 @@ async function resolveRagAuth(user: AuthenticatedPrincipal | null, graphToken: s
 	}
 }
 
-async function fetchStoreSearch(storeId: string, query: string, ragToken: string, userId: string, groups: string[]): Promise<VectorMatch[]> {
+async function fetchStoreSearch(storeId: string, query: string, ragToken: string, userId: string, groups: string[], fileIds?: string[]): Promise<VectorMatch[]> {
 	const res = await fetch(`${env.RAGSERVICE_URL}/api/stores/${storeId}/search/text`, {
 		method: "POST",
 		headers: {
@@ -41,14 +41,15 @@ async function fetchStoreSearch(storeId: string, query: string, ragToken: string
 		},
 		body: JSON.stringify({
 			text: query,
-			replyLimit: 3
+			replyLimit: 3,
+			fileIds
 		})
 	})
 	if (!res.ok) return []
 	return (await res.json()) as VectorMatch[]
 }
 
-async function fetchMultiStoreSearch(storeIds: string[], query: string, ragToken: string, userId: string, groups: string[]): Promise<VectorMatch[]> {
+async function fetchMultiStoreSearch(storeIds: string[], query: string, ragToken: string, userId: string, groups: string[], fileIds?: string[]): Promise<VectorMatch[]> {
 	const res = await fetch(`${env.RAGSERVICE_URL}/api/search/`, {
 		method: "POST",
 		headers: {
@@ -60,27 +61,30 @@ async function fetchMultiStoreSearch(storeIds: string[], query: string, ragToken
 		body: JSON.stringify({
 			storeIds: storeIds,
 			text: query,
-			replyLimit: 3
+			replyLimit: 3,
+			fileIds
 		})
 	})
 	if (!res.ok) return []
 	return (await res.json()) as VectorMatch[]
 }
 
-export async function searchRagStores(storeIds: string[], query: string, user: AuthenticatedPrincipal | null, graphToken: string | null): Promise<VectorMatch[]> {
+// fileIds: only search these files (undefined = every file ragservice allows search in). Ragservice already leaves
+// out files whose usage doesn't allow search - this narrows further, e.g. away from files attached whole.
+export async function searchRagStores(storeIds: string[], query: string, user: AuthenticatedPrincipal | null, graphToken: string | null, fileIds?: string[]): Promise<VectorMatch[]> {
 	if (storeIds.length === 0) return []
 
 	const { ragToken, userId, groups } = await resolveRagAuth(user, graphToken)
 
 	// Try use ragservice buildting multiserach
 	if (USE_MULTISEARCH) {
-		const results = await fetchMultiStoreSearch(storeIds, query, ragToken, userId, groups)
+		const results = await fetchMultiStoreSearch(storeIds, query, ragToken, userId, groups, fileIds)
 		return results
 	}
 
 	// Handle multiserach manually with promise all
 	else {
-		const results = await Promise.all(storeIds.map((id) => fetchStoreSearch(id, query, ragToken, userId, groups)))
+		const results = await Promise.all(storeIds.map((id) => fetchStoreSearch(id, query, ragToken, userId, groups, fileIds)))
 		return results.flat()
 	}
 }
@@ -122,3 +126,18 @@ export async function getRagStoreLanguages(storeIds: string[], user: Authenticat
 		}))
 	)
 }
+
+export type RagStoreSearchInfo = {
+	storeId: string
+	/** null when the store couldn't be read (unreachable, or no access for this user) */
+	info: StoreSearchInfo | null
+}
+
+// One /searchinfo call per store, as this user: which files there are and how each may be used (attached whole,
+// searched), plus languages. Never throws - an unreadable store comes back with info null.
+export async function getRagStoreSearchInfos(storeIds: string[], auth: RagAuth): Promise<RagStoreSearchInfo[]> {
+	return await Promise.all(storeIds.map(async (storeId) => ({ storeId, info: await fetchStoreSearchInfo(storeId, auth.ragToken, auth.userId, auth.groups) })))
+}
+
+/** Languages per store from search infos already fetched - the same signal getRagStoreLanguages gives, without new calls. */
+export const languagesFromSearchInfos = (infos: RagStoreSearchInfo[]): RagStoreLanguages[] => infos.map(({ storeId, info }) => ({ storeId, languages: info?.languages ?? [] }))

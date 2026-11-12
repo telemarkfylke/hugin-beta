@@ -28,6 +28,10 @@ export type UsageLimits = {
 	maxConcurrentCalls: number
 	// Billed per web search call by the vendor, on top of the tokens
 	webSearchCallPriceUsd: number
+	// The most datasource file content ("Fil-innhold") one bot gets attached per question, in characters
+	// (~3000 per page). Files beyond it are left out, or searched when they are searchable - see
+	// $lib/server/ragservice/rag-file-content
+	maxFileContentCharacters: number
 	// Message-count limits on the anonymous embed, defaults for every bot - a bot's own
 	// ChatConfig.rateLimitPerIpPerMinute/PerIpPerDay/PerBotPerDay still overrides them
 	embedRateLimits: {
@@ -102,6 +106,7 @@ export const UsageLimitsFieldSchemas = {
 	anonymousEmbed: HourDayBudgetSchema,
 	maxConcurrentCalls: count(50),
 	webSearchCallPriceUsd: usd(1),
+	maxFileContentCharacters: count(2_000_000),
 	embedRateLimits: z.object({ perIpPerMinute: count(10_000), perIpPerDay: count(100_000), perBotPerDay: count(1_000_000).nullable() }).strict()
 }
 

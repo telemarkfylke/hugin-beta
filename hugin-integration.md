@@ -45,8 +45,8 @@ All tools are **read-only**. No write operations exist anywhere in the codebase.
 
 | Item | Value |
 |------|-------|
-| MCP server URL | `https://mcp-sharepoint-test.api.telemarkfylke.no/mcp` |
-| Health endpoint | `https://mcp-sharepoint-test.api.telemarkfylke.no/health` |
+| MCP server URL | `https://mcp-sharepoint-api-test.telemarkfylke.no/mcp` |
+| Health endpoint | `https://mcp-sharepoint-api-test.telemarkfylke.no/health` |
 | Transport | Streamable HTTP (MCP 2025-11-25) |
 | Authentication | Entra ID Bearer token (Easy Auth) |
 | Auth App Registration | `tfkdlzmcpsharepoint-auth` |
@@ -143,7 +143,7 @@ import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/
 
 async function connectToSharePointMCP(bearerToken: string) {
   const transport = new StreamableHTTPClientTransport(
-    new URL('https://mcp-sharepoint-test.api.telemarkfylke.no/mcp'),
+    new URL('https://mcp-sharepoint-api-test.telemarkfylke.no/mcp'),
     {
       requestInit: {
         headers: { Authorization: `Bearer ${bearerToken}` },
@@ -272,7 +272,7 @@ Add these to Hugin's `.env` / App Service configuration:
 
 ```bash
 # SharePoint MCP Server
-MCP_SHAREPOINT_URL=https://mcp-sharepoint-test.api.telemarkfylke.no/mcp
+MCP_SHAREPOINT_URL=https://mcp-sharepoint-api-test.telemarkfylke.no/mcp
 MCP_SHAREPOINT_CLIENT_ID=<hugin-app-registration-client-id>
 MCP_SHAREPOINT_CLIENT_SECRET=<hugin-app-registration-client-secret>
 MCP_SHAREPOINT_TENANT_ID=d64408ee-ce52-4a08-97ff-658c02ccf77b
@@ -292,7 +292,7 @@ from mcp.client.streamable_http import streamablehttp_client
 from mcp import ClientSession
 
 TOKEN_URL = "https://login.microsoftonline.com/d64408ee-ce52-4a08-97ff-658c02ccf77b/oauth2/v2.0/token"
-MCP_URL   = "https://mcp-sharepoint-test.api.telemarkfylke.no/mcp"
+MCP_URL   = "https://mcp-sharepoint-api-test.telemarkfylke.no/mcp"
 
 def get_token(client_id, client_secret, scope):
     resp = requests.post(TOKEN_URL, data={

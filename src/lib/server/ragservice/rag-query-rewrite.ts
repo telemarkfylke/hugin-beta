@@ -29,6 +29,8 @@ type RewriteRagQueryParams = {
 	ragStoreIds: string[]
 	user: AuthenticatedPrincipal
 	graphToken: string | null
+	/** Already fetched (see getRagStoreSearchInfos) - saves the lookup; fetched here when left out */
+	storeLanguages?: RagStoreLanguages[]
 }
 
 // Rewrites the user's latest message into a standalone RAG query - resolving pronouns/references
@@ -37,11 +39,11 @@ type RewriteRagQueryParams = {
 // from the chat's own vendor/model entirely (see $lib/server/utility-llm). Falls back to the raw
 // query text on any failure, or when there's no history to disambiguate against (e.g. the first
 // message in a conversation) - never blocks the main chat flow.
-export async function rewriteRagQuery({ chatRequest, queryText, ragStoreIds, user, graphToken }: RewriteRagQueryParams): Promise<string> {
+export async function rewriteRagQuery({ chatRequest, queryText, ragStoreIds, user, graphToken, storeLanguages }: RewriteRagQueryParams): Promise<string> {
 	try {
 		const userInputMessage = [...chatRequest.inputs].reverse().find((i): i is ChatInputMessage => i.type === "message.input" && i.role === "user")
 		const history = formatHistoryForRewrite(chatRequest.inputs, userInputMessage)
-		const languageHint = formatLanguageHint(await getRagStoreLanguages(ragStoreIds, user, graphToken))
+		const languageHint = formatLanguageHint(storeLanguages ?? (await getRagStoreLanguages(ragStoreIds, user, graphToken)))
 
 		if (!history && !languageHint) {
 			// Nothing to disambiguate and no language steering to apply - the raw query is fine as-is.

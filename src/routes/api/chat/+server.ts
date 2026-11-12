@@ -20,9 +20,8 @@ import { configHasMcpTool, mcpUnavailableStream } from "$lib/server/mcp/run-mcp-
 import { HTTPError } from "$lib/server/middleware/http-error"
 import { apiRequestMiddleware } from "$lib/server/middleware/http-request"
 import { isModelAvailable, MODEL_UNAVAILABLE_MESSAGE } from "$lib/server/models/model-registry"
-import { appendRagContextToInstructions } from "$lib/server/ragservice/format-rag-context"
+import { addDatasourceContext } from "$lib/server/ragservice/datasource-context"
 import { rewriteRagQuery } from "$lib/server/ragservice/rag-query-rewrite"
-import { searchRagStores } from "$lib/server/ragservice/rag-search"
 import { createWebsiteToolClient } from "$lib/server/website-tools/website-tool-client"
 import { createSse, parseSse, responseStream } from "$lib/streaming"
 import type { IAIVendor } from "$lib/types/AIVendor"
@@ -198,23 +197,21 @@ const supahChat: ApiNextFunction = async ({ requestEvent, user }) => {
 	const instructionsBeforeRag = chatRequest.config.instructions
 
 	if (ragStoreIds.length > 0) {
-		if (queryText) {
-			const graphToken = requestEvent.request.headers.get(MS_AUTH_TOKEN_HEADER)
-			const rewrittenQuery = await rewriteRagQuery({ chatRequest, queryText, ragStoreIds, user, graphToken })
-
-			// Degrade gracefully if ragservice is unreachable or auth/token resolution fails - same
-			// outcome as a non-2xx response from ragservice (searchRagStores returns [] for that case
-			// already): answer without RAG context rather than failing the whole chat request.
-			let matches: Awaited<ReturnType<typeof searchRagStores>> = []
-			try {
-				matches = await searchRagStores(ragStoreIds, rewrittenQuery, user, graphToken)
-			} catch (error) {
-				logger.errorException(error, "searchRagStores failed - continuing without RAG context")
-			}
-
-			if (matches.length > 0) {
-				chatRequest.config.instructions = appendRagContextToInstructions(chatRequest.config.instructions, matches)
-			}
+		const graphToken = requestEvent.request.headers.get(MS_AUTH_TOKEN_HEADER)
+		// Degrade gracefully if ragservice is unreachable or auth/token resolution fails: answer without the
+		// datasources rather than failing the whole chat request.
+		try {
+			const context = await addDatasourceContext({
+				instructions: chatRequest.config.instructions,
+				storeIds: ragStoreIds,
+				queryText,
+				user,
+				graphToken,
+				rewriteQuery: (storeLanguages) => rewriteRagQuery({ chatRequest, queryText, ragStoreIds, user, graphToken, storeLanguages })
+			})
+			if (context.instructions !== undefined) chatRequest.config.instructions = context.instructions
+		} catch (error) {
+			logger.errorException(error, "Datasource context failed - continuing without it")
 		}
 	}
 

@@ -14,6 +14,8 @@ export const FALLBACK_USAGE_LIMITS: UsageLimits = {
 	anonymousEmbed: { ...STUDENT_FLOOR },
 	maxConcurrentCalls: 2,
 	webSearchCallPriceUsd: 0.03,
+	// The intended value, not a strict floor - about 50 pages, which fits every model's context with room to spare
+	maxFileContentCharacters: 150_000,
 	embedRateLimits: { perIpPerMinute: 20, perIpPerDay: 200, perBotPerDay: null }
 }
 

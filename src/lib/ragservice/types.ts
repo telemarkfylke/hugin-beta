@@ -8,6 +8,23 @@ export type VectorStoreFile = {
 	languages?: StoreLanguage[]
 	/** E.g. "350 / 362" (chunks behandlet / totalt) mens filen prosesseres. */
 	progress?: string
+	/** Set when the original is stored in S3. Missing on files uploaded before storage existed ("original mangler"). */
+	original?: { contentType: string; bytes: number }
+	/** Set when the parsed full text is stored. `characters` gives the size; "markdown" only for Docling output. */
+	text?: { characters: number; format?: "markdown" | "plain" }
+	/** Chunked and embedded (searchable). Missing on old files, which were always indexed once done - see isFileIndexed. */
+	indexed?: { chunks: number } | false
+	/** How bots may use the file - always the effective value from ragservice, also for old files. */
+	usage: FileUsage
+}
+
+/**
+ * How bots may use one file, chosen per file in the file list. The four combinations are the four choices there:
+ * Deaktivert, Fil-innhold, Søk, Søkbar + Fil-innhold. Search needs an indexed file, file content a stored text.
+ */
+export type FileUsage = {
+	search: boolean
+	fullText: boolean
 }
 
 export type StoreState = {
@@ -66,7 +83,8 @@ export type StoreLanguage = {
 export type StoreSearchInfo = {
 	/** Store-wide language aggregate (see `StoreOutput.languages` for how it's computed). */
 	languages?: StoreLanguage[]
-	files: { id: string; name: string; languages?: StoreLanguage[] }[]
+	/** `characters` only when the file's content may be given to a bot (usage.fullText). */
+	files: { id: string; name: string; languages?: StoreLanguage[]; indexed: boolean; usage: FileUsage; characters?: number }[]
 }
 
 // The only values that we allow to be altered after creation

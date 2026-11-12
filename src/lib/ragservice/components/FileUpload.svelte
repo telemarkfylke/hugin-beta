@@ -7,7 +7,6 @@
 		onFileUploaded: () => void
 	}
 
-	let normalizeChuncks: boolean = $state(true)
 	let useOcr: UseOcr = $state("auto")
 	let { storeId, onFileUploaded }: Props = $props()
 
@@ -48,7 +47,7 @@
 			for (let i = 0; i < fileInput.files.length; i++) {
 				formData.append("files[]", fileInput.files[i] as File)
 			}
-			const res = await api.uploadFile(storeId, formData, normalizeChuncks, useOcr)
+			const res = await api.uploadFile(storeId, formData, useOcr)
 			if (res.ok) {
 				onFileUploaded()
 				return
@@ -97,7 +96,6 @@
 			hidden
 		/>
 	</div>
-	<label><input type="checkbox" bind:checked={normalizeChuncks} /> Normaliser chunks</label>
 	<label>
 		OCR
 		<select bind:value={useOcr}>
@@ -110,6 +108,8 @@
 		{uploading ? "Laster opp..." : "Last opp"}
 	</button>
 </form>
+
+<p class="upload-help">Opplastede filer brukes som <b>Fil-innhold</b> av botene. Vil du søke i en fil i stedet, indekserer du den i fillisten etterpå.</p>
 
 {#if uploadError}
 	<p class="error">{uploadError}</p>
@@ -132,6 +132,12 @@
 		margin-top: 12px;
 	}
 
+	p.upload-help {
+		font-size: 0.85rem;
+		color: var(--color-primary-80);
+		margin-top: 8px;
+	}
+
 	p.notice {
 		opacity: 0.75;
 		margin-top: 12px;
@@ -142,10 +148,6 @@
 		align-items: center;
 		gap: 4px;
 		font-size: 0.9rem;
-	}
-
-	form.upload-form input[type="checkbox"] {
-		accent-color: var(--color-primary);
 	}
 
 	form.upload-form select {

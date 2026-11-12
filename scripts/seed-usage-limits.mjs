@@ -19,6 +19,7 @@ const INITIAL_LIMITS = {
 	anonymousEmbed: { perHourUsd: 1, perDayUsd: 5 },
 	maxConcurrentCalls: 3,
 	webSearchCallPriceUsd: 0.03,
+	maxFileContentCharacters: 150000,
 	embedRateLimits: { perIpPerMinute: 20, perIpPerDay: 200, perBotPerDay: null }
 }
 

@@ -6,6 +6,7 @@ import type {
 	CreateVectorStoreInput,
 	EmbeddingDimensions,
 	EmbeddingModel,
+	FileUsage,
 	GraphGroup,
 	GraphUser,
 	StoreConfig,
@@ -85,6 +86,16 @@ async function del(path: string): Promise<boolean> {
 	}
 }
 
+// Ragservice's own message from a refused call ({ message }), or the fallback
+async function errorMessage(res: Response, fallback: string): Promise<string> {
+	try {
+		const body = (await res.json()) as { message?: string }
+		return body.message ? `${fallback}: ${body.message}` : `${fallback} (${res.status})`
+	} catch {
+		return `${fallback} (${res.status})`
+	}
+}
+
 export class RagServiceApi {
 	async getModels(): Promise<EmbeddingModel[]> {
 		return (await get<EmbeddingModel[]>("/models")) ?? []
@@ -114,10 +125,11 @@ export class RagServiceApi {
 		return await del(`/stores/${id}`)
 	}
 
-	async uploadFile(storeId: string, formData: FormData, normalizeChuncks: boolean, useOcr: UseOcr = "auto"): Promise<Response> {
+	// Uploads never index: a file starts as file content, and indexing is its own deliberate action (indexFile) -
+	// so nobody starts a long-running indexing job just by uploading.
+	async uploadFile(storeId: string, formData: FormData, useOcr: UseOcr = "auto"): Promise<Response> {
 		let url = `${BASE}/stores/${storeId}/textfiles`
-		const params = new URLSearchParams()
-		if (normalizeChuncks) params.set("normalizeChunks", "true")
+		const params = new URLSearchParams({ index: "false" })
 		if (useOcr !== "auto") params.set("useOcr", useOcr)
 		const query = params.toString()
 		if (query) url += `?${query}`
@@ -133,6 +145,54 @@ export class RagServiceApi {
 
 	async removeFile(storeId: string, fileId: string): Promise<boolean> {
 		return await del(`/stores/${storeId}/files/${fileId}`)
+	}
+
+	// Throws with ragservice's own message, so the file list can say why a choice was refused
+	async setFileUsage(storeId: string, fileId: string, usage: FileUsage): Promise<FileUsage> {
+		const res = await fetch(`${BASE}/stores/${storeId}/files/${fileId}`, {
+			method: "PATCH",
+			headers: { "content-type": "application/json" },
+			body: JSON.stringify({ usage })
+		})
+		if (!res.ok) throw new Error(await errorMessage(res, "Kunne ikke endre bruken av filen"))
+		return ((await res.json()) as { usage: FileUsage }).usage
+	}
+
+	/**
+	 * Starts indexing a stored file and waits until it is done. Ragservice answers with a stream of progress events
+	 * ending in "Done" or "error"; the file list follows progress by polling, so this only reads the stream to the
+	 * end to find out how it went. Throws on a refusal (e.g. already indexed) or a failed indexing.
+	 * "pending": a gateway or the network gave up before indexing finished (it takes minutes for big files) - the
+	 * job keeps running in ragservice, and the file's status shows how it ends. Same reasoning as FileUpload.
+	 */
+	async indexFile(storeId: string, fileId: string, normalizeChunks = true): Promise<"done" | "pending"> {
+		const params = normalizeChunks ? "?normalizeChunks=true" : ""
+		let res: Response
+		let events: string
+		try {
+			res = await fetch(`${BASE}/stores/${storeId}/files/${fileId}/index${params}`, { method: "POST" })
+			if (res.status === 502 || res.status === 503 || res.status === 504) return "pending"
+			if (!res.ok) throw new Error(await errorMessage(res, "Kunne ikke starte indekseringen"))
+			events = await res.text()
+		} catch (error) {
+			// fetch itself failing (a dropped connection) - not a refusal, which is thrown above as an Error with our text
+			if (error instanceof TypeError) return "pending"
+			throw error
+		}
+		// The events are JSON objects written back to back - the last one says how it ended
+		let last: { event?: string; data?: { message?: string } } = {}
+		try {
+			last = JSON.parse(events.slice(events.lastIndexOf('{"event":')))
+		} catch {
+			throw new Error("Indekseringen ga et uventet svar")
+		}
+		if (last.event === "error") throw new Error(`Indekseringen feilet: ${last.data?.message ?? "ukjent feil"}`)
+		return "done"
+	}
+
+	async removeFileIndex(storeId: string, fileId: string): Promise<void> {
+		const res = await fetch(`${BASE}/stores/${storeId}/files/${fileId}/index`, { method: "DELETE" })
+		if (!res.ok) throw new Error(await errorMessage(res, "Kunne ikke fjerne indeksen"))
 	}
 
 	// Deliberately doesn't go through the shared post() helper: that swallows every failure into

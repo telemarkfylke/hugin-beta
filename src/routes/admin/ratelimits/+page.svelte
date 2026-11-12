@@ -206,6 +206,11 @@
 						<input type="number" min="0.001" max="1" step="0.001" required bind:value={limits.webSearchCallPriceUsd} />
 						<span class="nok">Kommer i tillegg til tokens</span>
 					</label>
+					<label>
+						Fil-innhold per bot (tegn)
+						<input type="number" min="1" max="2000000" step="1000" required bind:value={limits.maxFileContentCharacters} />
+						<span class="nok">Hvor mye hele filer fra datakilder en bot får per spørsmål. Ca. 3000 tegn per side</span>
+					</label>
 				</div>
 			</section>
 

@@ -10,9 +10,8 @@ import { classifyQuestion, recordQuestionCategoryStat } from "$lib/server/catego
 import { getChatConfigStore, getRateLimiter, getStatsStore } from "$lib/server/db/get-db"
 import { HTTPError } from "$lib/server/middleware/http-error"
 import { isModelAvailable, MODEL_UNAVAILABLE_MESSAGE } from "$lib/server/models/model-registry"
-import { appendRagContextToInstructions } from "$lib/server/ragservice/format-rag-context"
+import { addDatasourceContext } from "$lib/server/ragservice/datasource-context"
 import { formatHistoryForRewrite } from "$lib/server/ragservice/rag-query-rewrite"
-import { searchRagStores } from "$lib/server/ragservice/rag-search"
 import { createSse, responseStream } from "$lib/streaming"
 import type { ChatConfig, ChatResponseObject } from "$lib/types/chat"
 import type { ChatInputItem, ChatInputMessage } from "$lib/types/chat-item"
@@ -249,11 +248,17 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 	if (ragStoreIds.length > 0 && queryText) {
 		// Anonymous caller: no graph token. getUserGroups falls back to [] when both the
 		// principal's groups and the token are empty, so this still works, just with no groups.
-		const matches = await searchRagStores(ragStoreIds, queryText, ANONYMOUS_PRINCIPAL, null)
+		// Whole files and search matches as on the chat route, without the query rewrite.
+		let foundContext = false
+		try {
+			const context = await addDatasourceContext({ instructions: dbConfig.instructions, storeIds: ragStoreIds, queryText, user: ANONYMOUS_PRINCIPAL, graphToken: null })
+			if (context.instructions !== undefined) dbConfig.instructions = context.instructions
+			foundContext = context.foundContext
+		} catch (error) {
+			logger.errorException(error, "Datasource context failed - continuing without it")
+		}
 
-		if (matches.length > 0) {
-			dbConfig.instructions = appendRagContextToInstructions(dbConfig.instructions, matches)
-		} else if (dbConfig.emptyRagGuardEnabled) {
+		if (!foundContext && dbConfig.emptyRagGuardEnabled) {
 			// A/B flag (ChatConfig.emptyRagGuardEnabled, default off), independent of
 			// scopeGuardEnabled above - a bot with sources configured but zero relevant chunks found
 			// would otherwise have the vendor answer from its own general knowledge, ungrounded.

@@ -13,6 +13,7 @@ const mockLimits: { values: UsageLimits; updatedAt: Date | null; updatedBy: Upda
 		anonymousEmbed: { perHourUsd: 1, perDayUsd: 5 },
 		maxConcurrentCalls: 3,
 		webSearchCallPriceUsd: 0.03,
+		maxFileContentCharacters: 150_000,
 		embedRateLimits: { perIpPerMinute: 20, perIpPerDay: 200, perBotPerDay: null }
 	},
 	updatedAt: null,

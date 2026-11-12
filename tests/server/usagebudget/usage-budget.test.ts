@@ -126,6 +126,7 @@ describe("resolveUsageLimits", () => {
 		anonymousEmbed: { perHourUsd: 1, perDayUsd: 5 },
 		maxConcurrentCalls: 3,
 		webSearchCallPriceUsd: 0.03,
+		maxFileContentCharacters: 150_000,
 		embedRateLimits: { perIpPerMinute: 20, perIpPerDay: 200, perBotPerDay: null }
 	}
 	const raw = (values: Record<string, unknown>) => ({ values, updatedAt: null, updatedBy: null })
@@ -133,7 +134,7 @@ describe("resolveUsageLimits", () => {
 	it("uses the strict floor for everything when nothing is saved yet", () => {
 		const resolved = resolveUsageLimits(null)
 		expect(resolved.limits).toEqual(FALLBACK_USAGE_LIMITS)
-		expect(resolved.fallbackFields).toEqual(["budgets", "anonymousEmbed", "maxConcurrentCalls", "webSearchCallPriceUsd", "embedRateLimits"])
+		expect(resolved.fallbackFields).toEqual(["budgets", "anonymousEmbed", "maxConcurrentCalls", "webSearchCallPriceUsd", "maxFileContentCharacters", "embedRateLimits"])
 	})
 
 	it("keeps the floor strict - nobody above the student budget", () => {
