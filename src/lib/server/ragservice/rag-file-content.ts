@@ -97,6 +97,50 @@ export function planRagContext(infos: RagStoreSearchInfo[], maxCharacters: numbe
 	}
 }
 
+/**
+ * What a bot gets from its ragservice datasources, for the bot setup panel - built from the same plan the chat
+ * uses, so what the builder sees is what the chat does. Search hits are per question; here just which files can be
+ * searched.
+ */
+export type RagContextSummary = {
+	maxCharacters: number
+	attached: { name: string; characters: number }[]
+	omitted: { name: string; characters: number; searchedInstead: boolean }[]
+	searchedFiles: number
+	disabledFiles: number
+	/** Stores this user couldn't read - the chat still searches them, so the summary is incomplete */
+	unreadableStoreIds: string[]
+}
+
+export function summarizeRagContext(infos: RagStoreSearchInfo[], maxCharacters: number): RagContextSummary {
+	const plan = planRagContext(infos, maxCharacters)
+	const attachedKeys = new Set(plan.attached.map((file) => `${file.storeId}/${file.fileId}`))
+
+	const omitted: RagContextSummary["omitted"] = plan.omitted.map((file) => ({ name: file.name, characters: file.characters, searchedInstead: false }))
+	let searchedFiles = 0
+	let disabledFiles = 0
+	for (const { storeId, info } of infos) {
+		for (const file of info?.files ?? []) {
+			const attached = attachedKeys.has(`${storeId}/${file.id}`)
+			if (!file.usage.search && !file.usage.fullText) disabledFiles++
+			if (file.usage.search && !attached) {
+				searchedFiles++
+				// A searchable file that wanted to come along whole but didn't fit - still used, through search
+				if (file.usage.fullText && file.characters !== undefined) omitted.push({ name: file.name, characters: file.characters, searchedInstead: true })
+			}
+		}
+	}
+
+	return {
+		maxCharacters,
+		attached: plan.attached.map((file) => ({ name: file.name, characters: file.characters })),
+		omitted,
+		searchedFiles,
+		disabledFiles,
+		unreadableStoreIds: infos.filter(({ info }) => info === null).map(({ storeId }) => storeId)
+	}
+}
+
 // Only files whose text ragservice will give this user (usage.fullText - then it also sends the size)
 function toPlanned(storeId: string, file: InfoFile): PlannedFile | null {
 	if (!file.usage.fullText || file.characters === undefined) return null

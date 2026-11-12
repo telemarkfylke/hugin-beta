@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 import type { FileUsage, StoreSearchInfo } from "../../../src/lib/ragservice/types"
 import { appendFileContentToInstructions } from "../../../src/lib/server/ragservice/format-rag-context"
-import { planRagContext } from "../../../src/lib/server/ragservice/rag-file-content"
+import { planRagContext, summarizeRagContext } from "../../../src/lib/server/ragservice/rag-file-content"
 import type { RagStoreSearchInfo } from "../../../src/lib/server/ragservice/rag-search"
 
 const CONTENT: FileUsage = { search: false, fullText: true }
@@ -71,6 +71,42 @@ describe("planRagContext", () => {
 
 		expect(ids(plan.attached)).toEqual(["instruks"])
 		expect(plan.search).toEqual({ needed: true })
+	})
+})
+
+describe("summarizeRagContext", () => {
+	it("sums up what the bot gets, from the same plan the chat uses", () => {
+		const summary = summarizeRagContext(
+			[
+				store(
+					"s",
+					infoFile("instruks", CONTENT, 40, "Instruks"),
+					infoFile("manual", CONTENT, 500, "Manual"),
+					infoFile("lov", BOTH, 300, "Lov"),
+					infoFile("faq", SEARCH, 0, "FAQ"),
+					infoFile("gammel", DISABLED, 0)
+				),
+				{ storeId: "nede", info: null }
+			],
+			100
+		)
+
+		expect(summary.maxCharacters).toBe(100)
+		expect(summary.attached).toEqual([{ name: "Instruks", characters: 40 }])
+		expect(summary.omitted).toEqual([
+			{ name: "Manual", characters: 500, searchedInstead: false },
+			{ name: "Lov", characters: 300, searchedInstead: true }
+		])
+		expect(summary.searchedFiles).toBe(2)
+		expect(summary.disabledFiles).toBe(1)
+		expect(summary.unreadableStoreIds).toEqual(["nede"])
+	})
+
+	it("doesn't count a searchable file attached whole as searched", () => {
+		const summary = summarizeRagContext([store("s", infoFile("kort", BOTH, 10, "Kort"))], 100)
+		expect(summary.attached).toEqual([{ name: "Kort", characters: 10 }])
+		expect(summary.searchedFiles).toBe(0)
+		expect(summary.omitted).toEqual([])
 	})
 })
 

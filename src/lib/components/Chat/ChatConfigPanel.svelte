@@ -8,6 +8,7 @@
 	import { McpSourcesApi } from "$lib/mcp-sources/adapters/mcpSourcesApi"
 	import { defaultProfileSelection } from "$lib/model-profiles"
 	import { RagServiceApi } from "$lib/ragservice/adapters/ragserviceApi"
+	import DatasourceSummary from "$lib/ragservice/components/DatasourceSummary.svelte"
 	import type { StoreConfig } from "$lib/ragservice/types"
 	import type { ChatConfig, DataSource, VendorId } from "$lib/types/chat"
 	import type { McpSource } from "$lib/types/mcp-source"
@@ -108,6 +109,8 @@
 			availableMcpSources = await mcpSourcesApi.getSources()
 		}
 	})
+
+	let ragStoreIds = $derived((chatState.chat.config.dataSources ?? []).flatMap((s) => (s.type === "ragservice" ? [s.id] : [])))
 
 	const WEBSITE_OPTION_PREFIX = "website:"
 	const MCP_OPTION_PREFIX = "mcp:"
@@ -596,6 +599,9 @@
 									{/if}
 								{/if}
 							</select>
+							{#if userCanUseRagservice}
+								<DatasourceSummary storeIds={ragStoreIds} allowAnonymousEmbed={chatState.chat.config.allowAnonymousEmbed === true} />
+							{/if}
 						</div>
 					</div>
 				{/if}
