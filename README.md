@@ -611,6 +611,7 @@ MOCK_AUTH_GROUPS="group-id-123"   # Comma-separated group IDs
 MOCK_AUTH_FORCE_401="false"       # Simulate an unauthenticated request (local testing only)
 MOCK_AUTH_FORCE_403="false"       # Simulate an unauthorized request (local testing only)
 BLOCKED_USERS=""                  # Comma-separated Entra object ids and/or UPNs locked out of the app (403)
+BLOCKED_GROUPS=""                 # Comma-separated Entra group object ids; members are locked out (403). Checked in Graph with the ENTRA_* app token (needs application permissions User.ReadBasic.All + GroupMember.Read.All, admin consent), fails open
 
 # Application Roles
 APP_ROLE_EMPLOYEE="Employee"
