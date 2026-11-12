@@ -73,7 +73,7 @@
   }
 	.chat-items-container {
 		flex: 1;
-    overflow-y: auto;
+    	overflow-y: auto;
 		scrollbar-width: thin;
 		scrollbar-color: rgba(0, 0, 0, 0.2) transparent;
   }
