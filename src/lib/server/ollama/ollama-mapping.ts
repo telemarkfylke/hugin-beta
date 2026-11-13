@@ -1,4 +1,5 @@
 import type { ChatResponse, Message } from "ollama"
+import { withUnresolvedAttachmentsAsNotes } from "$lib/chat-history"
 import type { ChatConfig, ChatResponseObject } from "$lib/types/chat"
 import type { ChatInputItem, ChatInputMessage, ChatOutputMessage } from "$lib/types/chat-item"
 
@@ -27,7 +28,7 @@ const chatOutputMessageToOllamaMessage = (item: ChatOutputMessage): Message => {
 export const chatInputToOllamaMessage = (item: ChatInputItem): Message => {
 	switch (item.type) {
 		case "message.input":
-			return chatInputMessageToOllamaMessage(item)
+			return chatInputMessageToOllamaMessage(withUnresolvedAttachmentsAsNotes(item))
 		case "message.output":
 			return chatOutputMessageToOllamaMessage(item)
 		default:

@@ -1,5 +1,9 @@
+import { logger } from "@vestfoldfylke/loglady"
 import { MongoClient } from "mongodb"
 import { env } from "$env/dynamic/private"
+import type { IAttachmentBlobStore } from "$lib/conversationattachments/server/adapters/interface"
+import { MockAttachmentBlobStore } from "$lib/conversationattachments/server/adapters/mock-attachment-blob-store"
+import { getHuginBucketStorage, S3AttachmentBlobStore } from "$lib/conversationattachments/server/adapters/s3-attachment-blob-store"
 import { MongoConversationStore } from "$lib/conversationstore/server/adapters/conversation-store"
 import type { IConversationStore } from "$lib/conversationstore/server/adapters/interface"
 import { MockConversationStore } from "$lib/conversationstore/server/adapters/mock-conversation-store"
@@ -35,6 +39,8 @@ let statsStore: IStatsStore
 let featureFlagStore: IFeatureFlagStore
 let usageLimitsStore: IUsageLimitsStore
 let rateLimiter: IRateLimiter
+// null = no S3 for attachments, so they stay inline in the message (the old format) - see getAttachmentBlobStore
+let attachmentBlobStore: IAttachmentBlobStore | null
 
 if (env.MOCK_DB === "true") {
 	chatConfigStore = new ResolvingChatConfigStore(new MockChatConfigStore(), resolveConfig)
@@ -45,6 +51,7 @@ if (env.MOCK_DB === "true") {
 	featureFlagStore = new MockFeatureFlagStore()
 	usageLimitsStore = new MockUsageLimitsStore()
 	rateLimiter = new MockRateLimiter()
+	attachmentBlobStore = new MockAttachmentBlobStore()
 } else {
 	if (!env.MONGODB_CONNECTION_STRING) {
 		throw new Error("MONGODB_CONNECTION_STRING is not set (du har glemt den)")
@@ -59,6 +66,14 @@ if (env.MOCK_DB === "true") {
 	featureFlagStore = new MongoFeatureFlagStore(mongoClient)
 	usageLimitsStore = new MongoUsageLimitsStore(mongoClient)
 	rateLimiter = new MongoRateLimiter(mongoClient)
+	const huginBucketStorage = getHuginBucketStorage()
+	attachmentBlobStore = huginBucketStorage ? new S3AttachmentBlobStore(huginBucketStorage) : null
+	// Logged once at startup, because the mode is fixed until restart and is otherwise invisible
+	if (huginBucketStorage) {
+		logger.info(`Conversation attachments: stored in S3 bucket "${huginBucketStorage.bucket}"`)
+	} else {
+		logger.info("Conversation attachments: stored inline in the message (S3_HUGIN_BUCKET or the S3 connection is not set)")
+	}
 }
 
 export const getChatConfigStore = (): IChatConfigStore => {
@@ -96,4 +111,11 @@ export const getUsageLimitsStore = (): IUsageLimitsStore => {
 // one-line swap here, not a change anywhere it's actually used.
 export const getRateLimiter = (): IRateLimiter => {
 	return rateLimiter
+}
+
+// Where conversation attachments are stored, or null when S3_HUGIN_BUCKET (or the S3 connection) isn't
+// set - then attachments are kept inline in the message as before. That is also what keeps an
+// environment without the setting (e.g. a deployed beta sharing the database) on the old format.
+export const getAttachmentBlobStore = (): IAttachmentBlobStore | null => {
+	return attachmentBlobStore
 }

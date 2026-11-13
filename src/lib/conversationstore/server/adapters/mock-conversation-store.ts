@@ -1,9 +1,11 @@
+import type { ConversationAttachmentEntry } from "$lib/conversationattachments/types"
 import type { AuthenticatedPrincipal } from "$lib/types/authentication"
 import type { Conversation, ConversationMessagePair, NewConversation, NewConversationMessagePair } from "../../types"
 import type { IConversationStore } from "./interface"
 
 let mockConversations: Conversation[] = []
 let mockMessages: ConversationMessagePair[] = []
+const mockAttachments = new Map<string, ConversationAttachmentEntry[]>()
 let mockIdCounter = 1
 
 const nextId = (): string => {
@@ -35,7 +37,25 @@ export class MockConversationStore implements IConversationStore {
 	}
 
 	async deleteConversation(conversationId: string, principal: AuthenticatedPrincipal): Promise<void> {
+		const existing = mockConversations.find((c) => c.id === conversationId && c.owner === principal.userId)
+		if (existing) {
+			mockAttachments.delete(conversationId)
+		}
 		mockConversations = mockConversations.filter((c) => !(c.id === conversationId && c.owner === principal.userId))
+	}
+
+	async addConversationAttachment(conversationId: string, entry: ConversationAttachmentEntry, principal: AuthenticatedPrincipal): Promise<void> {
+		if (!mockConversations.some((c) => c.id === conversationId && c.owner === principal.userId)) {
+			throw new Error("Conversation not found")
+		}
+		mockAttachments.set(conversationId, [...(mockAttachments.get(conversationId) ?? []), { ...entry }])
+	}
+
+	async getConversationAttachments(conversationId: string, principal: AuthenticatedPrincipal): Promise<ConversationAttachmentEntry[]> {
+		if (!mockConversations.some((c) => c.id === conversationId && c.owner === principal.userId)) {
+			return []
+		}
+		return (mockAttachments.get(conversationId) ?? []).map((entry) => ({ ...entry }))
 	}
 
 	async updateConversationTitle(conversationId: string, title: string, principal: AuthenticatedPrincipal): Promise<void> {

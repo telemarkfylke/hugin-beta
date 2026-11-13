@@ -51,7 +51,7 @@
 	<div class="chat-items-container" class:mobile-hidden={chatState.configMode}  class:empty={chatState.chat.history.length === 0}>
 		<div class="chat-items">
 			{#each chatState.chat.history as chatHistoryItem}
-				<ChatHistoryItem {chatHistoryItem} />
+				<ChatHistoryItem {chatHistoryItem} conversationId={chatState.chat._id} />
 			{/each}
 			<div bind:this={lastChatItem}>&nbsp;</div>
 		</div>

@@ -1,6 +1,7 @@
 import { logger } from "@vestfoldfylke/loglady"
 import { type Collection, type Db, type Filter, type MongoClient, ObjectId } from "mongodb"
 import { env } from "$env/dynamic/private"
+import type { ConversationAttachmentEntry } from "$lib/conversationattachments/types"
 import type { AuthenticatedPrincipal } from "$lib/types/authentication"
 import type { ChatResponseObject } from "$lib/types/chat"
 import type { ChatInputItem } from "$lib/types/chat-item"
@@ -19,7 +20,23 @@ export type DbConversation = NewConversation & {
 	titleAadVersion?: number
 	summaryKeyVersion?: string
 	summaryAadVersion?: number
+	attachments?: DbConversationAttachment[]
 }
+
+// One element of the header's attachment list. Each element is encrypted on its own (not the list as a
+// whole), so a new one can be added with an atomic $push - two turns saving at once can't lose each
+// other's entry. objectId stays in clear because the AAD is built from it at read time; it is random
+// and says nothing about the file. Without encryption configured the entry is kept as-is in `entry`.
+export type DbConversationAttachment = {
+	objectId: string
+	data?: string
+	encryptionKeyVersion?: string
+	aadVersion?: number
+	entry?: ConversationAttachmentEntry
+}
+
+// Header fields the plain Conversation reads never need - the attachment list holds every file's key
+const WITHOUT_ATTACHMENTS = { projection: { attachments: 0 } } as const
 
 // userInput/response hold the plaintext object when the message predates encryption (or was
 // written while encryption wasn't configured), or a base64 ciphertext string when encrypted.
@@ -177,8 +194,36 @@ const toDbConversation = (conversation: NewConversation, conversationId: string)
 	}
 }
 
+export const toDbConversationAttachment = (entry: ConversationAttachmentEntry, owner: string, conversationId: string): DbConversationAttachment => {
+	if (!isEncryptionConfigured()) {
+		return { objectId: entry.objectId, entry }
+	}
+	const encrypted = encryptValue(entry, buildAad(AAD_VERSION, owner, conversationId, `attachment:${entry.objectId}`))
+	return { objectId: entry.objectId, data: encrypted.data, encryptionKeyVersion: encrypted.encryptionKeyVersion, aadVersion: AAD_VERSION }
+}
+
+/** The entry, or null if it can't be read (logged) - the file is then treated as missing, never as a crash. */
+export const fromDbConversationAttachment = (doc: DbConversationAttachment, owner: string, conversationId: string): ConversationAttachmentEntry | null => {
+	if (doc.entry) {
+		return doc.entry
+	}
+	if (doc.data === undefined || doc.encryptionKeyVersion === undefined || doc.aadVersion === undefined) {
+		logger.error(`Conversation ${conversationId} has a malformed attachment entry (object ${doc.objectId}) - ignoring it`)
+		return null
+	}
+	try {
+		const entry = decryptValue<ConversationAttachmentEntry>(doc.data, doc.encryptionKeyVersion, buildAad(doc.aadVersion, owner, conversationId, `attachment:${doc.objectId}`))
+		// The clear objectId is what the AAD was built from - a mismatch would mean the entry was tampered with
+		return entry.objectId === doc.objectId ? entry : null
+	} catch (error) {
+		logger.errorException(error, `Failed to decrypt attachment entry ${doc.objectId} in conversation ${conversationId} (key version "${doc.encryptionKeyVersion}") - ignoring it`)
+		return null
+	}
+}
+
 const fromDbConversation = (doc: DbConversation): Conversation => {
-	const { _id, titleKeyVersion, titleAadVersion, summaryKeyVersion, summaryAadVersion, ...rest } = doc
+	// attachments is normally projected away already - destructured out here too so it can never leak into a Conversation
+	const { _id, titleKeyVersion, titleAadVersion, summaryKeyVersion, summaryAadVersion, attachments: _attachments, ...rest } = doc
 	const conversationId = _id.toString()
 	const aadFor = (aadVersion: number | undefined, field: string) => () => (aadVersion === undefined ? undefined : buildAad(aadVersion, rest.owner, conversationId, field))
 	const title = decryptOptionalField(rest.title, titleKeyVersion, aadFor(titleAadVersion, "title"), `conversation ${_id} title`)
@@ -221,7 +266,7 @@ export class MongoConversationStore implements IConversationStore {
 	async getConversation(conversationId: string, principal: AuthenticatedPrincipal): Promise<Conversation | null> {
 		const db = await this.getDb()
 		const collection: Collection<DbConversation> = db.collection(this.conversationCollectionName)
-		const conversation = await collection.findOne({ _id: new ObjectId(conversationId), owner: principal.userId })
+		const conversation = await collection.findOne({ _id: new ObjectId(conversationId), owner: principal.userId }, WITHOUT_ATTACHMENTS)
 		if (!conversation) {
 			return null
 		}
@@ -234,7 +279,7 @@ export class MongoConversationStore implements IConversationStore {
 
 		// Conversations are private - unlike chat configs, there is no "view all" bypass here.
 		const query: Filter<DbConversation> = { owner: principal.userId }
-		const conversations = await collection.find(query).sort({ updatedAt: -1 }).toArray()
+		const conversations = await collection.find(query, WITHOUT_ATTACHMENTS).sort({ updatedAt: -1 }).toArray()
 		return conversations.map(fromDbConversation)
 	}
 
@@ -252,8 +297,13 @@ export class MongoConversationStore implements IConversationStore {
 	async replaceConversation(conversationId: string, conversation: Conversation, principal: AuthenticatedPrincipal): Promise<Conversation> {
 		conversation.owner = principal.userId
 		const db = await this.getDb()
-		const collection: Collection<Omit<DbConversation, "_id">> = db.collection(this.conversationCollectionName)
-		await collection.replaceOne({ _id: new ObjectId(conversationId) }, toDbConversation(conversation, conversationId))
+		const collection: Collection<DbConversation> = db.collection(this.conversationCollectionName)
+		// $set/$unset rather than replaceOne, so the attachment list (which isn't part of Conversation) survives
+		const { id: _id, ...withoutId } = conversation
+		const doc = toDbConversation(withoutId, conversationId)
+		const optionalFields = ["title", "titleKeyVersion", "titleAadVersion", "summary", "summaryKeyVersion", "summaryAadVersion"] as const
+		const unset: Record<string, ""> = Object.fromEntries(optionalFields.filter((field) => !(field in doc)).map((field) => [field, ""]))
+		await collection.updateOne({ _id: new ObjectId(conversationId), owner: principal.userId }, { $set: doc, ...(Object.keys(unset).length > 0 && { $unset: unset }) })
 		return { ...conversation, id: conversationId, owner: principal.userId }
 	}
 
@@ -276,6 +326,25 @@ export class MongoConversationStore implements IConversationStore {
 		} else {
 			await collection.updateOne(filter, { $set: { title: encryptedTitle.value, titleKeyVersion: encryptedTitle.keyVersion, titleAadVersion: AAD_VERSION }, $currentDate: { updatedAt: true } })
 		}
+	}
+
+	async addConversationAttachment(conversationId: string, entry: ConversationAttachmentEntry, principal: AuthenticatedPrincipal): Promise<void> {
+		const db = await this.getDb()
+		const collection: Collection<DbConversation> = db.collection(this.conversationCollectionName)
+		const result = await collection.updateOne(
+			{ _id: new ObjectId(conversationId), owner: principal.userId },
+			{ $push: { attachments: toDbConversationAttachment(entry, principal.userId, conversationId) } }
+		)
+		if (result.matchedCount === 0) {
+			throw new Error("Conversation not found")
+		}
+	}
+
+	async getConversationAttachments(conversationId: string, principal: AuthenticatedPrincipal): Promise<ConversationAttachmentEntry[]> {
+		const db = await this.getDb()
+		const collection: Collection<DbConversation> = db.collection(this.conversationCollectionName)
+		const doc = await collection.findOne({ _id: new ObjectId(conversationId), owner: principal.userId }, { projection: { owner: 1, attachments: 1 } })
+		return (doc?.attachments ?? []).flatMap((attachment) => fromDbConversationAttachment(attachment, doc?.owner ?? principal.userId, conversationId) ?? [])
 	}
 
 	async appendConversationMessage(conversationId: string, messagePair: NewConversationMessagePair, principal: AuthenticatedPrincipal): Promise<ConversationMessagePair> {

@@ -1,4 +1,10 @@
+import { logger } from "@vestfoldfylke/loglady"
 import { chatHistoryToInputItems } from "$lib/chat-history"
+import type { IAttachmentBlobStore } from "$lib/conversationattachments/server/adapters/interface"
+import { conversationAttachmentPrefix } from "$lib/conversationattachments/server/attachment-keys"
+import { loadStoredAttachments, readStoredAttachment } from "$lib/conversationattachments/server/load-attachments"
+import { moveAttachmentsToStorage } from "$lib/conversationattachments/server/store-attachments"
+import type { ConversationAttachmentEntry } from "$lib/conversationattachments/types"
 import { buildUtilityConfig, createUtilityChatResponse } from "$lib/server/utility-llm"
 import type { AuthenticatedPrincipal } from "$lib/types/authentication"
 import type { ChatHistory, ChatRequest, ChatResponseObject } from "$lib/types/chat"
@@ -19,9 +25,12 @@ const extractResponseText = (response: ChatResponseObject): string => {
 
 export class ConversationManager {
 	private converationStore: IConversationStore
+	// null = attachments stay inline in the message (no S3 configured) - see getAttachmentBlobStore
+	private attachmentBlobStore: IAttachmentBlobStore | null
 
-	constructor(conversationStore: IConversationStore) {
+	constructor(conversationStore: IConversationStore, attachmentBlobStore: IAttachmentBlobStore | null = null) {
 		this.converationStore = conversationStore
+		this.attachmentBlobStore = attachmentBlobStore
 	}
 
 	public async generateTitle(conversationId: string, principal: AuthenticatedPrincipal): Promise<string | null> {
@@ -114,8 +123,14 @@ export class ConversationManager {
 	public async appendConversationMessage(conversatonId: string | null, userInput: ChatInputItem, response: ChatResponseObject, principal: AuthenticatedPrincipal): Promise<ConversationMessagePair> {
 		const resolvedConversationId = await this.getOrCreateConversationId(conversatonId, principal)
 
+		// Every save path (a normal turn, an import, an incognito conversation being saved) comes through
+		// here, so this is the one place attachments leave the message for storage
+		const storedUserInput = this.attachmentBlobStore
+			? await moveAttachmentsToStorage({ userInput, conversationId: resolvedConversationId, principal, conversationStore: this.converationStore, blobStore: this.attachmentBlobStore })
+			: userInput
+
 		const pair: NewConversationMessagePair = {
-			userInput: userInput,
+			userInput: storedUserInput,
 			response: response,
 			owner: principal.userId,
 			includedInSummary: false,
@@ -150,8 +165,33 @@ export class ConversationManager {
 		return await this.converationStore.getConversation(conversationId, principal)
 	}
 
+	// Loads stored attachments (refs) in inputs back into data URLs - see loadStoredAttachments. Safe with a
+	// client-supplied conversationId: only a conversation the principal owns has any entries to load from.
+	public async loadStoredAttachments(inputs: ChatInputItem[], conversationId: string | undefined, principal: AuthenticatedPrincipal): Promise<ChatInputItem[]> {
+		if (!this.attachmentBlobStore) {
+			return inputs
+		}
+		return await loadStoredAttachments({ conversationStore: this.converationStore, blobStore: this.attachmentBlobStore }, inputs, conversationId, principal)
+	}
+
+	// One stored attachment for download/display, or null if it isn't the principal's (or doesn't exist)
+	public async readStoredAttachment(conversationId: string, objectId: string, principal: AuthenticatedPrincipal): Promise<{ entry: ConversationAttachmentEntry; bytes: Uint8Array } | null> {
+		if (!this.attachmentBlobStore) {
+			return null
+		}
+		return await readStoredAttachment({ conversationStore: this.converationStore, blobStore: this.attachmentBlobStore }, conversationId, objectId, principal)
+	}
+
 	public async deleteConversation(conversationId: string, principal: AuthenticatedPrincipal): Promise<void> {
 		await this.converationStore.deleteConversationMessages(conversationId, principal)
+		// The caller has checked ownership; the prefix is built from principal.userId either way. A failure only
+		// leaves unreachable (encrypted) objects behind - their keys go with the header below - so it doesn't
+		// stop the conversation from being deleted.
+		if (this.attachmentBlobStore) {
+			await this.attachmentBlobStore.deletePrefix(conversationAttachmentPrefix(principal.userId, conversationId)).catch((error) => {
+				logger.errorException(error, "Failed to delete the attachments of conversation {conversationId} from storage", conversationId)
+			})
+		}
 		await this.converationStore.deleteConversation(conversationId, principal)
 	}
 }

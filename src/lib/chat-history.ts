@@ -17,7 +17,7 @@ export type ConversationAttachment = {
 	id: string
 	kind: "file" | "image"
 	name: string
-	// Approximate decoded size in bytes (from the base64 length)
+	// Decoded size in bytes (from the stored ref, or computed from the base64 length)
 	size: number
 }
 
@@ -33,9 +33,16 @@ const userAttachments = (item: ChatInputItem): Attachment[] => (item.type === "m
  * always agree, with no schema change. crypto.subtle exists in both the browser and Node.
  */
 export const attachmentId = async (attachment: Attachment): Promise<string> => {
+	// A stored attachment carries the hash of the data URL it was stored from - the same id as before storing
+	if (attachment.ref) {
+		return attachment.ref.sha256
+	}
 	const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(attachmentUrl(attachment)))
 	return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("")
 }
+
+// Exact decoded size of a base64 payload - padding ("=") counted out, so it matches a stored file's real size
+const base64DecodedSize = (base64: string): number => Math.floor((base64.length * 3) / 4) - (base64.endsWith("==") ? 2 : base64.endsWith("=") ? 1 : 0)
 
 /** Every distinct attachment in the conversation, in the order it first appeared. */
 export const listConversationAttachments = async (inputs: ChatInputItem[]): Promise<ConversationAttachment[]> => {
@@ -47,7 +54,7 @@ export const listConversationAttachments = async (inputs: ChatInputItem[]): Prom
 			continue
 		}
 		const url = attachmentUrl(attachment)
-		const size = Math.round(((url.length - url.indexOf(",") - 1) * 3) / 4)
+		const size = attachment.ref ? attachment.ref.size : base64DecodedSize(url.slice(url.indexOf(",") + 1))
 		if (attachment.type === "input_file") {
 			result.push({ id, kind: "file", name: attachment.fileName, size })
 		} else {
@@ -56,6 +63,34 @@ export const listConversationAttachments = async (inputs: ChatInputItem[]): Prom
 		}
 	}
 	return result
+}
+
+/**
+ * A stored attachment whose bytes haven't been loaded back from storage: it has a ref but no data URL.
+ * Must never reach a vendor as-is - it would be sent as an empty file.
+ */
+export const isUnresolvedAttachment = (content: ChatInputMessageContent): boolean => isAttachment(content) && attachmentUrl(content) === "" && content.ref !== undefined
+
+/**
+ * Last line of defence in every vendor mapping: replaces attachments that were never loaded back from
+ * storage (see isUnresolvedAttachment) with a short text note instead of sending an empty file. Normally
+ * the attachments that should be sent have been loaded before the vendor call - this only catches the
+ * ones that weren't (e.g. a path that doesn't load attachments at all, like conversation titling).
+ */
+export const withUnresolvedAttachmentsAsNotes = <T extends { content: ChatInputMessageContent[] }>(message: T): T => {
+	if (!message.content.some(isUnresolvedAttachment)) {
+		return message
+	}
+	return {
+		...message,
+		content: message.content.map((part): ChatInputMessageContent => {
+			if (!isAttachment(part) || !isUnresolvedAttachment(part)) {
+				return part
+			}
+			const name = part.type === "input_file" ? `«${part.fileName}»` : "(bilde)"
+			return { type: "input_text", text: `[Vedlegg ${name} ble lagt ved tidligere i samtalen, men er ikke tilgjengelig nå.]` }
+		})
+	}
 }
 
 const strippedAttachmentNote = (attachment: Attachment): ChatInputMessageContent => {

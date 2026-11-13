@@ -6,12 +6,14 @@
 
 	type Props = {
 		chatHistoryItem: ChatHistoryItem
+		// The stored conversation this is part of, if any - needed to show its stored attachments
+		conversationId?: string
 	}
-	let { chatHistoryItem }: Props = $props()
+	let { chatHistoryItem, conversationId }: Props = $props()
 </script>
 
 {#if chatHistoryItem.type === 'message.input'}
-  <ChatItem chatItem={chatHistoryItem} />
+  <ChatItem chatItem={chatHistoryItem} {conversationId} />
 {/if}
 {#if chatHistoryItem.type === 'chat_response'}
   <div class="chat-response">
