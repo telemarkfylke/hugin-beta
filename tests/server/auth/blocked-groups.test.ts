@@ -5,7 +5,7 @@ const mockEnv: Record<string, string | undefined> = {}
 vi.mock("$env/dynamic/private", () => ({ env: mockEnv }))
 vi.mock("@vestfoldfylke/loglady", () => ({ logger: { warn: vi.fn(), error: vi.fn(), errorException: vi.fn() } }))
 
-const principal = (userId = "user-1", groups: string[] = []): AuthenticatedPrincipal => ({ userId, name: "Test", preferredUserName: "test", roles: ["Student"], groups })
+const principal = (userId = "user-1", groups: string[] = []): AuthenticatedPrincipal => ({ userId, name: "Test", preferredUserName: "test", affiliations: ["student"], huginRoles: [], groups })
 
 type Reply = { ok: boolean; status?: number; json?: unknown }
 type Replies = { token?: Reply; graph?: Reply }
