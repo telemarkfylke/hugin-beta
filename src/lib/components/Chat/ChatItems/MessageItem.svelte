@@ -1,12 +1,19 @@
 <script lang="ts">
 	import { markdownFormatter } from "$lib/formatting/markdown-formatter.js"
 	import type { ChatItem } from "$lib/types/chat-item"
+	import type { InputFile, InputImage } from "$lib/types/chat-item-content"
 
 	type Props = {
 		chatItem: ChatItem
 		completed?: boolean
+		// Set for a stored conversation - its stored attachments are then fetched from the server
+		conversationId?: string | undefined
 	}
-	let { chatItem, completed = true }: Props = $props()
+	let { chatItem, completed = true, conversationId }: Props = $props()
+
+	// The URL of a stored attachment (see $lib/conversationattachments), or null when it is inline or there's no conversation to fetch it from
+	const storedAttachmentUrl = (part: InputFile | InputImage): string | null =>
+		part.ref && conversationId ? `/api/conversation-attachments/${encodeURIComponent(conversationId)}/${encodeURIComponent(part.ref.objectId)}` : null
 
 	let copied = $state(false)
 
@@ -49,11 +56,15 @@
         {#if contentPart.type === 'input_text'}
           {contentPart.text}
         {:else if contentPart.type === 'input_image'}
-          <img src="{getImage(contentPart.imageUrl)}" alt="Opplastet bilde" style="max-width: 100px; max-height: 100px;" />
+          <img src="{storedAttachmentUrl(contentPart) ?? getImage(contentPart.imageUrl)}" alt="Opplastet bilde" loading="lazy" style="max-width: 100px; max-height: 100px;" />
         {:else if contentPart.type === 'input_file' }
           <img src="{fileplaceholderImage}" alt="Bilde av en fil" style="max-width: 100px; max-height: 100px;" />
           <br />
-          {contentPart.fileName}
+          {#if storedAttachmentUrl(contentPart)}
+            <a href="{storedAttachmentUrl(contentPart)}" download="{contentPart.fileName}">{contentPart.fileName}</a>
+          {:else}
+            {contentPart.fileName}
+          {/if}
         {/if}
       </div>
     {/each}

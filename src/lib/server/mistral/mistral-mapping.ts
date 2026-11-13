@@ -1,5 +1,6 @@
 import type { ConversationResponse, ConversationUsageInfo, InputEntries, MessageInputEntry, MessageOutputEntry } from "@mistralai/mistralai/models/components"
 import { logger } from "@vestfoldfylke/loglady"
+import { withUnresolvedAttachmentsAsNotes } from "$lib/chat-history"
 import type { ChatConfig, ChatResponseObject, ChatResponseUsage } from "$lib/types/chat"
 import type { ChatInputItem, ChatInputMessage, ChatOutputItem, ChatOutputMessage } from "$lib/types/chat-item"
 
@@ -75,7 +76,7 @@ const chatOutputMessageToMistralOutputMessage = (outputItem: ChatOutputMessage):
 export const chatInputToMistralInput = (inputItem: ChatInputItem): InputEntries => {
 	switch (inputItem.type) {
 		case "message.input": {
-			return chatInputMessageToMistralInputMessage(inputItem)
+			return chatInputMessageToMistralInputMessage(withUnresolvedAttachmentsAsNotes(inputItem))
 		}
 		case "message.output": {
 			return chatOutputMessageToMistralOutputMessage(inputItem)

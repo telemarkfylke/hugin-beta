@@ -1,4 +1,5 @@
 import type { ChatCompletion, ChatCompletionMessageParam } from "openai/resources/chat/completions"
+import { withUnresolvedAttachmentsAsNotes } from "$lib/chat-history"
 import type { ChatConfig, ChatResponseObject } from "$lib/types/chat"
 import type { ChatInputItem, ChatInputMessage, ChatOutputMessage } from "$lib/types/chat-item"
 
@@ -32,7 +33,7 @@ const chatOutputMessageToCompletionMessage = (item: ChatOutputMessage): ChatComp
 export const chatInputToCompletionMessage = (item: ChatInputItem): ChatCompletionMessageParam => {
 	switch (item.type) {
 		case "message.input":
-			return chatInputMessageToCompletionMessage(item)
+			return chatInputMessageToCompletionMessage(withUnresolvedAttachmentsAsNotes(item))
 		case "message.output":
 			return chatOutputMessageToCompletionMessage(item)
 		default:

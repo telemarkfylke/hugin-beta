@@ -1,6 +1,7 @@
 import { logger } from "@vestfoldfylke/loglady"
 import type { Response } from "openai/resources/responses/responses.js"
 import type { EasyInputMessage, ResponseInputItem, ResponseOutputItem, ResponseOutputMessage } from "openai/resources/responses/responses.mjs"
+import { withUnresolvedAttachmentsAsNotes } from "$lib/chat-history"
 import type { ChatConfig, ChatResponseObject, ChatResponseUsage } from "$lib/types/chat"
 import type { ChatInputItem, ChatInputMessage, ChatOutputItem, ChatOutputMessage } from "$lib/types/chat-item"
 
@@ -69,7 +70,7 @@ const chatOutputMessageToOpenAIEasyInputMessage = (outputItem: ChatOutputMessage
 export const chatInputToOpenAIInput = (inputItem: ChatInputItem): ResponseInputItem => {
 	switch (inputItem.type) {
 		case "message.input": {
-			return chatInputMessageToOpenAIInputMessage(inputItem)
+			return chatInputMessageToOpenAIInputMessage(withUnresolvedAttachmentsAsNotes(inputItem))
 		}
 		case "message.output": {
 			return chatOutputMessageToOpenAIEasyInputMessage(inputItem)

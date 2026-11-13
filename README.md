@@ -647,6 +647,10 @@ TALE_TIL_NOTAT_URL="http://<ki-server>:<port>"
 TRANSCRIPTION_CALLBACK_SECRET="<random-secret>"
 S3_TRANSCRIPTION_BUCKET="hugin-transcription"  # Uses S3_ENDPOINT (https:// only), S3_ACCESS_KEY, S3_SECRET_KEY
 
+# Hugin's own bucket (core data, e.g. conversation attachments under conversation-attachments/). One bucket per
+# Mongo: "hugin-dev" for local + beta/test, "hugin" for prod. Unset = attachments stay inline in the message.
+S3_HUGIN_BUCKET="hugin-dev"
+
 # Datakilder (RAG) - see the Datakilder feature section
 RAGSERVICE_URL="https://ragservice.example.com"
 RAGSERVICE_SCOPE="api://<scope>/.default"

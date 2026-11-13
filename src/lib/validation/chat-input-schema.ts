@@ -9,10 +9,19 @@ const MAX_TEXT_CHARS = 50_000
 // carrying an unbounded number of parts
 const MAX_CONTENT_PARTS = 20
 
+// A reference to a stored attachment (see $lib/conversationattachments) - only ever resolved on the
+// server against the requesting user's own conversation, so a client can't reach someone else's file
+const AttachmentRefSchema = z.object({
+	sha256: z.string().regex(/^[0-9a-f]{64}$/),
+	objectId: z.string().regex(/^[0-9a-f]{32}$/),
+	mimeType: z.string().max(127),
+	size: z.number().int().nonnegative()
+})
+
 const InputContentSchema = z.discriminatedUnion("type", [
 	z.object({ type: z.literal("input_text"), text: z.string().max(MAX_TEXT_CHARS) }),
-	z.object({ type: z.literal("input_file"), fileName: z.string().max(255), fileUrl: z.string() }),
-	z.object({ type: z.literal("input_image"), imageUrl: z.string() })
+	z.object({ type: z.literal("input_file"), fileName: z.string().max(255), fileUrl: z.string(), ref: AttachmentRefSchema.optional() }),
+	z.object({ type: z.literal("input_image"), imageUrl: z.string(), ref: AttachmentRefSchema.optional() })
 ])
 
 const UrlCitationSchema = z.object({

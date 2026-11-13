@@ -1,9 +1,12 @@
 import { HTTPError } from "$lib/server/middleware/http-error"
 import type { AppConfig } from "$lib/types/app-config"
 import type { ChatRequest } from "$lib/types/chat"
+import type { InputFile, InputImage } from "$lib/types/chat-item-content"
 
-const validFileType = (fileUrl: string, supportedMimeTypes: string[]): boolean => {
-	const mimeType = fileUrl.substring(fileUrl.indexOf(":") + 1, fileUrl.indexOf(";base64")) // data:<mime-type>;base64,<data>
+const validFileType = (fileInput: InputFile | InputImage, supportedMimeTypes: string[]): boolean => {
+	const fileUrl = fileInput.type === "input_file" ? fileInput.fileUrl : fileInput.imageUrl
+	// A stored attachment (see $lib/conversationattachments) has no data URL until it is loaded back - its ref knows the type
+	const mimeType = fileUrl === "" && fileInput.ref ? fileInput.ref.mimeType : fileUrl.substring(fileUrl.indexOf(":") + 1, fileUrl.indexOf(";base64")) // data:<mime-type>;base64,<data>
 	return supportedMimeTypes.includes(mimeType)
 }
 
@@ -27,7 +30,7 @@ export const validateFileInputs = (chatRequest: ChatRequest, APP_CONFIG: AppConf
 
 	const fileInputs = lastMessage.content.filter((contentItem) => contentItem.type === "input_file" || contentItem.type === "input_image")
 	for (const fileInput of fileInputs.slice(-1)) {
-		if (!validFileType(fileInput.type === "input_file" ? fileInput.fileUrl : fileInput.imageUrl, supportedMimeTypes)) {
+		if (!validFileType(fileInput, supportedMimeTypes)) {
 			throw new HTTPError(400, `File type of uploaded file is not supported for vendor/model: ${chatRequest.config.vendorId}-${chatRequest.config.model}`)
 		}
 	}
@@ -41,11 +44,8 @@ export const validateFileInputs = (chatRequest: ChatRequest, APP_CONFIG: AppConf
 			continue
 		}
 		inputItem.content = inputItem.content.filter((contentItem) => {
-			if (contentItem.type === "input_file") {
-				return validFileType(contentItem.fileUrl, supportedMimeTypes)
-			}
-			if (contentItem.type === "input_image") {
-				return validFileType(contentItem.imageUrl, supportedMimeTypes)
+			if (contentItem.type === "input_file" || contentItem.type === "input_image") {
+				return validFileType(contentItem, supportedMimeTypes)
 			}
 			return true
 		})

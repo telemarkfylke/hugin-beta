@@ -150,6 +150,15 @@ const supahChat: ApiNextFunction = async ({ requestEvent, user }) => {
 	}
 	// After the history prepend, so it covers both stored history and the incognito client-sent one
 	chatRequest.inputs = await stripUnarmedAttachments(chatRequest.inputs, chatRequest.armedAttachments)
+	// Only now, so just the attachments actually being sent are read from storage. An incognito turn on a
+	// loaded stored conversation sends its refs too - the client still passes the conversation id then,
+	// and only the user's own conversation has anything to load. Whatever can't be loaded is sent as a note.
+	const attachmentConversationId = huginConversationId ?? (typeof chatRequest.huginConversationId === "string" ? chatRequest.huginConversationId : undefined)
+	try {
+		chatRequest.inputs = await getConversationManager().loadStoredAttachments(chatRequest.inputs, attachmentConversationId, user)
+	} catch (error) {
+		logger.errorException(error, "Failed to load stored attachments - continuing without them")
+	}
 
 	const datasourceToolActive = chatRequest.config.tools?.some((t) => t.type === "datasource") ?? false
 	const ragStoreIds = datasourceToolActive ? (chatRequest.config.dataSources?.filter((s) => s.type === "ragservice").map((s) => s.id) ?? []) : []

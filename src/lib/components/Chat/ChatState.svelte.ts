@@ -13,10 +13,10 @@ import type { AppConfig } from "$lib/types/app-config"
 import type { AuthenticatedPrincipal } from "$lib/types/authentication"
 import type { Chat, ChatConfig, ChatHistory, ChatRequest, ChatResponseObject } from "$lib/types/chat"
 import type { ChatInputItem } from "$lib/types/chat-item"
-import type { InputFile, InputImage } from "$lib/types/chat-item-content"
+import type { InputFile, InputImage, InputText } from "$lib/types/chat-item-content"
 import { postChatMessage } from "./PostChatMessage.svelte"
 
-const fileToBase64Url = (file: File): Promise<string> => {
+const fileToBase64Url = (file: Blob): Promise<string> => {
 	return new Promise((resolve, reject) => {
 		const reader = new FileReader()
 		reader.readAsDataURL(file)
@@ -307,6 +307,42 @@ export class ChatState {
 		}
 	}
 
+	// The history with every stored attachment (ref, see $lib/conversationattachments) fetched and put back
+	// inline as a data URL, ref removed - a .kráa export must stand on its own, outside this conversation.
+	// An attachment that can't be fetched is replaced by a short note rather than failing the export.
+	public historyWithInlineAttachments = async (): Promise<ChatHistory> => {
+		const conversationId = this.chat._id
+		const inlinePart = async (part: InputFile | InputImage): Promise<InputFile | InputImage | InputText> => {
+			const url = part.type === "input_file" ? part.fileUrl : part.imageUrl
+			if (!part.ref || url !== "") {
+				return part
+			}
+			const name = part.type === "input_file" ? `«${part.fileName}»` : "(bilde)"
+			try {
+				if (!conversationId) {
+					throw new Error("No conversation to fetch the attachment from")
+				}
+				const result = await fetch(`/api/conversation-attachments/${encodeURIComponent(conversationId)}/${encodeURIComponent(part.ref.objectId)}`)
+				if (!result.ok) {
+					throw new Error(`${result.status} ${result.statusText}`)
+				}
+				// The stored type, not the response's - non-images are served as application/octet-stream
+				const dataUrl = await fileToBase64Url(new Blob([await result.arrayBuffer()], { type: part.ref.mimeType }))
+				return part.type === "input_file" ? { type: "input_file", fileName: part.fileName, fileUrl: dataUrl } : { type: "input_image", imageUrl: dataUrl }
+			} catch (error) {
+				console.error("Could not fetch attachment for export:", error)
+				return { type: "input_text", text: `[Vedlegg ${name} kunne ikke tas med i eksporten.]` }
+			}
+		}
+		return Promise.all(
+			this.chat.history.map(async (item) =>
+				item.type === "message.input"
+					? { ...item, content: await Promise.all(item.content.map((part) => (part.type === "input_file" || part.type === "input_image" ? inlinePart(part) : part))) }
+					: item
+			)
+		)
+	}
+
 	// Persists the current in-memory history (e.g. an imported .kráa file, or a conversation that has
 	// been incognito - and so never got a conversationId - since its very first message) as a brand
 	// new, real conversation. Independent of the storeChat toggle: this fires once, on demand, rather
@@ -487,7 +523,9 @@ export class ChatState {
 			inputs: effectiveStoreChat ? [userMessage] : await stripUnarmedAttachments([...chatInput, userMessage], armedForThisTurn),
 			stream: this.streamResponse,
 			store: effectiveStoreChat,
-			huginConversationId: effectiveStoreChat ? this.chat._id || undefined : undefined,
+			// Sent in incognito too when the conversation is a stored one: the server only stores with store=true,
+			// but needs the id to load the stored attachments (refs) this history may contain
+			huginConversationId: this.chat._id || undefined,
 			armedAttachments: armedForThisTurn
 		}
 

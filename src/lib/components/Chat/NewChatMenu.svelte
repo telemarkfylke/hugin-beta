@@ -69,7 +69,8 @@
 	const saveConversation = async () => {
 		menuState = "closed"
 
-		const ravenFile: RavenFile = { meta: { fileversion: 1 }, history: chatState.chat.history }
+		// Stored attachments are fetched and put back inline - the file must work without this conversation
+		const ravenFile: RavenFile = { meta: { fileversion: 1 }, history: await chatState.historyWithInlineAttachments() }
 		const content = JSON.stringify(ravenFile)
 
 		const blob = new Blob([content], { type: "text/plain" })
