@@ -1,6 +1,6 @@
 import { json, type RequestHandler } from "@sveltejs/kit"
 import { canManageMcpSources } from "$lib/authorization"
-import { getSharepointMcpClient } from "$lib/server/mcp/mcp-client"
+import { callSharepointAdminTool } from "$lib/server/mcp/call-sharepoint-admin-tool"
 import { parseListNames } from "$lib/server/mcp/parse-sharepoint-list-names"
 import { HTTPError } from "$lib/server/middleware/http-error"
 import { apiRequestMiddleware } from "$lib/server/middleware/http-request"
@@ -18,12 +18,7 @@ const listSharePointLists: ApiNextFunction = async ({ user }) => {
 		throw new HTTPError(403, "Not authorized to browse SharePoint")
 	}
 
-	const client = await getSharepointMcpClient()
-	if (!client) {
-		throw new HTTPError(503, "SharePoint MCP is not configured")
-	}
-
-	const text = await client.callTool("List_SharePoint_Lists", {})
+	const text = await callSharepointAdminTool("List_SharePoint_Lists", {})
 	const lists = parseListNames(text)
 
 	return {

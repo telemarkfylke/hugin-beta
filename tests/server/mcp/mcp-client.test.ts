@@ -111,3 +111,34 @@ describe("getSharepointMcpClient reconnection", () => {
 		expect(client4).not.toBe(client3)
 	})
 })
+
+describe("getSharepointMcpClient connect failure", () => {
+	it("logs error.cause (the real reason behind 'fetch failed') and allows a retry", async () => {
+		const { logger } = await import("@vestfoldfylke/loglady")
+		const errorSpy = vi.spyOn(logger, "error").mockImplementation(() => undefined as never)
+		vi.spyOn(logger, "errorException").mockImplementation(() => undefined as never)
+
+		vi.resetModules()
+		const { getSharepointMcpClient } = await import("../../../src/lib/server/mcp/mcp-client")
+		const before = sdkClientInstances.length
+		const { Client: MockedClient } = await import("@modelcontextprotocol/sdk/client/index.js")
+		vi.mocked(MockedClient).mockImplementationOnce(function Client() {
+			const instance = {
+				connect: vi.fn().mockRejectedValue(new TypeError("fetch failed", { cause: new Error("certificate has expired") })),
+				listTools: vi.fn(),
+				callTool: vi.fn()
+			}
+			sdkClientInstances.push(instance)
+			return instance
+		} as never)
+
+		await expect(getSharepointMcpClient()).rejects.toThrow("fetch failed")
+
+		expect(errorSpy.mock.calls.flat().join(" ")).toContain("certificate has expired")
+
+		// failure must not be cached: next call reconnects
+		await expect(getSharepointMcpClient()).resolves.toBeTruthy()
+		expect(sdkClientInstances.length).toBe(before + 2)
+		vi.restoreAllMocks()
+	})
+})

@@ -1,3 +1,4 @@
+import { logger } from "@vestfoldfylke/loglady"
 import type { McpSource } from "$lib/types/mcp-source"
 import type { McpClient } from "./mcp-client"
 import { getSharepointMcpClient } from "./mcp-client"
@@ -22,7 +23,15 @@ export const buildMcpToolClients = async (sources: McpSource[]): Promise<BuildMc
 
 	const sharepointSources = sources.filter((source): source is Extract<McpSource, { server: "sharepoint" }> => source.server === "sharepoint")
 	if (sharepointSources.length > 0) {
-		const baseClient = await getSharepointMcpClient()
+		// getSharepointMcpClient() throws when connecting fails (token, network, TLS, handshake) and returns
+		// null only when MCP isn't configured. Both mean "unavailable" here - the caller degrades gracefully
+		// instead of the exception becoming a bare HTTP 500. The real error is already logged by mcp-client.
+		let baseClient: McpClient | null = null
+		try {
+			baseClient = await getSharepointMcpClient()
+		} catch (error) {
+			logger.warn("[mcp] SharePoint MCP unavailable, degrading: {message}", error instanceof Error ? error.message : String(error))
+		}
 		if (!baseClient) {
 			unavailable = true
 		} else {

@@ -114,6 +114,10 @@ export const getSharepointMcpClient = (): Promise<McpClient | null> => {
 	if (!clientPromise) {
 		clientPromise = connect().catch((error: unknown) => {
 			logger.errorException(error, "[mcp-client] Failed to connect to SharePoint MCP server")
+			// Node's fetch only reports "fetch failed"; the real reason (TLS, DNS, refused...) is in error.cause.
+			if (error instanceof Error && error.cause) {
+				logger.error("[mcp-client] Connect failure cause: {cause}", error.cause instanceof Error ? `${error.cause.name}: ${error.cause.message}` : String(error.cause))
+			}
 			clientPromise = null
 			throw error
 		})
