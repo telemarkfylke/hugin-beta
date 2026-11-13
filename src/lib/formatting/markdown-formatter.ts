@@ -3,6 +3,7 @@ import markdownit from "markdown-it"
 import "highlight.js/styles/a11y-light.min.css"
 import "katex/dist/katex.min.css"
 import markdownKatex from "@vscode/markdown-it-katex"
+import { stripCitationMarkers } from "./strip-citation-markers"
 
 // Wrap in pre code
 const wrapInPreCode = (content: string): string => {
@@ -60,6 +61,6 @@ const addKatexToMathStrings = (text: string): string => {
 }
 
 export const markdownFormatter = (text: string): string => {
-	const withKatex = addKatexToMathStrings(text)
+	const withKatex = addKatexToMathStrings(stripCitationMarkers(text))
 	return md.render(withKatex)
 }
