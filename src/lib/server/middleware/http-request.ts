@@ -2,6 +2,7 @@ import { json, type RequestEvent, error as svelteError } from "@sveltejs/kit"
 import { logger } from "@vestfoldfylke/loglady"
 import type { AuthenticatedPrincipal } from "$lib/types/authentication"
 import type { ApiNextFunction, ServerLoadNextFunction } from "$lib/types/middleware/http-request"
+import { isUserInBlockedGroup } from "../auth/blocked-groups"
 import { getAuthenticatedPrincipal } from "../auth/get-authenticated-user"
 import { MOCK_AUTH, MOCK_AUTH_FORCE_403 } from "../auth/mock-authenticated-user"
 import { HTTPError } from "./http-error"
@@ -48,6 +49,10 @@ export const apiRequestMiddleware = async (requestEvent: RequestEvent, next: Api
 			return json({ message: "Forbidden" }, { status: 403 })
 		}
 		return json({ message: "Unauthorized" }, { status: 401 })
+	}
+	if (await isUserInBlockedGroup(user)) {
+		logger.warn(`${loggerPrefix} - User {userId} is a member of a group blocked via BLOCKED_GROUPS`, user.userId)
+		return json({ message: "Forbidden" }, { status: 403 })
 	}
 	if (MOCK_AUTH && MOCK_AUTH_FORCE_403) {
 		logger.warn(`${loggerPrefix} - MOCK_AUTH_FORCE_403 is enabled, returning 403`)
@@ -101,6 +106,10 @@ export const serverLoadRequestMiddleware = async <T>(requestEvent: RequestEvent,
 			svelteError(403, "Forbidden")
 		}
 		svelteError(401, "Unauthorized")
+	}
+	if (await isUserInBlockedGroup(user)) {
+		logger.warn(`${loggerPrefix} - User {userId} is a member of a group blocked via BLOCKED_GROUPS`, user.userId)
+		svelteError(403, "Forbidden")
 	}
 	let data: T
 	let isAuthorized: boolean

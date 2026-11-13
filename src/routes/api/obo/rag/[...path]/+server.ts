@@ -2,6 +2,7 @@ import { error, type RequestHandler } from "@sveltejs/kit"
 import { env } from "$env/dynamic/private"
 import { hasFeature } from "$lib/featureflags/server/feature-access"
 import { MS_AUTH_TOKEN_HEADER } from "$lib/server/auth/auth-constants"
+import { isUserInBlockedGroup } from "$lib/server/auth/blocked-groups"
 import { getAuthenticatedPrincipal } from "$lib/server/auth/get-authenticated-user"
 import { getUserGroups } from "$lib/server/auth/get-user-groups"
 import { getRagToken } from "$lib/server/ragservice/get-rag-token"
@@ -17,6 +18,9 @@ async function proxyToRag(request: Request, path: string, url: URL): Promise<Res
 		error(401, "Ikke autentisert")
 	}
 	const userId = principal.userId
+	if (await isUserInBlockedGroup(principal)) {
+		error(403, "Ingen tilgang")
+	}
 
 	// Employees and admins only - anyone let through here can also create their own libraries,
 	// which nothing else here would stop (existing libraries are gated per-store via AccessRow).
